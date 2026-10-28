@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#080b0d" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="alma-mobile-build" content="0.1.0" />
+    <script>
+      ;(() => {
+        localStorage.removeItem('alma-mobile.fullscreen.v1')
+        const root = document.documentElement
+        root.style.setProperty('--native-safe-top', '0px')
+        root.style.setProperty('--native-safe-right', '0px')
+        root.style.setProperty('--native-safe-bottom', '0px')
+        root.style.setProperty('--native-safe-left', '0px')
+      })()
+    </script>
+    <title>Alma Mobile</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,21 @@
+node_modules/
+dist/
+dev-dist/
+.vite/
+.DS_Store
+*.log
+.env*
+coverage/
+artifacts/
+keystore.properties
+*.jks
+*.keystore
+google-services.json
+android/.gradle/
+android/.idea/
+android/build/
+android/app/build/
+android/local.properties
+
+# TypeScript incremental build info
+*.tsbuildinfo

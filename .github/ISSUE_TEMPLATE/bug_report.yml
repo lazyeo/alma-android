@@ -1,0 +1,93 @@
+name: Bug report
+description: Report a reproducible problem in Alma Android
+title: '[Bug]: '
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. **Remove every pairing link, connect code, token, private message, and sensitive file path from screenshots and logs.** A pairing link grants full access to the desktop.
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: Copy this from Settings › About.
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: android-version
+    attributes:
+      label: Android version
+      placeholder: Android 16
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device model
+      placeholder: Google Pixel 9
+    validations:
+      required: true
+  - type: dropdown
+    id: foldable
+    attributes:
+      label: Foldable device?
+      options:
+        - 'No'
+        - 'Yes'
+    validations:
+      required: true
+  - type: input
+    id: desktop-version
+    attributes:
+      label: Alma Desktop version
+      placeholder: 0.x.y
+    validations:
+      required: true
+  - type: dropdown
+    id: connection
+    attributes:
+      label: How did you connect?
+      options:
+        - Scanned the desktop QR code
+        - Pasted the desktop pairing link
+        - Existing saved pairing
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open …
+        2. Tap …
+        3. Observe …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs or screenshots
+      description: Remove pairing links, connect codes, tokens, private content, and sensitive paths before attaching anything.
+  - type: checkboxes
+    id: existing
+    attributes:
+      label: Existing issues
+      options:
+        - label: I searched existing issues and did not find this problem.
+          required: true

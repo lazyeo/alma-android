@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+
+    <!-- System chooser titles -->
+    <string name="file_chooser_share">分享文件</string>
+    <string name="file_chooser_open">打开文件</string>
+
+    <!-- Text selection toolbar -->
+    <string name="selection_menu_quote">引述</string>
+    <string name="selection_menu_mention">提及</string>
+
+    <!-- Direct Share shortcut long label. %1$s: thread title, %2$s: desktop name -->
+    <string name="share_shortcut_long_label">%1$s（%2$s）</string>
+</resources>
