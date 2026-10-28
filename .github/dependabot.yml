@@ -1,9 +1,14 @@
 version: 2
 updates:
+  # Major upgrades are done by hand; Dependabot only proposes minor/patch.
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
     groups:
       npm-minor-patch:
         update-types:
@@ -14,6 +19,15 @@ updates:
     directory: /android
     schedule:
       interval: weekly
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+    groups:
+      gradle-minor-patch:
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: github-actions
     directory: /
