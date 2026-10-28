@@ -123,3 +123,21 @@ it.each([
   if (tag === 'video') expect(element?.hasAttribute('playsinline')).toBe(true)
   expect(document.querySelector('svg[onload]')).toBeNull()
 })
+
+it('keeps all actions when a file exceeds its preview limit', async () => {
+  files['/large.svg'] = {
+    body: 'x'.repeat(1024 * 1024 + 1),
+    type: 'image/svg+xml',
+  }
+  render(
+    <FileLinkProvider>
+      <Opener path="/large.svg" />
+    </FileLinkProvider>,
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+  expect(await screen.findByText('File is too large to preview')).toBeTruthy()
+  expect(screen.getByRole('button', { name: /Open with/ })).toBeTruthy()
+  expect(screen.getByRole('button', { name: /Share/ })).toBeTruthy()
+  expect(screen.getByRole('button', { name: /Save/ })).toBeTruthy()
+  expect(document.querySelector('img[src="blob:file"]')).toBeNull()
+})

@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Size-bounded file previews and lazy PDF canvas rendering with a bundled worker, fit-width, zoom, and page navigation status.
+
 - Native audio/video controls and isolated SVG image previews, with navigation-safe Blob URL cleanup.
 
 - Shared Markdown previews support local KaTeX math and lazy, isolated Mermaid diagrams with source fallback.

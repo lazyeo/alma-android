@@ -1,5 +1,7 @@
 import {
   createContext,
+  lazy,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -9,7 +11,8 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react'
-import { previewKind, previewMime } from './filePreview'
+import { previewKind, previewMime, previewPolicy } from './filePreview'
+import { PreviewBoundary } from './PreviewBoundary'
 import { useObjectUrl } from './useObjectUrl'
 import { Download, ExternalLink, Share2 } from 'lucide-react'
 import { BottomSheet } from '../components/BottomSheet'
@@ -41,6 +44,8 @@ import {
   type DesktopFile,
   type FileHref,
 } from './localFiles'
+
+const PdfFilePreview = lazy(() => import('./PdfFilePreview'))
 
 interface FileLinkContextValue {
   handleFileLink(href: string, event?: MouseEvent<HTMLAnchorElement>): void
@@ -363,6 +368,20 @@ function FileSheetBody({
       </div>
     )
   if (!state.file || !url) return null
+  const policy = previewPolicy(
+    state.file.name,
+    state.file.mimeType,
+    state.file.size,
+  )
+  if (policy.status === 'too-large')
+    return (
+      <div className="file-link-state">
+        <strong>{t('files.rich.tooLarge')}</strong>
+        <span>
+          {t('files.rich.tooLargeDetail', { limit: formatBytes(policy.limit) })}
+        </span>
+      </div>
+    )
   const kind = previewKind(state.file.name, state.file.mimeType)
   if (kind === 'audio')
     return (
@@ -406,11 +425,16 @@ function FileSheetBody({
     )
   if (state.file.mimeType.startsWith('image/'))
     return <img className="file-link-image" src={url} alt={state.file.name} />
-  if (state.file.mimeType === 'application/pdf')
+  if (kind === 'pdf')
     return (
-      <object className="file-link-pdf" data={url} type="application/pdf">
-        {t('files.link.pdfUnavailable')}
-      </object>
+      <PreviewBoundary
+        key={state.file.path}
+        fallback={<p role="status">{t('files.rich.failed')}</p>}
+      >
+        <Suspense fallback={<p>{t('files.link.loading')}</p>}>
+          <PdfFilePreview file={state.file} />
+        </Suspense>
+      </PreviewBoundary>
     )
   if (state.text !== undefined)
     return <pre className="file-link-text">{state.text}</pre>

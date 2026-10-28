@@ -8140,3 +8140,28 @@ dialog:focus,
   width: 100%;
   max-height: 65dvh;
 }
+.pdf-preview {
+  width: 100%;
+  min-width: 0;
+}
+.preview-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.5rem;
+}
+.pdf-scroll {
+  height: 60dvh;
+  overflow: auto;
+  padding: 12px;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
+}
+.pdf-page {
+  padding-bottom: 16px;
+}
+.pdf-page canvas {
+  display: block;
+  background: white;
+}

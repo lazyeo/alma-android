@@ -19,3 +19,32 @@ export function previewKind(name: string, mime: string) {
   if (isTextPreview(mime, name)) return 'text'
   return 'none'
 }
+
+export type PreviewKind = ReturnType<typeof previewKind>
+const MiB = 1024 * 1024
+export const PREVIEW_LIMITS: Record<Exclude<PreviewKind, 'none'>, number> = {
+  html: MiB,
+  markdown: MiB,
+  text: MiB,
+  svg: MiB,
+  image: 10 * MiB,
+  audio: 50 * MiB,
+  video: 50 * MiB,
+  pdf: 20 * MiB,
+}
+export type PreviewPolicy =
+  | { status: 'unsupported'; kind: 'none' }
+  | { status: 'ready'; kind: Exclude<PreviewKind, 'none'> }
+  | { status: 'too-large'; kind: Exclude<PreviewKind, 'none'>; limit: number }
+export function previewPolicy(
+  name: string,
+  mime: string,
+  size: number,
+): PreviewPolicy {
+  const kind = previewKind(name, mime)
+  if (kind === 'none') return { status: 'unsupported', kind }
+  const limit = PREVIEW_LIMITS[kind]
+  return size > limit
+    ? { status: 'too-large', kind, limit }
+    : { status: 'ready', kind }
+}

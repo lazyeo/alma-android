@@ -2,6 +2,15 @@
 // and relay images.
 export const files = {
   rich: {
+    tooLarge: 'File is too large to preview',
+    tooLargeDetail:
+      'Preview limit: {limit}. You can still open, share, or save this file.',
+    failed:
+      'Preview unavailable. You can still open, share, or save this file.',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    fitWidth: 'Fit width',
+    page: 'Page {page} of {total}',
     diagram: 'Diagram',
     diagramFailed: 'Diagram could not be rendered. Source is available below.',
     showSource: 'Show source',

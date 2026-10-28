@@ -3,6 +3,13 @@ import type { files as source } from '../en/files'
 
 export const files: CatalogShape<typeof source> = {
   rich: {
+    tooLarge: '文件过大，无法预览',
+    tooLargeDetail: '预览上限：{limit}。仍可打开、分享或保存文件。',
+    failed: '无法预览，仍可打开、分享或保存文件。',
+    zoomIn: '放大',
+    zoomOut: '缩小',
+    fitWidth: '适应宽度',
+    page: '第 {page} 页，共 {total} 页',
     diagram: '图表',
     diagramFailed: '无法渲染图表，可查看下方源码。',
     showSource: '显示源码',
