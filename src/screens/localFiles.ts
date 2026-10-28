@@ -54,6 +54,18 @@ export function classifyFileHref(href: string, desktopHome?: string): FileHref {
 }
 
 const MIME_BY_EXTENSION: Record<string, string> = {
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  aac: 'audio/aac',
+  wav: 'audio/wav',
+  ogg: 'audio/ogg',
+  flac: 'audio/flac',
+  opus: 'audio/ogg',
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  mov: 'video/quicktime',
+  m4v: 'video/mp4',
+  ogv: 'video/ogg',
   apng: 'image/apng',
   avif: 'image/avif',
   bmp: 'image/bmp',

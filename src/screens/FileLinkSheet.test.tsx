@@ -99,3 +99,27 @@ it('renders markdown files with Preview and Source segments', async () => {
   fireEvent.click(screen.getByRole('tab', { name: 'Source' }))
   expect(await screen.findByText('# Notes')).toBeTruthy()
 })
+
+it.each([
+  ['sound.mp3', 'audio'],
+  ['clip.mp4', 'video'],
+  ['drawing.svg', 'img'],
+])('renders %s safely with retained actions', async (name, tag) => {
+  const path = `/home/example/${name}`
+  files[path] = {
+    body: '<svg onload="alert(1)"/>',
+    type: 'application/octet-stream',
+  }
+  render(
+    <FileLinkProvider>
+      <Opener path={path} />
+    </FileLinkProvider>,
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+  await screen.findByRole('button', { name: /Open with/ })
+  const element = document.querySelector(`${tag}[src="blob:file"]`)
+  expect(element).toBeTruthy()
+  if (tag !== 'img') expect(element?.hasAttribute('controls')).toBe(true)
+  if (tag === 'video') expect(element?.hasAttribute('playsinline')).toBe(true)
+  expect(document.querySelector('svg[onload]')).toBeNull()
+})

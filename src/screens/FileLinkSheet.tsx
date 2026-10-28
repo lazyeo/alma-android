@@ -4,10 +4,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type MouseEvent,
   type ReactNode,
 } from 'react'
+import { previewKind, previewMime } from './filePreview'
+import { useObjectUrl } from './useObjectUrl'
 import { Download, ExternalLink, Share2 } from 'lucide-react'
 import { BottomSheet } from '../components/BottomSheet'
 import { useConnection } from '../desktops/DesktopContext'
@@ -57,7 +60,6 @@ interface SheetState {
   anchor?: string
   status: 'loading' | 'ready' | 'error' | 'unresolved'
   file?: DesktopFile
-  url?: string
   text?: string
   error?: { title: string; detail: string }
   nativeToken?: string
@@ -85,30 +87,39 @@ export function FileLinkProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<SheetState[]>([])
 
   const close = useCallback(() => {
+    requestId.current++
     setState(undefined)
     setHistory([])
   }, [])
 
+  const requestId = useRef(0)
+  const blob = useMemo(
+    () =>
+      state?.file
+        ? new Blob([state.file.bytes.slice().buffer as ArrayBuffer], {
+            type: previewMime(state.file.name, state.file.mimeType),
+          })
+        : undefined,
+    [state?.file],
+  )
+  const fileUrl = useObjectUrl(blob)
   useEffect(
     () => () => {
-      if (state?.url) URL.revokeObjectURL(state.url)
+      requestId.current++
     },
-    [state?.url],
+    [],
   )
 
   const loadLocalFile = useCallback(
     (path: string, anchor?: string, pushHistory = false) => {
+      const request = ++requestId.current
       setState((current) => {
         if (pushHistory && current) setHistory((items) => [...items, current])
-        if (current?.url) URL.revokeObjectURL(current.url)
         return { path, anchor, status: 'loading' }
       })
       fetchDesktopFile(api, path)
         .then((file) => {
-          const blob = new Blob([file.bytes.slice().buffer as ArrayBuffer], {
-            type: file.mimeType,
-          })
-          const url = URL.createObjectURL(blob)
+          if (request !== requestId.current) return
           const text =
             isTextPreview(file.mimeType, file.name) &&
             file.size <= TEXT_PREVIEW_LIMIT
@@ -116,13 +127,13 @@ export function FileLinkProvider({ children }: { children: ReactNode }) {
               : undefined
           setState((current) =>
             current?.path === path
-              ? { path, anchor, status: 'ready', file, url, text }
+              ? { path, anchor, status: 'ready', file, text }
               : current,
           )
         })
         .catch((error) =>
           setState((current) =>
-            current?.path === path
+            request === requestId.current && current?.path === path
               ? { path, status: 'error', error: fileErrorPresentation(error) }
               : current,
           ),
@@ -143,10 +154,8 @@ export function FileLinkProvider({ children }: { children: ReactNode }) {
     const previous = history.at(-1)
     if (!previous) return
     setHistory((items) => items.slice(0, -1))
-    setState((current) => {
-      if (current?.url) URL.revokeObjectURL(current.url)
-      return previous
-    })
+    requestId.current++
+    setState(previous)
   }, [history])
 
   useEffect(() => {
@@ -211,13 +220,13 @@ export function FileLinkProvider({ children }: { children: ReactNode }) {
   }, [state])
 
   const webDownload = useCallback(() => {
-    if (!state?.url || !state.file) return
+    if (!fileUrl || !state?.file) return
     const anchor = document.createElement('a')
-    anchor.href = state.url
+    anchor.href = fileUrl
     anchor.download = state.file.name
     anchor.rel = 'noopener'
     anchor.click()
-  }, [state])
+  }, [state, fileUrl])
 
   const action = useCallback(
     async (kind: 'open' | 'share' | 'save') => {
@@ -308,6 +317,7 @@ export function FileLinkProvider({ children }: { children: ReactNode }) {
         >
           <FileSheetBody
             state={state}
+            url={fileUrl}
             api={api}
             openFile={replaceLocalFile}
             retry={() => loadLocalFile(state.path, state.anchor)}
@@ -320,11 +330,13 @@ export function FileLinkProvider({ children }: { children: ReactNode }) {
 
 function FileSheetBody({
   state,
+  url,
   api,
   openFile,
   retry,
 }: {
   state: SheetState
+  url?: string
   api: Pick<AlmaApi, 'tunnel'>
   openFile: (path: string, anchor?: string) => void
   retry: () => void
@@ -350,7 +362,31 @@ function FileSheetBody({
         ) : null}
       </div>
     )
-  if (!state.file || !state.url) return null
+  if (!state.file || !url) return null
+  const kind = previewKind(state.file.name, state.file.mimeType)
+  if (kind === 'audio')
+    return (
+      <audio
+        className="file-link-media"
+        controls
+        preload="metadata"
+        src={url}
+        aria-label={state.file.name}
+      />
+    )
+  if (kind === 'video')
+    return (
+      <video
+        className="file-link-media"
+        controls
+        playsInline
+        preload="metadata"
+        src={url}
+        aria-label={state.file.name}
+      />
+    )
+  if (kind === 'svg')
+    return <img className="file-link-image" src={url} alt={state.file.name} />
   if (isHtmlFile(state.file.name))
     return (
       <HtmlFilePreview
@@ -369,12 +405,10 @@ function FileSheetBody({
       />
     )
   if (state.file.mimeType.startsWith('image/'))
-    return (
-      <img className="file-link-image" src={state.url} alt={state.file.name} />
-    )
+    return <img className="file-link-image" src={url} alt={state.file.name} />
   if (state.file.mimeType === 'application/pdf')
     return (
-      <object className="file-link-pdf" data={state.url} type="application/pdf">
+      <object className="file-link-pdf" data={url} type="application/pdf">
         {t('files.link.pdfUnavailable')}
       </object>
     )
