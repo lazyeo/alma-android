@@ -1,5 +1,11 @@
 import { Check, Copy } from 'lucide-react'
-import { useEffect, useRef, useState, type ComponentProps } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from 'react'
 import { copyText } from '../clipboard'
 import { haptic } from '../haptics'
 import { useT } from '../i18n'
@@ -34,8 +40,19 @@ export function codeBlockText(element: HTMLElement | null) {
 export function CodeBlock({
   node,
   children,
+  actions,
+  preview,
+  showCode = true,
   ...props
-}: ComponentProps<'pre'> & { node?: unknown }) {
+}: ComponentProps<'pre'> & {
+  node?: unknown
+  /** Extra header controls, placed before Copy. */
+  actions?: ReactNode
+  /** Rendered output for the fence (e.g. a diagram), shown above the code. */
+  preview?: ReactNode
+  /** Hide the code when a preview stands in for it; Copy still copies it. */
+  showCode?: boolean
+}) {
   const preRef = useRef<HTMLPreElement>(null)
   const t = useT()
   const [copied, setCopied] = useState(false)
@@ -53,26 +70,30 @@ export function CodeBlock({
         <span className="code-block-language">
           {language ?? t('message.code.language')}
         </span>
-        <button
-          type="button"
-          className={`code-block-copy${copied ? ' copied' : ''}`}
-          aria-label={t(copied ? 'message.code.copied' : 'message.code.copy')}
-          onClick={() => {
-            void haptic('light')
-            void copyText(codeBlockText(preRef.current)).then(() =>
-              setCopied(true),
-            )
-          }}
-        >
-          {copied ? (
-            <Check size={14} aria-hidden="true" />
-          ) : (
-            <Copy size={14} aria-hidden="true" />
-          )}
-          <span>{t(copied ? 'common.copied' : 'common.copy')}</span>
-        </button>
+        <span className="code-block-actions">
+          {actions}
+          <button
+            type="button"
+            className={`code-block-copy${copied ? ' copied' : ''}`}
+            aria-label={t(copied ? 'message.code.copied' : 'message.code.copy')}
+            onClick={() => {
+              void haptic('light')
+              void copyText(codeBlockText(preRef.current)).then(() =>
+                setCopied(true),
+              )
+            }}
+          >
+            {copied ? (
+              <Check size={14} aria-hidden="true" />
+            ) : (
+              <Copy size={14} aria-hidden="true" />
+            )}
+            <span>{t(copied ? 'common.copied' : 'common.copy')}</span>
+          </button>
+        </span>
       </div>
-      <pre ref={preRef} {...props}>
+      {preview}
+      <pre ref={preRef} hidden={!showCode} {...props}>
         {children}
       </pre>
     </div>

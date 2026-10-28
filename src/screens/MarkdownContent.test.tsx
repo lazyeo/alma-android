@@ -47,7 +47,7 @@ it('debounces closed Mermaid fences and retains a copyable source toggle', async
     expect.objectContaining({ securityLevel: 'strict' }),
   )
   expect(screen.getByRole('img').getAttribute('src')).toBe('blob:diagram')
-  act(() => screen.getByText('Show source').click())
+  act(() => screen.getByRole('button', { name: 'Source' }).click())
   expect(screen.getByRole('button', { name: 'Copy code' })).toBeTruthy()
   unmount()
   expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:diagram')
@@ -73,12 +73,14 @@ it('preserves a completed Mermaid preview lifecycle when streaming appends text'
     await vi.advanceTimersByTimeAsync(350)
   })
   const image = screen.getByRole('img')
-  act(() => screen.getByText('Show source').click())
+  act(() => screen.getByRole('button', { name: 'Source' }).click())
 
   rerender(<MarkdownContent text={`${text} continues streaming.`} />)
   expect(URL.revokeObjectURL).not.toHaveBeenCalled()
+  act(() => screen.getByRole('button', { name: 'Diagram' }).click())
   expect(screen.getByRole('img')).toBe(image)
-  expect(screen.getByText('Hide source')).toBeTruthy()
+  act(() => screen.getByRole('button', { name: 'Source' }).click())
+  expect(screen.getByRole('button', { name: 'Diagram' })).toBeTruthy()
   expect(screen.getByRole('button', { name: 'Copy code' })).toBeTruthy()
   await act(async () => {
     await vi.advanceTimersByTimeAsync(500)

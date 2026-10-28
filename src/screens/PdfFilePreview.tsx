@@ -1,3 +1,4 @@
+import { MoveHorizontal, ZoomIn, ZoomOut } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist'
@@ -79,26 +80,34 @@ export default function PdfFilePreview({ file }: { file: DesktopFile }) {
       <div className="preview-toolbar">
         <button
           type="button"
+          className="quiet-icon-button"
           aria-label={t('files.rich.zoomOut')}
           disabled={zoom <= 0.5}
           onClick={() => updateZoom(zoom - 0.25)}
         >
-          −
+          <ZoomOut size={18} aria-hidden="true" />
         </button>
-        <button type="button" onClick={() => setZoom(1)}>
-          {t('files.rich.fitWidth')}
-        </button>
+        <span className="preview-toolbar-value">{Math.round(zoom * 100)}%</span>
         <button
           type="button"
+          className="quiet-icon-button"
           aria-label={t('files.rich.zoomIn')}
           disabled={zoom >= 3}
           onClick={() => updateZoom(zoom + 0.25)}
         >
-          +
+          <ZoomIn size={18} aria-hidden="true" />
         </button>
-        <span>{Math.round(zoom * 100)}%</span>
+        <button
+          type="button"
+          className="quiet-icon-button"
+          aria-label={t('files.rich.fitWidth')}
+          disabled={zoom === 1}
+          onClick={() => setZoom(1)}
+        >
+          <MoveHorizontal size={18} aria-hidden="true" />
+        </button>
         {pdf && (
-          <span aria-live="polite">
+          <span className="preview-toolbar-value end" aria-live="polite">
             {t('files.rich.page', { page, total: pdf.numPages })}
           </span>
         )}

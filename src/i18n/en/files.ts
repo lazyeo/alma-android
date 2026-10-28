@@ -17,9 +17,7 @@ export const files = {
     fitWidth: 'Fit width',
     page: 'Page {page} of {total}',
     diagram: 'Diagram',
-    diagramFailed: 'Diagram could not be rendered. Source is available below.',
-    showSource: 'Show source',
-    hideSource: 'Hide source',
+    diagramFailed: 'Diagram could not be rendered. Showing the source.',
   },
   sheet: {
     title: 'Files',

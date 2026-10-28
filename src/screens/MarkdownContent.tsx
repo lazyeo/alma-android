@@ -35,12 +35,12 @@ function MarkdownPre({
     code?.type === 'element' &&
     Array.isArray(code.properties.className) &&
     code.properties.className.includes('language-mermaid')
-  const block = (
-    <CodeBlock node={node} {...props}>
-      {children}
-    </CodeBlock>
-  )
-  if (!isMermaid) return block
+  if (!isMermaid)
+    return (
+      <CodeBlock node={node} {...props}>
+        {children}
+      </CodeBlock>
+    )
   const source = code.children
     .map((child) => (child.type === 'text' ? child.value : ''))
     .join('')
@@ -50,7 +50,11 @@ function MarkdownPre({
   )
   return (
     <MermaidPreview source={source} closed={closedFence(raw)}>
-      {block}
+      {(slots) => (
+        <CodeBlock node={node} {...props} {...slots}>
+          {children}
+        </CodeBlock>
+      )}
     </MermaidPreview>
   )
 }

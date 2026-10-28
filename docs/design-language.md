@@ -146,6 +146,22 @@ Semantic mapping is identical in both modes: background/sidebar → gray-1, card
 - Select text renders the message as markdown and leaves selection native (Android keeps its handles and Copy/Select all bar). In the Android app Quote and Mention are added to the system selection toolbar right after Copy (only while Select text is open) and there is no bottom bar; on the web a bottom bar of quiet full-width buttons adds Copy, Quote (appends a `>` block to the draft) and Mention (creates a desktop snippet and appends its token); they stay disabled until text inside the reader is selected. The message action sheet offers Mention message for the whole row.
 - Reply footers use one 28px minimum-height row: 12px gray-11 usage, Worked for, end reason, and the overflow action share one vertical centre, with the action pinned to the message content's right edge. Usage stays on one clipped line and yields its least important item before the action wraps; Total remains gray-12. The same structure applies in phone and two-pane layouts.
 
+## Buttons
+
+Never ship a bare `<button>` and rely on the browser look. A zero-specificity `:where(button)` reset strips the WebView bevel, but every new button still picks one of these:
+
+| Need                                                       | Use                                                                                                                                                                                 |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Page/overlay header action (back, close, more)             | `.header-icon-button` with a lucide icon; close is `X` at the end of the header, back is `ArrowLeft` at the start. Full-screen viewers (gallery, select text) follow the same rule. |
+| Toolbar icon inside content (zoom, full screen)            | `.quiet-icon-button` (40px, transparent, muted icon, `--gray-a3` press). Label it with `aria-label`.                                                                                |
+| Small text action inside content (Copy, Source, Try again) | `.quiet-text-button`, or `.code-block-copy` inside a code block header. Icon 14px + short label.                                                                                    |
+| Pick one of a few values in content (worksheets, filters)  | `.chip-button` with `aria-selected`/`aria-pressed`; scroll the row horizontally instead of wrapping.                                                                                |
+| Switch views of the same content (Preview / Source)        | `TabBar`, as in the HTML preview. Inside a code block, put the toggle in the code block header (`CodeBlock actions`).                                                               |
+| Settings action                                            | `SettingsRow` (see Settings).                                                                                                                                                       |
+| The one primary action of a sheet or form                  | The sheet footer primary button.                                                                                                                                                    |
+
+No borders, filled pills, or blurred glass on icon buttons; contrast comes from `--foreground`/`--muted-foreground`, and press feedback from the shared `:active` background.
+
 ## Copy, separators, and errors
 
 - Report exceptions, not the normal state. When an icon, colour, or position already communicates normal status, omit the duplicate visible label and preserve the text equivalent in the accessible name.

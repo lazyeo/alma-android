@@ -1,4 +1,6 @@
+import { Code, Workflow } from 'lucide-react'
 import { useEffect, useId, useState, type ReactNode } from 'react'
+import { haptic } from '../haptics'
 import { useT } from '../i18n'
 
 // Serialize initialize/render: Mermaid has process-global configuration.
@@ -10,7 +12,11 @@ export function MermaidPreview({
 }: {
   source: string
   closed: boolean
-  children: ReactNode
+  children: (slots: {
+    actions?: ReactNode
+    preview?: ReactNode
+    showCode: boolean
+  }) => ReactNode
 }) {
   const t = useT()
   const id = useId().replace(/:/g, '')
@@ -68,20 +74,41 @@ export function MermaidPreview({
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
   }, [source, closed, id, theme])
+  const actions = url ? (
+    <button
+      type="button"
+      className="code-block-copy"
+      aria-pressed={showSource}
+      onClick={() => {
+        void haptic('light')
+        setShowSource(!showSource)
+      }}
+    >
+      {showSource ? (
+        <Workflow size={14} aria-hidden="true" />
+      ) : (
+        <Code size={14} aria-hidden="true" />
+      )}
+      <span>
+        {t(showSource ? 'files.rich.diagram' : 'files.preview.tabSource')}
+      </span>
+    </button>
+  ) : undefined
+  // The image stays mounted while the source is shown so streaming updates
+  // and toggling never re-render the diagram.
+  const preview = url ? (
+    <div className="diagram-image" hidden={showSource}>
+      <img src={url} alt={t('files.rich.diagram')} />
+    </div>
+  ) : undefined
   return (
     <div className="mermaid-preview">
-      {url && (
-        <div className="diagram-image">
-          <img src={url} alt={t('files.rich.diagram')} />
-        </div>
+      {children({ actions, preview, showCode: !url || showSource })}
+      {failed && (
+        <p className="preview-note" role="status">
+          {t('files.rich.diagramFailed')}
+        </p>
       )}
-      {failed && <p role="status">{t('files.rich.diagramFailed')}</p>}
-      {url && (
-        <button type="button" onClick={() => setShowSource(!showSource)}>
-          {t(showSource ? 'files.rich.hideSource' : 'files.rich.showSource')}
-        </button>
-      )}
-      {(!url || showSource) && children}
     </div>
   )
 }

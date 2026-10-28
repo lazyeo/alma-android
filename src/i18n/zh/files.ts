@@ -16,9 +16,7 @@ export const files: CatalogShape<typeof source> = {
     fitWidth: '适应宽度',
     page: '第 {page} 页，共 {total} 页',
     diagram: '图表',
-    diagramFailed: '无法渲染图表，可查看下方源码。',
-    showSource: '显示源码',
-    hideSource: '隐藏源码',
+    diagramFailed: '无法渲染图表，已显示源码。',
   },
   sheet: {
     title: '文件',

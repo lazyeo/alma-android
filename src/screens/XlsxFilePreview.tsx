@@ -41,6 +41,7 @@ export default function XlsxFilePreview({ file }: { file: DesktopFile }) {
           <button
             key={name}
             type="button"
+            className="chip-button"
             role="tab"
             id={`${id}-tab-${index}`}
             aria-controls={`${id}-panel`}
