@@ -4,6 +4,8 @@ import { expect, it } from 'vitest'
 const root = new URL('../../', import.meta.url).pathname
 const skipped = new Set([
   'node_modules',
+  // Local parallel checkouts (gitignored) contain their own copy of this test.
+  '.worktrees',
   'build',
   '.gradle',
   'dist',
