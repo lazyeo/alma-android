@@ -144,7 +144,13 @@ function prepare(version) {
   const tag = `v${version}`
   if (git('tag', '--list', tag)) fail(`tag ${tag} already exists`)
 
-  const date = new Date().toISOString().slice(0, 10)
+  // Release date in the maintainer's local time zone, not UTC.
+  const now = new Date()
+  const date = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('-')
   const lockJson = readJson(lockPath)
   const changelog = updateCompareLinks(
     replaceUnreleased(readFileSync(changelogPath, 'utf8'), version, date),
