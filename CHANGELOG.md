@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Nothing yet.
+- Shared Markdown previews support local KaTeX math and lazy, isolated Mermaid diagrams with source fallback.
 
 ## [0.1.1] - 2026-10-29
 

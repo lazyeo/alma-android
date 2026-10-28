@@ -1,6 +1,12 @@
 // Files: the thread Files sheet, the file-link sheet, HTML/Markdown previews,
 // and relay images.
 export const files = {
+  rich: {
+    diagram: 'Diagram',
+    diagramFailed: 'Diagram could not be rendered. Source is available below.',
+    showSource: 'Show source',
+    hideSource: 'Hide source',
+  },
   sheet: {
     title: 'Files',
     delivered: 'Delivered',

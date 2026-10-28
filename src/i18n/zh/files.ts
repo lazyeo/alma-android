@@ -2,6 +2,12 @@ import type { CatalogShape } from '../core'
 import type { files as source } from '../en/files'
 
 export const files: CatalogShape<typeof source> = {
+  rich: {
+    diagram: '图表',
+    diagramFailed: '无法渲染图表，可查看下方源码。',
+    showSource: '显示源码',
+    hideSource: '隐藏源码',
+  },
   sheet: {
     title: '文件',
     delivered: '交付文件',

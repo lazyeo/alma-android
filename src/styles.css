@@ -8118,3 +8118,20 @@ dialog:focus,
 .settings-switch:disabled {
   opacity: 0.42;
 }
+
+.mermaid-preview {
+  min-width: 0;
+}
+.diagram-image {
+  overflow: auto;
+  contain: content;
+}
+.diagram-image img {
+  max-width: 100%;
+  height: auto;
+}
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5rem 0;
+}
