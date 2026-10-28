@@ -33,13 +33,7 @@ const ALLOWLIST: { file: string; text: string; reason: string }[] = [
   {
     file: 'screens/PairScreen.tsx',
     text: 'Alma',
-    reason: 'Brand name in the pair-screen logo and "Alma Mobile" wordmark',
-  },
-  {
-    file: 'screens/PairScreen.tsx',
-    text: 'Mobile',
-    reason:
-      'Second line of the "Alma Mobile" product wordmark (index.html title)',
+    reason: 'Brand name heading on the pair screen',
   },
   {
     file: 'screens/PairScreen.tsx',

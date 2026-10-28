@@ -49,7 +49,6 @@ export const connection: CatalogShape<typeof source> = {
     genericDetail: '请重试。',
   },
   pair: {
-    eyebrow: '安全远程控制台',
     lede: '随身带上你的桌面端智能体，而无需把桌面端搬上云。',
     linkLabel: '配对链接',
     connecting: '连接中…',

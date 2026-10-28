@@ -411,32 +411,28 @@ button {
     calc(54px + var(--safe-bottom)) max(22px, var(--safe-left));
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  position: relative;
 }
-.brand-mark {
-  width: 52px;
-  height: 52px;
-  border: var(--border-hairline) solid var(--gray-7);
-  display: grid;
-  place-items: center;
-  font-weight: var(--weight-semibold);
-  font-size: var(--text-display);
-  transform: rotate(-4deg);
-  margin-bottom: 34px;
-}
-.brand-mark span {
-  color: var(--acid);
+/* Same launcher-icon hero as the new-thread start screen. */
+.pair-launcher {
+  display: block;
+  margin: 0 auto 16px;
+  border-radius: var(--radius-lg);
 }
 .pair-screen h1 {
   font-size: var(--text-display);
   line-height: var(--leading-tight);
   letter-spacing: var(--tracking-normal);
+  text-align: center;
   margin: 0;
 }
 .lede {
   color: var(--muted-foreground);
   max-width: 380px;
   line-height: var(--leading-normal);
-  margin: 26px 0;
+  text-align: center;
+  margin: 10px auto 28px;
 }
 .pair-card {
   background: var(--background);
@@ -1741,9 +1737,6 @@ dd {
   opacity: 0.35;
 }
 @media (min-width: 700px) {
-  .pair-screen {
-    justify-content: center;
-  }
   .screen {
     padding-bottom: 30px;
   }

@@ -51,7 +51,6 @@ export const connection = {
     genericDetail: 'Try again.',
   },
   pair: {
-    eyebrow: 'SECURE REMOTE CONSOLE',
     lede: 'Carry your desktop agent without putting your desktop in the cloud.',
     linkLabel: 'Pairing link',
     connecting: 'Connecting…',

@@ -314,8 +314,11 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
               <Route path="share" element={<ShareScreen />} />
               <Route
                 path="pair"
-                element={pairScreen(() =>
-                  navigate('/settings', { replace: true }),
+                element={pairScreen(
+                  // The first pairing has nowhere to go back to.
+                  desktops.length
+                    ? () => navigate('/settings', { replace: true })
+                    : undefined,
                 )}
               />
               <Route element={<AppShell />}>

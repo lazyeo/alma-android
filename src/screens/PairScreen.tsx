@@ -1,4 +1,4 @@
-import { LockKeyhole, Sparkles } from 'lucide-react'
+import { ArrowLeft, LockKeyhole } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { BrowserQRCodeReader } from '@zxing/browser'
 import {
@@ -85,15 +85,23 @@ export function PairScreen({
 
   return (
     <main className="pair-screen">
-      <div className="brand-mark">
-        <Sparkles aria-label="Alma" />
-      </div>
-      <p className="eyebrow">{t('connection.pair.eyebrow')}</p>
-      <h1>
-        Alma
-        <br />
-        Mobile
-      </h1>
+      {onCancel ? (
+        <button
+          className="header-icon-button start-back"
+          aria-label={t('common.back')}
+          onClick={onCancel}
+        >
+          <ArrowLeft size={20} />
+        </button>
+      ) : null}
+      <img
+        className="pair-launcher"
+        src="/icon-192.png"
+        alt=""
+        width={64}
+        height={64}
+      />
+      <h1>Alma</h1>
       <p className="lede">{t('connection.pair.lede')}</p>
       <div className="pair-card">
         <label htmlFor="pair-link">{t('connection.pair.linkLabel')}</label>
@@ -125,11 +133,6 @@ export function PairScreen({
           <video ref={video} className="scanner" muted playsInline />
         ) : null}
         {error ? <p className="error">{error}</p> : null}
-        {onCancel ? (
-          <button className="secondary" onClick={onCancel}>
-            {t('common.cancel')}
-          </button>
-        ) : null}
       </div>
       <p className="security-note">
         <LockKeyhole size={14} aria-hidden="true" />{' '}
