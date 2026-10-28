@@ -5,8 +5,6 @@
 An unofficial Android client for [Alma Desktop](https://alma.now). Pair it with one or more desktops and keep working with your threads from an Android phone or foldable.
 
 > **Disclaimer:** This project is not affiliated with, endorsed by, or maintained by the Alma project.
->
-> <!-- TODO(upstream): name/icon permission -->
 
 ## Screenshots
 

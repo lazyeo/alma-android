@@ -5,8 +5,6 @@
 这是一个面向 [Alma Desktop](https://alma.now) 的非官方 Android 客户端。你可以将它与一台或多台桌面端配对，在 Android 手机或折叠屏设备上继续处理对话。
 
 > **免责声明：** 本项目与 Alma 项目没有隶属、合作或官方认可关系，也不由 Alma 项目维护。
->
-> <!-- TODO(upstream): name/icon permission -->
 
 ## 截图
 
