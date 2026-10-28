@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name" translatable="false">Alma</string>
+    <string name="title_activity_main" translatable="false">Alma</string>
+
+    <!-- System chooser titles -->
+    <string name="file_chooser_share">Share file</string>
+    <string name="file_chooser_open">Open file</string>
+
+    <!-- Text selection toolbar -->
+    <string name="selection_menu_quote">Quote</string>
+    <string name="selection_menu_mention">Mention</string>
+
+    <!-- Direct Share shortcut long label. %1$s: thread title, %2$s: desktop name -->
+    <string name="share_shortcut_long_label">%1$s on %2$s</string>
+</resources>

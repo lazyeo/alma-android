@@ -1,0 +1,104 @@
+apply plugin: 'com.android.application'
+def appVersion = new groovy.json.JsonSlurper().parse(file('../../package.json')).version
+def versionParts = appVersion.tokenize('.').collect { it.toInteger() }
+def signing = new Properties()
+def signingFile = rootProject.file('keystore.properties')
+if (signingFile.exists()) signingFile.withInputStream { signing.load(it) }
+def signingValue = { key, env -> System.getenv(env) ?: signing.getProperty(key) }
+def releaseStore = signingValue('storeFile', 'ALMA_RELEASE_STORE_FILE')
+def releasePassword = signingValue('storePassword', 'ALMA_RELEASE_STORE_PASSWORD')
+def releaseAlias = signingValue('keyAlias', 'ALMA_RELEASE_KEY_ALIAS')
+def releaseKeyPassword = signingValue('keyPassword', 'ALMA_RELEASE_KEY_PASSWORD')
+def hasSigning = [releaseStore, releasePassword, releaseAlias, releaseKeyPassword].every { it }
+
+
+android {
+    namespace = "club.a_dobe.alma"
+    buildFeatures {
+        aidl = true
+        buildConfig = true
+    }
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId (findProperty("almaApplicationId") ?: "club.a_dobe.alma")
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
+        versionName appVersion + (findProperty('almaVersionSuffix') ?: '')
+        resValue 'string', 'package_name', applicationId
+        resValue 'string', 'custom_url_scheme', applicationId
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        if (hasSigning) {
+            release {
+                storeFile rootProject.file(releaseStore)
+                storePassword releasePassword
+                keyAlias releaseAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (hasSigning) signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core:$androidxCoreVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation "androidx.window:window-java:1.3.0"
+    implementation "dev.rikka.shizuku:api:13.1.5"
+    implementation "dev.rikka.shizuku:provider:13.1.5"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+if (project.hasProperty('almaOverlay')) {
+    apply from: new File(project.property('almaOverlay'), 'android/app-overlay.gradle')
+}
+
+// Resource XML cannot expand manifest placeholders. Generate the share category
+// from the same applicationId used by dynamic shortcuts and intents.
+def shortcutResources = layout.buildDirectory.dir('generated/alma/res')
+android.sourceSets.main.res.srcDir(shortcutResources)
+tasks.register('generateAlmaShortcuts') {
+    def appId = android.defaultConfig.applicationId
+    inputs.property('applicationId', appId)
+    outputs.dir(shortcutResources)
+    doLast {
+        def xml = new File(shortcutResources.get().asFile, 'xml/shortcuts.xml')
+        xml.parentFile.mkdirs()
+        xml.text = """<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <share-target android:targetClass="club.a_dobe.alma.MainActivity">
+        <data android:mimeType="text/plain" />
+        <data android:mimeType="image/*" />
+        <category android:name="${appId}.SHARE_TARGET" />
+    </share-target>
+</shortcuts>"""
+    }
+}
+tasks.named('preBuild').configure { dependsOn 'generateAlmaShortcuts' }

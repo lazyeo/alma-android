@@ -1,0 +1,32 @@
+import type { CatalogShape } from '../core'
+import type { common as source } from '../en/common'
+
+export const common: CatalogShape<typeof source> = {
+  cancel: '取消',
+  close: '关闭',
+  back: '返回',
+  save: '保存',
+  delete: '删除',
+  remove: '移除',
+  rename: '重命名',
+  retry: '重试',
+  tryAgain: '重试',
+  done: '完成',
+  copy: '复制',
+  copied: '已复制',
+  edit: '编辑',
+  more: '更多',
+  open: '打开',
+  send: '发送',
+  search: '搜索',
+  clear: '清除',
+  confirm: '确认',
+  undo: '撤销',
+  refresh: '刷新',
+  loading: '加载中…',
+  untitledThread: '未命名对话',
+  uncategorized: '未分类',
+  systemDefault: '跟随系统',
+  on: '开启',
+  off: '关闭',
+}

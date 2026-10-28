@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Plain app background while the WebView loads; replaces Capacitor's placeholder art. -->
+<color xmlns:android="http://schemas.android.com/apk/res/android" android:color="#080b0d" />
