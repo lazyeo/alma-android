@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Nothing yet.
+
+## [0.1.1] - 2026-10-29
+
+### Added
+
 - README screenshots of the unfolded two-pane layout on foldables.
 
 ### Fixed
@@ -19,7 +25,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - Message action sheet items have icons; the text-selection view closes with an icon button instead of a Done label.
-
 ## [0.1.0] - 2026-10-29
 
 ### Added
@@ -35,5 +40,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Foldable layouts, a frosted screen transition, optional Shizuku live hinge-angle input, and an estimated fallback.
 - Foreground-lifetime local notifications for completed replies and pending approvals; no push service is used.
 
-[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.1...HEAD
 [0.1.0]: https://github.com/lazyeo/alma-android/releases/tag/v0.1.0
+[0.1.1]: https://github.com/lazyeo/alma-android/compare/v0.1.0...v0.1.1
