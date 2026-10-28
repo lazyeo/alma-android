@@ -19,3 +19,6 @@ android/local.properties
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Local parallel worktrees
+.worktrees/
