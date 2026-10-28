@@ -14,6 +14,14 @@ An unofficial Android client for [Alma Desktop](https://alma.now). Pair it with 
 | Settings (简体中文)                                                 | Files and diffs                                                     |
 | ![Settings in Simplified Chinese](docs/screenshots/settings-zh.png) | ![Thread files and diff](docs/screenshots/files-diff.png)           |
 
+### Foldables
+
+Unfolded, the app switches to a two-pane layout with a navigation rail, the thread list and the open conversation side by side. Folding and unfolding plays a frosted transition between the cover and inner screens.
+
+| Unfolded, reply in progress                                                           | Unfolded, 简体中文                                                         |
+| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| ![Two-pane layout with a reply in progress](docs/screenshots/foldable-generating.png) | ![Two-pane layout in Simplified Chinese](docs/screenshots/foldable-zh.png) |
+
 Screenshots use synthetic fixture data and contain no real desktop content or pairing credentials.
 
 ## Install

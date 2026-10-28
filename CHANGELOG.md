@@ -8,7 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Nothing yet.
+- README screenshots of the unfolded two-pane layout on foldables.
+
+### Fixed
+
+- Pairing screen: centered layout with the Alma icon; no back button on the first pairing.
+- QR scanner shows a square viewfinder instead of the stretched default video placeholder while the camera starts.
 
 ## [0.1.0] - 2026-10-29
 

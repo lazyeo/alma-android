@@ -1,4 +1,4 @@
-import { ArrowLeft, LockKeyhole } from 'lucide-react'
+import { ArrowLeft, Camera, LockKeyhole } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { BrowserQRCodeReader } from '@zxing/browser'
 import {
@@ -10,6 +10,8 @@ import {
 } from '../relay'
 import { useT } from '../i18n'
 
+const BLANK_POSTER =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 export function PairScreen({
   onPaired,
   onCancel,
@@ -26,9 +28,11 @@ export function PairScreen({
   const [link, setLink] = useState(''),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
-    [scanning, setScanning] = useState(false)
+    [scanning, setScanning] = useState(false),
+    [cameraLive, setCameraLive] = useState(false)
   const video = useRef<HTMLVideoElement>(null)
   useEffect(() => {
+    setCameraLive(false)
     if (!scanning || !video.current) return
     const reader = new BrowserQRCodeReader()
     let controls: { stop(): void } | undefined
@@ -130,7 +134,18 @@ export function PairScreen({
           </button>
         </div>
         {scanning ? (
-          <video ref={video} className="scanner" muted playsInline />
+          <div className="scanner" data-live={cameraLive || undefined}>
+            {/* Android WebView paints a stretched play glyph as the default
+                poster until frames arrive; a blank poster hides it. */}
+            <video
+              ref={video}
+              muted
+              playsInline
+              poster={BLANK_POSTER}
+              onPlaying={() => setCameraLive(true)}
+            />
+            {cameraLive ? null : <Camera size={28} aria-hidden="true" />}
+          </div>
         ) : null}
         {error ? <p className="error">{error}</p> : null}
       </div>
