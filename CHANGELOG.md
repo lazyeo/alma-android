@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Pairing screen: centered layout with the Alma icon; no back button on the first pairing.
 - QR scanner shows a square viewfinder instead of the stretched default video placeholder while the camera starts.
+- Shared images now show their preview on the share screen.
+- Sharing into a thread that is still replying adds the message to the queue instead of holding it invisibly until the reply ends.
+
+### Changed
+
+- Message action sheet items have icons; the text-selection view closes with an icon button instead of a Done label.
 
 ## [0.1.0] - 2026-10-29
 

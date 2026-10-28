@@ -34,6 +34,7 @@ import {
   ArrowDownToLine,
   ArrowLeft,
   ArrowUp,
+  AtSign,
   Brain,
   Check,
   ChevronDown,
@@ -56,8 +57,11 @@ import {
   MoreHorizontal,
   MoreVertical,
   Network,
+  PencilLine,
   RefreshCw,
+  RotateCcw,
   Search,
+  TextSelection,
   Trash2,
   Workflow,
   X,
@@ -1818,7 +1822,7 @@ function ThreadView({ threadId }: { threadId: string }) {
   if (queuedMessages.length) presentedQueue.current = queuedMessages
   useEffect(() => {
     const pending = searchTarget?.pendingFirstSend
-    if (!pending || firstSendStarted.current || generating) return
+    if (!pending || firstSendStarted.current) return
     const parts = buildMessageParts(pending.content, pending.attachments)
     if (!parts.length) {
       navigate(location.pathname, {
@@ -1837,12 +1841,14 @@ function ThreadView({ threadId }: { threadId: string }) {
       queueMode: extensionQueue.mode,
       queueBusy: extensionQueue.busy,
       directFailed: firstSendDirectFailed,
+      generating,
     }
     const decision = decideFirstSend(readiness)
     if (decision === 'wait') return
     if (!claimFirstSend(pairing.id, threadId, pending.id)) return
     firstSendStarted.current = true
-    if (!firstSendOptimisticApplied.current) {
+    // Queued sends appear in the queue strip, not as a sent bubble.
+    if (decision === 'direct' && !firstSendOptimisticApplied.current) {
       firstSendOptimisticApplied.current = true
       applyOptimistic({
         type: 'sent',
@@ -2947,6 +2953,7 @@ function ThreadView({ threadId }: { threadId: string }) {
                 void copyMessage(actionRow)
               }}
             >
+              <Copy size={18} aria-hidden="true" />
               {t('message.actions.copy')}
             </button>
             <button
@@ -2955,6 +2962,7 @@ function ThreadView({ threadId }: { threadId: string }) {
                 setActionRow(undefined)
               }}
             >
+              <TextSelection size={18} aria-hidden="true" />
               {t('message.actions.select')}
             </button>
             <button
@@ -2963,6 +2971,7 @@ function ThreadView({ threadId }: { threadId: string }) {
                 mentionMessage(actionRow)
               }}
             >
+              <AtSign size={18} aria-hidden="true" />
               {t('message.actions.mention')}
             </button>
             {actionRow.message.role === 'user' ? (
@@ -2972,6 +2981,7 @@ function ThreadView({ threadId }: { threadId: string }) {
                   editMessage(actionRow)
                 }}
               >
+                <PencilLine size={18} aria-hidden="true" />
                 {t('message.actions.editResend')}
               </button>
             ) : (
@@ -2981,6 +2991,7 @@ function ThreadView({ threadId }: { threadId: string }) {
                   retryMessage(actionRow)
                 }}
               >
+                <RotateCcw size={18} aria-hidden="true" />
                 {t('message.actions.retry')}
               </button>
             )}

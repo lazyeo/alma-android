@@ -29,9 +29,26 @@ const ready: FirstSendReadiness = {
   queueMode: 'remote',
   queueBusy: false,
   directFailed: false,
+  generating: false,
 }
 
 describe('new-thread first-send decision', () => {
+  it('queues behind a reply that is still generating instead of waiting invisibly', () => {
+    expect(decideFirstSend({ ...ready, generating: true })).toBe('queue')
+    expect(
+      decideFirstSend({ ...ready, generating: true, queueMode: 'local' }),
+    ).toBe('queue')
+  })
+
+  it('waits while generating only when no queue can take the message', () => {
+    expect(
+      decideFirstSend({ ...ready, generating: true, queueMode: 'unavailable' }),
+    ).toBe('wait')
+    expect(
+      decideFirstSend({ ...ready, generating: true, queueBusy: true }),
+    ).toBe('wait')
+  })
+
   it('uses the normal direct send while the paired desktop is online and idle', () => {
     expect(decideFirstSend(ready)).toBe('direct')
   })

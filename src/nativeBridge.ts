@@ -167,6 +167,12 @@ export async function reportNativeShareShortcutUsed(id: string | undefined) {
   if (isAndroidNative() && id) await ShareIntake.reportShortcutUsed({ id })
 }
 
+/** WebView-loadable URL for a shared file; raw native paths do not load in <img>. */
+export function shareFileSrc(file: { dataUrl?: string; path?: string }) {
+  if (file.dataUrl) return file.dataUrl
+  return file.path ? Capacitor.convertFileSrc(file.path) : undefined
+}
+
 export async function readNativeShareFile(path: string) {
   const response = await fetch(Capacitor.convertFileSrc(path))
   if (!response.ok) throw new Error('Could not open the shared file.')

@@ -1,4 +1,4 @@
-import { AtSign, Copy, Quote } from 'lucide-react'
+import { AtSign, Copy, Quote, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { copyText } from '../clipboard'
@@ -131,12 +131,14 @@ export function SelectableTextView({
         <h2>{t('message.select.title')}</h2>
         <button
           autoFocus
+          className="header-icon-button"
+          aria-label={t('common.close')}
           onClick={() => {
             void haptic('light')
             requestClose()
           }}
         >
-          {t('common.done')}
+          <X size={20} />
         </button>
       </header>
       <div ref={content} className="selectable-message" tabIndex={0}>

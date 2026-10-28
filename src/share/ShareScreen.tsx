@@ -9,6 +9,7 @@ import { useT } from '../i18n'
 import {
   readNativeShareFile,
   reportNativeShareShortcutUsed,
+  shareFileSrc,
   updateNativeShareShortcuts,
 } from '../nativeBridge'
 import type { UploadedAttachment } from '../screens/messageParts'
@@ -49,7 +50,7 @@ async function uploadSharedFiles(
         name: file.name,
         mediaType: result.mediaType || file.mimeType,
         url: result.url,
-        previewUrl: file.dataUrl || file.path,
+        previewUrl: shareFileSrc(file),
       })
     } else {
       const result = await api.uploadFile(bytes, file.name, file.mimeType)
@@ -247,7 +248,7 @@ export function ShareScreen() {
                 file.mimeType.startsWith('image/') ? (
                   <img
                     key={file.path || file.name}
-                    src={file.dataUrl || file.path}
+                    src={shareFileSrc(file)}
                     alt=""
                   />
                 ) : (

@@ -35,6 +35,8 @@ export interface FirstSendReadiness {
   queueMode: 'local' | 'remote' | 'unavailable'
   queueBusy: boolean
   directFailed: boolean
+  /** The thread is already replying (e.g. a share into an active thread). */
+  generating: boolean
 }
 
 export type FirstSendDecision = 'direct' | 'queue' | 'wait'
@@ -54,6 +56,12 @@ export function clearStartDraftAfterDelivery(
 export function decideFirstSend(
   readiness: FirstSendReadiness,
 ): FirstSendDecision {
+  // Never hold the message invisibly behind a running reply: queue it like
+  // the composer would, so it shows up in the queue and sends afterwards.
+  if (readiness.generating)
+    return readiness.queueMode !== 'unavailable' && !readiness.queueBusy
+      ? 'queue'
+      : 'wait'
   if (readiness.directFailed || !readiness.desktopOnline) {
     return readiness.queueMode !== 'unavailable' && !readiness.queueBusy
       ? 'queue'
