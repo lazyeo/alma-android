@@ -124,20 +124,50 @@ it.each([
   expect(document.querySelector('svg[onload]')).toBeNull()
 })
 
-it('keeps all actions when a file exceeds its preview limit', async () => {
-  files['/large.svg'] = {
-    body: 'x'.repeat(1024 * 1024 + 1),
-    type: 'image/svg+xml',
-  }
+it.each([
+  ['svg', 1],
+  ['csv', 1],
+  ['xlsx', 10],
+  ['docx', 5],
+])(
+  'keeps all actions when %s exceeds its preview limit',
+  async (extension, limit) => {
+    const path = `/large.${extension}`
+    files[path] = {
+      body: 'x'.repeat(Number(limit) * 1024 * 1024 + 1),
+      type: 'application/octet-stream',
+    }
+    render(
+      <FileLinkProvider>
+        <Opener path={path} />
+      </FileLinkProvider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    expect(await screen.findByText('File is too large to preview')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Open with/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Share/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Save/ })).toBeTruthy()
+    expect(document.querySelector('img[src="blob:file"]')).toBeNull()
+  },
+)
+
+it.each([
+  ['data.csv', 'name,value\nAlice,7', 'Alice'],
+  [
+    'broken.csv',
+    'a,"unfinished',
+    'Preview unavailable. You can still open, share, or save this file.',
+  ],
+])('retains actions for %s', async (name, body, text) => {
+  files[`/${name}`] = { body, type: 'text/plain' }
   render(
     <FileLinkProvider>
-      <Opener path="/large.svg" />
+      <Opener path={`/${name}`} />
     </FileLinkProvider>,
   )
   fireEvent.click(screen.getByRole('button', { name: 'Open' }))
-  expect(await screen.findByText('File is too large to preview')).toBeTruthy()
-  expect(screen.getByRole('button', { name: /Open with/ })).toBeTruthy()
-  expect(screen.getByRole('button', { name: /Share/ })).toBeTruthy()
-  expect(screen.getByRole('button', { name: /Save/ })).toBeTruthy()
-  expect(document.querySelector('img[src="blob:file"]')).toBeNull()
+  expect(await screen.findByText(text)).toBeTruthy()
+  for (const action of [/Open with/, /Share/, /Save/]) {
+    expect(screen.getByRole('button', { name: action })).toBeTruthy()
+  }
 })

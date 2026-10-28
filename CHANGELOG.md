@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- CSV tables with quoted-field parsing, lazy XLSX worksheets, and sandboxed DOCX previews; tables show at most 2,000 rows and 100 columns with truncation notices.
+
 - Size-bounded file previews and lazy PDF canvas rendering with a bundled worker, fit-width, zoom, and page navigation status.
 
 - Native audio/video controls and isolated SVG image previews, with navigation-safe Blob URL cleanup.

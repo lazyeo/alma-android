@@ -30,9 +30,7 @@ import { isNativePlatform } from '../nativeRuntime'
 import type { AlmaApi } from '../relay/almaApi'
 import { HtmlFilePreview } from './HtmlFilePreview'
 import { MarkdownFilePreview } from './MarkdownFilePreview'
-import { isHtmlFile } from './htmlPreview'
 import { nativeHtmlPreviewSessions } from './htmlPreviewSession'
-import { isMarkdownFile } from './markdownPreview'
 import {
   TEXT_PREVIEW_LIMIT,
   classifyFileHref,
@@ -46,6 +44,9 @@ import {
 } from './localFiles'
 
 const PdfFilePreview = lazy(() => import('./PdfFilePreview'))
+const CsvFilePreview = lazy(() => import('./CsvFilePreview'))
+const XlsxFilePreview = lazy(() => import('./XlsxFilePreview'))
+const DocxFilePreview = lazy(() => import('./DocxFilePreview'))
 
 interface FileLinkContextValue {
   handleFileLink(href: string, event?: MouseEvent<HTMLAnchorElement>): void
@@ -406,7 +407,7 @@ function FileSheetBody({
     )
   if (kind === 'svg')
     return <img className="file-link-image" src={url} alt={state.file.name} />
-  if (isHtmlFile(state.file.name))
+  if (kind === 'html')
     return (
       <HtmlFilePreview
         file={state.file}
@@ -414,7 +415,7 @@ function FileSheetBody({
         sessions={nativeHtmlPreviewSessions()}
       />
     )
-  if (isMarkdownFile(state.file.name, state.file.mimeType))
+  if (kind === 'markdown')
     return (
       <MarkdownFilePreview
         file={state.file}
@@ -423,16 +424,22 @@ function FileSheetBody({
         initialAnchor={state.anchor}
       />
     )
-  if (state.file.mimeType.startsWith('image/'))
+  if (kind === 'image')
     return <img className="file-link-image" src={url} alt={state.file.name} />
-  if (kind === 'pdf')
+  const Renderer = {
+    pdf: PdfFilePreview,
+    csv: CsvFilePreview,
+    xlsx: XlsxFilePreview,
+    docx: DocxFilePreview,
+  }[kind as 'pdf' | 'csv' | 'xlsx' | 'docx']
+  if (Renderer)
     return (
       <PreviewBoundary
         key={state.file.path}
         fallback={<p role="status">{t('files.rich.failed')}</p>}
       >
         <Suspense fallback={<p>{t('files.link.loading')}</p>}>
-          <PdfFilePreview file={state.file} />
+          <Renderer file={state.file} />
         </Suspense>
       </PreviewBoundary>
     )

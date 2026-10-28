@@ -2,6 +2,11 @@
 // and relay images.
 export const files = {
   rich: {
+    empty: 'This sheet is empty.',
+    sheets: 'Worksheets',
+    document: 'Document preview',
+    rowLimit: 'Showing the first {count} rows.',
+    columnLimit: 'Showing the first {count} columns.',
     tooLarge: 'File is too large to preview',
     tooLargeDetail:
       'Preview limit: {limit}. You can still open, share, or save this file.',

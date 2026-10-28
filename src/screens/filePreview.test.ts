@@ -29,3 +29,18 @@ it('bounds each renderer and returns a typed fallback at the exact byte boundary
     'unsupported',
   )
 })
+
+it('routes office and CSV files ahead of generic text and applies their own limits', () => {
+  expect(previewKind('report.CSV', 'text/plain')).toBe('csv')
+  expect(previewKind('book.xlsx', 'application/octet-stream')).toBe('xlsx')
+  expect(previewKind('letter.docx', 'application/octet-stream')).toBe('docx')
+  expect(previewPolicy('report.csv', 'text/csv', 1024 * 1024 + 1).status).toBe(
+    'too-large',
+  )
+  expect(previewPolicy('book.xlsx', '', 10 * 1024 * 1024 + 1).status).toBe(
+    'too-large',
+  )
+  expect(previewPolicy('letter.docx', '', 5 * 1024 * 1024 + 1).status).toBe(
+    'too-large',
+  )
+})

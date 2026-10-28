@@ -3,6 +3,11 @@ import type { files as source } from '../en/files'
 
 export const files: CatalogShape<typeof source> = {
   rich: {
+    empty: '此工作表为空。',
+    sheets: '工作表',
+    document: '文档预览',
+    rowLimit: '仅显示前 {count} 行。',
+    columnLimit: '仅显示前 {count} 列。',
     tooLarge: '文件过大，无法预览',
     tooLargeDetail: '预览上限：{limit}。仍可打开、分享或保存文件。',
     failed: '无法预览，仍可打开、分享或保存文件。',

@@ -9,6 +9,11 @@ export function previewMime(name: string, mime: string) {
 }
 export function previewKind(name: string, mime: string) {
   mime = previewMime(name, mime)
+  if (/\.csv$/i.test(name) || mime === 'text/csv') return 'csv'
+  if (/\.xlsx$/i.test(name) || mime === fallbackMimeType('a.xlsx'))
+    return 'xlsx'
+  if (/\.docx$/i.test(name) || mime === fallbackMimeType('a.docx'))
+    return 'docx'
   if (isHtmlFile(name)) return 'html'
   if (isMarkdownFile(name, mime)) return 'markdown'
   if (mime === 'image/svg+xml') return 'svg'
@@ -23,6 +28,9 @@ export function previewKind(name: string, mime: string) {
 export type PreviewKind = ReturnType<typeof previewKind>
 const MiB = 1024 * 1024
 export const PREVIEW_LIMITS: Record<Exclude<PreviewKind, 'none'>, number> = {
+  csv: MiB,
+  xlsx: 10 * MiB,
+  docx: 5 * MiB,
   html: MiB,
   markdown: MiB,
   text: MiB,
