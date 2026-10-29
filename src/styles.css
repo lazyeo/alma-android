@@ -8786,6 +8786,7 @@ dialog:focus,
 .agent-terminal-keys .chip-button {
   min-width: 38px;
   min-height: 36px;
+  border-radius: var(--radius-md);
   flex: 0 0 auto;
   padding-inline: 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

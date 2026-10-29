@@ -1,5 +1,5 @@
 import { LayoutList, MonitorUp, PanelsTopLeft } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { desktopScreenPath } from '../desktopRoutes'
 import { useT } from '../i18n'
@@ -32,10 +32,18 @@ export function AgentsSidebar() {
     [workspaces],
   )
 
+  // Follow the open pane's workspace only when the pane changes; herdr pushes
+  // must not pull the switcher back after the user picks another project.
+  const syncedPaneRef = useRef<string | undefined>(undefined)
   useEffect(() => {
-    const selectedPaneWorkspace = workspaces.find((workspace) =>
-      workspace.panes.some((pane) => pane.id === selectedPaneId),
-    )?.id
+    const paneChanged = syncedPaneRef.current !== selectedPaneId
+    const selectedPaneWorkspace = paneChanged
+      ? workspaces.find((workspace) =>
+          workspace.panes.some((pane) => pane.id === selectedPaneId),
+        )?.id
+      : undefined
+    if (selectedPaneWorkspace || !selectedPaneId)
+      syncedPaneRef.current = selectedPaneId
     setSelectedWorkspaceId((current) => {
       const selected = reconcileSelectedWorkspace(
         workspaces,
