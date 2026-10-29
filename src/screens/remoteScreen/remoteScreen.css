@@ -8,6 +8,23 @@
   background: var(--background);
   color: var(--foreground);
 }
+/* Fixed rows: the control indicator and keyboard are conditional, so without
+   explicit placement the surface would fall into the auto indicator row. */
+.remote-screen-page > .remote-screen-header {
+  grid-row: 1;
+}
+.remote-screen-page > .remote-control-indicator {
+  grid-row: 2;
+}
+.remote-screen-page > .remote-screen-surface {
+  grid-row: 3;
+}
+.remote-screen-page > .remote-screen-toolbar {
+  grid-row: 4;
+}
+.remote-screen-page > .remote-keyboard {
+  grid-row: 5;
+}
 .remote-screen-header {
   z-index: 3;
   display: flex;
