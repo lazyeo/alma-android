@@ -144,8 +144,22 @@ export function AgentPaneScreen() {
   )
 
   useEffect(() => {
+    setView('chat')
+    setItems([])
+    setQueued([])
+    setStart(-1)
+    endRef.current = 0
+    setChatReady(false)
+    setChatUnsupported(false)
+    setTerminal('')
+    setTerminalSize({ cols: 80, rows: 24 })
+    setDraft('')
+    setSending(false)
+    setError('')
+    scrollMemory.current = { chat: null, terminal: null }
+    prependAnchor.current = null
     void loadChat().catch((reason) => setError(String(reason)))
-  }, [loadChat])
+  }, [decodedPaneId, loadChat])
   useEffect(() => {
     if (view !== 'terminal') return
     const socket = api.openJsonSocket(
