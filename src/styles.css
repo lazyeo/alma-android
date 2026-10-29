@@ -8731,8 +8731,7 @@ dialog:focus,
   display: contents;
 }
 .agent-terminal-scroll-grid .agent-terminal-content {
-  width: max-content;
-  min-width: 100%;
+  display: contents;
 }
 .agent-terminal-history {
   min-width: 100%;
@@ -8779,6 +8778,10 @@ dialog:focus,
   height: 100%;
   flex: 0 0 100%;
 }
+.agent-terminal-scroll-grid .agent-terminal-area {
+  height: 0;
+  flex: 1 0 auto;
+}
 .terminal-viewport,
 .agent-terminal-loading {
   min-width: 0;
@@ -8823,6 +8826,8 @@ dialog:focus,
   z-index: 2;
   top: 4px;
   right: 6px;
+  display: grid;
+  place-items: center;
   width: 28px;
   height: 28px;
   min-width: 28px;
