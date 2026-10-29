@@ -8836,12 +8836,19 @@ dialog:focus,
 }
 .agent-terminal-keys {
   display: flex;
+  min-width: 0;
   gap: 8px;
   margin: var(--agent-terminal-gap) var(--agent-terminal-inset);
+}
+.agent-terminal-key-list {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  gap: 8px;
   overflow-x: auto;
   scrollbar-width: none;
 }
-.agent-terminal-keys::-webkit-scrollbar {
+.agent-terminal-key-list::-webkit-scrollbar {
   display: none;
 }
 .agent-terminal-keys .chip-button {

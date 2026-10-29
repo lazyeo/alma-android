@@ -795,17 +795,19 @@ function TerminalKeyRow({
       role="toolbar"
       aria-label={t('agents.terminalKeys')}
     >
-      {TERMINAL_KEYS.map((item) => (
-        <button
-          className="chip-button"
-          key={item.key}
-          disabled={disabled}
-          aria-label={t(`agents.${item.aria}`)}
-          onClick={() => onKey(item.key)}
-        >
-          {item.label}
-        </button>
-      ))}
+      <div className="agent-terminal-key-list">
+        {TERMINAL_KEYS.map((item) => (
+          <button
+            className="chip-button"
+            key={item.key}
+            disabled={disabled}
+            aria-label={t(`agents.${item.aria}`)}
+            onClick={() => onKey(item.key)}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
       <button
         className="chip-button agent-composer-visibility"
         aria-label={
