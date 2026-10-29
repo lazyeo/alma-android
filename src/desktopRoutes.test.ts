@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  desktopAgentPanePath,
+  desktopAgentsPath,
   desktopCrystalsPath,
   desktopGtdPath,
   desktopReferencesPath,
@@ -21,6 +23,11 @@ describe('desktop-scoped routes', () => {
 
   it('keeps the current desktop-scoped section while switching desktops', () => {
     expect(desktopTimeCluesPath('home')).toBe('/d/home/time-clues')
+    expect(desktopAgentsPath('a/b')).toBe('/d/a%2Fb/agents')
+    expect(desktopAgentPanePath('a/b', 'w1:p1')).toBe('/d/a%2Fb/agents/w1%3Ap1')
+    expect(notificationDestination(desktopAgentPanePath('a/b', 'w1:p1'))).toBe(
+      '/d/a%2Fb/agents/w1%3Ap1',
+    )
     expect(desktopReferencesPath('a/b')).toBe('/d/a%2Fb/references')
     expect(desktopSectionPath('next', '/d/current/crystals/cry-1')).toBe(
       '/d/next/crystals',
@@ -38,6 +45,7 @@ describe('desktop-scoped routes', () => {
   it('treats tab roots, including scoped thread lists, as back-exit roots', () => {
     expect(isRootPath('/d/home/threads')).toBe(true)
     expect(isRootPath('/d/home/gtd')).toBe(true)
+    expect(isRootPath('/d/home/agents')).toBe(true)
     expect(isRootPath('/d/home/gtd/t1')).toBe(false)
     expect(isRootPath('/inbox')).toBe(false)
     expect(isRootPath('/d/home/threads/t1')).toBe(false)

@@ -16,6 +16,14 @@ export function desktopTimeCluesPath(desktopId: string) {
   return `/d/${encodeURIComponent(desktopId)}/time-clues`
 }
 
+export function desktopAgentsPath(desktopId: string) {
+  return `/d/${encodeURIComponent(desktopId)}/agents`
+}
+
+export function desktopAgentPanePath(desktopId: string, paneId: string) {
+  return `${desktopAgentsPath(desktopId)}/${encodeURIComponent(paneId)}`
+}
+
 export function desktopReferencesPath(desktopId: string, uri?: string) {
   const base = `/d/${encodeURIComponent(desktopId)}/references`
   return uri ? `${base}/${encodeURIComponent(uri)}` : base
@@ -24,13 +32,14 @@ export function desktopReferencesPath(desktopId: string, uri?: string) {
 /** Keep root desktop sections stable when the desktop switcher changes scope. */
 export function desktopSectionPath(desktopId: string, pathname: string) {
   const section =
-    /^\/d\/[^/]+\/(gtd|crystals|time-clues|references)(?:\/|$)/.exec(
+    /^\/d\/[^/]+\/(gtd|crystals|time-clues|references|agents)(?:\/|$)/.exec(
       pathname,
     )?.[1]
   if (section === 'gtd') return desktopGtdPath(desktopId)
   if (section === 'crystals') return desktopCrystalsPath(desktopId)
   if (section === 'time-clues') return desktopTimeCluesPath(desktopId)
   if (section === 'references') return desktopReferencesPath(desktopId)
+  if (section === 'agents') return desktopAgentsPath(desktopId)
   return desktopThreadsPath(desktopId)
 }
 
@@ -44,6 +53,6 @@ export function desktopCrystalsPath(desktopId: string, crystalId?: string) {
 export function isRootPath(pathname: string) {
   return (
     ['/', '/threads', '/settings'].includes(pathname) ||
-    /^\/d\/[^/]+\/(?:threads|gtd)\/?$/.test(pathname)
+    /^\/d\/[^/]+\/(?:threads|gtd|agents)\/?$/.test(pathname)
   )
 }

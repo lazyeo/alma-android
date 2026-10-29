@@ -19,6 +19,7 @@ export function notificationId(tag: string) {
 }
 
 export function notificationDestination(url: string | undefined) {
-  if (/^\/d\/[^/]+\/threads\/[^/]+/.test(url ?? '')) return url!
+  if (/^\/d\/[^/]+\/(?:threads\/[^/]+|agents\/[^/]+)(?:\/|$)/.test(url ?? ''))
+    return url!
   return '/threads'
 }

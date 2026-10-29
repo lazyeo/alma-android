@@ -14,6 +14,7 @@ import { composer } from './composer'
 import { library } from './library'
 import { files } from './files'
 import { share } from './share'
+import { agents } from './agents'
 import type { KeyOf } from '../core'
 
 export const en = {
@@ -31,6 +32,7 @@ export const en = {
   library,
   files,
   share,
+  agents,
 } as const
 
 export type Messages = typeof en

@@ -75,6 +75,7 @@ it('renders the installed provider, settings and notification accessory', () => 
           approvals: true,
           questions: true,
           generationComplete: true,
+          agentNeedsYou: true,
         }}
         onPermissionGranted={granted}
       />

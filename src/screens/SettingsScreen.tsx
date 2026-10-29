@@ -729,6 +729,7 @@ export function SettingsScreen() {
                   ['approvals', Bell],
                   ['questions', MessageCircleQuestion],
                   ['generationComplete', CircleHelp],
+                  ['agentNeedsYou', BellRing],
                 ] as const
               ).map(([key, Icon]) => (
                 <SettingsRow

@@ -109,6 +109,7 @@ export const settings = {
     approvals: 'Tool approvals',
     questions: 'Questions from Alma',
     generationComplete: 'Generation complete',
+    agentNeedsYou: 'Agent needs you',
   },
   about: {
     title: 'About',

@@ -4,6 +4,7 @@ import {
   Gem,
   ListTodo,
   MessagesSquare,
+  Bot,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
@@ -13,6 +14,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ConnectionContext, useDesktops } from '../desktops/DesktopContext'
 import { DesktopSwitcher } from '../desktops/DesktopSwitcher'
 import {
+  desktopAgentsPath,
   desktopCrystalsPath,
   desktopGtdPath,
   desktopReferencesPath,
@@ -28,6 +30,7 @@ import { useLayoutMode, useSidebarCollapsed } from './useLayoutMode'
 import { useSidebarSwipe } from './useSidebarSwipe'
 import { visiblePairings } from '../desktops/desktopVisibility'
 import { useT } from '../i18n'
+import { useHerdr } from '../herdr/HerdrProvider'
 
 const NAV_ITEMS = [
   { to: '/threads', labelKey: 'nav.threads', Icon: MessagesSquare },
@@ -68,6 +71,8 @@ function MainNav({
   const t = useT()
   const { pathname } = useLocation()
   const threadsPath = useActiveThreadsPath()
+  const desktopId = decodeURIComponent(threadsPath.split('/')[2] ?? '')
+  const { byDesktop } = useHerdr()
   return (
     <nav className={className} aria-label={t('nav.main')}>
       {NAV_ITEMS.map(({ to, labelKey, Icon }, index) => {
@@ -77,9 +82,7 @@ function MainNav({
         const destination = threads
           ? threadsPath
           : gtd
-            ? desktopGtdPath(
-                decodeURIComponent(threadsPath.split('/')[2] ?? ''),
-              )
+            ? desktopGtdPath(desktopId)
             : to
         const active = gtd
           ? /^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname)
@@ -88,11 +91,17 @@ function MainNav({
               !/^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname) &&
               !pathname.includes('/crystals') &&
               !pathname.includes('/time-clues') &&
-              !pathname.includes('/references')
+              !pathname.includes('/references') &&
+              !pathname.includes('/agents')
             : pathname === to || pathname.startsWith(`${to}/`)
         return (
           <Fragment key={to}>
-            {index === 2 ? beforeSettings : null}
+            {to === '/settings'
+              ? (beforeSettings ??
+                (desktopId && byDesktop[desktopId]?.online ? (
+                  <AgentsNavLink desktopId={desktopId} compact={false} />
+                ) : null))
+              : null}
             <NavLink
               to={destination}
               {...threadNavigationOptions(pathname, destination)}
@@ -111,6 +120,34 @@ function MainNav({
         )
       })}
     </nav>
+  )
+}
+
+function AgentsNavLink({
+  desktopId,
+  compact = true,
+}: {
+  desktopId: string
+  compact?: boolean
+}) {
+  const t = useT()
+  const { pathname } = useLocation()
+  const { byDesktop } = useHerdr()
+  if (!byDesktop[desktopId]?.online) return null
+  const active = pathname.startsWith(desktopAgentsPath(desktopId))
+  return (
+    <NavLink
+      to={desktopAgentsPath(desktopId)}
+      aria-label={t('nav.agents')}
+      title={t('nav.agents')}
+      aria-current={active ? 'page' : undefined}
+      className={`agents-entry${active ? ' active' : ''}`}
+    >
+      <span className="tab-icon">
+        <Bot size={22} />
+      </span>
+      {compact ? null : t('nav.agents')}
+    </NavLink>
   )
 }
 
@@ -281,6 +318,7 @@ export function AppShell() {
         >
           {activeDesktopId ? (
             <>
+              <AgentsNavLink desktopId={activeDesktopId} />
               <CrystalsRailLink desktopId={activeDesktopId} />
               <TimeCluesRailLink desktopId={activeDesktopId} />
               <ReferencesRailLink desktopId={activeDesktopId} />

@@ -6,6 +6,7 @@ export const nav: CatalogShape<typeof source> = {
   threads: '对话',
   gtd: 'GTD',
   settings: '设置',
+  agents: '编码助手',
   crystals: '结晶',
   references: '引用关系',
   timeClues: '时间线索',

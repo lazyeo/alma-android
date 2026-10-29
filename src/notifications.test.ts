@@ -15,6 +15,7 @@ describe('notification settings', () => {
       approvals: true,
       questions: true,
       generationComplete: true,
+      agentNeedsYou: true,
     })
   })
 
@@ -25,6 +26,7 @@ describe('notification settings', () => {
       approvals: false,
       questions: true,
       generationComplete: true,
+      agentNeedsYou: true,
     })
   })
 

@@ -6,6 +6,7 @@ export const notifications = {
     question: 'Has a question for you',
     queued: 'Queued message sent',
     finished: 'Reply finished',
+    agentNeedsYou: 'Agent needs you',
   },
   onDesktop: '{status} on {desktop}',
   channel: {

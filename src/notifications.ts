@@ -13,15 +13,17 @@ export type NotificationSettings = {
   approvals: boolean
   questions: boolean
   generationComplete: boolean
+  agentNeedsYou: boolean
 }
 
 export type ForegroundNotificationType =
-  'approval' | 'question' | 'generation-complete'
+  'approval' | 'question' | 'generation-complete' | 'agent-needs-you'
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   approvals: true,
   questions: true,
   generationComplete: true,
+  agentNeedsYou: true,
 }
 
 const STORAGE_KEY = 'alma-mobile-notifications-v1'
@@ -49,6 +51,10 @@ export function mergeNotificationSettings(
       typeof source.generationComplete === 'boolean'
         ? source.generationComplete
         : DEFAULT_NOTIFICATION_SETTINGS.generationComplete,
+    agentNeedsYou:
+      typeof source.agentNeedsYou === 'boolean'
+        ? source.agentNeedsYou
+        : DEFAULT_NOTIFICATION_SETTINGS.agentNeedsYou,
   }
 }
 
@@ -72,6 +78,7 @@ export function notificationTypeEnabled(
 ) {
   if (type === 'approval') return settings.approvals
   if (type === 'question') return settings.questions
+  if (type === 'agent-needs-you') return settings.agentNeedsYou
   return settings.generationComplete
 }
 
@@ -102,9 +109,11 @@ export function notificationCopy(input: {
       ? 'notifications.status.approval'
       : input.type === 'question'
         ? 'notifications.status.question'
-        : input.queued
-          ? 'notifications.status.queued'
-          : 'notifications.status.finished',
+        : input.type === 'agent-needs-you'
+          ? 'notifications.status.agentNeedsYou'
+          : input.queued
+            ? 'notifications.status.queued'
+            : 'notifications.status.finished',
   )
   return {
     title: input.threadTitle?.trim() || t('common.untitledThread'),

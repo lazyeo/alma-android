@@ -7,6 +7,7 @@ export const notifications: CatalogShape<typeof source> = {
     question: '有问题要问你',
     queued: '排队消息已发送',
     finished: '回复已完成',
+    agentNeedsYou: 'Agent 需要你',
   },
   onDesktop: '{desktop}：{status}',
   channel: {

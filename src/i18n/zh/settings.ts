@@ -111,6 +111,7 @@ export const settings: CatalogShape<typeof source> = {
     approvals: '工具审批',
     questions: '来自 Alma 的提问',
     generationComplete: '生成完成',
+    agentNeedsYou: 'Agent 需要你',
   },
   about: {
     title: '关于',
