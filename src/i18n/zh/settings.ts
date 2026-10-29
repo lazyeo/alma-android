@@ -120,6 +120,7 @@ export const settings: CatalogShape<typeof source> = {
     checking: '正在检查更新…',
     current: 'Alma Mobile 已是最新版本',
     available: '发现新版本 {version}',
+    availableDot: '有可用更新',
     check: '检查更新',
     viewGitHub: '在 GitHub 查看',
     install: '安装更新',

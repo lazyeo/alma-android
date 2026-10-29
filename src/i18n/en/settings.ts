@@ -118,6 +118,7 @@ export const settings = {
     checking: 'Checking for updates…',
     current: 'Alma Mobile is up to date',
     available: 'New version {version}',
+    availableDot: 'Update available',
     check: 'Check for updates',
     viewGitHub: 'View on GitHub',
     install: 'Install update',

@@ -8354,3 +8354,15 @@ dialog:focus,
   border: 0;
   background: white;
 }
+
+.update-badge-dot {
+  position: absolute;
+  top: -1px;
+  right: -2px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid var(--background);
+  border-radius: var(--radius-full);
+  background: var(--accent-9);
+  box-sizing: content-box;
+}

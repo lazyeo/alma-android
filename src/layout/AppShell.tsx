@@ -28,6 +28,7 @@ import { useLayoutMode, useSidebarCollapsed } from './useLayoutMode'
 import { useSidebarSwipe } from './useSidebarSwipe'
 import { visiblePairings } from '../desktops/desktopVisibility'
 import { useT } from '../i18n'
+import { useUpdates } from '../updates/UpdateProvider'
 
 const NAV_ITEMS = [
   { to: '/threads', labelKey: 'nav.threads', Icon: MessagesSquare },
@@ -66,6 +67,7 @@ function MainNav({
   beforeSettings?: ReactNode
 }) {
   const t = useT()
+  const { badge } = useUpdates()
   const { pathname } = useLocation()
   const threadsPath = useActiveThreadsPath()
   return (
@@ -103,6 +105,12 @@ function MainNav({
             >
               <span className="tab-icon">
                 <Icon size={22} />
+                {to === '/settings' && badge ? (
+                  <span
+                    className="update-badge-dot"
+                    aria-label={t('settings.updates.availableDot')}
+                  />
+                ) : null}
               </span>
               {compact ? null : label}
             </NavLink>
