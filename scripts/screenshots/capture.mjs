@@ -5167,15 +5167,32 @@ async function assertAgentPaneGeometry(page) {
   const geometry = await page.evaluate(() => {
     const pane = document.querySelector('.agent-pane-page')
     const composer = document.querySelector('.agent-composer')
+    const terminal = document.querySelector('.agent-terminal-area')
+    const firstKey = document.querySelector('.agent-terminal-keys .chip-button')
+    const composerChip = document.querySelector('.agent-composer-mode')
     if (!(pane instanceof HTMLElement) || !(composer instanceof HTMLElement))
       throw new Error('agent pane geometry target missing')
     const paneRect = pane.getBoundingClientRect()
     const composerRect = composer.getBoundingClientRect()
+    const terminalRect = terminal?.getBoundingClientRect()
+    const firstKeyRect = firstKey?.getBoundingClientRect()
+    const keyRowRect = firstKey
+      ?.closest('.agent-terminal-keys')
+      ?.getBoundingClientRect()
+    const composerChipRect = composerChip?.getBoundingClientRect()
     return {
       paneLeft: paneRect.left,
       composerLeft: composerRect.left,
       paneRight: paneRect.right,
       composerRight: composerRect.right,
+      terminalLeft: terminalRect?.left,
+      firstKeyLeft: firstKeyRect?.left,
+      composerChipLeft: composerChipRect?.left,
+      terminalToKeys:
+        terminalRect && keyRowRect
+          ? keyRowRect.top - terminalRect.bottom
+          : null,
+      keysToComposer: keyRowRect ? composerRect.top - keyRowRect.bottom : null,
     }
   })
   if (Math.abs(geometry.paneLeft - geometry.composerLeft) > 1)
@@ -5183,6 +5200,30 @@ async function assertAgentPaneGeometry(page) {
   if (Math.abs(geometry.paneRight - geometry.composerRight) > 1)
     throw new Error(
       `agent composer right mismatch: ${JSON.stringify(geometry)}`,
+    )
+  if (
+    geometry.terminalLeft !== undefined &&
+    geometry.firstKeyLeft !== undefined &&
+    Math.abs(geometry.terminalLeft - geometry.firstKeyLeft) > 1
+  )
+    throw new Error(
+      `agent terminal/key inset mismatch: ${JSON.stringify(geometry)}`,
+    )
+  if (
+    geometry.composerChipLeft !== undefined &&
+    geometry.firstKeyLeft !== undefined &&
+    Math.abs(geometry.composerChipLeft - geometry.firstKeyLeft) > 1
+  )
+    throw new Error(
+      `agent key/composer inset mismatch: ${JSON.stringify(geometry)}`,
+    )
+  if (
+    geometry.terminalToKeys !== null &&
+    geometry.keysToComposer !== null &&
+    Math.abs(geometry.terminalToKeys - geometry.keysToComposer) > 2
+  )
+    throw new Error(
+      `agent terminal vertical gaps mismatch: ${JSON.stringify(geometry)}`,
     )
 }
 
@@ -5408,16 +5449,37 @@ const herdrShots = [
               async act(page) {
                 await page.getByRole('button', { name: terminalLabel }).click()
                 await page.getByRole('button', { name: '加载更早输出' }).click()
-                await page
-                  .locator('.agent-terminal .xterm-rows')
-                  .getByText(/earlier fixture output/)
+                const history = page.locator('.agent-terminal-history')
+                await history
+                  .getByText(/history line 1/)
                   .first()
                   .waitFor()
                 await page
-                  .locator('.agent-terminal .xterm-viewport')
+                  .locator('.agent-terminal-scroll')
                   .evaluate((element) => {
                     element.scrollTop = 0
                   })
+                await page.waitForFunction(() => {
+                  const history = document.querySelector(
+                    '.agent-terminal-history',
+                  )
+                  const scroller = document.querySelector(
+                    '.agent-terminal-scroll',
+                  )
+                  if (
+                    !(history instanceof HTMLElement) ||
+                    !(scroller instanceof HTMLElement)
+                  )
+                    return false
+                  return (
+                    scroller.scrollTop === 0 &&
+                    history.dataset.historyFirstLine?.includes(
+                      'history line 1',
+                    ) &&
+                    history.getBoundingClientRect().top >=
+                      scroller.getBoundingClientRect().top - 1
+                  )
+                })
                 await assertAgentPaneGeometry(page)
               },
             },

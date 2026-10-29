@@ -1829,7 +1829,7 @@ const herdrLongLine =
 const herdrTerminalHistory = Array.from(
   { length: 28 },
   (_, index) =>
-    `\u001b[2m${String(index + 1).padStart(2, '0')}\u001b[0m earlier fixture output preserved above the live terminal screen`,
+    `\u001b[2mhistory line ${index + 1}\u001b[0m earlier fixture output preserved above the live terminal screen`,
 ).join('\n')
 const herdrTerminal =
   screenshotParams.get('agentState') === 'blocked'

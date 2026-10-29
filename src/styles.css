@@ -8613,6 +8613,8 @@ dialog:focus,
   overflow: hidden;
   padding: 10px 14px 0;
   flex-direction: column;
+  --agent-terminal-inset: 0px;
+  --agent-terminal-gap: 10px;
 }
 .agent-blocked-card {
   display: grid;
@@ -8845,8 +8847,7 @@ dialog:focus,
 .agent-terminal-keys {
   display: flex;
   gap: 8px;
-  margin-top: 10px;
-  padding-bottom: 2px;
+  margin: var(--agent-terminal-gap) var(--agent-terminal-inset);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -8870,16 +8871,17 @@ dialog:focus,
   flex-wrap: nowrap;
   min-width: 0;
   flex: 0 0 auto;
-  align-items: flex-end;
+  min-height: 61px;
+  align-items: center;
   gap: 8px;
-  padding: 10px max(12px, var(--safe-right)) calc(10px + var(--safe-bottom))
-    max(12px, var(--safe-left));
+  padding: 10px max(14px, var(--safe-right)) calc(10px + var(--safe-bottom))
+    max(14px, var(--safe-left));
   border-top: var(--border-hairline) solid var(--gray-7);
   background: var(--background);
 }
 .agent-composer-mode {
   flex: none;
-  align-self: stretch;
+  align-self: center;
   border-radius: var(--radius-md);
   white-space: nowrap;
 }
