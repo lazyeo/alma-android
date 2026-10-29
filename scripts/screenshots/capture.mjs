@@ -5152,6 +5152,28 @@ const shots = [
 
 // Facts that used to be joined by a middot sit in flex rows with a gap.
 // A later, more specific display rule can silently drop the gap, so measure.
+async function assertAgentPaneGeometry(page) {
+  await assertNoHorizontalOverflow(page, '.agent-pane-page')
+  const geometry = await page.evaluate(() => {
+    const pane = document.querySelector('.agent-pane-page')
+    const composer = document.querySelector('.agent-composer')
+    if (!(pane instanceof HTMLElement) || !(composer instanceof HTMLElement))
+      throw new Error('agent pane geometry target missing')
+    const paneRect = pane.getBoundingClientRect()
+    const composerRect = composer.getBoundingClientRect()
+    return {
+      paneLeft: paneRect.left,
+      composerLeft: composerRect.left,
+      paneRight: paneRect.right,
+      composerRight: composerRect.right,
+    }
+  })
+  if (Math.abs(geometry.paneLeft - geometry.composerLeft) > 1)
+    throw new Error(`agent composer left mismatch: ${JSON.stringify(geometry)}`)
+  if (Math.abs(geometry.paneRight - geometry.composerRight) > 1)
+    throw new Error(`agent composer right mismatch: ${JSON.stringify(geometry)}`)
+}
+
 async function assertSeparatedSiblings(page) {
   const tight = await page.evaluate(() => {
     const out = []
@@ -5232,76 +5254,123 @@ async function holdRow(page, title) {
 // GTD first batch: segments, favorites, autoTodo, inbox fold, swipe, and the
 // Threads header Crystals entry. All data is the synthetic fixture.
 const herdrShots = [
-  ...['en', 'zh'].flatMap((lang) => [
-    {
-      file: `herdr-agents-${lang}-412.png`,
-      viewport: PHONE,
-      route: '/d/fixture-desktop/agents',
-      language: lang,
-      ready: '.agent-pane-row',
-      safeInsets: true,
-      async act(page) {
-        await assertNoHorizontalOverflow(page, '.agents-page-body')
-        if (!(await page.locator('.tab-bar .agents-entry').count()))
-          throw new Error('phone Agents navigation entry missing')
+  ...['en', 'zh'].flatMap((lang) => {
+    const terminalLabel = lang === 'zh' ? '终端' : 'Terminal'
+    const gridLabel =
+      lang === 'zh' ? '显示原始终端网格' : 'Show the original terminal grid'
+    return [
+      {
+        file: `herdr-agents-${lang}-412.png`,
+        viewport: PHONE,
+        route: '/d/fixture-desktop/agents',
+        language: lang,
+        ready: '.agent-pane-row',
+        safeInsets: true,
+        async act(page) {
+          await assertNoHorizontalOverflow(page, '.agents-page-body')
+          if (!(await page.locator('.tab-bar .agents-entry').count()))
+            throw new Error('phone Agents navigation entry missing')
+        },
       },
-    },
-    {
-      file: `herdr-pane-chat-${lang}-412.png`,
-      viewport: PHONE,
-      route: '/d/fixture-desktop/agents/w1%3Ap1',
-      language: lang,
-      ready: '.agent-message',
-      safeInsets: true,
-      async act(page) {
-        await assertNoHorizontalOverflow(page, '.agent-pane-body')
+      {
+        file: `herdr-pane-chat-${lang}-412.png`,
+        viewport: PHONE,
+        route: '/d/fixture-desktop/agents/w1%3Ap1',
+        language: lang,
+        ready: '.agent-message',
+        safeInsets: true,
+        async act(page) {
+          await assertAgentPaneGeometry(page)
+        },
       },
-    },
-    {
-      file: `herdr-pane-terminal-${lang}-412.png`,
-      viewport: PHONE,
-      route: '/d/fixture-desktop/agents/w1%3Ap1',
-      language: lang,
-      ready: '.agent-message',
-      safeInsets: true,
-      async act(page) {
-        const label = lang === 'zh' ? '终端' : 'Terminal'
-        await page.getByRole('button', { name: new RegExp(label) }).click()
-        await page.locator('.agent-terminal .xterm-rows').waitFor()
-        await page.locator('.agent-terminal-keys').waitFor()
-        await assertNoHorizontalOverflow(page, '.agent-pane-body')
+      {
+        file: `herdr-pane-terminal-reflow-${lang}-412.png`,
+        viewport: PHONE,
+        deviceScaleFactor: 2,
+        route: '/d/fixture-desktop/agents/w1%3Ap1',
+        language: lang,
+        ready: '.agent-message',
+        safeInsets: true,
+        async act(page) {
+          await page.getByRole('button', { name: terminalLabel }).click()
+          await page.locator('.agent-terminal .xterm-rows').waitFor()
+          await page.locator('.agent-terminal-keys').waitFor()
+          await assertAgentPaneGeometry(page)
+        },
       },
-    },
-    ...(lang === 'en'
-      ? [
-          {
-            file: 'herdr-pane-terminal-en-884.png',
-            viewport: TABLET,
-            route: '/d/fixture-desktop/agents/w1%3Ap1',
-            language: lang,
-            ready: '.agent-message',
-            safeInsets: true,
-            async act(page) {
-              await page.getByRole('button', { name: /Terminal/ }).click()
-              await page.locator('.agent-terminal .xterm-rows').waitFor()
-              await assertNoHorizontalOverflow(page, '.agent-pane-body')
+      {
+        file: `herdr-pane-terminal-grid-${lang}-412.png`,
+        viewport: PHONE,
+        deviceScaleFactor: 2,
+        route: '/d/fixture-desktop/agents/w1%3Ap1',
+        language: lang,
+        ready: '.agent-message',
+        safeInsets: true,
+        async act(page) {
+          await page.getByRole('button', { name: terminalLabel }).click()
+          await page.getByRole('button', { name: gridLabel }).click()
+          await page.locator('.agent-terminal .xterm-rows').waitFor()
+          await assertAgentPaneGeometry(page)
+        },
+      },
+      ...(lang === 'en'
+        ? [
+            {
+              file: 'herdr-pane-chat-en-884.png',
+              viewport: TABLET,
+              route: '/d/fixture-desktop/agents/w1%3Ap1',
+              language: lang,
+              ready: '.agent-message',
+              safeInsets: true,
+              async act(page) {
+                await assertAgentPaneGeometry(page)
+              },
             },
-          },
-        ]
-      : []),
-    {
-      file: `herdr-blocked-${lang}-412.png`,
-      viewport: PHONE,
-      route: '/d/fixture-desktop/agents/w1%3Ap1',
-      language: lang,
-      query: 'agentState=blocked',
-      ready: '.agent-blocked-card',
-      safeInsets: true,
-      async act(page) {
-        await assertNoHorizontalOverflow(page, '.agent-pane-body')
+            {
+              file: 'herdr-pane-terminal-reflow-en-884.png',
+              viewport: TABLET,
+              deviceScaleFactor: 2,
+              route: '/d/fixture-desktop/agents/w1%3Ap1',
+              language: lang,
+              ready: '.agent-message',
+              safeInsets: true,
+              async act(page) {
+                await page.getByRole('button', { name: terminalLabel }).click()
+                await page.locator('.agent-terminal .xterm-rows').waitFor()
+                await assertAgentPaneGeometry(page)
+              },
+            },
+            {
+              file: 'herdr-pane-terminal-grid-en-884.png',
+              viewport: TABLET,
+              deviceScaleFactor: 2,
+              route: '/d/fixture-desktop/agents/w1%3Ap1',
+              language: lang,
+              ready: '.agent-message',
+              safeInsets: true,
+              async act(page) {
+                await page.getByRole('button', { name: terminalLabel }).click()
+                await page.getByRole('button', { name: gridLabel }).click()
+                await page.locator('.agent-terminal .xterm-rows').waitFor()
+                await assertAgentPaneGeometry(page)
+              },
+            },
+          ]
+        : []),
+      {
+        file: `herdr-blocked-${lang}-412.png`,
+        viewport: PHONE,
+        route: '/d/fixture-desktop/agents/w1%3Ap1',
+        language: lang,
+        query: 'agentState=blocked',
+        ready: '.agent-blocked-card',
+        safeInsets: true,
+        async act(page) {
+          await assertAgentPaneGeometry(page)
+        },
       },
-    },
-  ]),
+    ]
+  }),
 ]
 
 const gtdShots = [
@@ -5824,7 +5893,7 @@ try {
   ].filter((item) => !only || only.test(item.file))) {
     const context = await browser.newContext({
       viewport: shot.viewport,
-      deviceScaleFactor: 1,
+      deviceScaleFactor: shot.deviceScaleFactor ?? 1,
       colorScheme: shot.colorScheme ?? 'dark',
       reducedMotion: shot.reducedMotion ?? 'reduce',
       hasTouch: shot.hasTouch ?? false,

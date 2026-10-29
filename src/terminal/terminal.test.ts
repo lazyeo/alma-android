@@ -100,6 +100,21 @@ describe('snapshot terminal', () => {
     expect(session.writeSnapshot('same', 80, 24, 'reflow')).toBe(false)
     expect(driver.write).toHaveBeenCalledTimes(1)
   })
+
+  it('clears before writing a reflow frame so wrapping can grow scrollback', () => {
+    const driver = fakeDriver()
+    const session = new TerminalSession(driver, {
+      mode: 'snapshot',
+      cols: 40,
+      rows: 20,
+    })
+
+    session.writeSnapshot('long line   \nnext', 40, 20, 'reflow')
+
+    expect(driver.write).toHaveBeenCalledWith(
+      '\u001b[H\u001b[3J\u001b[2Jlong line\r\nnext',
+    )
+  })
 })
 
 describe('terminal sizing', () => {

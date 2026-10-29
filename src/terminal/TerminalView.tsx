@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import {
   TERMINAL_THEME,
   TerminalSession,
@@ -50,7 +50,7 @@ const SNAPSHOT_FONT_SIZE = 13
 const SNAPSHOT_LINE_HEIGHT = 1.2
 const SURFACE_INSET = 20
 
-export function TerminalView(props: TerminalViewProps) {
+function TerminalViewComponent(props: TerminalViewProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const surfaceRef = useRef<HTMLDivElement>(null)
   const terminalRef = useRef<Xterm>()
@@ -255,3 +255,32 @@ export function TerminalView(props: TerminalViewProps) {
     </div>
   )
 }
+
+function equalTerminalViewProps(
+  previous: TerminalViewProps,
+  next: TerminalViewProps,
+) {
+  if (
+    previous.mode !== next.mode ||
+    previous.className !== next.className ||
+    previous.ariaLabel !== next.ariaLabel
+  )
+    return false
+  if (previous.mode === 'snapshot' && next.mode === 'snapshot')
+    return (
+      previous.displayMode === next.displayMode &&
+      previous.waitingText === next.waitingText &&
+      previous.frame?.text === next.frame?.text &&
+      previous.frame?.cols === next.frame?.cols &&
+      previous.frame?.rows === next.frame?.rows
+    )
+  if (previous.mode === 'stream' && next.mode === 'stream')
+    return (
+      previous.data === next.data &&
+      previous.onData === next.onData &&
+      previous.onResize === next.onResize
+    )
+  return false
+}
+
+export const TerminalView = memo(TerminalViewComponent, equalTerminalViewProps)

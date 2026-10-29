@@ -1684,7 +1684,8 @@ const herdrSnapshot = {
         screenshotParams.get('agentState') === 'blocked'
           ? 'blocked'
           : 'working',
-      terminal_title_stripped: 'Finish Herdr mobile support',
+      terminal_title_stripped:
+        '修复 Herdr 终端布局并验证 extremely long Fold7 responsive terminal title',
     },
     {
       pane_id: 'w1:p2',
@@ -1760,6 +1761,8 @@ const herdrChatItems = [
     },
   },
 ]
+const herdrLongLine =
+  'Rendering a synthetic 160-column terminal snapshot with a deliberately long command and ANSI colors so narrow phones must wrap it without leaking beyond the detail pane.'
 const herdrTerminal =
   screenshotParams.get('agentState') === 'blocked'
     ? `Claude Code needs permission to run the Android build.
@@ -1767,13 +1770,14 @@ const herdrTerminal =
 \u001b[1m❯ 1. Yes, allow once\u001b[0m
   2. Yes, and remember
   3. No, deny`
-    : `\u001b[2m$\u001b[0m npm run check
+    : `\u001b[2m$\u001b[0m npm run check -- --fixture-terminal-columns=160
 \u001b[38;2;152;195;121m✓\u001b[0m TypeScript
 \u001b[38;2;152;195;121m✓\u001b[0m Vitest
 \u001b[38;2;152;195;121m✓\u001b[0m Prettier
 
-\u001b[48;2;74;77;84m\u001b[1m› \u001b[0m\u001b[48;2;74;77;84mRendering fixed 100-column terminal snapshot…\u001b[0m
-\u001b[38;2;246;226;183m宽字符检查：终端中的中文应该占两个单元格\u001b[0m
+\u001b[48;2;74;77;84m\u001b[1m› \u001b[0m\u001b[48;2;74;77;84m${herdrLongLine}\u001b[0m
+\u001b[38;2;246;226;183m宽字符检查：终端中的中文应该占两个单元格，而且这一整行会继续包含 ASCII words to exercise wrapping at the phone width instead of clipping the right side.\u001b[0m
+\u001b[38;2;97;175;239m${herdrLongLine}\u001b[0m
 \u001b[38;2;246;226;183mGPT-6 medium\u001b[0m \u001b[38;2;169;170;173m~/project\u001b[0m`
 
 const threadEvents = [
@@ -1885,8 +1889,8 @@ function mockSocket(path: string): TunnelSocket {
           JSON.stringify({
             type: 'screen',
             read: { text: herdrTerminal },
-            cols: 100,
-            rows: 28,
+            cols: 160,
+            rows: 32,
           }),
         )
     }, 20)
