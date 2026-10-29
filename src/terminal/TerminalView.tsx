@@ -50,6 +50,10 @@ export function TerminalView(props: TerminalViewProps) {
   const sessionRef = useRef<TerminalSession>()
   const lastStreamData = useRef('')
   const [ready, setReady] = useState(false)
+  const [viewportStyle, setViewportStyle] = useState<CSSProperties>({
+    backgroundColor: TERMINAL_THEME.background,
+    color: TERMINAL_THEME.foreground,
+  })
   const [surfaceStyle, setSurfaceStyle] = useState<CSSProperties>()
 
   useEffect(() => {
@@ -155,6 +159,11 @@ export function TerminalView(props: TerminalViewProps) {
     const rows = props.frame?.rows ?? 24
     const sizing = calculateSnapshotFontSize(viewport.clientWidth, cols)
     session.setFontSize(sizing.fontSize)
+    setViewportStyle({
+      backgroundColor: TERMINAL_THEME.background,
+      color: TERMINAL_THEME.foreground,
+      height: Math.ceil(rows * sizing.fontSize * 1.2 + 20),
+    })
     setSurfaceStyle({ minWidth: sizing.contentWidth })
     session.writeSnapshot(
       props.frame?.text ?? props.waitingText ?? '',
@@ -176,6 +185,7 @@ export function TerminalView(props: TerminalViewProps) {
       className={`terminal-viewport terminal-${props.mode}${props.className ? ` ${props.className}` : ''}`}
       role="region"
       aria-label={props.ariaLabel}
+      style={viewportStyle}
     >
       <div ref={surfaceRef} className="terminal-surface" style={surfaceStyle} />
     </div>
