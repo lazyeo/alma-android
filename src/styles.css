@@ -8752,17 +8752,11 @@ dialog:focus,
   font-size: var(--text-xs);
 }
 .agent-terminal-mode {
-  position: absolute;
-  z-index: 2;
-  top: 6px;
-  right: 6px;
-  width: 30px;
-  height: 30px;
-  border: var(--border-hairline) solid var(--gray-7);
-  background: var(--gray-2);
-  color: var(--gray-11);
-  opacity: 0.9;
-  backdrop-filter: blur(10px);
+  flex: none;
+}
+.agents-sidebar-header h1 {
+  flex: 1;
+  min-width: 0;
 }
 .agent-terminal-keys {
   display: flex;

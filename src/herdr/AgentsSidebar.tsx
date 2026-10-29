@@ -1,6 +1,7 @@
-import { LayoutList, PanelsTopLeft } from 'lucide-react'
+import { LayoutList, MonitorUp, PanelsTopLeft } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
+import { desktopScreenPath } from '../desktopRoutes'
 import { useT } from '../i18n'
 import {
   buildWorkspaceSwitcher,
@@ -17,6 +18,7 @@ import { useHerdr } from './HerdrProvider'
 
 export function AgentsSidebar() {
   const t = useT()
+  const navigate = useNavigate()
   const { desktopId = '', paneId } = useParams()
   const decodedDesktopId = decodeURIComponent(desktopId)
   const selectedPaneId = paneId ? decodeURIComponent(paneId) : undefined
@@ -71,6 +73,15 @@ export function AgentsSidebar() {
             <PanelsTopLeft size={18} />
           )}
         </button>
+        {state?.online ? (
+          <button
+            className="header-icon-button"
+            aria-label={t('agents.openRemoteDesktop')}
+            onClick={() => navigate(desktopScreenPath(decodedDesktopId))}
+          >
+            <MonitorUp size={18} />
+          </button>
+        ) : null}
       </header>
       <div className="agents-sidebar-body">
         <AgentsState state={state} />
