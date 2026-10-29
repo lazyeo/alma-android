@@ -826,18 +826,15 @@ export class AlmaApi {
   promptHerdrAgent(paneId: string, text: string) {
     return this.herdrRpc('agent.prompt', { target: paneId, text })
   }
+  sendHerdrPaneKeys(paneId: string, keys: string[]) {
+    return this.herdrRpc('pane.send_keys', { pane_id: paneId, keys })
+  }
   chooseHerdrMenuOption(paneId: string, key: string) {
-    return this.herdrRpc('pane.send_keys', {
-      pane_id: paneId,
-      keys: [key],
-    })
+    return this.sendHerdrPaneKeys(paneId, [key])
   }
   async sendHerdrBlockedText(paneId: string, text: string) {
     await this.herdrRpc('pane.send_text', { pane_id: paneId, text })
-    return this.herdrRpc('pane.send_keys', {
-      pane_id: paneId,
-      keys: ['enter'],
-    })
+    return this.sendHerdrPaneKeys(paneId, ['enter'])
   }
   readHerdrPane(paneId: string, format: 'text' | 'ansi' = 'text') {
     return this.herdrRpc<{ read?: { text?: string; [key: string]: unknown } }>(

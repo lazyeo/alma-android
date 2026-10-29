@@ -17,6 +17,7 @@ describe('Herdr API', () => {
     const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as never)
 
     await api.promptHerdrAgent('p1', 'Please continue')
+    await api.sendHerdrPaneKeys('p1', ['esc', 'ctrl+c'])
     await api.chooseHerdrMenuOption('p1', '3')
     await api.sendHerdrBlockedText('p1', 'Please use the safe option')
 
@@ -38,12 +39,23 @@ describe('Herdr API', () => {
         method: 'POST',
         body: JSON.stringify({
           method: 'pane.send_keys',
-          params: { pane_id: 'p1', keys: ['3'] },
+          params: { pane_id: 'p1', keys: ['esc', 'ctrl+c'] },
         }),
       }),
     )
     expect(fetch).toHaveBeenNthCalledWith(
       3,
+      '/api/herdr/rpc',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          method: 'pane.send_keys',
+          params: { pane_id: 'p1', keys: ['3'] },
+        }),
+      }),
+    )
+    expect(fetch).toHaveBeenNthCalledWith(
+      4,
       '/api/herdr/rpc',
       expect.objectContaining({
         method: 'POST',
@@ -54,7 +66,7 @@ describe('Herdr API', () => {
       }),
     )
     expect(fetch).toHaveBeenNthCalledWith(
-      4,
+      5,
       '/api/herdr/rpc',
       expect.objectContaining({
         method: 'POST',
