@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { AgentPaneRow } from './AgentsBoard'
@@ -18,9 +24,8 @@ vi.mock('../desktops/DesktopContext', () => ({
 }))
 vi.mock('../i18n', () => ({ useT: () => (key: string) => key }))
 vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>(
-    'react-router-dom',
-  )
+  const actual =
+    await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
   return { ...actual, useParams: () => ({}) }
 })
 
@@ -37,6 +42,7 @@ describe('AgentPaneRow blocked quick answer', () => {
           desktopId="desktop"
           pane={{
             id: 'pane-1',
+            workspaceId: 'workspace-1',
             agent: 'agy',
             status: 'blocked',
             title: 'Run command',
@@ -45,7 +51,9 @@ describe('AgentPaneRow blocked quick answer', () => {
       </MemoryRouter>,
     )
 
-    await waitFor(() => expect(screen.getByText('Run this command?')).toBeTruthy())
+    await waitFor(() =>
+      expect(screen.getByText('Run this command?')).toBeTruthy(),
+    )
     expect(api.readHerdrPane).toHaveBeenCalledWith('pane-1', 'text', {
       source: 'visible',
     })
