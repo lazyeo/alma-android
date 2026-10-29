@@ -70,3 +70,100 @@ export function compareSemVer(a: string, b: string): number | undefined {
   }
   return 0
 }
+
+export const UPDATE_REPOSITORY = 'lazyeo/alma-android'
+export const RELEASES_PAGE_URL = `https://github.com/${UPDATE_REPOSITORY}/releases`
+const RELEASE_DOWNLOADS = `${RELEASES_PAGE_URL}/download/`
+
+export type ReleaseApk = {
+  name: string
+  url: string
+  size: number
+  checksumUrl: string
+}
+
+export type AvailableRelease = {
+  version: string
+  notes: string
+  pageUrl: string
+  publishedAt?: string
+  /** Present only when the exact APK and its checksum are both attached. */
+  apk?: ReleaseApk
+}
+
+/** The file name scripts/release.mjs publishes for a version. */
+export const apkAssetName = (version: string) => `alma-android-v${version}.apk`
+
+const record = (value: unknown): Record<string, unknown> | undefined =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined
+
+// Only this repository's download URL for this exact tag and file name.
+function releaseAsset(assets: unknown[], tag: string, name: string) {
+  const expected = `${RELEASE_DOWNLOADS}${tag}/${name}`
+  for (const value of assets) {
+    const asset = record(value)
+    if (asset?.name === name && asset.browser_download_url === expected)
+      return {
+        url: expected,
+        size: typeof asset.size === 'number' ? asset.size : 0,
+      }
+  }
+  return undefined
+}
+
+/**
+ * Reads GitHub's latest-release payload. Drafts, prereleases and tags other
+ * than vX.Y.Z are not offered, even if the endpoint ever returned one.
+ */
+export function parseLatestRelease(
+  payload: unknown,
+): AvailableRelease | undefined {
+  const release = record(payload)
+  if (!release || release.draft !== false || release.prerelease !== false)
+    return undefined
+  const tag = release.tag_name
+  if (typeof tag !== 'string' || !tag.startsWith('v')) return undefined
+  const version = tag.slice(1)
+  if (!isStableVersion(version)) return undefined
+  const tagPage = `${RELEASES_PAGE_URL}/tag/${tag}`
+  const html = release.html_url
+  if (html !== undefined && html !== tagPage) return undefined
+
+  const assets = Array.isArray(release.assets) ? release.assets : []
+  const name = apkAssetName(version)
+  const apk = releaseAsset(assets, tag, name)
+  const checksum = releaseAsset(assets, tag, `${name}.sha256`)
+  return {
+    version,
+    notes: typeof release.body === 'string' ? release.body : '',
+    pageUrl: tagPage,
+    ...(typeof release.published_at === 'string'
+      ? { publishedAt: release.published_at }
+      : {}),
+    ...(apk && checksum
+      ? {
+          apk: {
+            name,
+            url: apk.url,
+            size: apk.size,
+            checksumUrl: checksum.url,
+          },
+        }
+      : {}),
+  }
+}
+
+/**
+ * Reads a `sha256sum`-style file: one `<hex>  <name>` (or `*<name>`) line, or
+ * a bare digest. A digest for any other file name is rejected.
+ */
+export function parseSha256File(text: string, fileName: string) {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim())
+  if (lines.length !== 1) return undefined
+  const match = /^([0-9a-fA-F]{64})(?:\s+\*?(.+))?$/.exec(lines[0].trim())
+  if (!match || (match[2] !== undefined && match[2].trim() !== fileName))
+    return undefined
+  return match[1].toLowerCase()
+}
