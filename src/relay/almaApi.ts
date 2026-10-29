@@ -840,8 +840,20 @@ export class AlmaApi {
   sendHerdrPaneText(paneId: string, text: string) {
     return this.herdrRpc('pane.send_text', { pane_id: paneId, text })
   }
-  chooseHerdrMenuOption(paneId: string, key: string) {
-    return this.sendHerdrPaneKeys(paneId, [key])
+  chooseHerdrMenuOption(
+    paneId: string,
+    selectedIndex: number | undefined,
+    optionNumber: number,
+  ) {
+    if (selectedIndex === undefined)
+      return this.sendHerdrPaneKeys(paneId, [String(optionNumber)])
+    const targetIndex = Math.max(0, optionNumber - 1)
+    const delta = targetIndex - selectedIndex
+    const direction = delta < 0 ? 'up' : 'down'
+    return this.sendHerdrPaneKeys(paneId, [
+      ...Array.from({ length: Math.abs(delta) }, () => direction),
+      'enter',
+    ])
   }
   async sendHerdrBlockedText(paneId: string, text: string) {
     await this.sendHerdrPaneText(paneId, text)

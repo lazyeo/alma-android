@@ -140,40 +140,63 @@ export function mergeChatItems<T extends HerdrChatItem>(
 }
 
 export interface BlockedPromptOption {
-  key: string
+  number: number
   label: string
 }
 export interface BlockedPrompt {
   question: string
-  allow: BlockedPromptOption
-  deny: BlockedPromptOption
+  options: BlockedPromptOption[]
+  selectedIndex?: number
+  /** Compatibility fields for older callers. */
+  allow?: { key: string; label: string }
+  deny?: { key: string; label: string }
 }
 
+const cursorMarkers = '[❯>›▶→]'
+const menuLine = new RegExp(`^\\s*(${cursorMarkers})?\\s*(\\d+)\\.\\s+(.*)$`)
 const cleanMenuLine = (line: string) =>
-  line.replace(/^\s*│/, '').split('│')[0].trim()
-const menuLine = /^\s*(?:[❯>›▶→]\s*)?(\d+)\.\s+(.*)$/
+  line.replace(/^\s*│\s?/, '').replace(/\s*│\s*$/, '')
 
-/** Mirrors Alma desktop's numbered Yes/No detector for blocked terminals. */
+/** Parses the visible tail of a numbered cursor menu without exceeding 1.5KB. */
 export function parseBlockedPrompt(text: string): BlockedPrompt | null {
-  const lines = text.split(/\r?\n/).map(cleanMenuLine)
+  const tail = text.slice(-1500)
+  const lines = tail.split(/\r?\n/).map(cleanMenuLine)
+  const options: BlockedPromptOption[] = []
+  let selectedIndex: number | undefined
+  let firstOptionLine = -1
+
   for (let index = 0; index < lines.length; index += 1) {
-    const allow = menuLine.exec(lines[index])
-    if (!allow || allow[1] !== '1' || !allow[2].startsWith('Yes')) continue
-    for (let denyIndex = index + 1; denyIndex < lines.length; denyIndex += 1) {
-      const deny = menuLine.exec(lines[denyIndex])
-      if (!deny || !deny[2].startsWith('No')) continue
-      const question = [...lines.slice(0, index)]
-        .reverse()
-        .find((line) => line && !menuLine.test(line))
-      if (!question) return null
-      return {
-        question: question.slice(0, 1500),
-        allow: { key: allow[1], label: allow[2] },
-        deny: { key: deny[1], label: deny[2] },
-      }
+    const match = menuLine.exec(lines[index])
+    if (match) {
+      if (firstOptionLine < 0) firstOptionLine = index
+      options.push({ number: Number(match[2]), label: match[3].trim() })
+      if (match[1]) selectedIndex = options.length - 1
+      continue
+    }
+    if (options.length && lines[index].trim()) {
+      options[options.length - 1].label += ` ${lines[index].trim()}`
     }
   }
-  return null
+
+  if (options.length < 2 || firstOptionLine < 1) return null
+  const question = [...lines.slice(0, firstOptionLine)]
+    .reverse()
+    .find((line) => line.trim())
+    ?.trim()
+  if (!question) return null
+  const allow = options.find((option) => option.label.startsWith('Yes'))
+  const deny = [...options]
+    .reverse()
+    .find((option) => option.label.startsWith('No'))
+  return {
+    question,
+    options,
+    selectedIndex,
+    ...(allow
+      ? { allow: { key: String(allow.number), label: allow.label } }
+      : {}),
+    ...(deny ? { deny: { key: String(deny.number), label: deny.label } } : {}),
+  }
 }
 
 export function shouldNotifyAgentStatus(input: {

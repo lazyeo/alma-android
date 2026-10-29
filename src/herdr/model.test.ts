@@ -67,47 +67,72 @@ describe('agentListFromSnapshot', () => {
 })
 
 describe('parseBlockedPrompt', () => {
-  it('extracts a numbered Yes/No question and exact option keys', () => {
-    expect(
-      parseBlockedPrompt(
-        `Run this command?\n❯ 1. Yes, allow once\n  2. Yes, and remember\n  3. No, deny`,
-      ),
-    ).toEqual({
-      question: 'Run this command?',
-      allow: { key: '1', label: 'Yes, allow once' },
-      deny: { key: '3', label: 'No, deny' },
-    })
-  })
+  const menu = [
+    'Run this command?',
+    '  1. Yes, run command',
+    "  2. Yes, and always allow in this conversation for commands that start with 'ioreg'",
+    "     and keep using this permission until the conversation ends",
+    "  3. Yes, and always allow for commands that start with 'ioreg' (Persist to",
+    '     settings.json)',
+    '  4. No, cancel',
+  ]
 
-  it.each(['❯', '>', '›', '▶', '→'])(
-    'keeps an agy permission menu detected with %s on every option',
-    (cursor) => {
-      for (const selected of ['1', '2', '3', '4']) {
-        const lines = [
-          'Run this command?',
-          '  1. Yes, run command',
-          '  2. Yes, and always allow in this conversation...',
-          '  3. Yes, and always allow ... (Persist to settings...)',
-          '  4. No, cancel.',
-        ].map((line) =>
-          line.includes(`${selected}.`) ? `${cursor} ${line.trim()}` : line,
-        )
-        expect(parseBlockedPrompt(lines.join('\n'))).toEqual({
-          question: 'Run this command?',
-          allow: { key: '1', label: 'Yes, run command' },
-          deny: { key: '4', label: 'No, cancel.' },
-        })
-      }
+  it.each([0, 1, 2, 3])(
+    'extracts every wrapped option with the cursor on option %i',
+    (selectedIndex) => {
+      const lines = menu.map((line, index) =>
+        index === [1, 2, 4, 6][selectedIndex]
+          ? `❯ ${line.trim()}`
+          : line,
+      )
+      expect(parseBlockedPrompt(lines.join('\n'))).toEqual({
+        question: 'Run this command?',
+        options: [
+          { number: 1, label: 'Yes, run command' },
+          {
+            number: 2,
+            label:
+              "Yes, and always allow in this conversation for commands that start with 'ioreg' and keep using this permission until the conversation ends",
+          },
+          {
+            number: 3,
+            label:
+              "Yes, and always allow for commands that start with 'ioreg' (Persist to settings.json)",
+          },
+          { number: 4, label: 'No, cancel' },
+        ],
+        selectedIndex,
+        allow: { key: '1', label: 'Yes, run command' },
+        deny: { key: '4', label: 'No, cancel' },
+      })
     },
   )
 
-  it('accepts menu chrome and rejects menus without a later No option', () => {
+  it.each(['❯', '>', '›', '▶', '→'])(
+    'supports the %s cursor marker',
+    (cursor) => {
+      expect(
+        parseBlockedPrompt(
+          menu
+            .map((line, index) =>
+              index === 2 ? `${cursor} ${line.trim()}` : line,
+            )
+            .join('\n'),
+        )?.selectedIndex,
+      ).toBe(1)
+    },
+  )
+
+  it('accepts menu chrome and rejects a single-option prompt', () => {
     expect(
-      parseBlockedPrompt(`│ Delete the file? │\n│ 1. Yes │\n│ 2. No │`),
-    ).toEqual({
+      parseBlockedPrompt(`│ Delete the file? │\n│ 1. Yes │\n│ > 2. No │`),
+    ).toMatchObject({
       question: 'Delete the file?',
-      allow: { key: '1', label: 'Yes' },
-      deny: { key: '2', label: 'No' },
+      options: [
+        { number: 1, label: 'Yes' },
+        { number: 2, label: 'No' },
+      ],
+      selectedIndex: 1,
     })
     expect(parseBlockedPrompt('Continue?\n1. Yes')).toBeNull()
   })
