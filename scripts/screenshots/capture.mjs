@@ -5168,6 +5168,61 @@ async function holdRow(page, title) {
 
 // GTD first batch: segments, favorites, autoTodo, inbox fold, swipe, and the
 // Threads header Crystals entry. All data is the synthetic fixture.
+const herdrShots = [
+  ...['en', 'zh'].flatMap((lang) => [
+    {
+      file: `herdr-agents-${lang}-412.png`,
+      viewport: PHONE,
+      route: '/d/fixture-desktop/agents',
+      language: lang,
+      ready: '.agent-pane-row',
+      safeInsets: true,
+      async act(page) {
+        await assertNoHorizontalOverflow(page, '.agents-page-body')
+        if (!(await page.locator('.tab-bar .agents-entry').count()))
+          throw new Error('phone Agents navigation entry missing')
+      },
+    },
+    {
+      file: `herdr-pane-chat-${lang}-412.png`,
+      viewport: PHONE,
+      route: '/d/fixture-desktop/agents/w1%3Ap1',
+      language: lang,
+      ready: '.agent-message',
+      safeInsets: true,
+      async act(page) {
+        await assertNoHorizontalOverflow(page, '.agent-pane-body')
+      },
+    },
+    {
+      file: `herdr-pane-terminal-${lang}-412.png`,
+      viewport: PHONE,
+      route: '/d/fixture-desktop/agents/w1%3Ap1',
+      language: lang,
+      ready: '.agent-message',
+      safeInsets: true,
+      async act(page) {
+        const label = lang === 'zh' ? '终端' : 'Terminal'
+        await page.getByRole('button', { name: new RegExp(label) }).click()
+        await page.locator('.agent-terminal').waitFor()
+        await assertNoHorizontalOverflow(page, '.agent-pane-body')
+      },
+    },
+    {
+      file: `herdr-blocked-${lang}-412.png`,
+      viewport: PHONE,
+      route: '/d/fixture-desktop/agents/w1%3Ap1',
+      language: lang,
+      query: 'agentState=blocked',
+      ready: '.agent-blocked-card',
+      safeInsets: true,
+      async act(page) {
+        await assertNoHorizontalOverflow(page, '.agent-pane-body')
+      },
+    },
+  ]),
+]
+
 const gtdShots = [
   {
     file: 'gtd-phone-todo-favorites.png',
@@ -5662,8 +5717,8 @@ const server = await createServer({
 await server.listen()
 const { port } = server.httpServer.address() // next free port if taken
 let browser
-const fixtureUrl = (route, fixture, query) =>
-  `http://127.0.0.1:${port}/scripts/screenshots/fixture.html?route=${encodeURIComponent(route)}${fixture ? `&fixture=${fixture}` : ''}${query ? `&${query}` : ''}`
+const fixtureUrl = (route, fixture, query, language) =>
+  `http://127.0.0.1:${port}/scripts/screenshots/fixture.html?route=${encodeURIComponent(route)}${fixture ? `&fixture=${fixture}` : ''}${query ? `&${query}` : ''}${language ? `&lang=${language}` : ''}`
 try {
   const installedChrome =
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
@@ -5681,6 +5736,7 @@ try {
   for (const shot of [
     ...taskCardsShots,
     ...shots,
+    ...herdrShots,
     ...gtdShots,
     ...shareShots,
   ].filter((item) => !only || only.test(item.file))) {
@@ -5695,7 +5751,9 @@ try {
     const page = await context.newPage()
     const errors = []
     page.on('pageerror', (error) => errors.push(error.message))
-    await page.goto(fixtureUrl(shot.route, shot.fixture, shot.query))
+    await page.goto(
+      fixtureUrl(shot.route, shot.fixture, shot.query, shot.language),
+    )
     if (themeOverride && themeMode)
       await setFixtureTheme(page, themeOverride, themeMode)
     if (shot.safeInsets) {

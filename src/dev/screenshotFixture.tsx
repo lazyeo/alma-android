@@ -1206,6 +1206,27 @@ document.getElementById('probe').textContent='parent storage: ' + verdict
 function route(method: string, path: string, body?: unknown): TunnelResponse {
   const [pathname, query = ''] = path.split('?')
   const thread = (id: string) => threads.find((item) => item.id === id)
+  if (pathname === '/api/herdr/info')
+    return json(200, {
+      online: true,
+      herdr: { type: 'pong', version: '0.9.5', protocol: 22 },
+    })
+  if (pathname === '/api/herdr/mutes') return json(200, { workspaces: [] })
+  if (pathname === '/api/herdr/chat')
+    return json(200, {
+      session_id: 'fixture-session',
+      page: { items: herdrChatItems, start: 0, end: herdrChatItems.length },
+      queued: [],
+    })
+  if (pathname === '/api/herdr/rpc') {
+    const request = JSON.parse(String(body ?? '{}')) as {
+      method?: string
+      params?: Record<string, unknown>
+    }
+    if (request.method === 'pane.read')
+      return json(200, { result: { read: { text: herdrTerminal } } })
+    return json(200, { result: { accepted: true } })
+  }
   if (pathname === '/api/files-abs-binary') {
     const filePath = new URLSearchParams(query).get('path') ?? ''
     if (filePath.endsWith('missing-export.zip'))
@@ -1625,6 +1646,84 @@ function route(method: string, path: string, body?: unknown): TunnelResponse {
 }
 
 /** Realtime events every `/ws/threads` subscriber receives once opened. */
+
+const herdrSnapshot = {
+  version: '0.9.5',
+  protocol: 22,
+  workspaces: [
+    { workspace_id: 'w-mobile', label: 'Alma Android' },
+    { workspace_id: 'w-site', label: 'Documentation site' },
+  ],
+  tabs: [
+    { tab_id: 't-impl', workspace_id: 'w-mobile', label: 'Implementation' },
+    { tab_id: 't-review', workspace_id: 'w-mobile', label: 'Review' },
+    { tab_id: 't-docs', workspace_id: 'w-site', label: 'Docs' },
+  ],
+  panes: [
+    {
+      pane_id: 'w1:p1',
+      workspace_id: 'w-mobile',
+      tab_id: 't-impl',
+      agent: 'claude',
+      agent_status:
+        screenshotParams.get('agentState') === 'blocked'
+          ? 'blocked'
+          : 'working',
+      terminal_title_stripped: 'Finish Herdr mobile support',
+    },
+    {
+      pane_id: 'w1:p2',
+      workspace_id: 'w-mobile',
+      tab_id: 't-review',
+      agent: 'codex',
+      agent_status: 'done',
+      terminal_title_stripped: 'Review request shapes',
+    },
+    {
+      pane_id: 'w2:p1',
+      workspace_id: 'w-site',
+      tab_id: 't-docs',
+      agent: 'claude',
+      agent_status: 'idle',
+      terminal_title_stripped: 'Update protocol notes',
+    },
+  ],
+}
+const herdrChatItems = [
+  {
+    id: 'agent-user-1',
+    kind: 'user',
+    text: 'Please finish the provider integration and verify the phone layout.',
+  },
+  {
+    id: 'agent-assistant-1',
+    kind: 'assistant',
+    text: 'I updated the reconnect path and added exact RPC request-shape tests. Next I am checking the fixture screens for overflow.',
+  },
+  {
+    id: 'agent-tool-1',
+    kind: 'tool',
+    tool: {
+      name: 'npm test',
+      summary: 'Focused Herdr tests passed',
+      done: true,
+    },
+  },
+]
+const herdrTerminal =
+  screenshotParams.get('agentState') === 'blocked'
+    ? `Claude Code needs permission to run the Android build.
+
+❯ 1. Yes, allow once
+  2. Yes, and remember
+  3. No, deny`
+    : `$ npm run check
+✓ TypeScript
+✓ Vitest
+✓ Prettier
+
+Working on Android build…`
+
 const threadEvents = [
   {
     type: 'generating_snapshot',
@@ -1714,6 +1813,26 @@ function mockSocket(path: string): TunnelSocket {
         for (const listener of listeners)
           listener(JSON.stringify({ ...event, timestamp: NOW }))
     }, 400)
+  if (path === '/ws/herdr')
+    setTimeout(() => {
+      for (const event of [
+        { type: 'herdr', online: true },
+        { type: 'snapshot', snapshot: herdrSnapshot },
+      ])
+        for (const listener of listeners) listener(JSON.stringify(event))
+    }, 20)
+  if (path.startsWith('/ws/herdr/chat'))
+    setTimeout(() => {
+      for (const listener of listeners)
+        listener(JSON.stringify({ type: 'queued', queued: [] }))
+    }, 20)
+  if (path.startsWith('/ws/herdr/screen'))
+    setTimeout(() => {
+      for (const listener of listeners)
+        listener(
+          JSON.stringify({ type: 'screen', read: { text: herdrTerminal } }),
+        )
+    }, 20)
   return socket
 }
 
