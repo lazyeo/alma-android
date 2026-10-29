@@ -1757,7 +1757,8 @@ const herdrTerminal =
 \u001b[38;2;152;195;121m✓\u001b[0m Vitest
 \u001b[38;2;152;195;121m✓\u001b[0m Prettier
 
-\u001b[48;2;74;77;84m\u001b[1m› \u001b[0m\u001b[48;2;74;77;84mWorking on Android build…\u001b[0m
+\u001b[48;2;74;77;84m\u001b[1m› \u001b[0m\u001b[48;2;74;77;84mRendering fixed 100-column terminal snapshot…\u001b[0m
+\u001b[38;2;246;226;183m宽字符检查：终端中的中文应该占两个单元格\u001b[0m
 \u001b[38;2;246;226;183mGPT-6 medium\u001b[0m \u001b[38;2;169;170;173m~/project\u001b[0m`
 
 const threadEvents = [
@@ -1866,7 +1867,12 @@ function mockSocket(path: string): TunnelSocket {
     setTimeout(() => {
       for (const listener of listeners)
         listener(
-          JSON.stringify({ type: 'screen', read: { text: herdrTerminal } }),
+          JSON.stringify({
+            type: 'screen',
+            read: { text: herdrTerminal },
+            cols: 100,
+            rows: 28,
+          }),
         )
     }, 20)
   return socket
