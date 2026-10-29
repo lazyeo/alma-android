@@ -669,11 +669,17 @@ async function assertNavigationWithoutInbox(page, selector) {
         (link) => link.getAttribute('aria-label') ?? link.textContent ?? '',
       ),
     )
-  if (labels.some((label) => label.trim() === 'Inbox'))
+  const normalized = labels.map((label) => label.trim())
+  if (normalized.includes('Inbox'))
     throw new Error(`Inbox remains in navigation: ${JSON.stringify(labels)}`)
-  for (const label of ['Threads', 'GTD', 'Settings'])
-    if (!labels.some((item) => item.trim() === label))
-      throw new Error(`missing ${label} navigation root`)
+  const expected =
+    selector === '.tab-bar'
+      ? ['Threads', 'Herdr', 'Settings']
+      : ['Threads', 'GTD', 'Herdr', 'Settings']
+  if (normalized.join('|') !== expected.join('|'))
+    throw new Error(
+      `${selector} navigation roots: ${JSON.stringify(normalized)}`,
+    )
 }
 
 async function assertRecipeDismissPolicy(page) {
