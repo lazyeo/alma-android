@@ -8,13 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Nothing yet.
+
+## [0.1.2] - 2026-10-29
+
+### Added
+
 - Chat and Markdown files render KaTeX math and Mermaid diagrams (loaded on demand, with a Source toggle in the code block header and a fallback to the source when rendering fails).
 - File previews for audio, video, SVG, PDF (zoom, fit width, page indicator), CSV, Excel worksheets, and Word documents. Tables show at most 2,000 rows and 100 columns; files over the per-type limit can still be opened, shared, or saved.
 
 ### Changed
 
 - Buttons use shared quiet icon, text, and chip styles instead of the WebView default look; the image gallery closes with a plain X at the top end.
-
 ## [0.1.1] - 2026-10-29
 
 ### Added
@@ -46,6 +51,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Foldable layouts, a frosted screen transition, optional Shizuku live hinge-angle input, and an estimated fallback.
 - Foreground-lifetime local notifications for completed replies and pending approvals; no push service is used.
 
-[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.2...HEAD
 [0.1.0]: https://github.com/lazyeo/alma-android/releases/tag/v0.1.0
 [0.1.1]: https://github.com/lazyeo/alma-android/compare/v0.1.0...v0.1.1
+[0.1.2]: https://github.com/lazyeo/alma-android/compare/v0.1.1...v0.1.2
