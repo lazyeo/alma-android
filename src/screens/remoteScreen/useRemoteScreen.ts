@@ -7,6 +7,7 @@ import {
   type ScreenFrame,
   type ScreenServerMessage,
 } from './protocol'
+import { isFrameStalled } from './liveness'
 
 interface ScreenTunnel {
   openWebSocket: Pick<RelayTunnel, 'openWebSocket'>['openWebSocket']
@@ -33,6 +34,12 @@ export function useRemoteScreen(
   const [connected, setConnected] = useState(false)
   const [rtcState, setRtcState] = useState('idle')
   const [error, setError] = useState('')
+  // A WebRTC track can arrive without ever delivering a frame (e.g. the Mac
+  // display is asleep), so video only counts once a frame has been decoded.
+  const videoLiveRef = useRef(false)
+  const [videoLive, setVideoLive] = useState(false)
+  const lastFrameAt = useRef<number>()
+  const [stalled, setStalled] = useState(false)
 
   const send = useCallback((value: ScreenClientMessage) => {
     socketRef.current?.send(JSON.stringify(value))
@@ -63,14 +70,19 @@ export function useRemoteScreen(
       peerRef.current = undefined
       streamRef.current = undefined
       setStream(undefined)
+      videoLiveRef.current = false
+      setVideoLive(false)
     }
     const removeMessage = socket.onMessage((raw) => {
       if (disposed || typeof raw !== 'string') return
       const next = decodeScreenMessage(raw)
       if (!next) return
       setMessage(next)
-      if (next.type === 'frame')
+      if (next.type === 'frame') {
+        lastFrameAt.current = Date.now()
+        setStalled(false)
         setFrame((current) => latestFrame(current, next))
+      }
       if (next.type === 'error') setError(next.message)
       if (next.type === 'rtc') setRtcState(next.state)
       if (next.type === 'rtc_offer') {
@@ -123,10 +135,11 @@ export function useRemoteScreen(
       .then(() => {
         if (disposed) return
         setConnected(true)
+        lastFrameAt.current = Date.now()
         if (rtc) {
           send({ type: 'rtc_start' })
           rtcTimer = setTimeout(() => {
-            if (!streamRef.current) {
+            if (!videoLiveRef.current) {
               setRtcState('timeout')
               send({ type: 'rtc_stop' })
               stopRtc()
@@ -145,8 +158,15 @@ export function useRemoteScreen(
       }
     }
     document.addEventListener('visibilitychange', onVisibility)
+    // JPEG frames keep coming while the display is on; while video is live
+    // the desktop stops sending them, so only judge the JPEG path.
+    const stallTimer = setInterval(() => {
+      if (!videoLiveRef.current)
+        setStalled(isFrameStalled(lastFrameAt.current, Date.now()))
+    }, 1_000)
     return () => {
       disposed = true
+      clearInterval(stallTimer)
       setControl(false)
       document.removeEventListener('visibilitychange', onVisibility)
       removeMessage()
@@ -157,8 +177,21 @@ export function useRemoteScreen(
     }
   }, [displayId, rtc, rtcTimeoutMs, send, setControl, tunnel])
 
+  const markVideoFrame = useCallback(() => {
+    if (videoLiveRef.current) return
+    videoLiveRef.current = true
+    setVideoLive(true)
+    setStalled(false)
+  }, [])
+  /** One explicit Shift press: wakes a sleeping display without typing. */
+  const wake = useCallback(() => send({ type: 'key', key: 'shift' }), [send])
+
   return {
     connected,
+    markVideoFrame,
+    stalled,
+    videoLive,
+    wake,
     control,
     error,
     frame,

@@ -1398,6 +1398,16 @@ const screenShots = [
       assertNoHorizontalOverflow(page, '.remote-screen-page'),
   },
   {
+    file: 'screen-asleep-zh-412.png',
+    viewport: PHONE,
+    route: '/d/fixture-desktop/screen',
+    query: 'lang=zh&screenState=asleep',
+    ready: '.remote-screen-asleep',
+    safeInsets: true,
+    afterCapture: (page) =>
+      assertNoHorizontalOverflow(page, '.remote-screen-page'),
+  },
+  {
     file: 'screen-view-zh-412.png',
     viewport: PHONE,
     route: '/d/fixture-desktop/screen',
