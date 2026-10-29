@@ -79,4 +79,7 @@ const SAME_IN_BOTH = new Set<string>([
   // Mode/feature names desktop Alma also leaves in English.
   'composer.fast',
   'thread.crew.title',
+  // Product name is intentionally unchanged in both locales.
+  'nav.agents',
+  'agents.title',
 ])

@@ -2,6 +2,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ConnectionContext } from '../desktops/DesktopContext'
 import { LanguageProvider } from '../i18n'
 import type { AlmaApi } from '../relay/almaApi'
 import { AgentsSidebar } from './AgentsSidebar'
@@ -95,18 +96,27 @@ describe('AgentsSidebar project selection', () => {
     render(
       <LanguageProvider>
         <MemoryRouter initialEntries={['/d/desktop/agents/pane-a']}>
-          <HerdrProvider
-            desktops={[{ id: 'desktop', name: 'Mac', online: true, api }]}
-            notificationSettings={{} as never}
+          <ConnectionContext.Provider
+            value={{
+              pairing: { id: 'desktop', name: 'Mac' } as never,
+              api,
+              tunnel: {} as never,
+              status: 'online',
+            }}
           >
-            <NavigateToPaneB />
-            <Routes>
-              <Route
-                path="/d/:desktopId/agents/:paneId"
-                element={<AgentsSidebar />}
-              />
-            </Routes>
-          </HerdrProvider>
+            <HerdrProvider
+              desktops={[{ id: 'desktop', name: 'Mac', online: true, api }]}
+              notificationSettings={{} as never}
+            >
+              <NavigateToPaneB />
+              <Routes>
+                <Route
+                  path="/d/:desktopId/agents/:paneId"
+                  element={<AgentsSidebar />}
+                />
+              </Routes>
+            </HerdrProvider>
+          </ConnectionContext.Provider>
         </MemoryRouter>
       </LanguageProvider>,
     )
