@@ -5149,7 +5149,11 @@ const shots = [
 // A later, more specific display rule can silently drop the gap, so measure.
 async function assertVisibleTerminal(page) {
   await page.waitForFunction(() =>
-    Boolean(document.querySelector('.agent-terminal .xterm-rows')?.textContent?.trim()),
+    Boolean(
+      document
+        .querySelector('.agent-terminal .xterm-rows')
+        ?.textContent?.trim(),
+    ),
   )
   const terminal = await page.evaluate(() => {
     const area = document.querySelector('.agent-terminal-area')
@@ -5187,7 +5191,9 @@ async function assertVisibleTerminal(page) {
     }
   })
   if (!terminal.text || terminal.visibleTextRects === 0)
-    throw new Error(`agent terminal has no visible text: ${JSON.stringify(terminal)}`)
+    throw new Error(
+      `agent terminal has no visible text: ${JSON.stringify(terminal)}`,
+    )
 }
 
 async function assertTerminalModeControl(page) {
@@ -5658,7 +5664,9 @@ const herdrShots = [
                 ready: '.agent-chat .message',
                 safeInsets: true,
                 async act(page) {
-                  await page.getByRole('button', { name: terminalLabel }).click()
+                  await page
+                    .getByRole('button', { name: terminalLabel })
+                    .click()
                   if (displayMode === 'grid')
                     await page.getByRole('button', { name: gridLabel }).click()
                   await page

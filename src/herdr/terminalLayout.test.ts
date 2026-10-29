@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
-const screen = readFileSync(new URL('./HerdrScreens.tsx', import.meta.url), 'utf8')
+const screen = readFileSync(
+  new URL('./HerdrScreens.tsx', import.meta.url),
+  'utf8',
+)
 const terminalView = readFileSync(
   new URL('../terminal/TerminalView.tsx', import.meta.url),
   'utf8',
@@ -33,9 +36,7 @@ describe('Herdr terminal surface geometry', () => {
     expect(css).toMatch(
       /\.agent-terminal-scroll\s*{[^}]*background:\s*var\(--agent-terminal-bg\);/s,
     )
-    expect(css).toMatch(
-      /\.terminal-viewport,[\s\S]*?border:\s*0;/s,
-    )
+    expect(css).toMatch(/\.terminal-viewport,[\s\S]*?border:\s*0;/s)
     expect(css).not.toMatch(
       /\.agent-terminal-history\s*{[^}]*border:\s*var\(--border-hairline\)/s,
     )
