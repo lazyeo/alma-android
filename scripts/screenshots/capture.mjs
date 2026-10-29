@@ -5643,9 +5643,49 @@ const herdrShots = [
                 await page.getByRole('button', { name: terminalLabel }).click()
                 await page.getByRole('button', { name: gridLabel }).click()
                 await page.locator('.agent-terminal .xterm-rows').waitFor()
+                await assertVisibleTerminal(page)
+                await assertTerminalModeControl(page)
                 await assertAgentPaneGeometry(page)
               },
             },
+            ...[PHONE, TABLET].flatMap((viewport) =>
+              ['reflow', 'grid'].map((displayMode) => ({
+                file: `herdr-pane-terminal-${displayMode}-history-hidden-en-${viewport.width}.png`,
+                viewport,
+                deviceScaleFactor: 2,
+                route: '/d/fixture-desktop/agents/w1%3Ap1',
+                language: lang,
+                ready: '.agent-chat .message',
+                safeInsets: true,
+                async act(page) {
+                  await page.getByRole('button', { name: terminalLabel }).click()
+                  if (displayMode === 'grid')
+                    await page.getByRole('button', { name: gridLabel }).click()
+                  await page
+                    .getByRole('button', { name: 'Load earlier output' })
+                    .click()
+                  await page
+                    .locator('.agent-terminal-history')
+                    .getByText(/history line 1/)
+                    .first()
+                    .waitFor()
+                  await page
+                    .getByRole('button', { name: 'Hide keyboard' })
+                    .click()
+                  await page
+                    .locator('.agent-composer')
+                    .waitFor({ state: 'hidden' })
+                  await page
+                    .locator('.agent-terminal-scroll')
+                    .evaluate((element) => {
+                      element.scrollTop = element.scrollHeight
+                    })
+                  await assertVisibleTerminal(page)
+                  await assertTerminalModeControl(page)
+                  await assertNoHorizontalOverflow(page, '.agent-pane-page')
+                },
+              })),
+            ),
           ]
         : []),
       {
