@@ -54,6 +54,18 @@
   color: var(--muted-foreground);
   font-size: var(--text-xs);
 }
+.remote-screen-desktop-switcher {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 22px;
+  padding: 0;
+  justify-content: flex-start;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}
+.remote-screen-desktop-switcher .desktop-switcher-window {
+  max-width: 150px;
+}
 .remote-screen-header .chip-button {
   gap: 5px;
 }

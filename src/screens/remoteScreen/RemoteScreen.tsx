@@ -25,6 +25,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { copyText } from '../../clipboard'
 import { useConnection } from '../../desktops/DesktopContext'
+import { DesktopSwitcher } from '../../desktops/DesktopSwitcher'
 import { useT } from '../../i18n'
 import {
   buildKeyCombo,
@@ -472,7 +473,7 @@ export function RemoteScreen() {
         </button>
         <div className="remote-screen-heading">
           <strong>{t('screen.title')}</strong>
-          <small>{pairing.name}</small>
+          <DesktopSwitcher className="remote-screen-desktop-switcher" />
         </div>
         <button
           className="chip-button"
