@@ -5386,11 +5386,14 @@ const herdrShots = [
         },
       },
       {
-        file: `herdr-pane-chat-${lang}-412.png`,
+        file:
+          lang === 'en'
+            ? 'herdr-pane-chat-claude-en-412.png'
+            : `herdr-pane-chat-${lang}-412.png`,
         viewport: PHONE,
         route: '/d/fixture-desktop/agents/w1%3Ap1',
         language: lang,
-        ready: '.agent-message',
+        ready: '.agent-chat .message',
         safeInsets: true,
         async act(page) {
           await assertAgentPaneGeometry(page)
@@ -5402,7 +5405,7 @@ const herdrShots = [
         deviceScaleFactor: 2,
         route: '/d/fixture-desktop/agents/w1%3Ap1',
         language: lang,
-        ready: '.agent-message',
+        ready: '.agent-chat .message',
         safeInsets: true,
         async act(page) {
           await page.getByRole('button', { name: terminalLabel }).click()
@@ -5419,7 +5422,7 @@ const herdrShots = [
               deviceScaleFactor: 2,
               route: '/d/fixture-desktop/agents/w1%3Ap1',
               language: lang,
-              ready: '.agent-message',
+              ready: '.agent-chat .message',
               safeInsets: true,
               async act(page) {
                 await page.getByRole('button', { name: terminalLabel }).click()
@@ -5471,7 +5474,7 @@ const herdrShots = [
         deviceScaleFactor: 2,
         route: '/d/fixture-desktop/agents/w1%3Ap1',
         language: lang,
-        ready: '.agent-message',
+        ready: '.agent-chat .message',
         safeInsets: true,
         async act(page) {
           await page.getByRole('button', { name: terminalLabel }).click()
@@ -5483,11 +5486,33 @@ const herdrShots = [
       ...(lang === 'en'
         ? [
             {
-              file: 'herdr-pane-chat-en-884.png',
+              file: 'herdr-pane-chat-claude-en-884.png',
               viewport: TABLET,
               route: '/d/fixture-desktop/agents/w1%3Ap1',
               language: lang,
-              ready: '.agent-message',
+              ready: '.agent-chat .message',
+              safeInsets: true,
+              async act(page) {
+                await assertAgentPaneGeometry(page)
+              },
+            },
+            {
+              file: 'herdr-pane-chat-codex-en-412.png',
+              viewport: PHONE,
+              route: '/d/fixture-desktop/agents/w1%3Ap2',
+              language: lang,
+              ready: '.agent-chat .message',
+              safeInsets: true,
+              async act(page) {
+                await assertAgentPaneGeometry(page)
+              },
+            },
+            {
+              file: 'herdr-pane-chat-codex-en-884.png',
+              viewport: TABLET,
+              route: '/d/fixture-desktop/agents/w1%3Ap2',
+              language: lang,
+              ready: '.agent-chat .message',
               safeInsets: true,
               async act(page) {
                 await assertAgentPaneGeometry(page)
@@ -5499,7 +5524,7 @@ const herdrShots = [
               deviceScaleFactor: 2,
               route: '/d/fixture-desktop/agents/w1%3Ap1',
               language: lang,
-              ready: '.agent-message',
+              ready: '.agent-chat .message',
               safeInsets: true,
               async act(page) {
                 await page.getByRole('button', { name: terminalLabel }).click()
@@ -5513,7 +5538,7 @@ const herdrShots = [
               deviceScaleFactor: 2,
               route: '/d/fixture-desktop/agents/w1%3Ap1',
               language: lang,
-              ready: '.agent-message',
+              ready: '.agent-chat .message',
               safeInsets: true,
               async act(page) {
                 await page.getByRole('button', { name: terminalLabel }).click()
@@ -5545,7 +5570,7 @@ const herdrShots = [
               deviceScaleFactor: 2,
               route: '/d/fixture-desktop/agents/w1%3Ap1',
               language: lang,
-              ready: '.agent-message',
+              ready: '.agent-chat .message',
               safeInsets: true,
               async act(page) {
                 await page.getByRole('button', { name: '终端' }).click()
