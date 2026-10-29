@@ -96,6 +96,18 @@ export const settings = {
     removeBody:
       'Remove “{name}” from this device? You will need to pair again to reconnect.',
   },
+  backgroundConnection: {
+    title: 'Keep connected in background',
+    note: 'Shows an ongoing notification so desktop alerts can arrive while the app is hidden.',
+    notificationTitle: 'Alma Mobile background connection',
+    channelName: 'Background connection',
+    channelDescription: 'Keeps the connection to paired desktops active',
+    stop: 'Stop',
+    connected: 'Connected to {name} over {transport}',
+    reconnecting: 'Reconnecting…',
+    waiting: 'Waiting for a desktop…',
+    transport: { lan: 'LAN', relay: 'relay' },
+  },
   notifications: {
     title: 'Notifications',
     note: 'Shown while Alma Mobile is alive and hidden.',

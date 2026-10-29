@@ -8,6 +8,7 @@ import { haptic, hapticsEnabled } from '../haptics'
 import {
   Bell,
   BellRing,
+  Cable,
   Check,
   ChevronDown,
   ChevronRight,
@@ -55,6 +56,10 @@ import {
   visiblePairings,
 } from '../desktops/desktopVisibility'
 import { useT } from '../i18n'
+import {
+  loadBackgroundConnectionEnabled,
+  setBackgroundConnectionEnabled,
+} from '../backgroundConnection'
 import type { MessageKey } from '../i18n'
 import type { DesktopStatus } from '../relay'
 
@@ -521,6 +526,10 @@ export function SettingsScreen() {
   const [removing, setRemoving] = useState<{ id: string; name: string }>()
   const [feedback, setFeedback] = useState(hapticsEnabled)
   const [feedbackError, setFeedbackError] = useState('')
+  const [backgroundConnection, setBackgroundConnection] = useState(
+    loadBackgroundConnectionEnabled,
+  )
+  const [backgroundConnectionError, setBackgroundConnectionError] = useState('')
   const { store, desktops, rename, setHidden, remove } = useDesktops()
   const {
     notificationSettings,
@@ -691,6 +700,32 @@ export function SettingsScreen() {
               {t('settings.notifications.note')}
             </p>
             <div className="settings-group">
+              <SettingsRow
+                icon={<Cable size={17} />}
+                title={t('settings.backgroundConnection.title')}
+                secondary={t('settings.backgroundConnection.note')}
+                trailing={
+                  <Switch
+                    label={t('settings.backgroundConnection.title')}
+                    checked={backgroundConnection}
+                    onChange={(enabled) => {
+                      void haptic('selection')
+                      const apply = () => {
+                        try {
+                          setBackgroundConnectionEnabled(enabled)
+                          setBackgroundConnection(enabled)
+                          setBackgroundConnectionError('')
+                        } catch {
+                          setBackgroundConnectionError(t('settings.saveFailed'))
+                        }
+                      }
+                      if (enabled && permission === 'default') {
+                        void requestNotificationPermission().then(apply)
+                      } else apply()
+                    }}
+                  />
+                }
+              />
               {permission !== 'granted' ? (
                 <SettingsRow
                   icon={<BellRing size={17} />}
@@ -751,6 +786,9 @@ export function SettingsScreen() {
                 />
               ))}
             </div>
+            {backgroundConnectionError ? (
+              <p className="settings-error">{backgroundConnectionError}</p>
+            ) : null}
           </section>
 
           <section className="settings-section" aria-labelledby="about-heading">

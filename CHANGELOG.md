@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Nothing yet.
+- Add an optional foreground service to keep paired desktop connections and local alerts active in the background.
 
 ## [0.1.2] - 2026-10-29
 
