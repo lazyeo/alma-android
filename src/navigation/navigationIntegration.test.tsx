@@ -58,6 +58,12 @@ describe('hierarchical navigation integration', () => {
     cleanup()
   })
 
+  it('uses the route hierarchy for GTD root and detail Back', () => {
+    expect(parentRoute('/d/desk/gtd', 'single')).toBe('/d/desk/threads')
+    expect(parentRoute('/d/desk/gtd/thread-1', 'single')).toBe('/d/desk/gtd')
+    expect(parentRoute('/d/desk/gtd', 'split')).toBe('/d/desk/threads')
+  })
+
   it('replaces a tab switch and returns a split Herdr pane to Chat root', () => {
     render(
       <MemoryRouter

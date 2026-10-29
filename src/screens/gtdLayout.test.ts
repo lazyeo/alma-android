@@ -129,10 +129,22 @@ describe('GTD navigation structure', () => {
     )
   })
 
-  it('places Archive in the shared root header action area', () => {
+  it('places Archive in the shared header action area and makes phone GTD a child', () => {
     expect(gtd).toContain('<ScopedRootHeader')
+    expect(gtd).toContain('childOnPhone')
     expect(gtd).toContain('actions={')
     expect(gtd).not.toContain('<h1>GTD</h1>')
+  })
+
+  it('keeps Threads active in the phone bottom bar throughout GTD', () => {
+    expect(shell).toMatch(
+      /const active = gtd[\s\S]*: threads[\s\S]*pathname === to \|\| pathname\.startsWith\('\/d\/'\)/,
+    )
+    expect(shell).toContain('<Link')
+    expect(shell).toContain("aria-current={active ? 'page' : undefined}")
+    expect(shell).not.toMatch(/threads[\s\S]*!\/\^\\\/d\\\/\[\^\/\]\+\\\/gtd/)
+    expect(capture).toContain('GTD phone Threads tab is not active')
+    expect(capture).toContain('GTD phone tab indicator moved')
   })
 
   it('uses root headers in split mode and Back-only child headers on phones', () => {

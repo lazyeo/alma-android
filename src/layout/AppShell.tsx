@@ -10,7 +10,13 @@ import {
   Settings,
 } from 'lucide-react'
 import { Fragment, useEffect, useRef, type ReactNode } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import {
+  Link,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom'
 import { ConnectionContext, useDesktops } from '../desktops/DesktopContext'
 import { DesktopSwitcher } from '../desktops/DesktopSwitcher'
 import {
@@ -96,7 +102,6 @@ function MainNav({
             ? /^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname)
             : threads
               ? (pathname === to || pathname.startsWith('/d/')) &&
-                !/^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname) &&
                 !pathname.includes('/crystals') &&
                 !pathname.includes('/time-clues') &&
                 !pathname.includes('/references') &&
@@ -110,7 +115,7 @@ function MainNav({
                     <AgentsNavLink desktopId={desktopId} compact={false} />
                   ) : null))
                 : null}
-              <NavLink
+              <Link
                 to={destination}
                 replace
                 aria-label={compact ? label : undefined}
@@ -122,7 +127,7 @@ function MainNav({
                   <Icon size={22} />
                 </span>
                 {compact ? null : label}
-              </NavLink>
+              </Link>
               {index === 1 ? children : null}
             </Fragment>
           )
