@@ -1,4 +1,3 @@
-import { buildInfo } from '../buildInfo'
 import { ExtensionSettings } from '../extensions'
 import { useEffect, useState } from 'react'
 import { BottomSheet } from '../components/BottomSheet'
@@ -45,6 +44,7 @@ import {
 } from '../nativeBridge'
 import { ThemeSettingsView } from '../ThemeProvider'
 import { LanguageSettings } from './LanguageSettings'
+import { UpdateSettings } from './UpdateSettings'
 import { useNavigate } from 'react-router-dom'
 import { useDesktops } from '../desktops/DesktopContext'
 import { useHandoff } from '../handoff/HandoffProvider'
@@ -753,16 +753,13 @@ export function SettingsScreen() {
             </div>
           </section>
 
+          <UpdateSettings />
+
           <section className="settings-section" aria-labelledby="about-heading">
             <h2 id="about-heading" className="settings-section-title">
               {t('settings.about.title')}
             </h2>
             <div className="settings-group">
-              <SettingsRow
-                icon={<Info size={17} />}
-                title={t('settings.about.version')}
-                trailing={<span className="settings-value">{buildInfo}</span>}
-              />
               <SettingsRow
                 icon={<ShieldCheck size={17} />}
                 title={t('settings.about.protocol')}

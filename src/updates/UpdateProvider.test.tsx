@@ -28,7 +28,7 @@ function dependencies(
     fetchLatest: vi.fn().mockResolvedValue(release),
     download: vi.fn().mockResolvedValue(undefined),
     cancel: vi.fn().mockResolvedValue(undefined),
-    install: vi.fn().mockResolvedValue({ status: 'started' }),
+    install: vi.fn().mockResolvedValue('started'),
     openUrl: vi.fn(),
     now: () => 1_000_000,
     ...overrides,
@@ -76,9 +76,9 @@ describe('UpdateProvider', () => {
 
     expect(result.current.autoCheck).toBe(false)
     expect(result.current.badge).toBe(false)
-    expect(JSON.parse(localStorage.getItem(UPDATE_PREFS_KEY) ?? '{}')).toMatchObject(
-      { autoCheck: false, skippedVersion: '0.1.3' },
-    )
+    expect(
+      JSON.parse(localStorage.getItem(UPDATE_PREFS_KEY) ?? '{}'),
+    ).toMatchObject({ autoCheck: false, skippedVersion: '0.1.3' })
   })
 
   it('does not check or expose update UI for a private build', async () => {

@@ -31,11 +31,7 @@ import {
 } from './updateModel'
 
 export type UpdateStatus =
-  | 'idle'
-  | 'checking'
-  | 'current'
-  | 'available'
-  | 'error'
+  'idle' | 'checking' | 'current' | 'available' | 'error'
 export type DownloadStatus = 'idle' | 'downloading' | 'ready' | 'error'
 
 export type UpdateDependencies = {
@@ -94,10 +90,8 @@ export function UpdateProvider({
   )
   const [status, setStatus] = useState<UpdateStatus>('idle')
   const [error, setError] = useState<UpdateErrorKind>()
-  const [downloadStatus, setDownloadStatus] =
-    useState<DownloadStatus>('idle')
-  const [installError, setInstallError] =
-    useState<UpdateInstallError['kind']>()
+  const [downloadStatus, setDownloadStatus] = useState<DownloadStatus>('idle')
+  const [installError, setInstallError] = useState<UpdateInstallError['kind']>()
   const [progress, setProgress] = useState(0)
   const eligibility = runtime ? updateEligibility(runtime) : 'hidden'
   const currentVersion = runtime?.versionName ?? ''
@@ -119,12 +113,12 @@ export function UpdateProvider({
         ...(latest ? { latest } : {}),
       }
       persist(next)
-      setStatus(isNewerRelease(latest, runtime.versionName) ? 'available' : 'current')
+      setStatus(
+        isNewerRelease(latest, runtime.versionName) ? 'available' : 'current',
+      )
     } catch (failure) {
       setStatus('error')
-      setError(
-        failure instanceof UpdateCheckError ? failure.kind : 'general',
-      )
+      setError(failure instanceof UpdateCheckError ? failure.kind : 'general')
     }
   }, [dependencies, persist, prefs, runtime])
 
@@ -146,8 +140,9 @@ export function UpdateProvider({
       setStatus('available')
   }, [runtime]) // Startup only after runtime resolves.
 
-  const release =
-    isNewerRelease(prefs.latest, currentVersion) ? prefs.latest : undefined
+  const release = isNewerRelease(prefs.latest, currentVersion)
+    ? prefs.latest
+    : undefined
 
   const value = useMemo<UpdateContextValue>(
     () => ({
@@ -180,7 +175,10 @@ export function UpdateProvider({
           setDownloadStatus('ready')
           await dependencies.install(release.version)
         } catch (failure) {
-          if (failure instanceof UpdateInstallError && failure.kind === 'cancelled') {
+          if (
+            failure instanceof UpdateInstallError &&
+            failure.kind === 'cancelled'
+          ) {
             setDownloadStatus('idle')
             setProgress(0)
             return
@@ -221,7 +219,9 @@ export function UpdateProvider({
     ],
   )
 
-  return <UpdateContext.Provider value={value}>{children}</UpdateContext.Provider>
+  return (
+    <UpdateContext.Provider value={value}>{children}</UpdateContext.Provider>
+  )
 }
 
 export function useUpdates() {
