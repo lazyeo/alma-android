@@ -1,4 +1,7 @@
 export type TerminalMode = 'snapshot' | 'stream'
+export type SnapshotDisplayMode = 'reflow' | 'grid'
+
+export const SNAPSHOT_DISPLAY_MODE_KEY = 'alma.terminal.snapshotDisplayMode'
 
 export type TerminalKey =
   | 'escape'
@@ -86,35 +89,104 @@ export interface TerminalDriver {
   dispose(): void
 }
 
-const SNAPSHOT_PREFIX = '\u001b[H\u001b[2J'
 const DEFAULT_FONT_SIZE = 13
-const MIN_FONT_SIZE = 7
+const MIN_GRID_FONT_SIZE = 3
 const CELL_WIDTH_EM = 0.6
+const LINE_HEIGHT = 1.2
 
-export function normalizeSnapshotText(text: string) {
-  return text.replace(/(^|[^\r])\n/g, '$1\r\n')
+type StorageLike = Pick<Storage, 'getItem' | 'setItem'>
+
+export function loadSnapshotDisplayMode(
+  storage: Pick<Storage, 'getItem'> | undefined =
+    typeof localStorage === 'undefined' ? undefined : localStorage,
+): SnapshotDisplayMode {
+  try {
+    return storage?.getItem(SNAPSHOT_DISPLAY_MODE_KEY) === 'grid'
+      ? 'grid'
+      : 'reflow'
+  } catch {
+    return 'reflow'
+  }
+}
+
+export function saveSnapshotDisplayMode(
+  mode: SnapshotDisplayMode,
+  storage: Pick<StorageLike, 'setItem'> | undefined =
+    typeof localStorage === 'undefined' ? undefined : localStorage,
+) {
+  try {
+    storage?.setItem(SNAPSHOT_DISPLAY_MODE_KEY, mode)
+  } catch {
+    // Persistence is optional in restricted WebViews.
+  }
+}
+
+export function prepareReflowSnapshot(text: string) {
+  return text
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/[\t ]+$/g, ''))
+    .join('\r\n')
+}
+
+function prepareGridSnapshot(text: string) {
+  return text
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => `${line}\u001b[K`)
+    .join('\r\n')
 }
 
 export function calculateSnapshotFontSize(
   availableWidth: number,
   cols: number,
   defaultFontSize = DEFAULT_FONT_SIZE,
-  minFontSize = MIN_FONT_SIZE,
+  minFontSize = MIN_GRID_FONT_SIZE,
 ) {
+  const safeWidth = Math.max(1, availableWidth)
   const safeCols = Math.max(1, cols)
-  const fitted = availableWidth / (safeCols * CELL_WIDTH_EM)
+  const fitted = safeWidth / (safeCols * CELL_WIDTH_EM)
   const fontSize = Math.max(minFontSize, Math.min(defaultFontSize, fitted))
-  const contentWidth = Math.ceil(safeCols * fontSize * CELL_WIDTH_EM)
+  const roundedFontSize = Math.floor(fontSize * 10) / 10
+  const contentWidth = Math.floor(safeCols * roundedFontSize * CELL_WIDTH_EM)
   return {
-    fontSize: Math.round(fontSize * 10) / 10,
+    fontSize: roundedFontSize,
     contentWidth,
-    overflows: contentWidth > availableWidth,
+    overflows: contentWidth > safeWidth,
+  }
+}
+
+export function calculateSnapshotSize(
+  availableWidth: number,
+  availableHeight: number,
+  mode: SnapshotDisplayMode,
+  sourceCols = 80,
+  sourceRows = 24,
+) {
+  const safeWidth = Math.max(1, availableWidth)
+  const safeHeight = Math.max(1, availableHeight)
+  if (mode === 'grid') {
+    const sizing = calculateSnapshotFontSize(safeWidth, sourceCols)
+    return {
+      cols: Math.max(1, sourceCols),
+      rows: Math.max(1, sourceRows),
+      fontSize: sizing.fontSize,
+      contentWidth: sizing.contentWidth,
+    }
+  }
+  const fontSize = DEFAULT_FONT_SIZE
+  return {
+    cols: Math.max(2, Math.floor(safeWidth / (fontSize * CELL_WIDTH_EM))),
+    rows: Math.max(1, Math.floor(safeHeight / (fontSize * LINE_HEIGHT))),
+    fontSize,
+    contentWidth: safeWidth,
   }
 }
 
 export class TerminalSession {
   private options: TerminalOptions
   private disposeData?: () => void
+  private lastSnapshotKey = ''
 
   constructor(
     private readonly driver: TerminalDriver,
@@ -129,11 +201,24 @@ export class TerminalSession {
     this.applyMode()
   }
 
-  writeSnapshot(text: string, cols: number, rows: number) {
-    if (this.options.mode !== 'snapshot') return
+  writeSnapshot(
+    text: string,
+    cols: number,
+    rows: number,
+    displayMode: SnapshotDisplayMode,
+  ) {
+    if (this.options.mode !== 'snapshot') return false
+    const key = `${displayMode}\u0000${cols}x${rows}\u0000${text}`
+    if (key === this.lastSnapshotKey) return false
+    this.lastSnapshotKey = key
     this.driver.resize(cols, rows)
-    this.driver.reset()
-    this.driver.write(`${SNAPSHOT_PREFIX}${normalizeSnapshotText(text)}`)
+    const prepared =
+      displayMode === 'reflow'
+        ? prepareReflowSnapshot(text)
+        : prepareGridSnapshot(text)
+    const clearLines = displayMode === 'grid' ? '\u001b[J' : '\u001b[3J\u001b[2J'
+    this.driver.write(`\u001b[H${prepared}${clearLines}`)
+    return true
   }
 
   writeStream(data: string) {

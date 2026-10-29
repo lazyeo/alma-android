@@ -4,7 +4,10 @@ import {
   PTY_KEY_MAP,
   TerminalSession,
   calculateSnapshotFontSize,
-  normalizeSnapshotText,
+  calculateSnapshotSize,
+  loadSnapshotDisplayMode,
+  prepareReflowSnapshot,
+  saveSnapshotDisplayMode,
   type TerminalDriver,
 } from './terminal'
 
@@ -54,7 +57,7 @@ describe('terminal key mappings', () => {
 })
 
 describe('snapshot terminal', () => {
-  it('resets, sizes, and writes each complete screen frame', () => {
+  it('rewrites grid frames in place without resetting xterm', () => {
     const driver = fakeDriver()
     const session = new TerminalSession(driver, {
       mode: 'snapshot',
@@ -62,40 +65,88 @@ describe('snapshot terminal', () => {
       rows: 30,
     })
 
-    session.writeSnapshot('first\n第二行', 100, 30)
-    session.writeSnapshot('next', 80, 24)
+    expect(session.writeSnapshot('first\n第二行', 100, 30, 'grid')).toBe(true)
+    expect(session.writeSnapshot('next', 80, 24, 'grid')).toBe(true)
 
     expect(driver.setInputEnabled).toHaveBeenCalledWith(false)
     expect(driver.resize).toHaveBeenNthCalledWith(1, 100, 30)
     expect(driver.resize).toHaveBeenNthCalledWith(2, 80, 24)
-    expect(driver.reset).toHaveBeenCalledTimes(2)
+    expect(driver.reset).not.toHaveBeenCalled()
     expect(driver.write).toHaveBeenNthCalledWith(
       1,
-      '\u001b[H\u001b[2Jfirst\r\n第二行',
+      '\u001b[Hfirst\u001b[K\r\n第二行\u001b[K\u001b[J',
     )
-    expect(driver.write).toHaveBeenNthCalledWith(2, '\u001b[H\u001b[2Jnext')
+    expect(driver.write).toHaveBeenNthCalledWith(
+      2,
+      '\u001b[Hnext\u001b[K\u001b[J',
+    )
   })
 
-  it('normalizes lone line feeds without doubling CRLF', () => {
-    expect(normalizeSnapshotText('a\nb\r\nc')).toBe('a\r\nb\r\nc')
+  it('strips trailing spaces per reflow line while preserving ANSI', () => {
+    expect(prepareReflowSnapshot('\u001b[31mred\u001b[0m   \nplain\t  \n')).toBe(
+      '\u001b[31mred\u001b[0m\r\nplain\r\n',
+    )
+  })
+
+  it('skips an identical frame in the same display mode and size', () => {
+    const driver = fakeDriver()
+    const session = new TerminalSession(driver, {
+      mode: 'snapshot',
+      cols: 80,
+      rows: 24,
+    })
+
+    expect(session.writeSnapshot('same', 80, 24, 'reflow')).toBe(true)
+    expect(session.writeSnapshot('same', 80, 24, 'reflow')).toBe(false)
+    expect(driver.write).toHaveBeenCalledTimes(1)
   })
 })
 
 describe('terminal sizing', () => {
-  it('scales the font down so fixed columns fit', () => {
-    expect(calculateSnapshotFontSize(600, 100)).toEqual({
-      fontSize: 10,
-      contentWidth: 600,
+  it('scales the grid font below the old minimum so the page never overflows', () => {
+    expect(calculateSnapshotFontSize(320, 100)).toEqual({
+      fontSize: 5.3,
+      contentWidth: 318,
       overflows: false,
     })
   })
 
-  it('uses the minimum font size and requests horizontal scrolling', () => {
-    expect(calculateSnapshotFontSize(320, 100)).toEqual({
-      fontSize: 7,
-      contentWidth: 420,
-      overflows: true,
+  it('calculates readable reflow columns and visible rows from the viewport', () => {
+    expect(calculateSnapshotSize(320, 480, 'reflow')).toEqual({
+      cols: 41,
+      rows: 30,
+      fontSize: 13,
+      contentWidth: 320,
     })
+  })
+
+  it('uses source dimensions in grid mode', () => {
+    expect(calculateSnapshotSize(320, 480, 'grid', 160, 40)).toEqual({
+      cols: 160,
+      rows: 40,
+      fontSize: 3.3,
+      contentWidth: 316,
+    })
+  })
+})
+
+describe('snapshot display mode persistence', () => {
+  it('defaults to reflow and only restores valid values', () => {
+    const storage = { getItem: vi.fn(() => null), setItem: vi.fn() }
+    expect(loadSnapshotDisplayMode(storage)).toBe('reflow')
+    storage.getItem.mockReturnValue('grid')
+    expect(loadSnapshotDisplayMode(storage)).toBe('grid')
+    storage.getItem.mockReturnValue('invalid')
+    expect(loadSnapshotDisplayMode(storage)).toBe('reflow')
+  })
+
+  it('stores the selected display mode', () => {
+    const storage = { getItem: vi.fn(), setItem: vi.fn() }
+    saveSnapshotDisplayMode('grid', storage)
+    expect(storage.setItem).toHaveBeenCalledWith(
+      'alma.terminal.snapshotDisplayMode',
+      'grid',
+    )
   })
 })
 
@@ -131,10 +182,12 @@ describe('terminal modes', () => {
 
     session.configure({ mode: 'snapshot', cols: 80, rows: 24 })
     session.writeStream('ignored')
-    session.writeSnapshot('screen', 80, 24)
+    session.writeSnapshot('screen', 80, 24, 'grid')
 
     expect(driver.setInputEnabled).toHaveBeenLastCalledWith(false)
     expect(driver.write).toHaveBeenCalledTimes(1)
-    expect(driver.write).toHaveBeenCalledWith('\u001b[H\u001b[2Jscreen')
+    expect(driver.write).toHaveBeenCalledWith(
+      '\u001b[Hscreen\u001b[K\u001b[J',
+    )
   })
 })
