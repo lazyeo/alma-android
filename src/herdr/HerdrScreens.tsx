@@ -1,4 +1,12 @@
-import { BellOff, BellRing, Send, TerminalSquare } from 'lucide-react'
+import {
+  BellOff,
+  BellRing,
+  Grid3X3,
+  MessageCircle,
+  Send,
+  TerminalSquare,
+  WrapText,
+} from 'lucide-react'
 import {
   lazy,
   Suspense,
@@ -14,7 +22,13 @@ import { ScopedRootHeader } from '../layout/ScopedRootHeader'
 import { useConnection } from '../desktops/DesktopContext'
 import { useT } from '../i18n'
 import { MarkdownContent } from '../screens/MarkdownContent'
-import { HERDR_KEY_MAP, type TerminalKey } from '../terminal/terminal'
+import {
+  HERDR_KEY_MAP,
+  loadSnapshotDisplayMode,
+  saveSnapshotDisplayMode,
+  type SnapshotDisplayMode,
+  type TerminalKey,
+} from '../terminal/terminal'
 import { useHerdr } from './HerdrProvider'
 import { mergeChatItems, parseBlockedPrompt, type HerdrPane } from './model'
 import {
@@ -142,6 +156,8 @@ export function AgentPaneScreen() {
     (item) => item.pane_id === decodedPaneId,
   ) as HerdrPane | undefined
   const [view, setView] = useState<'chat' | 'terminal'>('chat')
+  const [terminalDisplayMode, setTerminalDisplayMode] =
+    useState<SnapshotDisplayMode>(loadSnapshotDisplayMode)
   const [items, setItems] = useState<ChatItem[]>([])
   const [queued, setQueued] = useState<Array<{ id: string; text: string }>>([])
   const [start, setStart] = useState(-1)
@@ -153,6 +169,14 @@ export function AgentPaneScreen() {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+
+  const toggleTerminalDisplayMode = () => {
+    setTerminalDisplayMode((current) => {
+      const next = current === 'reflow' ? 'grid' : 'reflow'
+      saveSnapshotDisplayMode(next)
+      return next
+    })
+  }
 
   const loadChat = useCallback(
     async (before = -1, prepend = false) => {
@@ -372,21 +396,29 @@ export function AgentPaneScreen() {
             {chatUnsupported ? null : (
               <button
                 className={`chip-button${view === 'chat' ? ' active' : ''}`}
+                aria-label={t('agents.chat')}
                 onClick={() => setView('chat')}
               >
-                {t('agents.chat')}
+                <MessageCircle size={15} />
+                <span>{t('agents.chat')}</span>
               </button>
             )}
             <button
               className={`chip-button${view === 'terminal' ? ' active' : ''}`}
+              aria-label={t('agents.terminal')}
               onClick={() => setView('terminal')}
             >
-              <TerminalSquare size={15} /> {t('agents.terminal')}
+              <TerminalSquare size={15} />
+              <span>{t('agents.terminal')}</span>
             </button>
           </div>
         }
       />
-      <div className="agent-pane-body" ref={bodyRef} onScroll={rememberScroll}>
+      <div
+        className={`agent-pane-body agent-pane-body-${view}`}
+        ref={bodyRef}
+        onScroll={view === 'chat' ? rememberScroll : undefined}
+      >
         {blockedPrompt ? (
           <aside className="agent-blocked-card">
             <span>{t('agents.needsYou')}</span>
@@ -445,33 +477,56 @@ export function AgentPaneScreen() {
             ))}
           </div>
         ) : (
-          <>
+          <div className="agent-terminal-workspace">
             {chatUnsupported ? (
               <p className="agent-terminal-note">
                 {t('agents.chatUnsupported')}
               </p>
             ) : null}
-            <Suspense
-              fallback={
-                <div className="agent-terminal-loading">
-                  {t('agents.terminalWaiting')}
-                </div>
-              }
-            >
-              <TerminalView
-                className="agent-terminal"
-                mode="snapshot"
-                ariaLabel={t('agents.terminalOutput')}
-                frame={{
-                  text: terminal,
-                  cols: terminalSize.cols,
-                  rows: terminalSize.rows,
-                }}
-                waitingText={t('agents.terminalWaiting')}
-              />
-            </Suspense>
+            <div className="agent-terminal-area">
+              <Suspense
+                fallback={
+                  <div className="agent-terminal-loading">
+                    {t('agents.terminalWaiting')}
+                  </div>
+                }
+              >
+                <TerminalView
+                  className="agent-terminal"
+                  mode="snapshot"
+                  displayMode={terminalDisplayMode}
+                  ariaLabel={t('agents.terminalOutput')}
+                  frame={{
+                    text: terminal,
+                    cols: terminalSize.cols,
+                    rows: terminalSize.rows,
+                  }}
+                  waitingText={t('agents.terminalWaiting')}
+                />
+              </Suspense>
+              <button
+                className="quiet-icon-button agent-terminal-mode"
+                aria-label={
+                  terminalDisplayMode === 'reflow'
+                    ? t('agents.terminalUseGrid')
+                    : t('agents.terminalUseReflow')
+                }
+                title={
+                  terminalDisplayMode === 'reflow'
+                    ? t('agents.terminalUseGrid')
+                    : t('agents.terminalUseReflow')
+                }
+                onClick={toggleTerminalDisplayMode}
+              >
+                {terminalDisplayMode === 'reflow' ? (
+                  <Grid3X3 size={16} />
+                ) : (
+                  <WrapText size={16} />
+                )}
+              </button>
+            </div>
             <TerminalKeyRow disabled={sending} onKey={sendTerminalKey} />
-          </>
+          </div>
         )}
         {error ? <p className="settings-error agent-error">{error}</p> : null}
       </div>
