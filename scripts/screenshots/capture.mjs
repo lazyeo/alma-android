@@ -3110,7 +3110,6 @@ const shots = [
       const goalDialog = page.getByRole('dialog', { name: 'Goal + Loop' })
       await goalDialog.getByRole('button', { name: 'Close' }).click()
       await goalDialog.waitFor({ state: 'detached' })
-      await page.getByRole('button', { name: 'Add attachment' }).click()
       await page
         .locator('input[type="file"][multiple]:not([accept])')
         .setInputFiles({
