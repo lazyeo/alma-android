@@ -9,6 +9,7 @@ import { haptic } from '../haptics'
 import { overlayCount } from '../overlayStack'
 import {
   canScrollableAncestorConsume,
+  isSidebarSwipeExcluded,
   shouldClaimSidebarSwipe,
   shouldCommitSidebarSwipe,
   sidebarSwipeProgress,
@@ -92,9 +93,14 @@ export function useSidebarSwipe(
   }, [shellRef])
 
   const startAllowed = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.clientX < 24 || overlayCount() > 0) return false
+    if (overlayCount() > 0) return false
     const target = event.target instanceof HTMLElement ? event.target : null
-    if (target?.closest(BLOCKED_TARGETS)) return false
+    if (
+      target?.closest(BLOCKED_TARGETS) ||
+      isSidebarSwipeExcluded(event.target)
+    )
+      return false
+    if (event.clientX < 24) return false
     const rail = target?.closest('.split-rail')
     const sidebar = target?.closest('.split-sidebar')
     const main = target?.closest('.split-main')

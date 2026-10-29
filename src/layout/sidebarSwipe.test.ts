@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   canScrollableAncestorConsume,
+  isSidebarSwipeExcluded,
   sidebarSwipeProgress,
   shouldClaimSidebarSwipe,
   shouldCommitSidebarSwipe,
@@ -27,6 +28,14 @@ describe('sidebar swipe', () => {
     expect(shouldCommitSidebarSwipe(0.41, 0.1, true)).toBe(true)
     expect(shouldCommitSidebarSwipe(0.2, 0.31, true)).toBe(true)
     expect(shouldCommitSidebarSwipe(0.7, -0.1, false)).toBe(false)
+  })
+
+  it('excludes marked workspace and terminal horizontal scrollers', () => {
+    const scroller = document.createElement('div')
+    const child = document.createElement('span')
+    scroller.dataset.sidebarSwipeExclude = ''
+    scroller.append(child)
+    expect(isSidebarSwipeExcluded(child)).toBe(true)
   })
 
   it('detects a horizontally scrollable ancestor that can consume the drag', () => {

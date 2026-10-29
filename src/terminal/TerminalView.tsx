@@ -251,6 +251,11 @@ function TerminalViewComponent(props: TerminalViewProps) {
       className={`terminal-viewport terminal-${props.mode}${props.className ? ` ${props.className}` : ''}`}
       role="region"
       aria-label={props.ariaLabel}
+      data-sidebar-swipe-exclude={
+        props.mode === 'snapshot' && props.displayMode === 'grid'
+          ? ''
+          : undefined
+      }
     >
       <div ref={surfaceRef} className="terminal-surface" />
     </div>

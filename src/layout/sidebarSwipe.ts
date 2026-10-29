@@ -2,6 +2,13 @@ export const SIDEBAR_SWIPE_INTENT_PX = 10
 export const SIDEBAR_SWIPE_THRESHOLD = 0.4
 export const SIDEBAR_SWIPE_VELOCITY_PX_MS = 0.3
 
+export function isSidebarSwipeExcluded(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    Boolean(target.closest('[data-sidebar-swipe-exclude]'))
+  )
+}
+
 export function shouldClaimSidebarSwipe(
   dx: number,
   dy: number,
