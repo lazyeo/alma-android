@@ -8715,7 +8715,9 @@ dialog:focus,
 }
 .agent-terminal-note {
   flex: none;
+  align-self: center;
   margin: 0 0 8px;
+  text-align: center;
   color: var(--text-secondary);
   font-size: var(--text-xs);
 }
@@ -8772,6 +8774,8 @@ dialog:focus,
 }
 .agent-terminal-mode {
   flex: none;
+  gap: 6px;
+  margin-inline-end: 4px;
 }
 .agents-sidebar-header h1 {
   flex: 1;
@@ -8779,8 +8783,8 @@ dialog:focus,
 }
 .agent-terminal-keys {
   display: flex;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 10px;
   padding-bottom: 2px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -8789,11 +8793,11 @@ dialog:focus,
   display: none;
 }
 .agent-terminal-keys .chip-button {
-  min-width: 38px;
-  min-height: 36px;
+  min-width: 44px;
+  min-height: 40px;
   border-radius: var(--radius-md);
   flex: 0 0 auto;
-  padding-inline: 10px;
+  padding-inline: 12px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: var(--text-xs);
 }
@@ -8814,7 +8818,8 @@ dialog:focus,
 }
 .agent-composer-mode {
   flex: none;
-  align-self: center;
+  align-self: stretch;
+  border-radius: var(--radius-md);
   white-space: nowrap;
 }
 .agent-composer textarea {
@@ -8832,7 +8837,7 @@ dialog:focus,
 .agent-send {
   flex: 0 0 auto;
 }
-@media (max-width: 430px) {
+@media (max-width: 600px) {
   .agent-view-toggle .chip-button {
     width: 36px;
     min-width: 36px;

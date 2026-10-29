@@ -1,6 +1,6 @@
 import { BellOff, BellRing } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { desktopAgentPanePath } from '../desktopRoutes'
 import { useT } from '../i18n'
 import { relative } from '../screens/ThreadListRow'
@@ -29,12 +29,15 @@ export function AgentPaneRow({
   compact?: boolean
 }) {
   const t = useT()
+  // Already viewing a pane (split layout): switching sessions replaces the
+  // entry so Back leaves Agents instead of stepping through every session.
+  const { paneId: openPaneId } = useParams()
   const changed = pane.lastChangedAt ? relative(pane.lastChangedAt) : ''
   return (
     <Link
       className={`agent-pane-row${selected ? ' selected' : ''}${compact ? ' compact' : ''}`}
       to={desktopAgentPanePath(desktopId, pane.id)}
-      replace={Boolean(selected)}
+      replace={Boolean(selected || openPaneId)}
       aria-current={selected ? 'page' : undefined}
     >
       <span className={`agent-status ${agentStatusClass(pane.status)}`} />

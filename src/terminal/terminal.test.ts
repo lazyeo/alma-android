@@ -250,3 +250,28 @@ describe('terminal modes', () => {
     expect(driver.write).toHaveBeenCalledWith('\u001b[Hscreen\u001b[K\u001b[J')
   })
 })
+
+describe('mergeTerminalHistory overlap', () => {
+  it('drops the live screen even when it is wrapped differently', () => {
+    const recent = [
+      'old 1',
+      'old 2',
+      'a long line that the live screen wraps in two',
+      'prompt $',
+    ].join('\n')
+    const visible = [
+      'a long line that the live',
+      'screen wraps in two',
+      'prompt $',
+    ].join('\n')
+    expect(mergeTerminalHistory(recent, visible).text).toBe('old 1\nold 2')
+  })
+  it('compares lines without ANSI styling', () => {
+    const recent = 'old\n\u001b[1mheader line\u001b[0m\nbody'
+    expect(mergeTerminalHistory(recent, 'header line\nbody').text).toBe('old')
+  })
+  it('reports nothing earlier for full-screen agents', () => {
+    const screen = 'header line\nbody'
+    expect(mergeTerminalHistory(screen, screen).hasEarlier).toBe(false)
+  })
+})

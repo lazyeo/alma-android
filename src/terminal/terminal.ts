@@ -158,25 +158,42 @@ export function saveSnapshotDisplayMode(
 
 const terminalLines = (text: string) => text.replace(/\r\n/g, '\n').split('\n')
 
+const plainLine = (line: string) =>
+  line
+    .replace(/\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g, '')
+    .replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '')
+    .replace(/\u001b./g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+/**
+ * Splits `recent` scrollback into the part above the live screen. The live
+ * screen may be wrapped differently (recent_unwrapped) or a frame newer, so
+ * overlap is found by locating the screen's first meaningful line in the
+ * scrollback instead of requiring an exact tail match.
+ */
 export function mergeTerminalHistory(recent: string, visible: string) {
   const recentLines = terminalLines(recent)
-  const visibleLines = terminalLines(visible)
-  while (recentLines.at(-1) === '' && visibleLines.at(-1) === '') {
-    recentLines.pop()
-    visibleLines.pop()
+  const visibleLines = terminalLines(visible).map(plainLine)
+  const recentPlain = recentLines.map(plainLine)
+  const anchor = visibleLines.find((line) => line.length >= 4)
+  let cut = -1
+  if (anchor) {
+    const head = anchor.slice(0, 48)
+    for (let index = recentPlain.length - 1; index >= 0; index -= 1) {
+      if (recentPlain[index].includes(head)) {
+        cut = index
+        break
+      }
+    }
   }
-  const overlaps =
-    visibleLines.length > 0 && recentLines.length >= visibleLines.length
-      ? visibleLines.every(
-          (line, index) =>
-            recentLines[recentLines.length - visibleLines.length + index] ===
-            line,
-        )
-      : false
-  const historyLines = overlaps
-    ? recentLines.slice(0, -visibleLines.length)
-    : recentLines
-  while (historyLines.at(-1) === '') historyLines.pop()
+  if (cut < 0)
+    cut = Math.max(0, recentLines.length - visibleLines.filter(Boolean).length)
+  const historyLines = recentLines.slice(0, cut)
+  while (historyLines.length && plainLine(historyLines.at(-1) ?? '') === '')
+    historyLines.pop()
+  while (historyLines.length && plainLine(historyLines[0]) === '')
+    historyLines.shift()
   const text = historyLines.join('\n')
   return { text, hasEarlier: text.length > 0 }
 }

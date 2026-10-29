@@ -285,14 +285,22 @@ export function AgentPaneScreen() {
     if (body) prependAnchor.current = body.scrollHeight - body.scrollTop
     setLoadingTerminalHistory(true)
     setTerminalHistoryEmpty(false)
-    void api
-      .readHerdrPane(decodedPaneId, 'ansi', {
-        source:
-          terminalDisplayMode === 'reflow' ? 'recent_unwrapped' : 'recent',
-        lines: 2000,
-      })
-      .then((result) => {
-        const merged = mergeTerminalHistory(result?.read?.text ?? '', terminal)
+    const source =
+      terminalDisplayMode === 'reflow' ? 'recent_unwrapped' : 'recent'
+    // herdr sometimes returns only the live screen for format=ansi while
+    // format=text still carries scrollback; fall back to plain text then.
+    void Promise.all(
+      (['ansi', 'text'] as const).map((format) =>
+        api.readHerdrPane(decodedPaneId, format, { source, lines: 2000 }),
+      ),
+    )
+      .then(([ansi, text]) => {
+        const colored = mergeTerminalHistory(ansi?.read?.text ?? '', terminal)
+        const plain = mergeTerminalHistory(text?.read?.text ?? '', terminal)
+        const merged =
+          colored.text.split('\n').length >= plain.text.split('\n').length
+            ? colored
+            : plain
         setTerminalHistory(merged.text)
         setTerminalHistoryEmpty(!merged.hasEarlier)
       })
@@ -480,18 +488,19 @@ export function AgentPaneScreen() {
                 {t('agents.chatUnsupported')}
               </p>
             ) : null}
-            <button
-              className="quiet-text-button agent-load-terminal-history"
-              disabled={loadingTerminalHistory}
-              onClick={loadTerminalHistory}
-            >
-              {t('agents.loadEarlierOutput')}
-            </button>
             {terminalHistoryEmpty ? (
               <p className="agent-terminal-note">
                 {t('agents.noEarlierOutput')}
               </p>
-            ) : null}
+            ) : (
+              <button
+                className="quiet-text-button agent-load-terminal-history"
+                disabled={loadingTerminalHistory}
+                onClick={loadTerminalHistory}
+              >
+                {t('agents.loadEarlierOutput')}
+              </button>
+            )}
             <div className="agent-terminal-area">
               <Suspense
                 fallback={
