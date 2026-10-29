@@ -8361,7 +8361,7 @@ dialog:focus,
   right: -2px;
   width: 7px;
   height: 7px;
-  border: 2px solid var(--background);
+  border: var(--border-hairline) solid var(--gray-7);
   border-radius: var(--radius-full);
   background: var(--accent-9);
   box-sizing: content-box;
