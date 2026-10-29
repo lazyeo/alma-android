@@ -40,16 +40,17 @@ import './remoteScreen.css'
 
 type InputMode = 'direct' | 'trackpad'
 
-const SPECIAL_KEYS = [
-  ['Escape', 'esc'],
-  ['Tab', 'tab'],
-  ['Enter', 'enter'],
-  ['Backspace', 'backspace'],
-  ['ArrowLeft', 'left'],
-  ['ArrowUp', 'up'],
-  ['ArrowDown', 'down'],
-  ['ArrowRight', 'right'],
-] as const
+// DOM key name → copy key under `screen.*` (and the key sent to the Mac).
+const SPECIAL_KEYS = {
+  Escape: 'esc',
+  Tab: 'tab',
+  Enter: 'enter',
+  Backspace: 'backspace',
+  ArrowLeft: 'left',
+  ArrowUp: 'up',
+  ArrowDown: 'down',
+  ArrowRight: 'right',
+} as const
 
 const MODIFIERS = [
   ['meta', '⌘', 'modifierCommand'],
@@ -448,7 +449,7 @@ export function RemoteScreen() {
             </div>
             <div>
               <dt>{t('screen.latency')}</dt>
-              <dd>{frameAge} ms</dd>
+              <dd>{frameAge}</dd>
             </div>
             <div>
               <dt>{t('screen.rtc')}</dt>
@@ -556,7 +557,7 @@ export function RemoteScreen() {
             ))}
           </div>
           <div className="remote-key-row">
-            {SPECIAL_KEYS.map(([key, label]) => (
+            {Object.entries(SPECIAL_KEYS).map(([key, label]) => (
               <button
                 key={key}
                 className="chip-button remote-key"

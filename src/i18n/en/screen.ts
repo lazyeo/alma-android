@@ -14,7 +14,7 @@ export const screen = {
   hideStats: 'Hide stats',
   mode: 'Mode',
   fps: 'FPS',
-  latency: 'Frame age',
+  latency: 'Frame age (ms)',
   rtc: 'WebRTC',
   keyboard: 'Keyboard',
   keyboardPlaceholder: 'Type text for the Mac',
