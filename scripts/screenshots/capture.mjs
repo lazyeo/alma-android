@@ -5147,6 +5147,85 @@ const shots = [
 
 // Facts that used to be joined by a middot sit in flex rows with a gap.
 // A later, more specific display rule can silently drop the gap, so measure.
+async function assertVisibleTerminal(page) {
+  const terminal = await page.evaluate(() => {
+    const area = document.querySelector('.agent-terminal-area')
+    const rows = document.querySelector('.agent-terminal .xterm-rows')
+    const scroller = document.querySelector('.agent-terminal-scroll')
+    if (
+      !(area instanceof HTMLElement) ||
+      !(rows instanceof HTMLElement) ||
+      !(scroller instanceof HTMLElement)
+    )
+      throw new Error('agent terminal visibility target missing')
+    const areaRect = area.getBoundingClientRect()
+    const scrollerRect = scroller.getBoundingClientRect()
+    const visibleRows = [...rows.children].filter((row) => {
+      const rect = row.getBoundingClientRect()
+      return (
+        row.textContent?.trim() &&
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.bottom > Math.max(areaRect.top, scrollerRect.top) &&
+        rect.top < Math.min(areaRect.bottom, scrollerRect.bottom) &&
+        rect.right > Math.max(areaRect.left, scrollerRect.left) &&
+        rect.left < Math.min(areaRect.right, scrollerRect.right)
+      )
+    })
+    return {
+      text: rows.textContent?.trim() ?? '',
+      visibleTextRects: visibleRows.length,
+      area: {
+        left: areaRect.left,
+        top: areaRect.top,
+        right: areaRect.right,
+        bottom: areaRect.bottom,
+      },
+    }
+  })
+  if (!terminal.text || terminal.visibleTextRects === 0)
+    throw new Error(`agent terminal has no visible text: ${JSON.stringify(terminal)}`)
+}
+
+async function assertTerminalModeControl(page) {
+  const geometry = await page.evaluate(() => {
+    const terminal = document.querySelector('.agent-terminal-area')
+    const control = document.querySelector('.agent-terminal-mode')
+    if (!(terminal instanceof HTMLElement) || !(control instanceof HTMLElement))
+      throw new Error('agent terminal mode control target missing')
+    const terminalRect = terminal.getBoundingClientRect()
+    const controlRect = control.getBoundingClientRect()
+    return {
+      visible:
+        getComputedStyle(control).visibility !== 'hidden' &&
+        getComputedStyle(control).display !== 'none' &&
+        controlRect.width > 0 &&
+        controlRect.height > 0,
+      contained:
+        controlRect.left >= terminalRect.left &&
+        controlRect.top >= terminalRect.top &&
+        controlRect.right <= terminalRect.right &&
+        controlRect.bottom <= terminalRect.bottom,
+      terminal: {
+        left: terminalRect.left,
+        top: terminalRect.top,
+        right: terminalRect.right,
+        bottom: terminalRect.bottom,
+      },
+      control: {
+        left: controlRect.left,
+        top: controlRect.top,
+        right: controlRect.right,
+        bottom: controlRect.bottom,
+      },
+    }
+  })
+  if (!geometry.visible || !geometry.contained)
+    throw new Error(
+      `agent terminal mode control is not visible within terminal: ${JSON.stringify(geometry)}`,
+    )
+}
+
 async function assertAgentPaneGeometry(page) {
   await assertNoHorizontalOverflow(page, '.agent-pane-page')
   const geometry = await page.evaluate(() => {
@@ -5421,6 +5500,8 @@ const herdrShots = [
           await page.getByRole('button', { name: terminalLabel }).click()
           await page.locator('.agent-terminal .xterm-rows').waitFor()
           await page.locator('.agent-terminal-keys').waitFor()
+          await assertVisibleTerminal(page)
+          await assertTerminalModeControl(page)
           await assertAgentPaneGeometry(page)
         },
       },
@@ -5473,6 +5554,9 @@ const herdrShots = [
                   .evaluate((element) => {
                     element.scrollTop = element.scrollHeight
                   })
+                await page.waitForTimeout(100)
+                await assertVisibleTerminal(page)
+                await assertTerminalModeControl(page)
                 await assertAgentPaneGeometry(page)
               },
             },
@@ -5490,6 +5574,8 @@ const herdrShots = [
           await page.getByRole('button', { name: terminalLabel }).click()
           await page.getByRole('button', { name: gridLabel }).click()
           await page.locator('.agent-terminal .xterm-rows').waitFor()
+          await assertVisibleTerminal(page)
+          await assertTerminalModeControl(page)
           await assertAgentPaneGeometry(page)
         },
       },
