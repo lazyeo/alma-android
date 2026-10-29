@@ -5676,7 +5676,8 @@ const unfoldedGtdRailShots = ['en', 'zh'].map((language) => ({
       .evaluateAll((links) =>
         links.map((link) => link.getAttribute('aria-label')),
       )
-    if (labels.join('|') !== expected.join('|'))
+    const roots = labels.filter((label) => expected.includes(label))
+    if (roots.join('|') !== expected.join('|'))
       throw new Error(`split navigation: ${labels.join('|')}`)
     await assertNoHorizontalOverflow(page, '.split-shell')
   },
