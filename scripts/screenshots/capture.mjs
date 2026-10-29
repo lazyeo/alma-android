@@ -5597,7 +5597,86 @@ const herdrShots = [
   }),
 ]
 
+const phoneGtdNavigationShots = ['en', 'zh'].flatMap((language) => {
+  const labels =
+    language === 'zh'
+      ? {
+          bottom: ['对话', 'Herdr', '设置'],
+          header: ['资料库', 'GTD', '搜索', '新对话'],
+        }
+      : {
+          bottom: ['Threads', 'Herdr', 'Settings'],
+          header: ['Library', 'GTD', 'Search', 'New thread'],
+        }
+  return [
+    {
+      file: `thread-list-gtd-header-${language}-412.png`,
+      viewport: PHONE,
+      route: DESKTOP,
+      language,
+      ready: '.thread-list-header',
+      safeInsets: true,
+      async act(page) {
+        const bottomLabels = await page.locator('.tab-bar a').allTextContents()
+        if (bottomLabels.join('|') !== labels.bottom.join('|'))
+          throw new Error(`phone bottom navigation: ${bottomLabels.join('|')}`)
+        const headerLabels = await page
+          .locator('.thread-header-actions button')
+          .evaluateAll((buttons) =>
+            buttons.map((button) => button.getAttribute('aria-label')),
+          )
+        if (headerLabels.join('|') !== labels.header.join('|'))
+          throw new Error(`Threads header actions: ${headerLabels.join('|')}`)
+        await assertNoHorizontalOverflow(page, '.thread-list-header')
+      },
+    },
+    {
+      file: `gtd-via-header-${language}-412.png`,
+      viewport: PHONE,
+      route: DESKTOP,
+      language,
+      ready: '.thread-list-header',
+      safeInsets: true,
+      async act(page) {
+        await page.getByRole('button', { name: 'GTD', exact: true }).click()
+        await page.locator('.gtd-page .gtd-list .thread-row').first().waitFor()
+        if (!page.url().includes('/gtd'))
+          throw new Error(`GTD header did not navigate: ${page.url()}`)
+        const bottomLabels = await page.locator('.tab-bar a').allTextContents()
+        if (bottomLabels.join('|') !== labels.bottom.join('|'))
+          throw new Error(`GTD bottom navigation: ${bottomLabels.join('|')}`)
+        await assertNoHorizontalOverflow(page, '.gtd-page')
+      },
+    },
+  ]
+})
+
+const unfoldedGtdRailShots = ['en', 'zh'].map((language) => ({
+  file: `navigation-gtd-rail-${language}-884.png`,
+  viewport: TABLET,
+  route: GTD,
+  language,
+  ready: '.split-nav',
+  safeInsets: true,
+  async act(page) {
+    const expected =
+      language === 'zh'
+        ? ['对话', 'GTD', 'Herdr', '设置']
+        : ['Threads', 'GTD', 'Herdr', 'Settings']
+    const labels = await page
+      .locator('.split-nav a')
+      .evaluateAll((links) =>
+        links.map((link) => link.getAttribute('aria-label')),
+      )
+    if (labels.join('|') !== expected.join('|'))
+      throw new Error(`split navigation: ${labels.join('|')}`)
+    await assertNoHorizontalOverflow(page, '.split-shell')
+  },
+}))
+
 const gtdShots = [
+  ...phoneGtdNavigationShots,
+  ...unfoldedGtdRailShots,
   {
     file: 'gtd-phone-todo-favorites.png',
     viewport: PHONE,
@@ -5989,7 +6068,7 @@ const gtdShots = [
         .evaluateAll((buttons) =>
           buttons.map((button) => button.getAttribute('aria-label')),
         )
-      if (labels.join('|') !== 'Library|Search|New thread')
+      if (labels.join('|') !== 'Library|GTD|Search|New thread')
         throw new Error(`header actions: ${labels.join('|')}`)
       const tabs = await page
         .locator('.threads-page [role="tab"]')

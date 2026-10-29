@@ -35,6 +35,9 @@ describe('GTD navigation structure', () => {
       /className="header-icon-button library-entry split-header-hidden"[\s\S]*className="header-icon-button gtd-entry split-header-hidden"[\s\S]*aria-label=\{t\('nav\.gtd'\)\}[\s\S]*<ListTodo size=\{19\} \/>[\s\S]*aria-label=\{t\('common\.search'\)\}/,
     )
     expect(threads).toContain('navigate(desktopGtdPath(pairing.id))')
+    expect(styles).toMatch(
+      /\.gtd-entry,\s*\.time-clues-entry,\s*\.library-entry \{[^}]*position: relative;/s,
+    )
   })
 
   it('keeps the split rail entries and groups phone library destinations in one menu', () => {
