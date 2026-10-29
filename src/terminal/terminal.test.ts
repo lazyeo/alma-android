@@ -83,9 +83,9 @@ describe('snapshot terminal', () => {
   })
 
   it('strips trailing spaces per reflow line while preserving ANSI', () => {
-    expect(prepareReflowSnapshot('\u001b[31mred\u001b[0m   \nplain\t  \n')).toBe(
-      '\u001b[31mred\u001b[0m\r\nplain\r\n',
-    )
+    expect(
+      prepareReflowSnapshot('\u001b[31mred\u001b[0m   \nplain\t  \n'),
+    ).toBe('\u001b[31mred\u001b[0m\r\nplain\r\n')
   })
 
   it('skips an identical frame in the same display mode and size', () => {
@@ -204,8 +204,6 @@ describe('terminal modes', () => {
 
     expect(driver.setInputEnabled).toHaveBeenLastCalledWith(false)
     expect(driver.write).toHaveBeenCalledTimes(1)
-    expect(driver.write).toHaveBeenCalledWith(
-      '\u001b[Hscreen\u001b[K\u001b[J',
-    )
+    expect(driver.write).toHaveBeenCalledWith('\u001b[Hscreen\u001b[K\u001b[J')
   })
 })

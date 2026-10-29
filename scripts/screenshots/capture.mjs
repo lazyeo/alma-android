@@ -5171,7 +5171,9 @@ async function assertAgentPaneGeometry(page) {
   if (Math.abs(geometry.paneLeft - geometry.composerLeft) > 1)
     throw new Error(`agent composer left mismatch: ${JSON.stringify(geometry)}`)
   if (Math.abs(geometry.paneRight - geometry.composerRight) > 1)
-    throw new Error(`agent composer right mismatch: ${JSON.stringify(geometry)}`)
+    throw new Error(
+      `agent composer right mismatch: ${JSON.stringify(geometry)}`,
+    )
 }
 
 async function assertSeparatedSiblings(page) {

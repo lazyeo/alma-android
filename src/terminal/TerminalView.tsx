@@ -33,8 +33,7 @@ export interface StreamTerminalViewProps extends TerminalViewBaseProps {
 }
 
 export type TerminalViewProps =
-  | SnapshotTerminalViewProps
-  | StreamTerminalViewProps
+  SnapshotTerminalViewProps | StreamTerminalViewProps
 
 type Xterm = import('@xterm/xterm').Terminal
 type FitAddon = import('@xterm/addon-fit').FitAddon
@@ -166,8 +165,7 @@ function TerminalViewComponent(props: TerminalViewProps) {
   const frameText = props.mode === 'snapshot' ? props.frame?.text : undefined
   const frameCols = props.mode === 'snapshot' ? props.frame?.cols : undefined
   const frameRows = props.mode === 'snapshot' ? props.frame?.rows : undefined
-  const displayMode =
-    props.mode === 'snapshot' ? props.displayMode : undefined
+  const displayMode = props.mode === 'snapshot' ? props.displayMode : undefined
   const waitingText = props.mode === 'snapshot' ? props.waitingText : undefined
 
   useEffect(() => {
@@ -224,7 +222,10 @@ function TerminalViewComponent(props: TerminalViewProps) {
       if (sizingKey !== lastSizingRef.current) {
         lastSizingRef.current = sizingKey
         viewport.dataset.displayMode = job.displayMode
-        viewport.style.setProperty('--terminal-content-width', `${sizing.contentWidth}px`)
+        viewport.style.setProperty(
+          '--terminal-content-width',
+          `${sizing.contentWidth}px`,
+        )
       }
 
       const buffer = terminal.buffer.active

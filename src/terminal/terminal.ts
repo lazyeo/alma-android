@@ -97,8 +97,10 @@ const LINE_HEIGHT = 1.2
 type StorageLike = Pick<Storage, 'getItem' | 'setItem'>
 
 export function loadSnapshotDisplayMode(
-  storage: Pick<Storage, 'getItem'> | undefined =
-    typeof localStorage === 'undefined' ? undefined : localStorage,
+  storage: Pick<Storage, 'getItem'> | undefined = typeof localStorage ===
+  'undefined'
+    ? undefined
+    : localStorage,
 ): SnapshotDisplayMode {
   try {
     return storage?.getItem(SNAPSHOT_DISPLAY_MODE_KEY) === 'grid'
@@ -111,8 +113,10 @@ export function loadSnapshotDisplayMode(
 
 export function saveSnapshotDisplayMode(
   mode: SnapshotDisplayMode,
-  storage: Pick<StorageLike, 'setItem'> | undefined =
-    typeof localStorage === 'undefined' ? undefined : localStorage,
+  storage: Pick<StorageLike, 'setItem'> | undefined = typeof localStorage ===
+  'undefined'
+    ? undefined
+    : localStorage,
 ) {
   try {
     storage?.setItem(SNAPSHOT_DISPLAY_MODE_KEY, mode)
