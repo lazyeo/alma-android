@@ -129,6 +129,8 @@ describe('last viewed Agents pane', () => {
 
     rememberLastViewedPane('desk', 'removed')
     expect(resolveLastViewedPane('desk', workspaces)).toBe('blocked-1')
-    expect(resolveLastViewedPane('desk', workspaces.slice(0, 1))).toBeUndefined()
+    expect(
+      resolveLastViewedPane('desk', workspaces.slice(0, 1)),
+    ).toBeUndefined()
   })
 })
