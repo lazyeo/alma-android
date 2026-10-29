@@ -8879,3 +8879,23 @@ dialog:focus,
     white-space: nowrap;
   }
 }
+.agent-menu-options {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.agent-menu-options .agent-menu-option {
+  justify-content: flex-start;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  text-align: start;
+  white-space: normal;
+}
+.agent-menu-options .agent-menu-option > span {
+  flex: none;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}

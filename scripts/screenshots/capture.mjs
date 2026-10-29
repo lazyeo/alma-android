@@ -5492,8 +5492,6 @@ const herdrShots = [
         ready: '.agent-blocked-card',
         safeInsets: true,
         async act(page) {
-          await page.getByRole('button', { name: terminalLabel }).click()
-          await page.locator('.agent-terminal .xterm-rows').waitFor()
           await assertAgentPaneGeometry(page)
         },
       },
@@ -5508,8 +5506,7 @@ const herdrShots = [
               ready: '.agent-message',
               safeInsets: true,
               async act(page) {
-                await page.getByRole('button', { name: terminalLabel }).click()
-                await page.getByRole('button', { name: '作为消息发送' }).click()
+                await page.getByRole('button', { name: '发消息' }).click()
                 await page.locator('.agent-composer-mode').waitFor()
                 await assertAgentPaneGeometry(page)
               },
@@ -5524,8 +5521,6 @@ const herdrShots = [
               ready: '.agent-blocked-card',
               safeInsets: true,
               async act(page) {
-                await page.getByRole('button', { name: terminalLabel }).click()
-                await page.locator('.agent-terminal .xterm-rows').waitFor()
                 await assertAgentPaneGeometry(page)
               },
             },

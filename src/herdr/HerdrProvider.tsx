@@ -37,6 +37,8 @@ interface HerdrValue {
   byDesktop: Record<string, DesktopHerdrState>
   agents(desktopId: string): AgentWorkspaceModel[]
   retry(desktopId: string): void
+  /** Desktop API for rows rendered outside that desktop's connection scope. */
+  apiFor(desktopId: string): HandoffDesktop['api'] | undefined
   setWorkspaceMuted(
     desktopId: string,
     workspaceId: string,
@@ -266,6 +268,9 @@ export function HerdrProvider({
       byDesktop,
       agents: (desktopId) =>
         agentListFromSnapshot(byDesktop[desktopId]?.snapshot),
+      apiFor(desktopId) {
+        return desktops.find((item) => item.id === desktopId)?.api
+      },
       retry(desktopId) {
         setRetryTokens((current) => ({
           ...current,

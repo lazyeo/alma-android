@@ -2,8 +2,8 @@ import { BellOff, BellRing } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { desktopAgentPanePath } from '../desktopRoutes'
-import { useConnection } from '../desktops/DesktopContext'
 import { useT } from '../i18n'
+import { useHerdr } from './HerdrProvider'
 import { relative } from '../screens/ThreadListRow'
 import {
   parseBlockedPrompt,
@@ -35,12 +35,13 @@ export function AgentPaneRow({
   compact?: boolean
 }) {
   const t = useT()
-  const { api } = useConnection()
+  // The split sidebar sits outside ConnectionProvider; resolve the api here.
+  const api = useHerdr().apiFor(desktopId)
   const [prompt, setPrompt] = useState<BlockedPrompt | null>(null)
   const [answering, setAnswering] = useState(false)
   useEffect(() => {
     setPrompt(null)
-    if (pane.status !== 'blocked') return
+    if (pane.status !== 'blocked' || !api) return
     let cancelled = false
     void api
       .readHerdrPane(pane.id, 'text', { source: 'visible' })
@@ -53,7 +54,7 @@ export function AgentPaneRow({
     }
   }, [api, pane.id, pane.status])
   const choose = async (optionNumber: number) => {
-    if (!prompt || answering) return
+    if (!prompt || answering || !api) return
     setAnswering(true)
     try {
       await api.chooseHerdrMenuOption(
@@ -92,10 +93,10 @@ export function AgentPaneRow({
       {prompt ? (
         <aside className="agent-row-blocked-card">
           <strong>{prompt.question}</strong>
-          <div>
+          <div className="agent-menu-options">
             {prompt.options.map((option, index) => (
               <button
-                className={`chip-button${index === prompt.selectedIndex ? ' active' : ''}`}
+                className={`chip-button agent-menu-option${index === prompt.selectedIndex ? ' active' : ''}`}
                 disabled={answering}
                 key={option.number}
                 aria-label={`${option.number}. ${option.label}`}

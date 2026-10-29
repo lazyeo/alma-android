@@ -430,10 +430,10 @@ export function AgentPaneScreen() {
           <aside className="agent-blocked-card">
             <span>{t('agents.needsYou')}</span>
             <strong>{blockedPrompt.question}</strong>
-            <div>
+            <div className="agent-menu-options">
               {blockedPrompt.options.map((option, index) => (
                 <button
-                  className={`chip-button${index === blockedPrompt.selectedIndex ? ' active' : ''}`}
+                  className={`chip-button agent-menu-option${index === blockedPrompt.selectedIndex ? ' active' : ''}`}
                   disabled={sending}
                   key={option.number}
                   onClick={() => void choose(option.number)}

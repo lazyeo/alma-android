@@ -19,8 +19,8 @@ const api = {
   chooseHerdrMenuOption: vi.fn(async () => undefined),
 }
 
-vi.mock('../desktops/DesktopContext', () => ({
-  useConnection: () => ({ api }),
+vi.mock('./HerdrProvider', () => ({
+  useHerdr: () => ({ apiFor: () => api }),
 }))
 vi.mock('../i18n', () => ({ useT: () => (key: string) => key }))
 vi.mock('react-router-dom', async () => {
