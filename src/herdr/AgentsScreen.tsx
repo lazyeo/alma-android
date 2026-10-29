@@ -94,7 +94,7 @@ export function AgentsScreen() {
       />
       <div className="page-body agents-page-body">
         <AgentsState state={state} onRetry={() => retry(decodedDesktopId)} />
-        {mode === 'board' ? (
+        {!herdrReady(state) ? null : mode === 'board' ? (
           <AgentsBoard
             desktopId={decodedDesktopId}
             workspaces={ordered}
@@ -117,6 +117,12 @@ export function AgentsScreen() {
         )}
       </div>
     </section>
+  )
+}
+
+function herdrReady(state?: DesktopHerdrState) {
+  return Boolean(
+    state?.desktopOnline && state.supported && state.online && !state.error,
   )
 }
 
