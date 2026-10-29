@@ -11,6 +11,9 @@ import { AgentPaneScreen } from './HerdrScreens'
 
 let paneId = 'pane-a'
 let agentStatus = 'idle'
+let chatItems: Array<Record<string, unknown>> = [
+  { id: 'm1', kind: 'assistant', text: 'Pane B transcript' },
+]
 const blockedMenu = `Run this command?\n> 1. Yes, run command\n  2. Yes, always allow\n  3. No, cancel`
 const api = {
   getHerdrChat: vi.fn(async (target: string) =>
@@ -18,9 +21,9 @@ const api = {
       ? { error: { code: 'unsupported_agent' } }
       : {
           page: {
-            items: [{ id: 'm1', kind: 'assistant', text: 'Pane B transcript' }],
+            items: chatItems,
             start: 0,
-            end: 1,
+            end: chatItems.length,
           },
           queued: [],
         },
@@ -83,6 +86,7 @@ afterEach(() => {
   cleanup()
   vi.clearAllMocks()
   agentStatus = 'idle'
+  chatItems = [{ id: 'm1', kind: 'assistant', text: 'Pane B transcript' }]
 })
 
 describe('AgentPaneScreen pane navigation', () => {
@@ -100,6 +104,48 @@ describe('AgentPaneScreen pane navigation', () => {
       expect(screen.getByText('Pane B transcript')).toBeTruthy(),
     )
     expect(screen.getByRole('button', { name: 'agents.chat' })).toBeTruthy()
+  })
+
+  it('renders chat rows through shared messages while keeping questions host-owned', async () => {
+    paneId = 'pane-b'
+    chatItems = [
+      { id: 'u1', kind: 'user', text: 'Run the checks.' },
+      { id: 'a1', kind: 'assistant', text: '**All good.**' },
+      {
+        id: 't1',
+        kind: 'tool',
+        tool: {
+          name: 'Bash',
+          input: { command: 'npm test' },
+          result: 'passed',
+          done: true,
+        },
+      },
+      {
+        id: 'q1',
+        kind: 'tool',
+        tool: {
+          name: 'request_user_input',
+          input: {
+            questions: [{ question: 'Ship it?', options: ['Yes', 'No'] }],
+          },
+        },
+      },
+    ]
+
+    const view = render(<AgentPaneScreen />)
+
+    await waitFor(() => expect(screen.getByText('**All good.**')).toBeTruthy())
+    expect(view.container.querySelectorAll('.message.user')).toHaveLength(1)
+    expect(view.container.querySelectorAll('.message.assistant')).toHaveLength(
+      3,
+    )
+    expect(view.container.querySelector('.tool-card.done')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Yes' })).toBeTruthy()
+    expect(view.container.querySelector('.agent-question')).toBeTruthy()
+    expect(view.container.querySelector('.message-actions-button')).toBeNull()
+    expect(view.container.querySelector('.version-switcher')).toBeNull()
+    expect(view.container.querySelector('.usage')).toBeNull()
   })
 
   it('keeps the route and history entry unchanged when the view toggles', async () => {

@@ -20,6 +20,7 @@ import { useParams } from 'react-router-dom'
 import { ScopedRootHeader } from '../layout/ScopedRootHeader'
 import { useConnection } from '../desktops/DesktopContext'
 import { useT } from '../i18n'
+import { MessageView } from '../messages'
 import { MarkdownContent } from '../screens/MarkdownContent'
 import {
   HERDR_KEY_MAP,
@@ -35,14 +36,14 @@ import {
 import { useHerdr } from './HerdrProvider'
 import { mergeChatItems, parseBlockedPrompt, type HerdrPane } from './model'
 import {
-  cleanAgentText,
   parseAnsi,
   stripAnsi,
   TERMINAL_COLORS,
   toolView,
   type AnsiStyle,
-  type ToolView,
+  type AgentQuestion,
 } from './transcript'
+import { toMessageRows, type HerdrChatItem } from './toMessageParts'
 import { nextTerminalScrollTop } from '../terminal/terminalScroll'
 
 const TerminalView = lazy(() =>
@@ -51,19 +52,7 @@ const TerminalView = lazy(() =>
   })),
 )
 
-type ChatItem = {
-  id: string
-  kind: string
-  text?: string
-  tool?: {
-    name?: string
-    summary?: string
-    done?: boolean
-    input?: unknown
-    result?: unknown
-    is_error?: boolean
-  }
-}
+type ChatItem = HerdrChatItem
 type ChatPage = { items?: ChatItem[]; start?: number; end?: number }
 type ChatResponse = {
   session_id?: string
@@ -353,10 +342,11 @@ export function AgentPaneScreen() {
       .finally(() => setLoadingTerminalHistory(false))
   }
   // Only the newest unanswered question offers its options as replies.
+  const rows = useMemo(() => toMessageRows(items), [items])
   const answerableId = useMemo(() => {
-    const last = items.at(-1)
-    return last?.tool && toolView(last.tool).questions ? last.id : undefined
-  }, [items])
+    const last = rows.at(-1)
+    return last?.questions ? last.id : undefined
+  }, [rows])
 
   const send = async (text = draft) => {
     const prompt = text.trim()
@@ -489,25 +479,27 @@ export function AgentPaneScreen() {
                 {t('agents.loadOlder')}
               </button>
             ) : null}
-            {items.map((item) =>
-              item.tool ? (
-                <AgentToolItem
-                  key={item.id}
-                  view={toolView(item.tool)}
-                  onAnswer={
-                    item.id === answerableId && !sending
-                      ? (label) => void send(label)
-                      : undefined
-                  }
-                />
-              ) : (
-                <AgentTextItem
-                  key={item.id}
-                  kind={item.kind}
-                  text={item.text}
-                />
-              ),
-            )}
+            {rows.map((row) => (
+              <MessageView
+                key={row.id}
+                row={row}
+                capabilities={{
+                  renderMarkdown: (text) => <MarkdownContent text={text} />,
+                }}
+                below={
+                  row.questions ? (
+                    <AgentQuestions
+                      questions={row.questions}
+                      onAnswer={
+                        row.id === answerableId && !sending
+                          ? (label) => void send(label)
+                          : undefined
+                      }
+                    />
+                  ) : undefined
+                }
+              />
+            ))}
             {queued.map((item) => (
               <article className="agent-message queued" key={item.id}>
                 {item.text}
@@ -724,56 +716,34 @@ function ansiStyle(style: AnsiStyle) {
   }
 }
 
-function AgentTextItem({ kind, text }: { kind: string; text?: string }) {
-  const cleaned = text ? cleanAgentText(text) : ''
-  if (!cleaned) return null
-  return (
-    <article className={`agent-message ${kind}`}>
-      <MarkdownContent text={cleaned} />
-    </article>
-  )
-}
-
-function AgentToolItem({
-  view,
+function AgentQuestions({
+  questions,
   onAnswer,
 }: {
-  view: ToolView
+  questions: AgentQuestion[]
   onAnswer?: (label: string) => void
 }) {
-  const t = useT()
-  if (view.questions)
-    return (
-      <article className="agent-message agent-question">
-        {view.questions.map((question, index) => (
-          <div key={index}>
-            {question.question ? <strong>{question.question}</strong> : null}
-            <div className="agent-question-options">
-              {question.options.map((option) => (
-                <button
-                  key={option.label}
-                  className="chip-button"
-                  disabled={!onAnswer}
-                  title={option.description}
-                  onClick={() => onAnswer?.(option.label)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </article>
-    )
   return (
-    <details className={`agent-tool${view.error ? ' error' : ''}`}>
-      <summary>
-        <strong>{view.name}</strong>
-        {view.detail ? <code>{view.detail}</code> : null}
-        {view.error ? <span>{t('agents.toolFailed')}</span> : null}
-      </summary>
-      {view.result ? <pre>{view.result}</pre> : null}
-    </details>
+    <div className="agent-question">
+      {questions.map((question, index) => (
+        <div key={index}>
+          {question.question ? <strong>{question.question}</strong> : null}
+          <div className="agent-question-options">
+            {question.options.map((option) => (
+              <button
+                key={option.label}
+                className="chip-button"
+                disabled={!onAnswer}
+                title={option.description}
+                onClick={() => onAnswer?.(option.label)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 
