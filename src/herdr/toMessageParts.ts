@@ -50,7 +50,7 @@ function toolPart(tool: HerdrChatTool): MessagePart {
   const input =
     name.toLowerCase() === 'exec' && view.detail
       ? { command: view.detail }
-      : tool.input
+      : (tool.input ?? tool.summary)
   const errorText = tool.is_error
     ? typeof tool.result === 'string'
       ? tool.result

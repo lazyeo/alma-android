@@ -139,6 +139,39 @@ describe('toMessageRows', () => {
     ])
   })
 
+  it('uses a Herdr tool summary when no structured input exists', () => {
+    expect(
+      toMessageRows([
+        {
+          id: 'summary',
+          kind: 'tool',
+          tool: {
+            name: 'npm test',
+            summary: 'Focused Herdr tests passed',
+            done: true,
+          },
+        },
+      ]),
+    ).toEqual([
+      {
+        id: 'summary',
+        message: {
+          role: 'assistant',
+          parts: [
+            {
+              type: 'dynamic-tool',
+              toolName: 'npm test',
+              summary: 'Focused Herdr tests passed',
+              input: 'Focused Herdr tests passed',
+              output: undefined,
+              state: 'output-available',
+            },
+          ],
+        },
+      },
+    ])
+  })
+
   it('maps Pi text and preserves a generic unknown tool', () => {
     expect(
       toMessageRows([
