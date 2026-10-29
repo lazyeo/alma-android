@@ -8774,6 +8774,7 @@ dialog:focus,
   min-height: 0;
   height: 100%;
   flex: 0 0 100%;
+  padding-top: 34px;
 }
 .terminal-viewport,
 .agent-terminal-loading {
@@ -8815,9 +8816,16 @@ dialog:focus,
   font-size: var(--text-xs);
 }
 .agent-terminal-mode {
-  flex: none;
-  gap: 6px;
-  margin-inline-end: 4px;
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  color: var(--agent-terminal-fg);
+  background: color-mix(in srgb, var(--agent-terminal-bg) 78%, transparent);
 }
 .agents-sidebar-header h1 {
   flex: 1;

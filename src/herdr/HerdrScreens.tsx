@@ -15,7 +15,6 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type ReactNode,
 } from 'react'
 import { useParams } from 'react-router-dom'
 import { ScopedRootHeader } from '../layout/ScopedRootHeader'
@@ -563,6 +562,27 @@ export function AgentPaneScreen() {
                   <div className="agent-terminal-history-gap" />
                 ) : null}
                 <div className="agent-terminal-area">
+                  <button
+                    className="quiet-icon-button agent-terminal-mode"
+                    aria-label={
+                      terminalDisplayMode === 'reflow'
+                        ? t('agents.terminalUseGrid')
+                        : t('agents.terminalUseReflow')
+                    }
+                    title={
+                      terminalDisplayMode === 'reflow'
+                        ? t('agents.terminalUseGrid')
+                        : t('agents.terminalUseReflow')
+                    }
+                    data-sidebar-swipe-exclude
+                    onClick={toggleTerminalDisplayMode}
+                  >
+                    {terminalDisplayMode === 'reflow' ? (
+                      <Grid3X3 size={16} />
+                    ) : (
+                      <WrapText size={16} />
+                    )}
+                  </button>
                   <Suspense
                     fallback={
                       <div className="agent-terminal-loading">
@@ -586,37 +606,7 @@ export function AgentPaneScreen() {
                 </div>
               </div>
             </div>
-            <TerminalKeyRow
-              disabled={sending}
-              onKey={sendTerminalKey}
-              leading={
-                <button
-                  className="chip-button agent-terminal-mode"
-                  aria-label={
-                    terminalDisplayMode === 'reflow'
-                      ? t('agents.terminalUseGrid')
-                      : t('agents.terminalUseReflow')
-                  }
-                  title={
-                    terminalDisplayMode === 'reflow'
-                      ? t('agents.terminalUseGrid')
-                      : t('agents.terminalUseReflow')
-                  }
-                  onClick={toggleTerminalDisplayMode}
-                >
-                  {terminalDisplayMode === 'reflow' ? (
-                    <WrapText size={16} />
-                  ) : (
-                    <Grid3X3 size={16} />
-                  )}
-                  <span>
-                    {terminalDisplayMode === 'reflow'
-                      ? t('agents.terminalModeFit')
-                      : t('agents.terminalModeGrid')}
-                  </span>
-                </button>
-              }
-            />
+            <TerminalKeyRow disabled={sending} onKey={sendTerminalKey} />
           </div>
         )}
         {error ? <p className="settings-error agent-error">{error}</p> : null}
@@ -786,11 +776,9 @@ const TERMINAL_KEYS: Array<{
 function TerminalKeyRow({
   disabled,
   onKey,
-  leading,
 }: {
   disabled: boolean
   onKey: (key: TerminalKey) => void
-  leading?: ReactNode
 }) {
   const t = useT()
   return (
@@ -799,7 +787,6 @@ function TerminalKeyRow({
       role="toolbar"
       aria-label={t('agents.terminalKeys')}
     >
-      {leading}
       {TERMINAL_KEYS.map((item) => (
         <button
           className="chip-button"

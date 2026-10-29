@@ -207,6 +207,27 @@ describe('AgentPaneScreen pane navigation', () => {
     expect(screen.queryByText('Run this command?')).toBeNull()
   })
 
+  it('floats the display mode control over the terminal instead of the key row', async () => {
+    paneId = 'pane-a'
+    const view = render(<AgentPaneScreen />)
+
+    await waitFor(() =>
+      expect(screen.getByText('agents.chatUnsupported')).toBeTruthy(),
+    )
+    const mode = screen.getByRole('button', {
+      name: 'agents.terminalUseGrid',
+    })
+    const toolbar = screen.getByRole('toolbar', {
+      name: 'agents.terminalKeys',
+    })
+
+    expect(mode.closest('.agent-terminal-area')).toBeTruthy()
+    expect(toolbar.contains(mode)).toBe(false)
+    expect(mode.hasAttribute('data-sidebar-swipe-exclude')).toBe(true)
+    expect(mode.querySelector('span')).toBeNull()
+    expect(view.container.querySelector('.agent-terminal-mode')).toBe(mode)
+  })
+
   it('requests recent ANSI history for the current display mode', async () => {
     paneId = 'pane-a'
     api.readHerdrPane.mockResolvedValueOnce({
