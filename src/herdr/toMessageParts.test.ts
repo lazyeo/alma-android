@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { toMessageRows } from './toMessageParts'
+import { groupTurns, toItemRows, type HerdrMessageRow } from './toMessageParts'
 
-describe('toMessageRows', () => {
+describe('toItemRows', () => {
   it('maps Claude text, reasoning, file tools, and tool errors', () => {
     expect(
-      toMessageRows([
+      toItemRows([
         { id: 'u1', kind: 'user', text: 'Please inspect it.' },
         { id: 'r1', kind: 'reasoning', text: 'I should read the file.' },
         {
@@ -85,7 +85,7 @@ describe('toMessageRows', () => {
 
   it('maps Codex exec commands and strips memory citations', () => {
     expect(
-      toMessageRows([
+      toItemRows([
         {
           id: 'c1',
           kind: 'assistant',
@@ -141,7 +141,7 @@ describe('toMessageRows', () => {
 
   it('uses a Herdr tool summary when no structured input exists', () => {
     expect(
-      toMessageRows([
+      toItemRows([
         {
           id: 'summary',
           kind: 'tool',
@@ -174,7 +174,7 @@ describe('toMessageRows', () => {
 
   it('maps Pi text and preserves a generic unknown tool', () => {
     expect(
-      toMessageRows([
+      toItemRows([
         { id: 'p1', kind: 'agent', text: 'Pi reply' },
         {
           id: 'p2',
@@ -217,7 +217,7 @@ describe('toMessageRows', () => {
 
   it('keeps request_user_input questions outside shared message parts', () => {
     expect(
-      toMessageRows([
+      toItemRows([
         {
           id: 'q1',
           kind: 'tool',
@@ -246,5 +246,45 @@ describe('toMessageRows', () => {
         ],
       },
     ])
+  })
+
+  describe('groupTurns', () => {
+    const row = (
+      id: string,
+      role: 'user' | 'assistant',
+      text: string,
+      questions?: HerdrMessageRow['questions'],
+    ): HerdrMessageRow => ({
+      id,
+      message: { role, parts: [{ type: 'text', text }] },
+      ...(questions ? { questions } : {}),
+    })
+    it('merges one assistant turn into a single message', () => {
+      const rows = groupTurns([
+        row('u1', 'user', 'go'),
+        row('a1', 'assistant', 'one'),
+        row('a2', 'assistant', 'two'),
+        row('u2', 'user', 'next'),
+        row('a3', 'assistant', 'three'),
+      ])
+      expect(rows.map((r) => r.id)).toEqual(['u1', 'a1', 'u2', 'a3'])
+      expect(rows[1].message.parts).toEqual([
+        { type: 'text', text: 'one' },
+        { type: 'text', text: 'two' },
+      ])
+    })
+    it('ends the turn after a question so options stay under it', () => {
+      const questions = [
+        { title: 'Install?', options: ['Yes', 'No'] },
+      ] as unknown as HerdrMessageRow['questions']
+      const rows = groupTurns([
+        row('a1', 'assistant', 'built'),
+        row('q1', 'assistant', 'Install?', questions),
+        row('a2', 'assistant', 'later text'),
+      ])
+      expect(rows.map((r) => r.id)).toEqual(['a1', 'a2'])
+      expect(rows[0].questions).toBe(questions)
+      expect(rows[0].message.parts).toHaveLength(2)
+    })
   })
 })

@@ -23,8 +23,6 @@ export interface HerdrMessageRow extends MessageRowView {
   questions?: AgentQuestion[]
 }
 
-const assistantKinds = new Set(['assistant', 'agent', 'reasoning', 'tool'])
-
 function textParts(item: HerdrChatItem): MessagePart[] {
   const parts: MessagePart[] = []
   const reasoning = cleanAgentText(
@@ -89,20 +87,14 @@ function knownTool(name: string) {
   ].includes(name.toLowerCase())
 }
 
-export function toMessageRows(
-  items: readonly HerdrChatItem[],
-): HerdrMessageRow[] {
+export function toItemRows(items: readonly HerdrChatItem[]): HerdrMessageRow[] {
   return items.map((item) => {
     const view = item.tool ? toolView(item.tool) : undefined
     return {
       id: item.id,
       message: {
         role:
-          item.kind === 'user' || item.kind === 'human'
-            ? 'user'
-            : assistantKinds.has(item.kind) || item.tool
-              ? 'assistant'
-              : 'assistant',
+          item.kind === 'user' || item.kind === 'human' ? 'user' : 'assistant',
         parts:
           item.tool && !view?.questions
             ? [toolPart(item.tool)]
@@ -111,4 +103,42 @@ export function toMessageRows(
       ...(view?.questions ? { questions: view.questions } : {}),
     }
   })
+}
+
+// One assistant turn = one message, like a thread reply: consecutive
+// assistant rows (text, reasoning, tools) merge. A row carrying questions
+// ends its turn so the options stay directly under the question.
+export function groupTurns(
+  rows: readonly HerdrMessageRow[],
+): HerdrMessageRow[] {
+  const grouped: HerdrMessageRow[] = []
+  for (const row of rows) {
+    const previous = grouped.at(-1)
+    if (
+      row.message.role === 'assistant' &&
+      previous?.message.role === 'assistant' &&
+      !previous.questions
+    ) {
+      grouped[grouped.length - 1] = {
+        ...previous,
+        message: {
+          ...previous.message,
+          parts: [
+            ...(previous.message.parts ?? []),
+            ...(row.message.parts ?? []),
+          ],
+        },
+        ...(row.questions ? { questions: row.questions } : {}),
+      }
+      continue
+    }
+    grouped.push(row)
+  }
+  return grouped
+}
+
+export function toMessageRows(
+  items: readonly HerdrChatItem[],
+): HerdrMessageRow[] {
+  return groupTurns(toItemRows(items))
 }

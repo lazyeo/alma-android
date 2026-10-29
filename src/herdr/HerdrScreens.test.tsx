@@ -137,8 +137,9 @@ describe('AgentPaneScreen pane navigation', () => {
 
     await waitFor(() => expect(screen.getByText('**All good.**')).toBeTruthy())
     expect(view.container.querySelectorAll('.message.user')).toHaveLength(1)
+    // The reply's text, tool and question form one assistant turn.
     expect(view.container.querySelectorAll('.message.assistant')).toHaveLength(
-      3,
+      1,
     )
     expect(view.container.querySelector('.tool-card.done')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Yes' })).toBeTruthy()

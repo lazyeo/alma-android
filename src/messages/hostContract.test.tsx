@@ -106,7 +106,7 @@ describe('shared message host contract', () => {
     const herdr = view.container.querySelector('[data-host="herdr"]')!
 
     expect(sharedClassStructure(herdr)).toEqual(sharedClassStructure(thread))
-    expect(herdr.querySelectorAll('.message')).toHaveLength(5)
+    expect(herdr.querySelectorAll('.message')).toHaveLength(2)
     expect(herdr.querySelectorAll('.tool-card')).toHaveLength(3)
     expect(herdr.querySelector('.tool-card.error')).toBeTruthy()
     expect(herdr.textContent).toContain('custom_lookup')
