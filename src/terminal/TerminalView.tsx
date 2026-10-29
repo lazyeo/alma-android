@@ -37,8 +37,7 @@ export interface StreamTerminalViewProps extends TerminalViewBaseProps {
 }
 
 export type TerminalViewProps =
-  | SnapshotTerminalViewProps
-  | StreamTerminalViewProps
+  SnapshotTerminalViewProps | StreamTerminalViewProps
 
 type Xterm = import('@xterm/xterm').Terminal
 type FitAddon = import('@xterm/addon-fit').FitAddon
@@ -140,7 +139,11 @@ export function TerminalView(props: TerminalViewProps) {
           }
         : { mode: 'stream', onData: props.onData, onResize: props.onResize },
     )
-  }, [props.mode, props.mode === 'stream' ? props.onData : undefined, props.mode === 'stream' ? props.onResize : undefined])
+  }, [
+    props.mode,
+    props.mode === 'stream' ? props.onData : undefined,
+    props.mode === 'stream' ? props.onResize : undefined,
+  ])
 
   useLayoutEffect(() => {
     if (props.mode !== 'snapshot' || !ready) return
@@ -153,7 +156,11 @@ export function TerminalView(props: TerminalViewProps) {
     const sizing = calculateSnapshotFontSize(viewport.clientWidth, cols)
     session.setFontSize(sizing.fontSize)
     setSurfaceStyle({ minWidth: sizing.contentWidth })
-    session.writeSnapshot(props.frame?.text ?? props.waitingText ?? '', cols, rows)
+    session.writeSnapshot(
+      props.frame?.text ?? props.waitingText ?? '',
+      cols,
+      rows,
+    )
   }, [props, ready])
 
   useEffect(() => {
