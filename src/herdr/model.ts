@@ -42,12 +42,31 @@ export interface AgentPaneModel {
   agent: string
   status: HerdrAgentStatus
   title: string
+  lastChangedAt?: number
 }
 
 export interface AgentWorkspaceModel {
   id: string
   label: string
   panes: AgentPaneModel[]
+}
+
+const paneLastChangedAt = (pane: HerdrPane) => {
+  for (const key of [
+    'last_changed_at',
+    'last_change_at',
+    'updated_at',
+    'changed_at',
+  ]) {
+    const value = pane[key]
+    if (typeof value === 'number' && Number.isFinite(value))
+      return value < 10_000_000_000 ? value * 1_000 : value
+    if (typeof value === 'string') {
+      const parsed = Date.parse(value)
+      if (Number.isFinite(parsed)) return parsed
+    }
+  }
+  return undefined
 }
 
 const statusRank = (status: HerdrAgentStatus) => {
@@ -85,6 +104,7 @@ export function agentListFromSnapshot(
         pane.title?.trim() ||
         (pane.tab_id ? tabs.get(pane.tab_id) : '') ||
         pane.agent,
+      lastChangedAt: paneLastChangedAt(pane),
     })
     grouped.set(pane.workspace_id, panes)
   }

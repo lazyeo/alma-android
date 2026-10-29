@@ -1666,13 +1666,29 @@ const herdrSnapshot = {
   version: '0.9.5',
   protocol: 22,
   workspaces: [
-    { workspace_id: 'w-mobile', label: 'Alma Android' },
-    { workspace_id: 'w-site', label: 'Documentation site' },
+    {
+      workspace_id: 'w-mobile',
+      label: 'Alma Android foldable experience',
+    },
+    {
+      workspace_id: 'w-site',
+      label: 'Public documentation and protocol reference',
+    },
+    {
+      workspace_id: 'w-relay',
+      label: 'Relay reliability and connection diagnostics',
+    },
+    {
+      workspace_id: 'w-release',
+      label: 'Android release readiness and quality checks',
+    },
   ],
   tabs: [
     { tab_id: 't-impl', workspace_id: 'w-mobile', label: 'Implementation' },
     { tab_id: 't-review', workspace_id: 'w-mobile', label: 'Review' },
     { tab_id: 't-docs', workspace_id: 'w-site', label: 'Docs' },
+    { tab_id: 't-relay', workspace_id: 'w-relay', label: 'Diagnostics' },
+    { tab_id: 't-release', workspace_id: 'w-release', label: 'Release' },
   ],
   panes: [
     {
@@ -1686,6 +1702,7 @@ const herdrSnapshot = {
           : 'working',
       terminal_title_stripped:
         '修复 Herdr 终端布局并验证 extremely long Fold7 responsive terminal title',
+      last_changed_at: NOW - 90_000,
     },
     {
       pane_id: 'w1:p2',
@@ -1694,6 +1711,7 @@ const herdrSnapshot = {
       agent: 'codex',
       agent_status: 'done',
       terminal_title_stripped: 'Review request shapes',
+      last_changed_at: NOW - 18 * 60_000,
     },
     {
       pane_id: 'w2:p1',
@@ -1702,6 +1720,34 @@ const herdrSnapshot = {
       agent: 'claude',
       agent_status: 'idle',
       terminal_title_stripped: 'Update protocol notes',
+      last_changed_at: NOW - 42 * 60_000,
+    },
+    {
+      pane_id: 'w3:p1',
+      workspace_id: 'w-relay',
+      tab_id: 't-relay',
+      agent: 'codex',
+      agent_status: 'blocked',
+      terminal_title_stripped: 'Choose reconnect backoff behavior',
+      last_changed_at: NOW - 4 * 60_000,
+    },
+    {
+      pane_id: 'w3:p2',
+      workspace_id: 'w-relay',
+      tab_id: 't-relay',
+      agent: 'claude',
+      agent_status: 'working',
+      terminal_title_stripped: 'Trace websocket resume sequence',
+      last_changed_at: NOW - 7 * 60_000,
+    },
+    {
+      pane_id: 'w4:p1',
+      workspace_id: 'w-release',
+      tab_id: 't-release',
+      agent: 'claude',
+      agent_status: 'working',
+      terminal_title_stripped: 'Run Android release quality checks',
+      last_changed_at: NOW - 12 * 60_000,
     },
   ],
 }

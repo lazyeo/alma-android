@@ -9,11 +9,12 @@ import {
   PanelLeftOpen,
   Settings,
 } from 'lucide-react'
-import { Fragment, useRef, type ReactNode } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Fragment, useEffect, useRef, type ReactNode } from 'react'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ConnectionContext, useDesktops } from '../desktops/DesktopContext'
 import { DesktopSwitcher } from '../desktops/DesktopSwitcher'
 import {
+  desktopAgentPanePath,
   desktopAgentsPath,
   desktopCrystalsPath,
   desktopGtdPath,
@@ -25,12 +26,21 @@ import { ThreadsScreen } from '../screens/ThreadsScreen'
 import { GtdScreen } from '../screens/GtdScreen'
 import { useTimeCluesStatus } from '../screens/useTimeCluesStatus'
 import { StartScreen } from '../screens/StartScreen'
-import { threadNavigationOptions, threadRouteMatch } from './splitLayout'
+import {
+  splitSidebarSection,
+  threadNavigationOptions,
+  threadRouteMatch,
+} from './splitLayout'
 import { useLayoutMode, useSidebarCollapsed } from './useLayoutMode'
 import { useSidebarSwipe } from './useSidebarSwipe'
 import { visiblePairings } from '../desktops/desktopVisibility'
 import { useT } from '../i18n'
 import { useHerdr } from '../herdr/HerdrProvider'
+import { AgentsSidebar } from '../herdr/AgentsSidebar'
+import {
+  rememberLastViewedPane,
+  resolveLastViewedPane,
+} from '../herdr/agentsBoardModel'
 
 const NAV_ITEMS = [
   { to: '/threads', labelKey: 'nav.threads', Icon: MessagesSquare },
@@ -265,15 +275,36 @@ export function AppShell() {
   const shellRef = useRef<HTMLDivElement>(null)
   const sidebarSwipe = useSidebarSwipe(shellRef, collapsed, setSidebarCollapsed)
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const { store } = useDesktops()
   const activeDesktopId =
     store.activeId ?? visiblePairings(store.pairings)[0]?.id
   const thread = threadRouteMatch(pathname)
+  const sidebarSection = splitSidebarSection(pathname)
+  const agentsMatch = /^\/d\/([^/]+)\/agents(?:\/([^/]+))?\/?$/.exec(pathname)
+  const agentsDesktopId = agentsMatch
+    ? decodeURIComponent(agentsMatch[1])
+    : undefined
+  const agentsPaneId = agentsMatch?.[2]
+    ? decodeURIComponent(agentsMatch[2])
+    : undefined
+  const { agents } = useHerdr()
+  const agentWorkspaces = agentsDesktopId ? agents(agentsDesktopId) : []
   const screenDetail = /^\/d\/[^/]+\/screen\/?$/.test(pathname)
   const detail =
-    Boolean(thread?.threadId) ||
-    screenDetail ||
-    /^\/d\/[^/]+\/agents\/[^/]+/.test(pathname)
+    Boolean(thread?.threadId) || screenDetail || Boolean(agentsPaneId)
+
+  useEffect(() => {
+    if (agentsDesktopId && agentsPaneId)
+      rememberLastViewedPane(agentsDesktopId, agentsPaneId)
+  }, [agentsDesktopId, agentsPaneId])
+
+  useEffect(() => {
+    if (mode !== 'split' || !agentsDesktopId || agentsPaneId) return
+    const paneId = resolveLastViewedPane(agentsDesktopId, agentWorkspaces)
+    if (paneId)
+      navigate(desktopAgentPanePath(agentsDesktopId, paneId), { replace: true })
+  }, [agentWorkspaces, agentsDesktopId, agentsPaneId, mode, navigate])
 
   if (screenDetail)
     return (
@@ -341,21 +372,31 @@ export function AppShell() {
       </div>
       <aside
         className="split-sidebar"
-        aria-label={thread?.section === 'gtd' ? t('nav.gtd') : t('nav.threads')}
+        aria-label={
+          sidebarSection === 'agents'
+            ? t('nav.agents')
+            : sidebarSection === 'gtd'
+              ? t('nav.gtd')
+              : t('nav.threads')
+        }
         aria-hidden={collapsed}
         {...(collapsed ? ({ inert: '' } as Record<string, string>) : {})}
       >
         <div className="split-sidebar-content">
-          <SidebarThreads
-            selectedThreadId={thread?.threadId}
-            gtd={thread?.section === 'gtd'}
-          />
+          {sidebarSection === 'agents' ? (
+            <AgentsSidebar />
+          ) : (
+            <SidebarThreads
+              selectedThreadId={thread?.threadId}
+              gtd={sidebarSection === 'gtd'}
+            />
+          )}
           <ActiveDesktopStrip />
         </div>
       </aside>
       {/* Root pages render here beside the persistent thread list. */}
       <main
-        className={`split-main${detail ? ' detail' : thread ? '' : ' page'}`}
+        className={`split-main${detail ? ' detail' : thread || agentsMatch ? '' : ' page'}`}
       >
         <Outlet />
       </main>
