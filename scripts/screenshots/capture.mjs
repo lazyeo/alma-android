@@ -5148,6 +5148,9 @@ const shots = [
 // Facts that used to be joined by a middot sit in flex rows with a gap.
 // A later, more specific display rule can silently drop the gap, so measure.
 async function assertVisibleTerminal(page) {
+  await page.waitForFunction(() =>
+    Boolean(document.querySelector('.agent-terminal .xterm-rows')?.textContent?.trim()),
+  )
   const terminal = await page.evaluate(() => {
     const area = document.querySelector('.agent-terminal-area')
     const rows = document.querySelector('.agent-terminal .xterm-rows')

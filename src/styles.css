@@ -8838,7 +8838,7 @@ dialog:focus,
   display: flex;
   min-width: 0;
   gap: 8px;
-  margin: var(--agent-terminal-gap) var(--agent-terminal-inset);
+  margin: var(--agent-terminal-gap) var(--agent-terminal-inset) 10px;
 }
 .agent-terminal-key-list {
   display: flex;
