@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { extname, join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -35,6 +35,30 @@ function imports(source: string): string[] {
   )
 }
 
+// Value imports only: `import type` is erased and cannot pull host code in.
+function valueImports(source: string): string[] {
+  return Array.from(
+    source.matchAll(
+      /(?:import|export)\s+(?!type\s)(?:[^'";]+?\s+from\s+)?['"]([^'"]+)['"]/g,
+    ),
+    (match) => match[1],
+  )
+}
+
+function resolveRelative(from: string, specifier: string): string | undefined {
+  const base = join(from, '..', specifier)
+  for (const candidate of [
+    base,
+    `${base}.ts`,
+    `${base}.tsx`,
+    join(base, 'index.ts'),
+    join(base, 'index.tsx'),
+  ])
+    if (SOURCE_EXTENSIONS.has(extname(candidate)) && existsSync(candidate))
+      return candidate
+  return undefined
+}
+
 describe('shared message UI import boundary', () => {
   it('contains production modules', () => {
     expect(sourceFiles(ROOT).length).toBeGreaterThan(0)
@@ -52,6 +76,30 @@ describe('shared message UI import boundary', () => {
         ),
     )
 
+    expect(violations).toEqual([])
+  })
+
+  it('does not reach host dependencies through helper modules', () => {
+    const seen = new Set<string>()
+    const queue = sourceFiles(ROOT).map((file) => ({ file, chain: [file] }))
+    const violations: string[] = []
+    while (queue.length) {
+      const { file, chain } = queue.shift()!
+      if (seen.has(file)) continue
+      seen.add(file)
+      for (const specifier of valueImports(readFileSync(file, 'utf8'))) {
+        if (FORBIDDEN_IMPORTS.some((forbidden) => forbidden.test(specifier)))
+          violations.push(
+            [
+              ...chain.map((item) => relative(ROOT.pathname, item)),
+              specifier,
+            ].join(' -> '),
+          )
+        if (!specifier.startsWith('.')) continue
+        const next = resolveRelative(file, specifier)
+        if (next) queue.push({ file: next, chain: [...chain, next] })
+      }
+    }
     expect(violations).toEqual([])
   })
 })

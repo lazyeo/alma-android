@@ -16,7 +16,7 @@ import {
   endResourceSubtitle,
   type EndResource,
 } from '../screens/endResources'
-import { fileName } from '../screens/localFiles'
+import { fileName } from './fileName'
 import { useT } from '../i18n'
 
 function resourceIcon(resource: EndResource) {

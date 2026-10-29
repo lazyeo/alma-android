@@ -1,4 +1,5 @@
 import { t } from '../i18n/runtime'
+import { fileName } from '../messages/fileName'
 import { AlmaHttpError, type AlmaApi } from '../relay/almaApi'
 
 export const FILE_SIZE_LIMIT = 50 * 1024 * 1024
@@ -204,11 +205,7 @@ export function fileActionErrorText(
   return t('files.link.errors.saveFailed')
 }
 
-export function fileName(path: string) {
-  return (
-    path.split(/[\\/]/).filter(Boolean).pop() || t('files.link.fallbackName')
-  )
-}
+export { fileName }
 
 export function isTextPreview(mime: string, name: string) {
   return (
