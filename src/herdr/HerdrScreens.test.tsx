@@ -46,7 +46,13 @@ vi.mock('./HerdrProvider', () => ({
 }))
 vi.mock('../i18n', () => ({ useT: () => (key: string) => key }))
 vi.mock('../layout/ScopedRootHeader', () => ({
-  ScopedRootHeader: ({ title, actions }: { title: string; actions: unknown }) => (
+  ScopedRootHeader: ({
+    title,
+    actions,
+  }: {
+    title: string
+    actions: unknown
+  }) => (
     <header>
       <h1>{title}</h1>
       {actions as React.ReactNode}
@@ -71,7 +77,9 @@ describe('AgentPaneScreen pane navigation', () => {
     paneId = 'pane-b'
     view.rerender(<AgentPaneScreen />)
 
-    await waitFor(() => expect(screen.getByText('Pane B transcript')).toBeTruthy())
+    await waitFor(() =>
+      expect(screen.getByText('Pane B transcript')).toBeTruthy(),
+    )
     expect(screen.getByRole('button', { name: 'agents.chat' })).toBeTruthy()
   })
 })

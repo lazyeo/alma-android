@@ -5451,6 +5451,21 @@ const herdrShots = [
       ...(lang === 'zh'
         ? [
             {
+              file: 'herdr-terminal-typing-zh-412.png',
+              viewport: PHONE,
+              deviceScaleFactor: 2,
+              route: '/d/fixture-desktop/agents/w1%3Ap1',
+              language: lang,
+              ready: '.agent-message',
+              safeInsets: true,
+              async act(page) {
+                await page.getByRole('button', { name: terminalLabel }).click()
+                await page.getByRole('button', { name: '作为消息发送' }).click()
+                await page.locator('.agent-composer-mode').waitFor()
+                await assertAgentPaneGeometry(page)
+              },
+            },
+            {
               file: 'herdr-blocked-zh-884.png',
               viewport: TABLET,
               deviceScaleFactor: 2,

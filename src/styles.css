@@ -8796,6 +8796,7 @@ dialog:focus,
 }
 .agent-composer {
   display: flex;
+  flex-wrap: wrap;
   min-width: 0;
   flex: 0 0 auto;
   align-items: flex-end;
@@ -8804,6 +8805,10 @@ dialog:focus,
     max(12px, var(--safe-left));
   border-top: var(--border-hairline) solid var(--gray-7);
   background: var(--background);
+}
+.agent-composer-mode {
+  width: 100%;
+  justify-content: flex-start;
 }
 .agent-composer textarea {
   min-width: 0;

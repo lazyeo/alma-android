@@ -837,11 +837,14 @@ export class AlmaApi {
   sendHerdrPaneKeys(paneId: string, keys: string[]) {
     return this.herdrRpc('pane.send_keys', { pane_id: paneId, keys })
   }
+  sendHerdrPaneText(paneId: string, text: string) {
+    return this.herdrRpc('pane.send_text', { pane_id: paneId, text })
+  }
   chooseHerdrMenuOption(paneId: string, key: string) {
     return this.sendHerdrPaneKeys(paneId, [key])
   }
   async sendHerdrBlockedText(paneId: string, text: string) {
-    await this.herdrRpc('pane.send_text', { pane_id: paneId, text })
+    await this.sendHerdrPaneText(paneId, text)
     return this.sendHerdrPaneKeys(paneId, ['enter'])
   }
   readHerdrPane(paneId: string, format: 'text' | 'ansi' = 'text') {

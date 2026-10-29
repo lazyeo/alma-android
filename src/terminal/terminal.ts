@@ -2,6 +2,8 @@ export type TerminalMode = 'snapshot' | 'stream'
 export type SnapshotDisplayMode = 'reflow' | 'grid'
 
 export const SNAPSHOT_DISPLAY_MODE_KEY = 'alma.terminal.snapshotDisplayMode'
+export const TERMINAL_COMPOSER_MODE_KEY = 'alma.herdr.terminalComposerMode'
+export type TerminalComposerMode = 'message' | 'terminal'
 
 export type TerminalKey =
   | 'escape'
@@ -108,6 +110,35 @@ export function loadSnapshotDisplayMode(
       : 'reflow'
   } catch {
     return 'reflow'
+  }
+}
+
+export function loadTerminalComposerMode(
+  storage: Pick<Storage, 'getItem'> | undefined = typeof localStorage ===
+  'undefined'
+    ? undefined
+    : localStorage,
+): TerminalComposerMode {
+  try {
+    return storage?.getItem(TERMINAL_COMPOSER_MODE_KEY) === 'terminal'
+      ? 'terminal'
+      : 'message'
+  } catch {
+    return 'message'
+  }
+}
+
+export function saveTerminalComposerMode(
+  mode: TerminalComposerMode,
+  storage: Pick<StorageLike, 'setItem'> | undefined = typeof localStorage ===
+  'undefined'
+    ? undefined
+    : localStorage,
+) {
+  try {
+    storage?.setItem(TERMINAL_COMPOSER_MODE_KEY, mode)
+  } catch {
+    // Persistence is optional in restricted WebViews.
   }
 }
 

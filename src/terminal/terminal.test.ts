@@ -6,8 +6,10 @@ import {
   calculateSnapshotFontSize,
   calculateSnapshotSize,
   loadSnapshotDisplayMode,
+  loadTerminalComposerMode,
   prepareReflowSnapshot,
   saveSnapshotDisplayMode,
+  saveTerminalComposerMode,
   type TerminalDriver,
 } from './terminal'
 
@@ -164,6 +166,23 @@ describe('snapshot display mode persistence', () => {
     expect(storage.setItem).toHaveBeenCalledWith(
       'alma.terminal.snapshotDisplayMode',
       'grid',
+    )
+  })
+})
+
+describe('terminal composer mode persistence', () => {
+  it('defaults to messages and persists terminal typing', () => {
+    const storage = {
+      getItem: vi.fn<() => string | null>(() => null),
+      setItem: vi.fn(),
+    }
+    expect(loadTerminalComposerMode(storage)).toBe('message')
+    storage.getItem.mockReturnValue('terminal')
+    expect(loadTerminalComposerMode(storage)).toBe('terminal')
+    saveTerminalComposerMode('terminal', storage)
+    expect(storage.setItem).toHaveBeenCalledWith(
+      'alma.herdr.terminalComposerMode',
+      'terminal',
     )
   })
 })

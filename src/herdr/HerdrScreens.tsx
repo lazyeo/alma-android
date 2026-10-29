@@ -24,8 +24,11 @@ import { MarkdownContent } from '../screens/MarkdownContent'
 import {
   HERDR_KEY_MAP,
   loadSnapshotDisplayMode,
+  loadTerminalComposerMode,
   saveSnapshotDisplayMode,
+  saveTerminalComposerMode,
   type SnapshotDisplayMode,
+  type TerminalComposerMode,
   type TerminalKey,
 } from '../terminal/terminal'
 import { useHerdr } from './HerdrProvider'
@@ -98,6 +101,10 @@ export function AgentPaneScreen() {
   const [terminal, setTerminal] = useState('')
   const [terminalSize, setTerminalSize] = useState({ cols: 80, rows: 24 })
   const [draft, setDraft] = useState('')
+  const [composerMode, setComposerMode] = useState<TerminalComposerMode>(
+    loadTerminalComposerMode,
+  )
+  const [composing, setComposing] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
 
@@ -271,11 +278,13 @@ export function AgentPaneScreen() {
 
   const send = async (text = draft) => {
     const prompt = text.trim()
-    if (!prompt || sending) return
+    if (!prompt || sending || composing) return
     setSending(true)
     setError('')
     try {
-      if (pane?.agent_status === 'blocked')
+      if (view === 'terminal' && composerMode === 'terminal')
+        await api.sendHerdrPaneText(decodedPaneId, text)
+      else if (pane?.agent_status === 'blocked')
         await api.sendHerdrBlockedText(decodedPaneId, prompt)
       else await api.promptHerdrAgent(decodedPaneId, prompt)
       if (text === draft) setDraft('')
@@ -488,13 +497,53 @@ export function AgentPaneScreen() {
         {error ? <p className="settings-error agent-error">{error}</p> : null}
       </div>
       <footer className="agent-composer">
+        {view === 'terminal' ? (
+          <button
+            className="chip-button agent-composer-mode"
+            onClick={() =>
+              setComposerMode((current) => {
+                const next = current === 'message' ? 'terminal' : 'message'
+                saveTerminalComposerMode(next)
+                return next
+              })
+            }
+          >
+            {composerMode === 'terminal'
+              ? t('agents.typeIntoTerminal')
+              : t('agents.sendAsMessage')}
+          </button>
+        ) : null}
         <textarea
           value={draft}
-          aria-label={t('agents.message')}
-          placeholder={t('agents.messagePlaceholder')}
+          aria-label={
+            view === 'terminal' && composerMode === 'terminal'
+              ? t('agents.terminalText')
+              : t('agents.message')
+          }
+          placeholder={
+            view === 'terminal' && composerMode === 'terminal'
+              ? t('agents.terminalTextPlaceholder')
+              : t('agents.messagePlaceholder')
+          }
           rows={1}
           onChange={(event) => setDraft(event.target.value)}
+          onCompositionStart={() => setComposing(true)}
+          onCompositionEnd={() => setComposing(false)}
           onKeyDown={(event) => {
+            if (composing) return
+            if (view === 'terminal' && composerMode === 'terminal') {
+              const key = keyboardTerminalKey(event)
+              if (key) {
+                event.preventDefault()
+                void sendTerminalKey(key)
+                return
+              }
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                void send()
+              }
+              return
+            }
             if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
               event.preventDefault()
               void send()
@@ -624,6 +673,24 @@ function TerminalKeyRow({
       ))}
     </div>
   )
+}
+
+const keyboardTerminalKey = (event: {
+  key: string
+  ctrlKey: boolean
+  metaKey: boolean
+  shiftKey: boolean
+}): TerminalKey | undefined => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c')
+    return 'interrupt'
+  if (event.key === 'Escape') return 'escape'
+  if (event.key === 'Tab') return event.shiftKey ? 'backtab' : 'tab'
+  if (event.key === 'ArrowUp') return 'up'
+  if (event.key === 'ArrowDown') return 'down'
+  if (event.key === 'ArrowLeft') return 'left'
+  if (event.key === 'ArrowRight') return 'right'
+  if (event.key === 'Backspace') return 'backspace'
+  return undefined
 }
 
 const truncateOption = (label: string, maxLength = 34) =>
