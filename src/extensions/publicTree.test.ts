@@ -3,6 +3,8 @@ import { join, relative } from 'node:path'
 import { expect, it } from 'vitest'
 const root = new URL('../../', import.meta.url).pathname
 const skipped = new Set([
+  // Git internals: loose objects are compressed bytes (history is gitleaks-scanned).
+  '.git',
   'node_modules',
   // Local parallel checkouts (gitignored) contain their own copy of this test.
   '.worktrees',
