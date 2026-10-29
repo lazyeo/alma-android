@@ -12,6 +12,9 @@ import { BrowserRouter, MemoryRouter } from 'react-router-dom'
 import App from '../App'
 import { ThemeProvider } from '../ThemeProvider'
 import { LanguageProvider } from '../i18n'
+import { LANGUAGE_STORAGE_KEY } from '../i18n/preference'
+import type { UpdateDependencies } from '../updates/UpdateProvider'
+import { UpdateCheckError } from '../updates/updateCheck'
 import {
   persistThreadList,
   type ManagedTunnel,
@@ -36,7 +39,47 @@ installNativeInsetsBridge()
 const DESKTOP_ID = 'fixture-desktop'
 const SECOND_DESKTOP_ID = 'fixture-studio'
 const THIRD_DESKTOP_ID = 'fixture-lab'
+const screenshotParams = new URLSearchParams(window.location.search)
 const NOW = Date.now()
+const updateFixture = screenshotParams.get('update')
+const fixtureLanguage = screenshotParams.get('lang')
+if (fixtureLanguage === 'en' || fixtureLanguage === 'zh')
+  localStorage.setItem(LANGUAGE_STORAGE_KEY, fixtureLanguage)
+
+const updateRelease = {
+  version: '0.1.3',
+  notes:
+    fixtureLanguage === 'zh'
+      ? '## 本次更新\n\n- 更安全的应用内更新\n- 下载前校验 SHA-256\n- 更清晰的离线与超时提示'
+      : '## What’s new\n\n- Safer in-app updates\n- SHA-256 verification before install\n- Clearer offline and timeout errors',
+  pageUrl: 'https://github.com/lazyeo/alma-android/releases/tag/v0.1.3',
+  apk: {
+    name: 'alma-android-v0.1.3.apk',
+    url: 'https://github.com/lazyeo/alma-android/releases/download/v0.1.3/alma-android-v0.1.3.apk',
+    checksumUrl:
+      'https://github.com/lazyeo/alma-android/releases/download/v0.1.3/alma-android-v0.1.3.apk.sha256',
+    size: 24_000_000,
+  },
+}
+const updateDependencies: UpdateDependencies | undefined = updateFixture
+  ? {
+      loadRuntime: async () => ({
+        platform: 'android',
+        packageId: 'club.a_dobe.alma',
+        versionName: updateFixture === 'current' ? '0.1.3' : '0.1.2',
+        sha: 'b2e7c51',
+      }),
+      fetchLatest: async () => {
+        if (updateFixture === 'error') throw new UpdateCheckError('offline')
+        return updateRelease
+      },
+      download: async (_version, _apk, onProgress) => onProgress(0.42),
+      cancel: async () => undefined,
+      install: async () => 'started',
+      openUrl: () => undefined,
+      now: () => NOW,
+    }
+  : undefined
 const FIXTURE_IMAGE = `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540"><rect width="960" height="540" rx="36" fill="#191d2a"/><rect x="54" y="54" width="852" height="432" rx="24" fill="#252b3d"/><circle cx="144" cy="144" r="38" fill="#8b9eff"/><path d="M94 414 298 226l132 124 124-96 312 160H94Z" fill="#6674b7"/><path d="m94 414 204-188 132 124 62-48 132 112H94Z" fill="#a9b4ff"/><text x="480" y="128" fill="#f4f5fb" font-family="system-ui,sans-serif" font-size="30" text-anchor="middle">Interface preview</text></svg>`
 const FIXTURE_MARKDOWN = `# Markdown preview
 
@@ -134,10 +177,6 @@ function row(
   }
 }
 
-const screenshotParams = new URLSearchParams(window.location.search)
-const screenshotLanguage = screenshotParams.get('lang')
-if (screenshotLanguage === 'en' || screenshotLanguage === 'zh')
-  localStorage.setItem('alma-mobile-language-v1', screenshotLanguage)
 if (screenshotParams.get('route') === '/share') {
   const shareKind = screenshotParams.get('shareKind')
   setSharePayloadForFixture(
@@ -1835,6 +1874,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               statusByDesktop: screenshotParams.has('shareOffline')
                 ? { [THIRD_DESKTOP_ID]: 'offline' }
                 : undefined,
+              updateDependencies,
             }}
           />
         </ThemeProvider>

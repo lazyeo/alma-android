@@ -22,7 +22,7 @@ export const settings = {
       title: 'Hinge angle',
       live: 'Live from Samsung sensor HAL via Shizuku',
       waiting: 'Estimated until Shizuku access is available',
-      notRunning: 'Estimated \u00b7 Install Shizuku for a live hinge angle',
+      notRunning: 'Estimated — install Shizuku for a live hinge angle',
       shizuku: 'Shizuku',
       estimated: 'Estimated',
     },

@@ -1386,6 +1386,41 @@ const codeCopyShot = ({ file, viewport }) => ({
   },
 })
 
+const updateShots = [
+  {
+    file: 'update-newer-en.png',
+    viewport: PHONE,
+    route: '/settings',
+    query: 'update=newer&lang=en',
+    ready: '.update-release-notes',
+    afterCapture: (page) => assertNoHorizontalOverflow(page, '.settings-page'),
+  },
+  {
+    file: 'update-newer-zh.png',
+    viewport: PHONE,
+    route: '/settings',
+    query: 'update=newer&lang=zh',
+    ready: '.update-release-notes',
+    afterCapture: (page) => assertNoHorizontalOverflow(page, '.settings-page'),
+  },
+  {
+    file: 'update-current-en.png',
+    viewport: PHONE,
+    route: '/settings',
+    query: 'update=current&lang=en',
+    ready: '.update-panel',
+    afterCapture: (page) => assertNoHorizontalOverflow(page, '.settings-page'),
+  },
+  {
+    file: 'update-error-zh.png',
+    viewport: PHONE,
+    route: '/settings',
+    query: 'update=error&lang=zh',
+    ready: '.update-panel',
+    afterCapture: (page) => assertNoHorizontalOverflow(page, '.settings-page'),
+  },
+]
+
 const shots = [
   {
     file: 'zh-settings-360.png',
@@ -5679,6 +5714,7 @@ try {
   await warmup.locator('.thread-generating').waitFor({ timeout: 30_000 })
   await warmup.close()
   for (const shot of [
+    ...updateShots,
     ...taskCardsShots,
     ...shots,
     ...gtdShots,
