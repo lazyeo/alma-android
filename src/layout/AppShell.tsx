@@ -66,11 +66,13 @@ function useActiveThreadsPath() {
 function MainNav({
   className,
   compact,
+  includeGtd = true,
   children,
   beforeSettings,
 }: {
   className: string
   compact?: boolean
+  includeGtd?: boolean
   children?: ReactNode
   beforeSettings?: ReactNode
 }) {
@@ -80,50 +82,52 @@ function MainNav({
   const desktopId = decodeURIComponent(threadsPath.split('/')[2] ?? '')
   return (
     <nav className={className} aria-label={t('nav.main')}>
-      {NAV_ITEMS.map(({ to, labelKey, Icon }, index) => {
-        const label = t(labelKey)
-        const threads = to === '/threads'
-        const gtd = to === '/gtd'
-        const destination = threads
-          ? threadsPath
-          : gtd
-            ? desktopGtdPath(desktopId)
-            : to
-        const active = gtd
-          ? /^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname)
-          : threads
-            ? (pathname === to || pathname.startsWith('/d/')) &&
-              !/^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname) &&
-              !pathname.includes('/crystals') &&
-              !pathname.includes('/time-clues') &&
-              !pathname.includes('/references') &&
-              !pathname.includes('/agents')
-            : pathname === to || pathname.startsWith(`${to}/`)
-        return (
-          <Fragment key={to}>
-            {to === '/settings'
-              ? (beforeSettings ??
-                (desktopId ? (
-                  <AgentsNavLink desktopId={desktopId} compact={false} />
-                ) : null))
-              : null}
-            <NavLink
-              to={destination}
-              replace
-              aria-label={compact ? label : undefined}
-              title={compact ? label : undefined}
-              aria-current={active ? 'page' : undefined}
-              className={active ? 'active' : ''}
-            >
-              <span className="tab-icon">
-                <Icon size={22} />
-              </span>
-              {compact ? null : label}
-            </NavLink>
-            {index === 1 ? children : null}
-          </Fragment>
-        )
-      })}
+      {NAV_ITEMS.filter(({ to }) => includeGtd || to !== '/gtd').map(
+        ({ to, labelKey, Icon }, index) => {
+          const label = t(labelKey)
+          const threads = to === '/threads'
+          const gtd = to === '/gtd'
+          const destination = threads
+            ? threadsPath
+            : gtd
+              ? desktopGtdPath(desktopId)
+              : to
+          const active = gtd
+            ? /^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname)
+            : threads
+              ? (pathname === to || pathname.startsWith('/d/')) &&
+                !/^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname) &&
+                !pathname.includes('/crystals') &&
+                !pathname.includes('/time-clues') &&
+                !pathname.includes('/references') &&
+                !pathname.includes('/agents')
+              : pathname === to || pathname.startsWith(`${to}/`)
+          return (
+            <Fragment key={to}>
+              {to === '/settings'
+                ? (beforeSettings ??
+                  (desktopId ? (
+                    <AgentsNavLink desktopId={desktopId} compact={false} />
+                  ) : null))
+                : null}
+              <NavLink
+                to={destination}
+                replace
+                aria-label={compact ? label : undefined}
+                title={compact ? label : undefined}
+                aria-current={active ? 'page' : undefined}
+                className={active ? 'active' : ''}
+              >
+                <span className="tab-icon">
+                  <Icon size={22} />
+                </span>
+                {compact ? null : label}
+              </NavLink>
+              {index === 1 ? children : null}
+            </Fragment>
+          )
+        },
+      )}
     </nav>
   )
 }
@@ -318,7 +322,7 @@ export function AppShell() {
         {detail ? null : (
           <>
             <ActiveDesktopStrip />
-            <MainNav className="tab-bar" />
+            <MainNav className="tab-bar" includeGtd={false} />
           </>
         )}
       </div>

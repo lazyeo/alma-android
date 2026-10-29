@@ -5721,6 +5721,7 @@ button:focus-visible,
 .header-icon-button:active {
   background: var(--muted);
 }
+.gtd-entry,
 .time-clues-entry,
 .library-entry {
   position: relative;

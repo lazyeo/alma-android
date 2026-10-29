@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Gem,
   Library,
+  ListTodo,
   LoaderCircle,
   Pencil,
   Plus,
@@ -36,6 +37,7 @@ import { ScopedRootHeader } from '../layout/ScopedRootHeader'
 import { threadNavigationOptions } from '../layout/splitLayout'
 import {
   desktopCrystalsPath,
+  desktopGtdPath,
   desktopReferencesPath,
   desktopThreadPath,
   desktopTimeCluesPath,
@@ -304,6 +306,16 @@ export function ThreadsScreen({
                 },
               ]}
             />
+            <button
+              className="header-icon-button gtd-entry split-header-hidden"
+              aria-label={t('nav.gtd')}
+              onClick={() => {
+                void haptic('light')
+                navigate(desktopGtdPath(pairing.id))
+              }}
+            >
+              <ListTodo size={19} />
+            </button>
             <button
               className="header-icon-button"
               aria-label={t('common.search')}

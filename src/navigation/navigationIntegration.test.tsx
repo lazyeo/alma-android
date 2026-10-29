@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import {
   MemoryRouter,
   NavLink,
@@ -20,6 +20,8 @@ function NavigationHarness() {
       <NavLink to="/d/desk/agents/pane" replace>
         Herdr pane
       </NavLink>
+      <button onClick={() => navigate('/d/desk/gtd')}>GTD header</button>
+      <button onClick={() => navigate(-1)}>History Back</button>
       <button
         onClick={() => {
           const parent = parentRoute(location.pathname, 'split')
@@ -33,6 +35,29 @@ function NavigationHarness() {
 }
 
 describe('hierarchical navigation integration', () => {
+  it('pushes GTD from the Threads header so history Back returns to Threads', () => {
+    render(
+      <MemoryRouter initialEntries={['/d/desk/threads']}>
+        <NavigationHarness />
+      </MemoryRouter>,
+    )
+
+    const before = screen.getByTestId('location').textContent
+    const beforeKey = before?.split('|')[1]
+
+    fireEvent.click(screen.getByRole('button', { name: 'GTD header' }))
+    expect(screen.getByTestId('location').textContent).toContain('/d/desk/gtd|')
+    expect(screen.getByTestId('location').textContent?.split('|')[1]).not.toBe(
+      beforeKey,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'History Back' }))
+    expect(screen.getByTestId('location').textContent).toContain(
+      '/d/desk/threads|',
+    )
+    cleanup()
+  })
+
   it('replaces a tab switch and returns a split Herdr pane to Chat root', () => {
     render(
       <MemoryRouter

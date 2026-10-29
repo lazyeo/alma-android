@@ -25,7 +25,7 @@ export const settings: CatalogShape<typeof source> = {
       title: '铰链角度',
       live: '通过 Shizuku 实时读取三星传感器 HAL',
       waiting: '获得 Shizuku 授权前使用估算值',
-      notRunning: '估算 \u00b7 安装 Shizuku 可获得实时铰链角度',
+      notRunning: '当前为估算值。安装 Shizuku 可获得实时铰链角度',
       shizuku: 'Shizuku',
       estimated: '估算',
     },

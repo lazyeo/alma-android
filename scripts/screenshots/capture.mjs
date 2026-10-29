@@ -669,11 +669,21 @@ async function assertNavigationWithoutInbox(page, selector) {
         (link) => link.getAttribute('aria-label') ?? link.textContent ?? '',
       ),
     )
-  if (labels.some((label) => label.trim() === 'Inbox'))
+  const normalized = labels.map((label) => label.trim())
+  if (normalized.includes('Inbox'))
     throw new Error(`Inbox remains in navigation: ${JSON.stringify(labels)}`)
-  for (const label of ['Threads', 'GTD', 'Settings'])
-    if (!labels.some((item) => item.trim() === label))
-      throw new Error(`missing ${label} navigation root`)
+  const expected =
+    selector === '.tab-bar'
+      ? ['Threads', 'Herdr', 'Settings']
+      : ['Threads', 'GTD', 'Herdr', 'Settings']
+  const roots = normalized.filter((label) => expected.includes(label))
+  if (
+    (selector === '.tab-bar' && normalized.join('|') !== expected.join('|')) ||
+    roots.join('|') !== expected.join('|')
+  )
+    throw new Error(
+      `${selector} navigation roots: ${JSON.stringify(normalized)}`,
+    )
 }
 
 async function assertRecipeDismissPolicy(page) {
@@ -5597,7 +5607,87 @@ const herdrShots = [
   }),
 ]
 
+const phoneGtdNavigationShots = ['en', 'zh'].flatMap((language) => {
+  const labels =
+    language === 'zh'
+      ? {
+          bottom: ['对话', 'Herdr', '设置'],
+          header: ['资料库', 'GTD', '搜索', '新对话'],
+        }
+      : {
+          bottom: ['Threads', 'Herdr', 'Settings'],
+          header: ['Library', 'GTD', 'Search', 'New thread'],
+        }
+  return [
+    {
+      file: `thread-list-gtd-header-${language}-412.png`,
+      viewport: PHONE,
+      route: DESKTOP,
+      language,
+      ready: '.thread-list-header',
+      safeInsets: true,
+      async act(page) {
+        const bottomLabels = await page.locator('.tab-bar a').allTextContents()
+        if (bottomLabels.join('|') !== labels.bottom.join('|'))
+          throw new Error(`phone bottom navigation: ${bottomLabels.join('|')}`)
+        const headerLabels = await page
+          .locator('.thread-header-actions button')
+          .evaluateAll((buttons) =>
+            buttons.map((button) => button.getAttribute('aria-label')),
+          )
+        if (headerLabels.join('|') !== labels.header.join('|'))
+          throw new Error(`Threads header actions: ${headerLabels.join('|')}`)
+        await assertNoHorizontalOverflow(page, '.thread-list-header')
+      },
+    },
+    {
+      file: `gtd-via-header-${language}-412.png`,
+      viewport: PHONE,
+      route: DESKTOP,
+      language,
+      ready: '.thread-list-header',
+      safeInsets: true,
+      async act(page) {
+        await page.getByRole('button', { name: 'GTD', exact: true }).click()
+        await page.locator('.gtd-page .gtd-list .thread-row').first().waitFor()
+        if (await page.locator('.threads-page').count())
+          throw new Error('Threads root remained after GTD header navigation')
+        const bottomLabels = await page.locator('.tab-bar a').allTextContents()
+        if (bottomLabels.join('|') !== labels.bottom.join('|'))
+          throw new Error(`GTD bottom navigation: ${bottomLabels.join('|')}`)
+        await assertNoHorizontalOverflow(page, '.gtd-page')
+      },
+    },
+  ]
+})
+
+const unfoldedGtdRailShots = ['en', 'zh'].map((language) => ({
+  file: `navigation-gtd-rail-${language}-884.png`,
+  viewport: TABLET,
+  route: GTD,
+  language,
+  ready: '.split-nav',
+  safeInsets: true,
+  async act(page) {
+    const expected =
+      language === 'zh'
+        ? ['对话', 'GTD', 'Herdr', '设置']
+        : ['Threads', 'GTD', 'Herdr', 'Settings']
+    const labels = await page
+      .locator('.split-nav a')
+      .evaluateAll((links) =>
+        links.map((link) => link.getAttribute('aria-label')),
+      )
+    const roots = labels.filter((label) => expected.includes(label))
+    if (roots.join('|') !== expected.join('|'))
+      throw new Error(`split navigation: ${labels.join('|')}`)
+    await assertNoHorizontalOverflow(page, '.split-shell')
+  },
+}))
+
 const gtdShots = [
+  ...phoneGtdNavigationShots,
+  ...unfoldedGtdRailShots,
   {
     file: 'gtd-phone-todo-favorites.png',
     viewport: PHONE,
@@ -5989,7 +6079,7 @@ const gtdShots = [
         .evaluateAll((buttons) =>
           buttons.map((button) => button.getAttribute('aria-label')),
         )
-      if (labels.join('|') !== 'Library|Search|New thread')
+      if (labels.join('|') !== 'Library|GTD|Search|New thread')
         throw new Error(`header actions: ${labels.join('|')}`)
       const tabs = await page
         .locator('.threads-page [role="tab"]')

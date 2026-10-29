@@ -16,11 +16,27 @@ const references = read('./ReferencesScreen.tsx')
 const header = read('../layout/ScopedRootHeader.tsx')
 
 describe('GTD navigation structure', () => {
-  it('makes Threads, GTD, and Settings the navigation roots', () => {
+  it('keeps GTD in the shared roots but removes it from the phone bottom bar', () => {
     const nav = /const NAV_ITEMS = \[([\s\S]*?)\] as const/.exec(shell)?.[1]
     expect(nav).toBeDefined()
     expect([...nav!.matchAll(/labelKey: '([^']+)'/g)].map((m) => m[1])).toEqual(
       ['nav.threads', 'nav.gtd', 'nav.settings'],
+    )
+    expect(shell).toContain(
+      '<MainNav className="tab-bar" includeGtd={false} />',
+    )
+    expect(shell).toMatch(/<MainNav\s+className="split-nav"\s+compact/)
+  })
+
+  it('opens GTD from the Threads header between Library and Search', () => {
+    expect(threads).toContain('ListTodo,')
+    expect(threads).toContain('desktopGtdPath,')
+    expect(threads).toMatch(
+      /className="header-icon-button library-entry split-header-hidden"[\s\S]*className="header-icon-button gtd-entry split-header-hidden"[\s\S]*aria-label=\{t\('nav\.gtd'\)\}[\s\S]*<ListTodo size=\{19\} \/>[\s\S]*aria-label=\{t\('common\.search'\)\}/,
+    )
+    expect(threads).toContain('navigate(desktopGtdPath(pairing.id))')
+    expect(styles).toMatch(
+      /\.gtd-entry,\s*\.time-clues-entry,\s*\.library-entry \{[^}]*position: relative;/s,
     )
   })
 
@@ -100,7 +116,7 @@ describe('GTD navigation structure', () => {
     expect(shell).toContain('function ActiveDesktopStrip()')
     expect(shell).toContain('<DesktopSwitcher className="desktop-strip" />')
     expect(shell).toMatch(
-      /<ActiveDesktopStrip \/>\s*<MainNav className="tab-bar" \/>/,
+      /<ActiveDesktopStrip \/>\s*<MainNav className="tab-bar" includeGtd=\{false\} \/>/,
     )
     expect(shell).toMatch(/<SidebarThreads[\s\S]*<ActiveDesktopStrip \/>/)
     expect(styles).toMatch(/\.desktop-strip \{[\s\S]*min-height: 28px/)
