@@ -1386,6 +1386,69 @@ const codeCopyShot = ({ file, viewport }) => ({
   },
 })
 
+const screenShots = [
+  {
+    file: 'screen-view-en-412.png',
+    viewport: PHONE,
+    route: '/d/fixture-desktop/screen',
+    query: 'lang=en',
+    ready: '.remote-screen-media',
+    safeInsets: true,
+    afterCapture: (page) =>
+      assertNoHorizontalOverflow(page, '.remote-screen-page'),
+  },
+  {
+    file: 'screen-view-zh-412.png',
+    viewport: PHONE,
+    route: '/d/fixture-desktop/screen',
+    query: 'lang=zh',
+    ready: '.remote-screen-media',
+    safeInsets: true,
+    afterCapture: (page) =>
+      assertNoHorizontalOverflow(page, '.remote-screen-page'),
+  },
+  {
+    file: 'screen-control-zh-412.png',
+    viewport: PHONE,
+    route: '/d/fixture-desktop/screen',
+    query: 'lang=zh',
+    ready: '.remote-screen-media',
+    safeInsets: true,
+    act: async (page) => {
+      await page.getByRole('button', { name: '控制', exact: true }).click()
+      await page.getByRole('button', { name: '触控板', exact: true }).click()
+      await page.getByRole('button', { name: '键盘', exact: true }).click()
+    },
+    afterCapture: (page) =>
+      assertNoHorizontalOverflow(page, '.remote-screen-page'),
+  },
+  {
+    file: 'screen-control-en-412.png',
+    viewport: PHONE,
+    route: '/d/fixture-desktop/screen',
+    query: 'lang=en',
+    ready: '.remote-screen-media',
+    safeInsets: true,
+    act: async (page) => {
+      await page.getByRole('button', { name: 'Control', exact: true }).click()
+      await page.getByRole('button', { name: 'Trackpad', exact: true }).click()
+      await page.getByRole('button', { name: 'Keyboard', exact: true }).click()
+    },
+    afterCapture: (page) =>
+      assertNoHorizontalOverflow(page, '.remote-screen-page'),
+  },
+  {
+    file: 'screen-view-en-884.png',
+    viewport: TABLET,
+    route: '/d/fixture-desktop/screen',
+    query: 'lang=en',
+    ready: '.remote-screen-media',
+    safeInsets: true,
+    afterCapture: (page) =>
+      assertNoHorizontalOverflow(page, '.remote-screen-page'),
+  },
+]
+
 const shots = [
   {
     file: 'zh-settings-360.png',
@@ -5753,6 +5816,7 @@ try {
   await warmup.close()
   for (const shot of [
     ...taskCardsShots,
+    ...screenShots,
     ...shots,
     ...herdrShots,
     ...gtdShots,

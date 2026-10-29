@@ -269,8 +269,20 @@ export function AppShell() {
   const activeDesktopId =
     store.activeId ?? visiblePairings(store.pairings)[0]?.id
   const thread = threadRouteMatch(pathname)
+  const screenDetail = /^\/d\/[^/]+\/screen\/?$/.test(pathname)
   const detail =
-    Boolean(thread?.threadId) || /^\/d\/[^/]+\/agents\/[^/]+/.test(pathname)
+    Boolean(thread?.threadId) ||
+    screenDetail ||
+    /^\/d\/[^/]+\/agents\/[^/]+/.test(pathname)
+
+  if (screenDetail)
+    return (
+      <div className="detail-shell">
+        <main className="detail-main">
+          <Outlet />
+        </main>
+      </div>
+    )
 
   if (mode === 'single')
     return (

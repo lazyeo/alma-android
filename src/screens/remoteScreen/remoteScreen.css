@@ -1,0 +1,241 @@
+.remote-screen-page {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100dvh;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+}
+/* Fixed rows: the control indicator and keyboard are conditional, so without
+   explicit placement the surface would fall into the auto indicator row. */
+.remote-screen-page > .remote-screen-header {
+  grid-row: 1;
+}
+.remote-screen-page > .remote-control-indicator {
+  grid-row: 2;
+}
+.remote-screen-page > .remote-screen-surface {
+  grid-row: 3;
+}
+.remote-screen-page > .remote-screen-toolbar {
+  grid-row: 4;
+}
+.remote-screen-page > .remote-keyboard {
+  grid-row: 5;
+}
+.remote-screen-header {
+  z-index: 3;
+  display: flex;
+  min-height: calc(56px + var(--safe-top));
+  align-items: center;
+  gap: 8px;
+  padding: var(--safe-top) 10px 0;
+  border-bottom: var(--border-hairline) solid var(--gray-a5);
+  background: var(--background);
+}
+.remote-screen-heading {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+.remote-screen-heading strong,
+.remote-screen-heading small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.remote-screen-heading strong {
+  font-size: var(--text-sm);
+}
+.remote-screen-heading small {
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}
+.remote-screen-header .chip-button {
+  gap: 5px;
+}
+.remote-control-indicator {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-bottom: var(--border-hairline) solid var(--amber-6);
+  background: var(--amber-a3);
+  color: var(--amber-11);
+  font-size: var(--text-xs);
+}
+.remote-control-indicator span:last-child {
+  color: var(--muted-foreground);
+}
+.remote-control-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--amber-9);
+  box-shadow: 0 0 0 4px var(--amber-a4);
+}
+.remote-screen-surface {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: none;
+  background: var(--gray-2);
+  user-select: none;
+}
+.remote-screen-surface::before {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--gray-a3) 1px, transparent 1px),
+    linear-gradient(90deg, var(--gray-a3) 1px, transparent 1px);
+  background-size: 24px 24px;
+  content: '';
+  opacity: 0.35;
+}
+.remote-screen-transform {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  transform-origin: center;
+  will-change: transform;
+}
+.remote-screen-media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.remote-screen-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+}
+.remote-screen-cursor {
+  position: absolute;
+  z-index: 2;
+  color: var(--foreground);
+  filter: drop-shadow(0 1px 1px var(--background));
+  pointer-events: none;
+  transform: translate(-2px, -2px);
+}
+.remote-screen-stats {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  min-width: 128px;
+  margin: 0;
+  padding: 8px 10px;
+  border: var(--border-hairline) solid var(--gray-a6);
+  border-radius: var(--radius-md);
+  background: var(--gray-a11);
+  color: var(--gray-1);
+  font-size: var(--text-xs);
+  backdrop-filter: blur(12px);
+}
+.remote-screen-stats div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.remote-screen-stats dt {
+  color: var(--gray-8);
+}
+.remote-screen-stats dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.remote-screen-toolbar {
+  z-index: 3;
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-top: var(--border-hairline) solid var(--gray-a5);
+  background: var(--background);
+}
+.remote-screen-mode,
+.remote-screen-tools,
+.remote-key-row,
+.remote-view-only {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.remote-view-only {
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}
+.remote-keyboard {
+  z-index: 3;
+  display: grid;
+  gap: 8px;
+  padding: 8px 10px calc(8px + var(--safe-bottom));
+  border-top: var(--border-hairline) solid var(--gray-a5);
+  background: var(--background);
+}
+.remote-text-entry {
+  display: flex;
+  gap: 6px;
+}
+.remote-text-entry input {
+  min-width: 0;
+  min-height: 38px;
+  flex: 1;
+  padding: 0 12px;
+  border: var(--border-hairline) solid var(--gray-6);
+  border-radius: var(--radius-md);
+  background: var(--gray-2);
+  color: var(--foreground);
+  font-size: var(--text-sm);
+}
+.remote-key-row {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.remote-key-row::-webkit-scrollbar {
+  display: none;
+}
+.remote-key {
+  min-width: 42px;
+  justify-content: center;
+}
+.remote-screen-notice {
+  position: absolute;
+  bottom: calc(60px + var(--safe-bottom));
+  left: 50%;
+  z-index: 5;
+  margin: 0;
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  background: var(--gray-a11);
+  color: var(--gray-1);
+  font-size: var(--text-xs);
+  transform: translateX(-50%);
+}
+@media (min-width: 720px) {
+  .remote-screen-header {
+    padding-inline: 18px;
+  }
+  .remote-screen-toolbar,
+  .remote-keyboard {
+    padding-inline: 18px;
+  }
+  .remote-screen-surface {
+    margin: 10px 18px 0;
+    border-radius: var(--radius-lg);
+  }
+}

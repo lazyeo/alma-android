@@ -72,6 +72,12 @@ import {
   updateNativeBackgroundConnectionStatus,
 } from './backgroundConnection'
 
+const RemoteScreen = lazy(() =>
+  import('./screens/remoteScreen/RemoteScreen').then((module) => ({
+    default: module.RemoteScreen,
+  })),
+)
+
 const ThreadScreen = lazy(() =>
   import('./screens/ThreadScreen').then((module) => ({
     default: module.ThreadScreen,
@@ -442,6 +448,14 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
                       }
                     />
                     <Route path="time-clues" element={<TimeCluesScreen />} />
+                    <Route
+                      path="screen"
+                      element={
+                        <Suspense fallback={<OpeningThread />}>
+                          <RemoteScreen />
+                        </Suspense>
+                      }
+                    />
                     <Route path="agents" element={<AgentsScreen />} />
                     <Route
                       path="agents/:paneId"
