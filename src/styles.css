@@ -8866,12 +8866,6 @@ dialog:focus,
   border-top: var(--border-hairline) solid var(--gray-7);
   background: var(--background);
 }
-.agent-composer-mode {
-  flex: none;
-  align-self: center;
-  border-radius: var(--radius-md);
-  white-space: nowrap;
-}
 .agent-composer textarea {
   min-width: 0;
   max-height: 112px;

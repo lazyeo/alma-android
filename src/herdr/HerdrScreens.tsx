@@ -1,4 +1,5 @@
 import {
+  CornerDownLeft,
   Grid3X3,
   Keyboard,
   KeyboardOff,
@@ -29,12 +30,9 @@ import {
   loadComposerHidden,
   loadSnapshotDisplayMode,
   mergeTerminalHistory,
-  loadTerminalComposerMode,
   saveComposerHidden,
   saveSnapshotDisplayMode,
-  saveTerminalComposerMode,
   type SnapshotDisplayMode,
-  type TerminalComposerMode,
   type TerminalKey,
 } from '../terminal/terminal'
 import { useHerdr } from './HerdrProvider'
@@ -103,9 +101,6 @@ export function AgentPaneScreen() {
   const [terminalSize, setTerminalSize] = useState({ cols: 80, rows: 24 })
   const [draft, setDraft] = useState('')
   const [composerHidden, setComposerHidden] = useState(loadComposerHidden)
-  const [composerMode, setComposerMode] = useState<TerminalComposerMode>(
-    loadTerminalComposerMode,
-  )
   const [composing, setComposing] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
@@ -355,13 +350,14 @@ export function AgentPaneScreen() {
 
   const send = async (text = draft) => {
     const prompt = text.trim()
-    if (!prompt || sending || composing) return
+    if (sending || composing || (view === 'chat' && !prompt)) return
     setSending(true)
     setError('')
     try {
-      if (view === 'terminal' && composerMode === 'terminal')
-        await api.sendHerdrPaneText(decodedPaneId, text)
-      else if (pane?.agent_status === 'blocked')
+      if (view === 'terminal') {
+        if (text) await api.sendHerdrPaneText(decodedPaneId, text)
+        await api.sendHerdrPaneKeys(decodedPaneId, [HERDR_KEY_MAP.enter])
+      } else if (pane?.agent_status === 'blocked')
         await api.sendHerdrBlockedText(decodedPaneId, prompt)
       else await api.promptHerdrAgent(decodedPaneId, prompt)
       if (text === draft) setDraft('')
@@ -629,31 +625,15 @@ export function AgentPaneScreen() {
       </div>
       {view === 'chat' || !composerHidden ? (
         <footer className="agent-composer">
-          {view === 'terminal' ? (
-            <button
-              className="chip-button agent-composer-mode"
-              onClick={() =>
-                setComposerMode((current) => {
-                  const next = current === 'message' ? 'terminal' : 'message'
-                  saveTerminalComposerMode(next)
-                  return next
-                })
-              }
-            >
-              {composerMode === 'terminal'
-                ? t('agents.typeIntoTerminal')
-                : t('agents.sendAsMessage')}
-            </button>
-          ) : null}
           <textarea
             value={draft}
             aria-label={
-              view === 'terminal' && composerMode === 'terminal'
+              view === 'terminal'
                 ? t('agents.terminalText')
                 : t('agents.message')
             }
             placeholder={
-              view === 'terminal' && composerMode === 'terminal'
+              view === 'terminal'
                 ? t('agents.terminalTextPlaceholder')
                 : t('agents.messagePlaceholder')
             }
@@ -663,7 +643,7 @@ export function AgentPaneScreen() {
             onCompositionEnd={() => setComposing(false)}
             onKeyDown={(event) => {
               if (composing) return
-              if (view === 'terminal' && composerMode === 'terminal') {
+              if (view === 'terminal') {
                 const key = keyboardTerminalKey(event)
                 if (key) {
                   event.preventDefault()
@@ -684,11 +664,17 @@ export function AgentPaneScreen() {
           />
           <button
             className="quiet-icon-button agent-send"
-            aria-label={t('agents.send')}
-            disabled={!draft.trim() || sending}
+            aria-label={
+              view === 'terminal' ? t('agents.enter') : t('agents.send')
+            }
+            disabled={(view === 'chat' && !draft.trim()) || sending}
             onClick={() => void send()}
           >
-            <Send size={19} />
+            {view === 'terminal' ? (
+              <CornerDownLeft size={19} />
+            ) : (
+              <Send size={19} />
+            )}
           </button>
         </footer>
       ) : null}

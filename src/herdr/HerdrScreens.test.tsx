@@ -16,6 +16,10 @@ let chatItems: Array<Record<string, unknown>> = [
 ]
 const blockedMenu = `Run this command?\n> 1. Yes, run command\n  2. Yes, always allow\n  3. No, cancel`
 const api = {
+  promptHerdrAgent: vi.fn(async () => undefined),
+  sendHerdrBlockedText: vi.fn(async () => undefined),
+  sendHerdrPaneText: vi.fn(async () => undefined),
+  sendHerdrPaneKeys: vi.fn(async () => undefined),
   getHerdrChat: vi.fn(async (target: string) =>
     target === 'pane-a'
       ? { error: { code: 'unsupported_agent' } }
@@ -265,6 +269,58 @@ describe('AgentPaneScreen pane navigation', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'agents.chat' }))
     expect(view.container.querySelector('.agent-composer')).toBeTruthy()
+  })
+
+  it('sends chat drafts as prompts and terminal drafts as text followed by Enter', async () => {
+    paneId = 'pane-b'
+    const view = render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('Pane B transcript')).toBeTruthy(),
+    )
+
+    const chatComposer = screen.getByRole('textbox', {
+      name: 'agents.message',
+    })
+    fireEvent.change(chatComposer, { target: { value: 'chat prompt' } })
+    fireEvent.click(screen.getByRole('button', { name: 'agents.send' }))
+    await waitFor(() =>
+      expect(api.promptHerdrAgent).toHaveBeenCalledWith(
+        'pane-b',
+        'chat prompt',
+      ),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'agents.terminal' }))
+    const terminalComposer = screen.getByRole('textbox', {
+      name: 'agents.terminalText',
+    })
+    const enter = screen.getByRole('button', { name: 'agents.enter' })
+    expect(view.container.querySelector('.agent-composer-mode')).toBeNull()
+    expect(enter.querySelector('.lucide-corner-down-left')).toBeTruthy()
+
+    fireEvent.change(terminalComposer, { target: { value: 'ls -la' } })
+    fireEvent.click(enter)
+    await waitFor(() =>
+      expect(api.sendHerdrPaneText).toHaveBeenCalledWith('pane-b', 'ls -la'),
+    )
+    expect(api.sendHerdrPaneKeys).toHaveBeenCalledWith('pane-b', ['enter'])
+  })
+
+  it('sends a bare Enter from an empty terminal composer', async () => {
+    paneId = 'pane-a'
+    render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('agents.chatUnsupported')).toBeTruthy(),
+    )
+
+    const enter = screen.getByRole('button', { name: 'agents.enter' })
+    expect(enter.hasAttribute('disabled')).toBe(false)
+    fireEvent.click(enter)
+
+    await waitFor(() =>
+      expect(api.sendHerdrPaneKeys).toHaveBeenCalledWith('pane-a', ['enter']),
+    )
+    expect(api.sendHerdrPaneText).not.toHaveBeenCalled()
   })
 
   it('requests recent ANSI history for the current display mode', async () => {
