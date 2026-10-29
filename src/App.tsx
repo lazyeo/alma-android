@@ -59,6 +59,16 @@ import { exitNativeApp, subscribeNativeAppEvents } from './nativeBridge'
 import { closeTopOverlay, handleOverlayPopState } from './overlayStack'
 import { setDesktopHidden, visiblePairings } from './desktops/desktopVisibility'
 import { useT } from './i18n'
+import {
+  backgroundConnectionStatus,
+  getNativeBackgroundConnectionRunning,
+  loadBackgroundConnectionEnabled,
+  setBackgroundConnectionEnabled,
+  setNativeBackgroundConnection,
+  subscribeBackgroundConnectionEnabled,
+  subscribeNativeBackgroundConnectionStopped,
+  updateNativeBackgroundConnectionStatus,
+} from './backgroundConnection'
 
 const ThreadScreen = lazy(() =>
   import('./screens/ThreadScreen').then((module) => ({
@@ -143,6 +153,7 @@ export interface AppFixture {
 }
 
 export default function App({ fixture }: { fixture?: AppFixture } = {}) {
+  const t = useT()
   const navigate = useNavigate()
   const location = useLocation()
   const [store, setStore] = useState<PairingStore>(
@@ -156,6 +167,9 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
     [],
   )
   const [connectionVersion, setConnectionVersion] = useState(0)
+  const [backgroundConnectionEnabled, setBackgroundConnectionState] = useState(
+    loadBackgroundConnectionEnabled,
+  )
   const layoutMode = useLayoutMode()
   const backContext = useRef({ pathname: location.pathname, layoutMode })
   backContext.current = { pathname: location.pathname, layoutMode }
@@ -274,6 +288,70 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
     }),
     [store, desktops, updateStore],
   )
+
+  const backgroundStatus = backgroundConnectionStatus(
+    desktops
+      .filter(({ pairing }) => pairing.hidden !== true)
+      .map(({ pairing, status }) => ({
+        name: pairing.name,
+        status,
+        relayUrl: pairing.relayUrl,
+      })),
+    desktops.find(({ pairing }) => pairing.id === store.activeId)?.pairing.name,
+    {
+      connected: (name, transport) =>
+        t('settings.backgroundConnection.connected', { name, transport }),
+      reconnecting: t('settings.backgroundConnection.reconnecting'),
+      waiting: t('settings.backgroundConnection.waiting'),
+      relay: t('settings.backgroundConnection.transport.relay'),
+      lan: t('settings.backgroundConnection.transport.lan'),
+    },
+  )
+
+  useEffect(
+    () => subscribeBackgroundConnectionEnabled(setBackgroundConnectionState),
+    [],
+  )
+  useEffect(() => {
+    if (!backgroundConnectionEnabled || fixture) return
+    void getNativeBackgroundConnectionRunning().then((running) => {
+      if (running === false) setBackgroundConnectionEnabled(false)
+    })
+  }, [fixture, backgroundConnectionEnabled])
+  useEffect(() => {
+    if (fixture) return
+    void setNativeBackgroundConnection(
+      backgroundConnectionEnabled,
+      backgroundStatus,
+      {
+        title: t('settings.backgroundConnection.notificationTitle'),
+        channelName: t('settings.backgroundConnection.channelName'),
+        channelDescription: t(
+          'settings.backgroundConnection.channelDescription',
+        ),
+        stop: t('settings.backgroundConnection.stop'),
+      },
+    )
+  }, [fixture, backgroundConnectionEnabled, t])
+  useEffect(() => {
+    if (!backgroundConnectionEnabled || fixture) return
+    void updateNativeBackgroundConnectionStatus(backgroundStatus)
+  }, [fixture, backgroundConnectionEnabled, backgroundStatus])
+  useEffect(() => {
+    if (fixture) return
+    let disposed = false
+    let unsubscribe = () => undefined
+    void subscribeNativeBackgroundConnectionStopped(() => {
+      setBackgroundConnectionEnabled(false)
+    }).then((remove) => {
+      if (disposed) remove()
+      else unsubscribe = remove
+    })
+    return () => {
+      disposed = true
+      unsubscribe()
+    }
+  }, [fixture])
 
   const handoffDesktops = useMemo(
     () =>
