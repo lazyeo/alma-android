@@ -216,8 +216,11 @@ export class TerminalSession {
       displayMode === 'reflow'
         ? prepareReflowSnapshot(text)
         : prepareGridSnapshot(text)
-    const clearLines = displayMode === 'grid' ? '\u001b[J' : '\u001b[3J\u001b[2J'
-    this.driver.write(`\u001b[H${prepared}${clearLines}`)
+    const output =
+      displayMode === 'grid'
+        ? `\u001b[H${prepared}\u001b[J`
+        : `\u001b[H\u001b[3J\u001b[2J${prepared}`
+    this.driver.write(output)
     return true
   }
 

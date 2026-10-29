@@ -132,7 +132,10 @@ describe('terminal sizing', () => {
 
 describe('snapshot display mode persistence', () => {
   it('defaults to reflow and only restores valid values', () => {
-    const storage = { getItem: vi.fn(() => null), setItem: vi.fn() }
+    const storage = {
+      getItem: vi.fn<() => string | null>(() => null),
+      setItem: vi.fn(),
+    }
     expect(loadSnapshotDisplayMode(storage)).toBe('reflow')
     storage.getItem.mockReturnValue('grid')
     expect(loadSnapshotDisplayMode(storage)).toBe('grid')
