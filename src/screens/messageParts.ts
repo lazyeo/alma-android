@@ -1,4 +1,12 @@
-import type { MessagePart } from '../relay'
+export interface MessagePart {
+  type: string
+  text?: string
+  toolCallId?: string
+  state?: string
+  input?: unknown
+  output?: unknown
+  [key: string]: unknown
+}
 
 export interface UploadedAttachment {
   kind: 'image' | 'file'

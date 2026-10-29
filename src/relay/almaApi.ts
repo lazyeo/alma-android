@@ -88,15 +88,8 @@ export interface Thread {
   updatedAt?: string | number
   [key: string]: unknown
 }
-export interface MessagePart {
-  type: string
-  text?: string
-  toolCallId?: string
-  state?: string
-  input?: unknown
-  output?: unknown
-  [key: string]: unknown
-}
+export type { MessagePart } from '../screens/messageParts'
+import type { MessagePart } from '../screens/messageParts'
 export type ThreadFileWrite =
   | {
       type: 'write'

@@ -30,7 +30,6 @@ import { useUnreadActivity } from '../desktops/ThreadActivityProvider'
 import { useLongPress } from '../components/useLongPress'
 import { haptic } from '../haptics'
 import {
-  Archive,
   ArrowDownToLine,
   ArrowLeft,
   ArrowUp,
@@ -38,27 +37,19 @@ import {
   Brain,
   Check,
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   ChevronUp,
-  Clock,
   Copy,
-  FileArchive,
-  FileImage,
-  FileSpreadsheet,
   FileText,
   Folder,
-  Globe2,
   ListPlus,
   Info,
   Link,
   Maximize2,
   Minimize2,
-  MoreHorizontal,
   MoreVertical,
   Network,
   PencilLine,
-  RefreshCw,
   RotateCcw,
   Search,
   TextSelection,
@@ -67,8 +58,6 @@ import {
   X,
   Zap,
 } from 'lucide-react'
-import { ToolIcon } from './ToolIcon'
-import { ReasoningPart } from './ReasoningPart'
 import { QueuePanel } from './QueuePanel'
 import {
   optimisticThreadReducer,
@@ -76,12 +65,7 @@ import {
   phaseFromProgressEvent,
   type PendingAssistant,
 } from './optimisticThread'
-import {
-  groupParts,
-  reasoningLive,
-  reasoningDuration,
-  toolState,
-} from './streamingPresentation'
+import { reasoningLive } from './streamingPresentation'
 import { RelayImage } from './RelayImage'
 import { ImageGalleryProvider } from './ImageGallery'
 import { FileAwareLink, FileLinkProvider, useFileLinks } from './FileLinkSheet'
@@ -111,6 +95,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { MarkdownContent } from './MarkdownContent'
+import { MessageView, PartView, type NestedMessageRow } from '../messages'
 
 import { useConnection } from '../desktops/DesktopContext'
 import { useRealtimeLink } from '../desktops/useRealtimeLink'
@@ -167,8 +152,6 @@ import {
 import {
   buildMessageParts,
   messageText,
-  taskToolResult,
-  toolOutputText,
   type UploadedAttachment,
 } from './messageParts'
 import { HandoffCards } from '../handoff/HandoffCards'
@@ -199,7 +182,6 @@ import { replyEndReason, usageForReply } from './replyMetadata'
 import { useSharedSecond } from './useSharedSecond'
 import { timelineEntries } from './timelineLayout'
 import { TimelineRail } from './TimelineRail'
-import { taskPromptDisclosure, toolInputSummary } from './toolSummary'
 import { useLayoutMode } from '../layout/useLayoutMode'
 import {
   appendQuote,
@@ -224,7 +206,6 @@ import {
   todoProgress,
   todosFromEvent,
   todosFromRows,
-  todosFromToolPart,
   type TodoItem,
 } from './threadTodos'
 import { isScrolledAwayFromLatest } from './generationActivity'
@@ -239,14 +220,6 @@ import { useAnimatedOverlay } from '../components/useAnimatedOverlay'
 import { presenceClass, usePresence } from '../components/usePresence'
 import { shouldFinishOverlayClose } from '../overlayClosing'
 import { closeEditorAfterAcceptedSend } from './composerEditorSend'
-import {
-  deriveEndResources,
-  endResourceCategory,
-  endResourceLocation,
-  endResourceSubtitle,
-  type EndResource,
-} from './endResources'
-import { fileName } from './localFiles'
 import { openExternalUrl } from '../nativeBridge'
 import { useT } from '../i18n'
 
@@ -277,131 +250,6 @@ function MessageRenderError() {
   )
 }
 
-function ToolPart({
-  part,
-  nested,
-}: {
-  part: MessagePart
-  nested?: readonly MessageRow[]
-}) {
-  const t = useT()
-  const [open, setOpen] = useState(false)
-  const name =
-    typeof part.toolName === 'string'
-      ? part.toolName
-      : part.type.replace(/^tool-/, '')
-  const output = toolOutputText(part)
-  const task = taskToolResult(name, part)
-  // A Task that finished with a non-completed status reads as failed.
-  const state = task?.failed ? 'error' : toolState(part)
-  const tail = useRef<HTMLPreElement>(null)
-  useEffect(() => {
-    if (tail.current) tail.current.scrollTop = tail.current.scrollHeight
-  }, [output])
-  const input =
-    typeof part.input === 'string'
-      ? part.input
-      : JSON.stringify(part.input ?? {})
-  const summary = toolInputSummary(name, part)
-  const taskPrompt = task ? taskPromptDisclosure(part) : undefined
-  const todos = name === 'TodoWrite' ? todosFromToolPart(part) : []
-  const activity =
-    state === 'running' && nested?.length
-      ? latestSubagentActivity(nested)
-      : undefined
-  const now = useSharedSecond(state === 'running')
-  const duration = toolDuration(part, now)
-  return (
-    <div className={`tool-card ${state}`}>
-      <button
-        className="tool-summary"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-      >
-        <ToolIcon name={name} />
-        <span>{name}</span>
-        <span className={`tool-input${summary.mono ? ' mono' : ''}`}>
-          <span>{summary.text}</span>
-          {summary.detail ? <small>{summary.detail}</small> : null}
-        </span>
-        {duration !== undefined && duration >= 1000 ? (
-          <time className="tool-duration">{formatElapsed(duration)}</time>
-        ) : null}
-        {state === 'running' ? (
-          <LoadingOrb size={16} />
-        ) : state === 'error' ? (
-          <X size={16} />
-        ) : (
-          <Check size={16} />
-        )}
-      </button>
-      {activity && !open ? (
-        <p className="tool-activity">{activity}</p>
-      ) : state === 'running' && output && !open ? (
-        <pre className="live-tail" ref={tail}>
-          {output}
-        </pre>
-      ) : null}
-      {open ? (
-        <>
-          {task ? (
-            taskPrompt ? (
-              <details className="tool-prompt">
-                <summary>{t('message.prompt')}</summary>
-                <MessageMarkdownContent text={taskPrompt} />
-              </details>
-            ) : null
-          ) : todos.length ? (
-            <TodoList todos={todos} />
-          ) : (
-            <pre>{input}</pre>
-          )}
-          {task ? (
-            <div className="tool-result">
-              {task.failed ? (
-                <span className="tool-result-status">{task.status}</span>
-              ) : null}
-              {task.result ? (
-                <MessageMarkdownContent text={task.result} />
-              ) : null}
-            </div>
-          ) : name === 'TodoWrite' ? null : output ? (
-            <pre>{output}</pre>
-          ) : null}
-          {nested?.length ? (
-            <NestedRuns rows={nested} live={state === 'running'} />
-          ) : null}
-        </>
-      ) : null}
-    </div>
-  )
-}
-
-/** A Task's sub-agent transcript, drawn with the normal part renderers. */
-function NestedRuns({
-  rows,
-  live,
-}: {
-  rows: readonly MessageRow[]
-  live: boolean
-}) {
-  return (
-    <div className="tool-children">
-      {rows.map((row) => (
-        <MessageBoundary key={row.id}>
-          {row.message.parts.map((part, index) => (
-            <PartView
-              key={`${part.type}-${index}`}
-              part={part}
-              live={reasoningLive(row.message.parts, index, live)}
-            />
-          ))}
-        </MessageBoundary>
-      ))}
-    </div>
-  )
-}
-
 function MessageMarkdownContent({
   text,
   linkUserFilePaths = false,
@@ -423,133 +271,47 @@ function MessageMarkdownContent({
   )
 }
 
-const PartView = memo(function PartView({
-  part,
-  live = false,
-  duration,
-  nested,
-  linkUserFilePaths = false,
-}: {
-  part: MessagePart
-  live?: boolean
-  duration?: number
-  nested?: readonly MessageRow[]
-  linkUserFilePaths?: boolean
-}) {
-  const t = useT()
-  if (part.type === 'step-start') return null
-  if (
-    (part.type === 'file' || part.type === 'image') &&
-    typeof part.url === 'string'
-  ) {
-    const mediaType =
-      typeof part.mediaType === 'string'
-        ? part.mediaType
-        : 'application/octet-stream'
-    const filename =
-      typeof part.filename === 'string'
-        ? part.filename
-        : t('message.attachment')
-    return part.type === 'image' || mediaType.startsWith('image/') ? (
-      <RelayImage source={part.url} name={filename} />
-    ) : (
-      <span className="message-file">{filename}</span>
-    )
-  }
-
-  if (part.type === 'reasoning')
-    return <ReasoningPart part={part} live={live} duration={duration} />
-  if (part.type === 'text') {
-    return (
-      <MessageMarkdownContent
-        text={part.text ?? ''}
-        linkUserFilePaths={linkUserFilePaths}
-      />
-    )
-  }
-  if (part.type.startsWith('tool-') || part.type === 'dynamic-tool') {
-    return <ToolPart part={part} nested={nested} />
-  }
-  return part.text ? <p>{part.text}</p> : null
-})
-
-function resourceIcon(resource: EndResource) {
-  if (resource.type === 'website') return <Globe2 aria-hidden="true" />
-  const category = endResourceCategory(resource.path)
-  if (category === 'image') return <FileImage aria-hidden="true" />
-  if (category === 'spreadsheet') return <FileSpreadsheet aria-hidden="true" />
-  if (category === 'archive') return <FileArchive aria-hidden="true" />
-  return <FileText aria-hidden="true" />
+const threadPartCapabilities = {
+  renderMarkdown: (text: string, linkUserFilePaths?: boolean) => (
+    <MessageMarkdownContent text={text} linkUserFilePaths={linkUserFilePaths} />
+  ),
+  renderImage: (source: string, name: string) => (
+    <RelayImage source={source} name={name} />
+  ),
+  renderNestedRuns: (rows: readonly NestedMessageRow[], live: boolean) => (
+    <NestedRuns rows={rows as readonly MessageRow[]} live={live} />
+  ),
+  nestedActivity: (rows: readonly NestedMessageRow[]) =>
+    latestSubagentActivity(rows as readonly MessageRow[]),
 }
 
-function EndResourceCards({
-  resources,
-  workspacePath,
+/** A Task's sub-agent transcript, drawn with the normal part renderers. */
+function NestedRuns({
+  rows,
+  live,
 }: {
-  resources: EndResource[]
-  workspacePath?: string
+  rows: readonly MessageRow[]
+  live: boolean
 }) {
-  const t = useT()
-  const { openFile } = useFileLinks()
-  const presence = usePresence(resources.length > 0)
-  if (!presence.rendered) return null
   return (
-    <div
-      className={`end-resource-grid ${presenceClass(presence.phase)}`}
-      aria-label={t('message.resources.label')}
-    >
-      {resources.map((resource) => {
-        const key = resource.type === 'file' ? resource.path : resource.target
-        const title =
-          resource.type === 'file'
-            ? fileName(resource.path)
-            : resource.title || new URL(resource.target).hostname
-        const subtitle =
-          resource.description ||
-          (resource.type === 'file'
-            ? endResourceSubtitle(resource.path)
-            : resource.target)
-        const location =
-          resource.type === 'file'
-            ? endResourceLocation(resource.path, workspacePath)
-            : undefined
-        return (
-          <button
-            className="end-resource-card"
-            key={key}
-            onClick={() =>
-              resource.type === 'file'
-                ? openFile(resource.path)
-                : void openExternalUrl(resource.target)
-            }
-          >
-            <span className="end-resource-icon">{resourceIcon(resource)}</span>
-            <span className="end-resource-copy">
-              <strong>{title}</strong>
-              <span>{subtitle}</span>
-            </span>
-            {location ? (
-              <span className={`end-resource-location ${location}`}>
-                {location === 'temp' ? (
-                  <Clock aria-hidden="true" />
-                ) : location === 'project' ? (
-                  <Folder aria-hidden="true" />
-                ) : location === 'global' ? (
-                  <Archive aria-hidden="true" />
-                ) : (
-                  <Network aria-hidden="true" />
-                )}
-                {t(`message.resources.location.${location}`)}
-              </span>
-            ) : null}
-          </button>
-        )
-      })}
+    <div className="tool-children">
+      {rows.map((row) => (
+        <MessageBoundary key={row.id}>
+          {row.message.parts.map((part, index) => (
+            <PartView
+              key={`${part.type}-${index}`}
+              part={part}
+              live={reasoningLive(row.message.parts, index, live)}
+              capabilities={threadPartCapabilities}
+            />
+          ))}
+        </MessageBoundary>
+      ))}
     </div>
   )
 }
 
-function MessageView({
+function ThreadMessageView({
   row,
   nestedByParent,
   onActions,
@@ -568,133 +330,28 @@ function MessageView({
   onSwitchVersion?: (row: MessageRow, direction: 'prev' | 'next') => void
   onRetryFailed?: (row: MessageRow) => void
 }) {
-  const t = useT()
   const press = useLongPress(() => onActions?.(row))
-  const versionIndex = Number(row.metadata?.versionIndex) || 0
-  const versionCount = Number(row.metadata?.versionCount) || 0
-  const now = useSharedSecond(generating)
-  const workedDuration = replyWorkedDuration(
-    row.message.parts,
-    generating || row.metadata?.optimisticStatus === 'pending',
-    now,
-  )
-  const endReason = replyEndReason(row)
-  const endResources =
-    row.message.role === 'assistant' && !generating
-      ? deriveEndResources(
-          { parts: row.message.parts, metadata: row.metadata },
-          workspacePath,
-        )
-      : []
-  const footerHasMetadata =
-    versionCount > 1 ||
-    Boolean(usage) ||
-    workedDuration !== undefined ||
-    Boolean(endReason)
+  const { openFile } = useFileLinks()
   return (
-    <article {...press} className={`message ${row.message.role}`}>
-      {groupParts(row.message.parts).map((group) => {
-        const content = group.parts.map((part, index) => (
-          <PartView
-            key={`${part.type}-${group.indices[index]}`}
-            part={part}
-            duration={reasoningDuration(part, row.metadata?.reasoningDuration)}
-            live={reasoningLive(
-              row.message.parts,
-              group.indices[index],
-              generating,
-            )}
-            nested={
-              part.toolCallId ? nestedByParent?.get(part.toolCallId) : undefined
-            }
-            linkUserFilePaths={row.message.role === 'assistant'}
-          />
-        ))
-        const active = group.parts.find((part) => toolState(part) === 'running')
-        return group.tools && group.parts.length >= 3 ? (
-          <details className="tool-group" key={group.indices[0]}>
-            <summary>
-              {t('message.ranActions', { count: group.parts.length })}{' '}
-              {active ? (
-                <span>
-                  <LoadingOrb size={14} />
-                  {active.type.replace(/^tool-/, '')}
-                </span>
-              ) : null}
-            </summary>
-            {content}
-          </details>
-        ) : (
-          <div key={group.indices[0]}>{content}</div>
-        )
-      })}
-      {row.message.role === 'assistant' && !generating ? (
-        <EndResourceCards
-          resources={endResources}
-          workspacePath={workspacePath}
-        />
-      ) : null}
-      {row.metadata?.optimisticStatus === 'pending' ? (
-        <p className="message-delivery-status">{t('message.sending')}</p>
-      ) : row.metadata?.optimisticStatus === 'failed' ? (
-        <div className="message-delivery-status failed">
-          <span>{t('message.notSent')}</span>
-          {onRetryFailed ? (
-            <button onClick={() => onRetryFailed(row)}>
-              <RefreshCw size={13} />
-              {t('common.retry')}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-      <footer
-        className={`message-footer${footerHasMetadata ? '' : ' actions-only'}`}
-      >
-        <div className="message-footer-meta">
-          {usage ? <UsageFooter usage={usage} /> : null}
-          {versionCount > 1 && onSwitchVersion ? (
-            <div className="version-switcher" aria-label={t('message.version')}>
-              <button
-                disabled={versionIndex <= 0}
-                onClick={() => onSwitchVersion(row, 'prev')}
-              >
-                <ChevronLeft />
-              </button>
-              <span>
-                {versionIndex + 1}/{versionCount}
-              </span>
-              <button
-                disabled={versionIndex >= versionCount - 1}
-                onClick={() => onSwitchVersion(row, 'next')}
-              >
-                <ChevronRight />
-              </button>
-            </div>
-          ) : null}
-          {workedDuration !== undefined ? (
-            <time className="worked-duration">
-              {t('message.workedFor', {
-                duration: formatElapsed(workedDuration),
-              })}
-            </time>
-          ) : null}
-          {endReason ? (
-            <span className={`turn-end-reason ${endReason.tone}`}>
-              {endReason.label}
-            </span>
-          ) : null}
-          {onActions && row.message.role === 'assistant' ? (
-            <button
-              className="message-actions-button"
-              aria-label={t('message.actions.label')}
-              onClick={() => onActions(row)}
-            >
-              <MoreHorizontal size={16} />
-            </button>
-          ) : null}
-        </div>
-      </footer>
-    </article>
+    <MessageView
+      row={row}
+      workspacePath={workspacePath}
+      generating={generating}
+      usage={usage}
+      nestedByParent={nestedByParent}
+      onActions={onActions ? () => onActions(row) : undefined}
+      onSwitchVersion={
+        onSwitchVersion
+          ? (_message, direction) => onSwitchVersion(row, direction)
+          : undefined
+      }
+      onRetryFailed={onRetryFailed ? () => onRetryFailed(row) : undefined}
+      capabilities={threadPartCapabilities}
+      longPressProps={press}
+      renderUsage={(value) => <UsageFooter usage={value as GenerationUsage} />}
+      onOpenFile={openFile}
+      onOpenWebsite={(target) => void openExternalUrl(target)}
+    />
   )
 }
 
@@ -2730,7 +2387,7 @@ function ThreadView({ threadId }: { threadId: string }) {
                       }}
                     >
                       <MessageBoundary>
-                        <MessageView
+                        <ThreadMessageView
                           row={row}
                           workspacePath={workspacePath}
                           generating={generating && row === roots.at(-1)}

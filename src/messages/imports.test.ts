@@ -15,8 +15,12 @@ const FORBIDDEN_IMPORTS = [
 function sourceFiles(directory: URL): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const url = new URL(entry.name, directory)
-    if (entry.isDirectory()) return sourceFiles(new URL(`${entry.name}/`, directory))
-    if (!SOURCE_EXTENSIONS.has(extname(entry.name)) || entry.name.endsWith('.test.ts'))
+    if (entry.isDirectory())
+      return sourceFiles(new URL(`${entry.name}/`, directory))
+    if (
+      !SOURCE_EXTENSIONS.has(extname(entry.name)) ||
+      entry.name.endsWith('.test.ts')
+    )
       return []
     return [url.pathname]
   })
@@ -24,7 +28,9 @@ function sourceFiles(directory: URL): string[] {
 
 function imports(source: string): string[] {
   return Array.from(
-    source.matchAll(/(?:import|export)\s+(?:type\s+)?(?:[^'";]+?\s+from\s+)?['"]([^'"]+)['"]/g),
+    source.matchAll(
+      /(?:import|export)\s+(?:type\s+)?(?:[^'";]+?\s+from\s+)?['"]([^'"]+)['"]/g,
+    ),
     (match) => match[1],
   )
 }

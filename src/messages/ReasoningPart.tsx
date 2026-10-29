@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { Brain, ChevronRight } from 'lucide-react'
-import type { MessagePart } from '../relay'
-import { thoughtLabel } from './streamingPresentation'
-import { elapsedDuration } from './toolDurations'
-import { useSharedSecond } from './useSharedSecond'
+import type { MessagePart } from './index'
+import { thoughtLabel } from '../screens/streamingPresentation'
+import { elapsedDuration } from '../screens/toolDurations'
+import { useSharedSecond } from '../screens/useSharedSecond'
 import { useT } from '../i18n'
+
 export function ReasoningPart({
   part,
   live,
