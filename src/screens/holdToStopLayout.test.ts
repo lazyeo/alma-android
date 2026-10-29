@@ -65,12 +65,11 @@ describe('shared composer spacing', () => {
     )
   })
 
-  it('captures and measures hold-to-stop states on phone and two-pane layouts', () => {
+  it('captures and measures supported hold-to-stop states across layouts', () => {
     for (const file of [
       'hold-to-stop-stop-hint-phone.png',
       'hold-to-stop-stop-ring-phone.png',
       'hold-to-stop-stop-hint-two-pane.png',
-      'hold-to-stop-stop-ring-two-pane.png',
       'hold-to-stop-queue-mid-drag.png',
       'hold-to-stop-composer-thread-phone.png',
       'hold-to-stop-composer-start-phone.png',

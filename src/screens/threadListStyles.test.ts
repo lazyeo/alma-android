@@ -10,6 +10,10 @@ const threadScreenSource = readFileSync(
   new URL('./ThreadScreen.tsx', import.meta.url),
   'utf8',
 )
+const messageViewSource = readFileSync(
+  new URL('../messages/MessageView.tsx', import.meta.url),
+  'utf8',
+)
 const rowSource = readFileSync(
   new URL('./ThreadListRow.tsx', import.meta.url),
   'utf8',
@@ -176,8 +180,11 @@ describe('thread list interaction styling', () => {
   })
 
   it('keeps reply usage and actions in one vertically centred footer row', () => {
-    expect(threadScreenSource).toMatch(
-      /<footer[\s\S]*?<div className="message-footer-meta">[\s\S]*?<UsageFooter usage=\{usage\}/,
+    expect(messageViewSource).toMatch(
+      /<footer[\s\S]*?<div className="message-footer-meta">[\s\S]*?renderUsage\(usage\)/,
+    )
+    expect(threadScreenSource).toContain(
+      'renderUsage={(value) => <UsageFooter usage={value as GenerationUsage} />}',
     )
     expect(styles).toMatch(
       /\.message-footer-meta \{[^}]*display: flex;[^}]*align-items: center;/s,
