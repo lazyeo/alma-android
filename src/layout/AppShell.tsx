@@ -82,7 +82,6 @@ function MainNav({
   const { pathname } = useLocation()
   const threadsPath = useActiveThreadsPath()
   const desktopId = decodeURIComponent(threadsPath.split('/')[2] ?? '')
-  const { byDesktop } = useHerdr()
   return (
     <nav className={className} aria-label={t('nav.main')}>
       {NAV_ITEMS.map(({ to, labelKey, Icon }, index) => {
@@ -108,7 +107,7 @@ function MainNav({
           <Fragment key={to}>
             {to === '/settings'
               ? (beforeSettings ??
-                (desktopId && byDesktop[desktopId]?.online ? (
+                (desktopId ? (
                   <AgentsNavLink desktopId={desktopId} compact={false} />
                 ) : null))
               : null}
@@ -133,7 +132,7 @@ function MainNav({
   )
 }
 
-function AgentsNavLink({
+export function AgentsNavLink({
   desktopId,
   compact = true,
 }: {
@@ -142,8 +141,6 @@ function AgentsNavLink({
 }) {
   const t = useT()
   const { pathname } = useLocation()
-  const { byDesktop } = useHerdr()
-  if (!byDesktop[desktopId]?.online) return null
   const active = pathname.startsWith(desktopAgentsPath(desktopId))
   return (
     <NavLink

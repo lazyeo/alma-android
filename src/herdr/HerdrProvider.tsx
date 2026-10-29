@@ -24,7 +24,8 @@ import {
   type HerdrSnapshot,
 } from './model'
 
-interface DesktopHerdrState {
+export interface DesktopHerdrState {
+  desktopOnline: boolean
   online: boolean
   supported: boolean
   snapshot?: HerdrSnapshot
@@ -35,6 +36,7 @@ interface DesktopHerdrState {
 interface HerdrValue {
   byDesktop: Record<string, DesktopHerdrState>
   agents(desktopId: string): AgentWorkspaceModel[]
+  retry(desktopId: string): void
   setWorkspaceMuted(
     desktopId: string,
     workspaceId: string,
@@ -112,15 +114,18 @@ function HerdrDesktopSource({
   desktop,
   settingsRef,
   onState,
+  retryToken,
 }: {
   desktop: HandoffDesktop
   settingsRef: React.MutableRefObject<NotificationSettings>
   onState(desktopId: string, state: DesktopHerdrState): void
+  retryToken: number
 }) {
   const location = useLocation()
   const locationRef = useRef(location.pathname)
   locationRef.current = location.pathname
   const stateRef = useRef<DesktopHerdrState>({
+    desktopOnline: desktop.online,
     online: false,
     supported: true,
     mutedWorkspaces: [],
@@ -147,6 +152,7 @@ function HerdrDesktopSource({
 
   useEffect(() => {
     let current = true
+    publish({ desktopOnline: online, error: undefined })
     if (!online) {
       publish({ online: false })
       return
@@ -232,7 +238,7 @@ function HerdrDesktopSource({
       if (reconnectTimer) clearTimeout(reconnectTimer)
       socket?.close()
     }
-  }, [api, desktopId, desktopName, online, publish, settingsRef])
+  }, [api, desktopId, desktopName, online, publish, retryToken, settingsRef])
 
   return null
 }
@@ -249,6 +255,7 @@ export function HerdrProvider({
   const [byDesktop, setByDesktop] = useState<Record<string, DesktopHerdrState>>(
     {},
   )
+  const [retryTokens, setRetryTokens] = useState<Record<string, number>>({})
   const settingsRef = useRef(notificationSettings)
   settingsRef.current = notificationSettings
   const onState = useCallback((desktopId: string, state: DesktopHerdrState) => {
@@ -259,6 +266,12 @@ export function HerdrProvider({
       byDesktop,
       agents: (desktopId) =>
         agentListFromSnapshot(byDesktop[desktopId]?.snapshot),
+      retry(desktopId) {
+        setRetryTokens((current) => ({
+          ...current,
+          [desktopId]: (current[desktopId] ?? 0) + 1,
+        }))
+      },
       async setWorkspaceMuted(desktopId, workspaceId, muted) {
         const desktop = desktops.find((item) => item.id === desktopId)
         if (!desktop) return
@@ -269,7 +282,11 @@ export function HerdrProvider({
         setByDesktop((current) => ({
           ...current,
           [desktopId]: {
-            ...(current[desktopId] ?? { online: false, supported: true }),
+            ...(current[desktopId] ?? {
+              desktopOnline: desktop.online,
+              online: false,
+              supported: true,
+            }),
             mutedWorkspaces: result.workspaces,
           },
         }))
@@ -285,6 +302,7 @@ export function HerdrProvider({
           desktop={desktop}
           settingsRef={settingsRef}
           onState={onState}
+          retryToken={retryTokens[desktop.id] ?? 0}
         />
       ))}
       {children}

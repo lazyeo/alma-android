@@ -1,4 +1,9 @@
-import { LayoutList, MonitorUp, PanelsTopLeft } from 'lucide-react'
+import {
+  LayoutList,
+  LoaderCircle,
+  MonitorUp,
+  PanelsTopLeft,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { desktopScreenPath } from '../desktopRoutes'
@@ -14,14 +19,14 @@ import {
   type AgentsViewMode,
 } from './agentsBoardModel'
 import { AgentsBoard, AgentsList } from './AgentsBoard'
-import { useHerdr } from './HerdrProvider'
+import { useHerdr, type DesktopHerdrState } from './HerdrProvider'
 
 export function AgentsScreen() {
   const t = useT()
   const navigate = useNavigate()
   const { desktopId = '' } = useParams()
   const decodedDesktopId = decodeURIComponent(desktopId)
-  const { agents, byDesktop, setWorkspaceMuted } = useHerdr()
+  const { agents, byDesktop, retry, setWorkspaceMuted } = useHerdr()
   const workspaces = agents(decodedDesktopId)
   const state = byDesktop[decodedDesktopId]
   const [mode, setMode] = useState<AgentsViewMode>(loadAgentsViewMode)
@@ -84,7 +89,7 @@ export function AgentsScreen() {
         }
       />
       <div className="page-body agents-page-body">
-        <AgentsState state={state} />
+        <AgentsState state={state} onRetry={() => retry(decodedDesktopId)} />
         {mode === 'board' ? (
           <AgentsBoard
             desktopId={decodedDesktopId}
@@ -113,22 +118,31 @@ export function AgentsScreen() {
 
 export function AgentsState({
   state,
+  onRetry,
 }: {
-  state?: {
-    supported: boolean
-    online: boolean
-    error?: string
-  }
+  state?: DesktopHerdrState
+  onRetry(): void
 }) {
   const t = useT()
-  if (state?.supported === false)
-    return <p className="empty">{t('agents.unsupported')}</p>
-  if (state?.error)
+  if (!state)
     return (
-      <p className="settings-error agents-state-error">
-        {t('agents.loadFailed')}
+      <p className="empty agents-state" aria-live="polite">
+        <LoaderCircle className="spinner" size={16} />
+        {t('agents.connecting')}
       </p>
     )
-  if (!state?.online) return <p className="empty">{t('agents.offline')}</p>
+  if (!state.desktopOnline)
+    return <p className="empty agents-state">{t('agents.desktopOffline')}</p>
+  if (!state.supported)
+    return <p className="empty agents-state">{t('agents.unsupported')}</p>
+  if (state.error || !state.online)
+    return (
+      <div className="empty agents-state">
+        <p>{t('agents.unreachable')}</p>
+        <button className="quiet-text-button" onClick={onRetry}>
+          {t('common.tryAgain')}
+        </button>
+      </div>
+    )
   return null
 }

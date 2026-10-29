@@ -22,7 +22,7 @@ export function AgentsSidebar() {
   const { desktopId = '', paneId } = useParams()
   const decodedDesktopId = decodeURIComponent(desktopId)
   const selectedPaneId = paneId ? decodeURIComponent(paneId) : undefined
-  const { agents, byDesktop, setWorkspaceMuted } = useHerdr()
+  const { agents, byDesktop, retry, setWorkspaceMuted } = useHerdr()
   const workspaces = agents(decodedDesktopId)
   const state = byDesktop[decodedDesktopId]
   const [mode, setMode] = useState<AgentsViewMode>(loadAgentsViewMode)
@@ -84,7 +84,7 @@ export function AgentsSidebar() {
         ) : null}
       </header>
       <div className="agents-sidebar-body">
-        <AgentsState state={state} />
+        <AgentsState state={state} onRetry={() => retry(decodedDesktopId)} />
         {mode === 'board' ? (
           <AgentsBoard
             desktopId={decodedDesktopId}

@@ -1,10 +1,10 @@
 export const agents = {
   title: 'Agents',
   agent: 'Agent',
-  offline: 'Coding agents are offline on this desktop.',
-  unsupported: 'This desktop does not support coding agents.',
-  loadFailed:
-    'Could not load coding agents. Try again after the desktop reconnects.',
+  connecting: 'Connecting to coding agents…',
+  desktopOffline: 'This desktop is offline.',
+  unsupported: 'Update Alma on this desktop to use coding agents.',
+  unreachable: 'Start herdr on the Mac, then try again.',
   mute: 'Mute workspace',
   unmute: 'Unmute workspace',
   showListView: 'Show list view',

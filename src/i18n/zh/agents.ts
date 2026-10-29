@@ -1,9 +1,10 @@
 export const agents = {
   title: '编码助手',
   agent: '助手',
-  offline: '这个桌面端的编码 Agent 当前离线',
-  unsupported: '这个桌面端不支持编码助手',
-  loadFailed: '无法加载编码助手，请在桌面端重新连接后再试',
+  connecting: '正在连接编码助手…',
+  desktopOffline: '这个桌面端当前离线',
+  unsupported: '请更新这个桌面端的 Alma 以使用编码助手',
+  unreachable: '请在 Mac 上启动 herdr，然后重试',
   mute: '静音工作区',
   unmute: '取消工作区静音',
   showListView: '显示列表视图',
