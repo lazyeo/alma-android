@@ -9,6 +9,13 @@ import {
 export const SPLIT_MIN_WIDTH = 720
 
 export type LayoutMode = 'single' | 'split'
+export type SplitSidebarSection = 'threads' | 'gtd' | 'agents'
+
+export function splitSidebarSection(pathname: string): SplitSidebarSection {
+  if (/^\/d\/[^/]+\/agents(?:\/|$)/.test(pathname)) return 'agents'
+  if (/^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname)) return 'gtd'
+  return 'threads'
+}
 
 export function layoutModeForWidth(width: number): LayoutMode {
   return width >= SPLIT_MIN_WIDTH ? 'split' : 'single'

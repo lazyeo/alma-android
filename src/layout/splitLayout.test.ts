@@ -1,11 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import {
+  splitSidebarSection,
   SPLIT_MIN_WIDTH,
   decideBack,
   layoutModeForWidth,
   threadNavigationOptions,
   threadRouteMatch,
 } from './splitLayout'
+
+describe('split sidebar route decision', () => {
+  it('uses Agents for both the root and pane routes', () => {
+    expect(splitSidebarSection('/d/desk/agents')).toBe('agents')
+    expect(splitSidebarSection('/d/desk/agents/pane')).toBe('agents')
+    expect(splitSidebarSection('/d/desk/threads/thread')).toBe('threads')
+    expect(splitSidebarSection('/d/desk/gtd/thread')).toBe('gtd')
+  })
+})
 
 describe('layout mode', () => {
   it('switches to two panes at 720px', () => {
