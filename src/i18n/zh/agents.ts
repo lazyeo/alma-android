@@ -48,6 +48,8 @@ export const agents = {
   terminalKeyLeft: '向左箭头',
   terminalKeyRight: '向右箭头',
   terminalKeyBackspace: '退格',
+  showComposer: '显示键盘',
+  hideComposer: '隐藏键盘',
   sendAsMessage: '发消息',
   typeIntoTerminal: '打进终端',
   terminalText: '终端输入',

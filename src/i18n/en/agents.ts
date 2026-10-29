@@ -48,6 +48,8 @@ export const agents = {
   terminalKeyLeft: 'Left arrow',
   terminalKeyRight: 'Right arrow',
   terminalKeyBackspace: 'Backspace',
+  showComposer: 'Show keyboard',
+  hideComposer: 'Hide keyboard',
   sendAsMessage: 'Message',
   typeIntoTerminal: 'Terminal input',
   terminalText: 'Terminal text',

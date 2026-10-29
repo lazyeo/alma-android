@@ -2,6 +2,7 @@ export type TerminalMode = 'snapshot' | 'stream'
 export type SnapshotDisplayMode = 'reflow' | 'grid'
 
 export const SNAPSHOT_DISPLAY_MODE_KEY = 'alma.terminal.snapshotDisplayMode'
+export const COMPOSER_HIDDEN_KEY = 'alma.agents.composer-hidden'
 export const TERMINAL_COMPOSER_MODE_KEY = 'alma.herdr.terminalComposerMode'
 export type TerminalComposerMode = 'message' | 'terminal'
 
@@ -112,6 +113,33 @@ export function loadSnapshotDisplayMode(
       : 'reflow'
   } catch {
     return 'reflow'
+  }
+}
+
+export function loadComposerHidden(
+  storage: Pick<Storage, 'getItem'> | undefined = typeof localStorage ===
+  'undefined'
+    ? undefined
+    : localStorage,
+) {
+  try {
+    return storage?.getItem(COMPOSER_HIDDEN_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+export function saveComposerHidden(
+  hidden: boolean,
+  storage: Pick<StorageLike, 'setItem'> | undefined = typeof localStorage ===
+  'undefined'
+    ? undefined
+    : localStorage,
+) {
+  try {
+    storage?.setItem(COMPOSER_HIDDEN_KEY, String(hidden))
+  } catch {
+    // Persistence is optional in restricted WebViews.
   }
 }
 

@@ -6,7 +6,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AgentPaneScreen } from './HerdrScreens'
 
 let paneId = 'pane-a'
@@ -82,8 +82,21 @@ vi.mock('../terminal/TerminalView', () => ({
   ),
 }))
 
+const storage = new Map<string, string>()
+
+beforeEach(() => {
+  storage.clear()
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => storage.set(key, value),
+    removeItem: (key: string) => storage.delete(key),
+    clear: () => storage.clear(),
+  })
+})
+
 afterEach(() => {
   cleanup()
+  vi.unstubAllGlobals()
   vi.clearAllMocks()
   agentStatus = 'idle'
   chatItems = [{ id: 'm1', kind: 'assistant', text: 'Pane B transcript' }]
@@ -181,9 +194,9 @@ describe('AgentPaneScreen pane navigation', () => {
     )
     expect(screen.queryByRole('button', { name: 'agents.chat' })).toBeNull()
     expect(
-      screen.getByRole('button', { name: 'agents.terminal' }).getAttribute(
-        'aria-pressed',
-      ),
+      screen
+        .getByRole('button', { name: 'agents.terminal' })
+        .getAttribute('aria-pressed'),
     ).toBe('true')
   })
 
@@ -226,6 +239,32 @@ describe('AgentPaneScreen pane navigation', () => {
     expect(mode.hasAttribute('data-sidebar-swipe-exclude')).toBe(true)
     expect(mode.querySelector('span')).toBeNull()
     expect(view.container.querySelector('.agent-terminal-mode')).toBe(mode)
+  })
+
+  it('toggles the terminal composer from the end of the key row and restores it in chat', async () => {
+    paneId = 'pane-b'
+    const view = render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('Pane B transcript')).toBeTruthy(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'agents.terminal' }))
+
+    const toolbar = screen.getByRole('toolbar', {
+      name: 'agents.terminalKeys',
+    })
+    const hide = screen.getByRole('button', { name: 'agents.hideComposer' })
+    expect(toolbar.lastElementChild).toBe(hide)
+    expect(view.container.querySelector('.agent-composer')).toBeTruthy()
+
+    fireEvent.click(hide)
+    expect(view.container.querySelector('.agent-composer')).toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'agents.showComposer' }),
+    ).toBeTruthy()
+    expect(localStorage.getItem('alma.agents.composer-hidden')).toBe('true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'agents.chat' }))
+    expect(view.container.querySelector('.agent-composer')).toBeTruthy()
   })
 
   it('requests recent ANSI history for the current display mode', async () => {

@@ -5,10 +5,12 @@ import {
   TerminalSession,
   calculateSnapshotFontSize,
   calculateSnapshotSize,
+  loadComposerHidden,
   loadSnapshotDisplayMode,
   loadTerminalComposerMode,
   mergeTerminalHistory,
   prepareReflowSnapshot,
+  saveComposerHidden,
   saveSnapshotDisplayMode,
   saveTerminalComposerMode,
   type TerminalDriver,
@@ -211,6 +213,25 @@ describe('snapshot display mode persistence', () => {
     expect(storage.setItem).toHaveBeenCalledWith(
       'alma.terminal.snapshotDisplayMode',
       'grid',
+    )
+  })
+})
+
+describe('terminal composer visibility persistence', () => {
+  it('defaults to shown and persists the hidden state', () => {
+    const storage = {
+      getItem: vi.fn<() => string | null>(() => null),
+      setItem: vi.fn(),
+    }
+    expect(loadComposerHidden(storage)).toBe(false)
+    storage.getItem.mockReturnValue('true')
+    expect(loadComposerHidden(storage)).toBe(true)
+    storage.getItem.mockReturnValue('legacy')
+    expect(loadComposerHidden(storage)).toBe(false)
+    saveComposerHidden(true, storage)
+    expect(storage.setItem).toHaveBeenCalledWith(
+      'alma.agents.composer-hidden',
+      'true',
     )
   })
 })
