@@ -98,6 +98,18 @@ export const settings: CatalogShape<typeof source> = {
     removeTitle: '移除桌面端？',
     removeBody: '要从这台设备移除“{name}”吗？之后需要重新配对才能连接。',
   },
+  backgroundConnection: {
+    title: '在后台保持连接',
+    note: '显示常驻通知，让应用隐藏时仍能收到桌面端提醒。',
+    notificationTitle: 'Alma Mobile 后台连接',
+    channelName: '后台连接',
+    channelDescription: '保持与已配对桌面端的连接',
+    stop: '停止',
+    connected: '已通过{transport}连接到{name}',
+    reconnecting: '正在重新连接…',
+    waiting: '正在等待桌面端…',
+    transport: { lan: '局域网', relay: '中继' },
+  },
   notifications: {
     title: '通知',
     note: 'Alma Mobile 在后台运行时显示。',
