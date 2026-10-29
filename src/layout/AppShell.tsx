@@ -269,7 +269,8 @@ export function AppShell() {
   const activeDesktopId =
     store.activeId ?? visiblePairings(store.pairings)[0]?.id
   const thread = threadRouteMatch(pathname)
-  const detail = Boolean(thread?.threadId)
+  const detail =
+    Boolean(thread?.threadId) || /^\/d\/[^/]+\/agents\/[^/]+/.test(pathname)
 
   if (mode === 'single')
     return (
