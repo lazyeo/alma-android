@@ -1,5 +1,5 @@
 export const agents = {
-  title: '编码助手',
+  title: 'Herdr',
   agent: '助手',
   connecting: '正在连接编码助手…',
   desktopOffline: '这个桌面端当前离线',

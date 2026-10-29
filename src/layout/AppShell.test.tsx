@@ -15,7 +15,7 @@ describe('Agents navigation', () => {
       </LanguageProvider>,
     )
     expect(
-      screen.getByRole('link', { name: 'Agents' }).getAttribute('href'),
+      screen.getByRole('link', { name: 'Herdr' }).getAttribute('href'),
     ).toBe('/d/desktop/agents')
   })
 })

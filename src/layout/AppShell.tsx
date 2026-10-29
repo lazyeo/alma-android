@@ -4,7 +4,7 @@ import {
   Gem,
   ListTodo,
   MessagesSquare,
-  Bot,
+  SquareTerminal,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
@@ -151,7 +151,7 @@ export function AgentsNavLink({
       className={`agents-entry${active ? ' active' : ''}`}
     >
       <span className="tab-icon">
-        <Bot size={22} />
+        <SquareTerminal size={22} />
       </span>
       {compact ? null : t('nav.agents')}
     </NavLink>

@@ -3,7 +3,7 @@ export const nav = {
   threads: 'Threads',
   gtd: 'GTD',
   settings: 'Settings',
-  agents: 'Agents',
+  agents: 'Herdr',
   crystals: 'Crystals',
   references: 'References',
   timeClues: 'Time clues',

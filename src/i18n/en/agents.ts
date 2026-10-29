@@ -1,5 +1,5 @@
 export const agents = {
-  title: 'Agents',
+  title: 'Herdr',
   agent: 'Agent',
   connecting: 'Connecting to coding agents…',
   desktopOffline: 'This desktop is offline.',
