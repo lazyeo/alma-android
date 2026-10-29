@@ -5328,8 +5328,29 @@ const agentsBoardShots = ['en', 'zh'].flatMap((lang) => [
     : []),
 ])
 
+const agentsStateShots = [
+  ['unsupported', PHONE, 'zh'],
+  ['unreachable', TABLET, 'en'],
+].map(([state, viewport, language]) => ({
+  file: `agents-${state}-${language}-${viewport.width}.png`,
+  viewport,
+  route: '/d/fixture-desktop/agents',
+  fixture: `agents-${state}`,
+  language,
+  ready: '.agents-state',
+  safeInsets: true,
+  async act(page) {
+    await page.locator('.agents-state').waitFor()
+    await assertNoHorizontalOverflow(
+      page,
+      viewport === PHONE ? '.agents-page-body' : '.split-shell',
+    )
+  },
+}))
+
 const herdrShots = [
   ...agentsBoardShots,
+  ...agentsStateShots,
   ...['en', 'zh'].flatMap((lang) => {
     const terminalLabel = lang === 'zh' ? '终端' : 'Terminal'
     const gridLabel =

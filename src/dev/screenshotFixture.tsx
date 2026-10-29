@@ -1224,11 +1224,16 @@ document.getElementById('probe').textContent='parent storage: ' + verdict
 function route(method: string, path: string, body?: unknown): TunnelResponse {
   const [pathname, query = ''] = path.split('?')
   const thread = (id: string) => threads.find((item) => item.id === id)
-  if (pathname === '/api/herdr/info')
+  if (pathname === '/api/herdr/info') {
+    if (fixtureMode === 'agents-unsupported')
+      return json(404, { error: 'Not found' })
+    if (fixtureMode === 'agents-unreachable')
+      return json(502, { error: 'Herdr unavailable' })
     return json(200, {
       online: true,
       herdr: { type: 'pong', version: '0.9.5', protocol: 22 },
     })
+  }
   if (pathname === '/api/herdr/mutes') return json(200, { workspaces: [] })
   if (pathname === '/api/herdr/chat')
     return json(200, {
@@ -1919,7 +1924,11 @@ function mockSocket(path: string): TunnelSocket {
         for (const listener of listeners)
           listener(JSON.stringify({ ...event, timestamp: NOW }))
     }, 400)
-  if (path === '/ws/herdr')
+  if (
+    path === '/ws/herdr' &&
+    fixtureMode !== 'agents-unsupported' &&
+    fixtureMode !== 'agents-unreachable'
+  )
     setTimeout(() => {
       for (const event of [
         { type: 'herdr', online: true },
