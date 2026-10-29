@@ -36,10 +36,13 @@ import { useHerdr } from './HerdrProvider'
 import { mergeChatItems, parseBlockedPrompt, type HerdrPane } from './model'
 import {
   cleanAgentText,
+  parseAnsi,
   stripAnsi,
   toolView,
+  type AnsiStyle,
   type ToolView,
 } from './transcript'
+import { nextTerminalScrollTop } from '../terminal/terminalScroll'
 
 const TerminalView = lazy(() =>
   import('../terminal/TerminalView').then((module) => ({
@@ -174,6 +177,12 @@ export function AgentPaneScreen() {
     setError('')
     scrollMemory.current = { chat: null, terminal: null }
     prependAnchor.current = null
+    terminalScrollState.current = {
+      scrollTop: 0,
+      scrollHeight: 0,
+      pinned: true,
+      prepending: false,
+    }
     void loadChat().catch((reason) => setError(String(reason)))
   }, [decodedPaneId, loadChat])
   useEffect(() => {
@@ -248,6 +257,13 @@ export function AgentPaneScreen() {
     terminal: null,
   })
   const prependAnchor = useRef<number | null>(null)
+  const terminalScrollRef = useRef<HTMLDivElement>(null)
+  const terminalScrollState = useRef({
+    scrollTop: 0,
+    scrollHeight: 0,
+    pinned: true,
+    prepending: false,
+  })
   const rememberScroll = () => {
     const body = bodyRef.current
     if (!body) return
@@ -263,14 +279,33 @@ export function AgentPaneScreen() {
     const body = bodyRef.current
     if (!body) return
     if (prependAnchor.current !== null) {
-      // Older messages were inserted above: keep the same message in view.
+      // Older chat messages were inserted above: keep the same message in view.
       body.scrollTop = body.scrollHeight - prependAnchor.current
       prependAnchor.current = null
       rememberScroll()
-    } else if (scrollMemory.current[view] === null)
+    } else if (view === 'chat' && scrollMemory.current.chat === null)
       body.scrollTop = body.scrollHeight
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, queued, terminal, terminalHistory, blockedPrompt])
+  }, [items, queued, blockedPrompt])
+  useLayoutEffect(() => {
+    const scroller = terminalScrollRef.current
+    if (!scroller || view !== 'terminal') return
+    const previous = terminalScrollState.current
+    scroller.scrollTop = nextTerminalScrollTop({
+      previousScrollTop: previous.scrollTop,
+      previousScrollHeight: previous.scrollHeight,
+      nextScrollHeight: scroller.scrollHeight,
+      clientHeight: scroller.clientHeight,
+      prepending: previous.prepending,
+      pinned: previous.pinned,
+    })
+    terminalScrollState.current = {
+      scrollTop: scroller.scrollTop,
+      scrollHeight: scroller.scrollHeight,
+      pinned: isPinnedToBottom(scroller),
+      prepending: false,
+    }
+  }, [terminal, terminalHistory, terminalHistoryEmpty, view])
   const loadOlder = () => {
     const body = bodyRef.current
     if (body) prependAnchor.current = body.scrollHeight - body.scrollTop
@@ -281,8 +316,14 @@ export function AgentPaneScreen() {
   }
   const loadTerminalHistory = () => {
     if (loadingTerminalHistory) return
-    const body = bodyRef.current
-    if (body) prependAnchor.current = body.scrollHeight - body.scrollTop
+    const scroller = terminalScrollRef.current
+    if (scroller)
+      terminalScrollState.current = {
+        scrollTop: scroller.scrollTop,
+        scrollHeight: scroller.scrollHeight,
+        pinned: isPinnedToBottom(scroller),
+        prepending: true,
+      }
     setLoadingTerminalHistory(true)
     setTerminalHistoryEmpty(false)
     const source =
@@ -305,7 +346,7 @@ export function AgentPaneScreen() {
         setTerminalHistoryEmpty(!merged.hasEarlier)
       })
       .catch((reason) => {
-        prependAnchor.current = null
+        terminalScrollState.current.prepending = false
         setError(String(reason))
       })
       .finally(() => setLoadingTerminalHistory(false))
@@ -415,16 +456,7 @@ export function AgentPaneScreen() {
       <div
         className={`agent-pane-body agent-pane-body-${view}`}
         ref={bodyRef}
-        onScroll={() => {
-          rememberScroll()
-          if (
-            view === 'terminal' &&
-            bodyRef.current?.scrollTop === 0 &&
-            !terminalHistory &&
-            !terminalHistoryEmpty
-          )
-            loadTerminalHistory()
-        }}
+        onScroll={rememberScroll}
       >
         {view === 'chat' && blockedPrompt ? (
           <aside className="agent-blocked-card">
@@ -488,43 +520,66 @@ export function AgentPaneScreen() {
                 {t('agents.chatUnsupported')}
               </p>
             ) : null}
-            {terminalHistoryEmpty ? (
-              <p className="agent-terminal-note">
-                {t('agents.noEarlierOutput')}
-              </p>
-            ) : (
-              <button
-                className="quiet-text-button agent-load-terminal-history"
-                disabled={loadingTerminalHistory}
-                onClick={loadTerminalHistory}
-              >
-                {t('agents.loadEarlierOutput')}
-              </button>
-            )}
-            <div className="agent-terminal-area">
-              <Suspense
-                fallback={
-                  <div className="agent-terminal-loading">
-                    {t('agents.terminalWaiting')}
-                  </div>
+            <div
+              className={`agent-terminal-scroll agent-terminal-scroll-${terminalDisplayMode}`}
+              ref={terminalScrollRef}
+              onScroll={(event) => {
+                const scroller = event.currentTarget
+                terminalScrollState.current = {
+                  scrollTop: scroller.scrollTop,
+                  scrollHeight: scroller.scrollHeight,
+                  pinned: isPinnedToBottom(scroller),
+                  prepending: false,
                 }
-              >
-                <TerminalView
-                  className="agent-terminal"
-                  mode="snapshot"
+                if (
+                  scroller.scrollTop === 0 &&
+                  !terminalHistory &&
+                  !terminalHistoryEmpty
+                )
+                  loadTerminalHistory()
+              }}
+            >
+              {terminalHistoryEmpty ? (
+                <p className="agent-terminal-note">
+                  {t('agents.noEarlierOutput')}
+                </p>
+              ) : (
+                <button
+                  className="quiet-text-button agent-load-terminal-history"
+                  disabled={loadingTerminalHistory}
+                  onClick={loadTerminalHistory}
+                >
+                  {t('agents.loadEarlierOutput')}
+                </button>
+              )}
+              {terminalHistory ? (
+                <TerminalHistory
+                  text={terminalHistory}
                   displayMode={terminalDisplayMode}
-                  ariaLabel={t('agents.terminalOutput')}
-                  frame={{
-                    text: terminalHistory
-                      ? `${terminalHistory}\n${terminal}`
-                      : terminal,
-                    cols: terminalSize.cols,
-                    rows: terminalSize.rows,
-                  }}
-                  waitingText={t('agents.terminalWaiting')}
-                  onTopReached={loadTerminalHistory}
                 />
-              </Suspense>
+              ) : null}
+              <div className="agent-terminal-area">
+                <Suspense
+                  fallback={
+                    <div className="agent-terminal-loading">
+                      {t('agents.terminalWaiting')}
+                    </div>
+                  }
+                >
+                  <TerminalView
+                    className="agent-terminal"
+                    mode="snapshot"
+                    displayMode={terminalDisplayMode}
+                    ariaLabel={t('agents.terminalOutput')}
+                    frame={{
+                      text: terminal,
+                      cols: terminalSize.cols,
+                      rows: terminalSize.rows,
+                    }}
+                    waitingText={t('agents.terminalWaiting')}
+                  />
+                </Suspense>
+              </div>
             </div>
             <TerminalKeyRow
               disabled={sending}
@@ -626,6 +681,39 @@ export function AgentPaneScreen() {
       </footer>
     </section>
   )
+}
+
+function TerminalHistory({
+  text,
+  displayMode,
+}: {
+  text: string
+  displayMode: SnapshotDisplayMode
+}) {
+  return (
+    <pre
+      className={`agent-terminal-history agent-terminal-history-${displayMode}`}
+      data-history-first-line={stripAnsi(text).split('\n')[0] ?? ''}
+    >
+      {parseAnsi(text).map((segment, index) => (
+        <span style={ansiStyle(segment.style)} key={index}>
+          {segment.text}
+        </span>
+      ))}
+    </pre>
+  )
+}
+
+function ansiStyle(style: AnsiStyle) {
+  return {
+    color: style.fg,
+    backgroundColor: style.bg,
+    fontWeight: style.bold ? 700 : undefined,
+    fontStyle: style.italic ? 'italic' : undefined,
+    textDecoration: style.underline ? 'underline' : undefined,
+    opacity: style.dim ? 0.65 : undefined,
+    filter: style.inverse ? 'invert(1)' : undefined,
+  }
 }
 
 function AgentTextItem({ kind, text }: { kind: string; text?: string }) {
