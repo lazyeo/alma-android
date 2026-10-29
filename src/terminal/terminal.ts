@@ -264,6 +264,7 @@ export class TerminalSession {
   private options: TerminalOptions
   private disposeData?: () => void
   private lastSnapshotKey = ''
+  private lastSnapshotSize = ''
 
   constructor(
     private readonly driver: TerminalDriver,
@@ -288,7 +289,11 @@ export class TerminalSession {
     const key = `${displayMode}\u0000${cols}x${rows}\u0000${text}`
     if (key === this.lastSnapshotKey) return false
     this.lastSnapshotKey = key
-    this.driver.resize(cols, rows)
+    const sizeKey = `${cols}x${rows}`
+    if (sizeKey !== this.lastSnapshotSize) {
+      this.lastSnapshotSize = sizeKey
+      this.driver.resize(cols, rows)
+    }
     const prepared =
       displayMode === 'reflow'
         ? prepareReflowSnapshot(text)

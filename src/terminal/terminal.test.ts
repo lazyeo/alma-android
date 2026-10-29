@@ -104,6 +104,28 @@ describe('snapshot terminal', () => {
     expect(driver.write).toHaveBeenCalledTimes(1)
   })
 
+  it('does not resize-thrash across streaming snapshot frames with stable geometry', () => {
+    const driver = fakeDriver()
+    const session = new TerminalSession(driver, {
+      mode: 'snapshot',
+      cols: 80,
+      rows: 24,
+    })
+    const frames = [
+      'Prompt\n',
+      'Prompt\nWorking ⠋',
+      'Prompt\nWorking ⠙\nnew row',
+      'history above\nPrompt\nWorking ⠹\nnew row',
+    ]
+
+    for (const frame of frames)
+      session.writeSnapshot(frame, 52, 28, 'reflow')
+
+    expect(driver.resize).toHaveBeenCalledTimes(1)
+    expect(driver.resize).toHaveBeenCalledWith(52, 28)
+    expect(driver.write).toHaveBeenCalledTimes(frames.length)
+  })
+
   it('clears before writing a reflow frame so wrapping can grow scrollback', () => {
     const driver = fakeDriver()
     const session = new TerminalSession(driver, {
