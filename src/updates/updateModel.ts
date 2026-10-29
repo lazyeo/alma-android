@@ -167,3 +167,159 @@ export function parseSha256File(text: string, fileName: string) {
     return undefined
   return match[1].toLowerCase()
 }
+
+/** The only package id that receives public release APKs. */
+export const PUBLIC_PACKAGE_ID = 'club.a_dobe.alma'
+
+export type UpdateEligibility = 'native' | 'web' | 'hidden'
+
+/**
+ * Builds with another application id or a suffixed versionName (the
+ * `almaApplicationId` / `almaVersionSuffix` Gradle properties) are not the
+ * public app: a public APK would not install over them, so the updater is
+ * hidden. The web build can check and link to the release, never install.
+ */
+export function updateEligibility(runtime: {
+  platform: string
+  packageId?: string
+  versionName?: string
+}): UpdateEligibility {
+  if (runtime.platform === 'web') return 'web'
+  return runtime.platform === 'android' &&
+    runtime.packageId === PUBLIC_PACKAGE_ID &&
+    isStableVersion(runtime.versionName ?? '')
+    ? 'native'
+    : 'hidden'
+}
+
+/** Splits the `<version> <sha>` value Vite embeds as __ALMA_BUILD__. */
+export function parseBuildInfo(buildInfo: string) {
+  const [version = '', sha] = buildInfo.trim().split(/\s+/)
+  return sha ? { version, sha } : { version }
+}
+
+export const AUTO_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
+export const UPDATE_PREFS_KEY = 'alma-updates-v1'
+
+export type UpdatePrefs = {
+  autoCheck: boolean
+  lastCheckedAt?: number
+  /** Dismissed release; a later version is offered again. */
+  skippedVersion?: string
+  /** Last release seen, so the badge survives restarts between checks. */
+  latest?: AvailableRelease
+}
+
+function storedRelease(value: unknown): AvailableRelease | undefined {
+  const release = record(value)
+  const version = release?.version
+  if (typeof version !== 'string' || !isStableVersion(version)) return undefined
+  if (
+    typeof release?.notes !== 'string' ||
+    release.pageUrl !== `${RELEASES_PAGE_URL}/tag/v${version}`
+  )
+    return undefined
+  const name = apkAssetName(version)
+  const url = `${RELEASE_DOWNLOADS}v${version}/${name}`
+  const apk = record(release.apk)
+  const validApk =
+    apk?.name === name &&
+    apk.url === url &&
+    apk.checksumUrl === `${url}.sha256` &&
+    typeof apk.size === 'number'
+  return {
+    version,
+    notes: release.notes,
+    pageUrl: release.pageUrl,
+    ...(typeof release.publishedAt === 'string'
+      ? { publishedAt: release.publishedAt }
+      : {}),
+    ...(validApk
+      ? {
+          apk: {
+            name,
+            url,
+            size: apk.size as number,
+            checksumUrl: `${url}.sha256`,
+          },
+        }
+      : {}),
+  }
+}
+
+export function loadUpdatePrefs(storage: Pick<Storage, 'getItem'>) {
+  let stored: Record<string, unknown> | undefined
+  try {
+    stored = record(JSON.parse(storage.getItem(UPDATE_PREFS_KEY) ?? 'null'))
+  } catch {
+    stored = undefined
+  }
+  const prefs: UpdatePrefs = {
+    autoCheck: typeof stored?.autoCheck === 'boolean' ? stored.autoCheck : true,
+  }
+  if (typeof stored?.lastCheckedAt === 'number')
+    prefs.lastCheckedAt = stored.lastCheckedAt
+  if (
+    typeof stored?.skippedVersion === 'string' &&
+    isStableVersion(stored.skippedVersion)
+  )
+    prefs.skippedVersion = stored.skippedVersion
+  const latest = storedRelease(stored?.latest)
+  if (latest) prefs.latest = latest
+  return prefs
+}
+
+export function saveUpdatePrefs(
+  storage: Pick<Storage, 'setItem'>,
+  prefs: UpdatePrefs,
+) {
+  storage.setItem(UPDATE_PREFS_KEY, JSON.stringify(prefs))
+}
+
+export function shouldAutoCheck(
+  eligibility: UpdateEligibility,
+  prefs: UpdatePrefs,
+  now: number,
+) {
+  if (eligibility === 'hidden' || !prefs.autoCheck) return false
+  const last = prefs.lastCheckedAt
+  return (
+    last === undefined || last > now || now - last >= AUTO_CHECK_INTERVAL_MS
+  )
+}
+
+export function isNewerRelease(
+  release: AvailableRelease | undefined,
+  currentVersion: string,
+): release is AvailableRelease {
+  return Boolean(
+    release && (compareSemVer(release.version, currentVersion) ?? 0) > 0,
+  )
+}
+
+/** The quiet Settings dot: a newer release the user has not dismissed. */
+export function showUpdateBadge(
+  eligibility: UpdateEligibility,
+  prefs: UpdatePrefs,
+  currentVersion: string,
+) {
+  return (
+    eligibility !== 'hidden' &&
+    isNewerRelease(prefs.latest, currentVersion) &&
+    prefs.latest.version !== prefs.skippedVersion
+  )
+}
+
+export type UpdateErrorKind = 'offline' | 'rateLimited' | 'timeout' | 'general'
+
+export function updateErrorKind(failure: {
+  online: boolean
+  status?: number
+  timedOut?: boolean
+}): UpdateErrorKind {
+  if (!failure.online) return 'offline'
+  if (failure.timedOut) return 'timeout'
+  // Unauthenticated GitHub API calls answer 403 (or 429) once rate limited.
+  if (failure.status === 403 || failure.status === 429) return 'rateLimited'
+  return 'general'
+}

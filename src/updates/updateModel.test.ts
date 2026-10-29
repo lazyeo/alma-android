@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import {
+  AUTO_CHECK_INTERVAL_MS,
   apkAssetName,
   compareSemVer,
   isStableVersion,
   parseLatestRelease,
   parseSemVer,
   parseSha256File,
+  loadUpdatePrefs,
+  parseBuildInfo,
+  saveUpdatePrefs,
+  shouldAutoCheck,
+  showUpdateBadge,
+  updateEligibility,
+  updateErrorKind,
+  type AvailableRelease,
 } from './updateModel'
 
 describe('SemVer', () => {
@@ -192,5 +201,160 @@ describe('checksum file', () => {
     expect(
       parseSha256File(`${digest}  ${name}\n${digest}  other.apk`, name),
     ).toBeUndefined()
+  })
+})
+
+describe('updater eligibility', () => {
+  it('allows the native updater only for the public package on a stable version', () => {
+    expect(
+      updateEligibility({
+        platform: 'android',
+        packageId: 'club.a_dobe.alma',
+        versionName: '0.1.2',
+      }),
+    ).toBe('native')
+  })
+
+  it('hides the updater for other package ids and suffixed versions', () => {
+    for (const runtime of [
+      { packageId: 'club.a_dobe.alma.dev', versionName: '0.1.2' },
+      { packageId: 'club.a_dobe.alma', versionName: '0.1.2-private' },
+      { packageId: 'club.a_dobe.alma', versionName: '0.1.2.local' },
+      { packageId: 'club.a_dobe.alma', versionName: '0.1.3-beta.1' },
+      { packageId: undefined, versionName: '0.1.2' },
+    ])
+      expect(
+        updateEligibility({ platform: 'android', ...runtime }),
+        JSON.stringify(runtime),
+      ).toBe('hidden')
+    expect(updateEligibility({ platform: 'ios' })).toBe('hidden')
+  })
+
+  it('keeps the web build check-capable without a native install', () => {
+    expect(updateEligibility({ platform: 'web' })).toBe('web')
+  })
+})
+
+describe('build info', () => {
+  it('splits the alma-build value into version and short sha', () => {
+    expect(parseBuildInfo('0.1.2 abc1234')).toEqual({
+      version: '0.1.2',
+      sha: 'abc1234',
+    })
+    expect(parseBuildInfo('0.1.2')).toEqual({ version: '0.1.2' })
+  })
+})
+
+describe('update preferences', () => {
+  const memory = () => {
+    const values = new Map<string, string>()
+    return {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => void values.set(key, value),
+    }
+  }
+  const latest: AvailableRelease = {
+    version: '0.1.3',
+    notes: '- Fixes',
+    pageUrl: 'https://github.com/lazyeo/alma-android/releases/tag/v0.1.3',
+  }
+
+  it('checks automatically by default', () => {
+    expect(loadUpdatePrefs(memory())).toEqual({ autoCheck: true })
+  })
+
+  it('round-trips the switch, last check, skipped version and latest release', () => {
+    const storage = memory()
+    const prefs = {
+      autoCheck: false,
+      lastCheckedAt: 1_000,
+      skippedVersion: '0.1.3',
+      latest,
+    }
+    saveUpdatePrefs(storage, prefs)
+    expect(loadUpdatePrefs(storage)).toEqual(prefs)
+  })
+
+  it('falls back to defaults for corrupt or tampered storage', () => {
+    const storage = memory()
+    storage.setItem('alma-updates-v1', '{not json')
+    expect(loadUpdatePrefs(storage)).toEqual({ autoCheck: true })
+    storage.setItem(
+      'alma-updates-v1',
+      JSON.stringify({
+        autoCheck: 'yes',
+        lastCheckedAt: 'later',
+        skippedVersion: 7,
+        latest: { ...latest, pageUrl: 'https://example.com/' },
+      }),
+    )
+    expect(loadUpdatePrefs(storage)).toEqual({ autoCheck: true })
+  })
+
+  it('checks automatically at most once every 24 hours', () => {
+    const now = 10 * AUTO_CHECK_INTERVAL_MS
+    const prefs = { autoCheck: true }
+    expect(shouldAutoCheck('native', prefs, now)).toBe(true)
+    expect(
+      shouldAutoCheck('native', { ...prefs, lastCheckedAt: now - 1_000 }, now),
+    ).toBe(false)
+    expect(
+      shouldAutoCheck(
+        'web',
+        { ...prefs, lastCheckedAt: now - AUTO_CHECK_INTERVAL_MS },
+        now,
+      ),
+    ).toBe(true)
+    // A clock moved backwards must not suppress checks forever.
+    expect(
+      shouldAutoCheck('native', { ...prefs, lastCheckedAt: now + 5_000 }, now),
+    ).toBe(true)
+  })
+
+  it('never checks automatically when switched off or hidden', () => {
+    expect(shouldAutoCheck('native', { autoCheck: false }, 0)).toBe(false)
+    expect(shouldAutoCheck('hidden', { autoCheck: true }, 0)).toBe(false)
+  })
+
+  it('badges only a newer release that was not skipped', () => {
+    expect(
+      showUpdateBadge('native', { autoCheck: true, latest }, '0.1.2'),
+    ).toBe(true)
+    expect(showUpdateBadge('web', { autoCheck: true, latest }, '0.1.2')).toBe(
+      true,
+    )
+    expect(
+      showUpdateBadge('native', { autoCheck: true, latest }, '0.1.3'),
+    ).toBe(false)
+    expect(
+      showUpdateBadge(
+        'native',
+        { autoCheck: true, latest, skippedVersion: '0.1.3' },
+        '0.1.2',
+      ),
+    ).toBe(false)
+    expect(
+      showUpdateBadge(
+        'native',
+        { autoCheck: true, latest, skippedVersion: '0.1.2' },
+        '0.1.1',
+      ),
+    ).toBe(true)
+    expect(
+      showUpdateBadge('hidden', { autoCheck: true, latest }, '0.1.2'),
+    ).toBe(false)
+    expect(showUpdateBadge('native', { autoCheck: true }, '0.1.2')).toBe(false)
+  })
+})
+
+describe('update check errors', () => {
+  it('maps failures to the four user-facing kinds', () => {
+    expect(updateErrorKind({ online: false })).toBe('offline')
+    expect(updateErrorKind({ online: false, timedOut: true })).toBe('offline')
+    expect(updateErrorKind({ online: true, timedOut: true })).toBe('timeout')
+    expect(updateErrorKind({ online: true, status: 403 })).toBe('rateLimited')
+    expect(updateErrorKind({ online: true, status: 429 })).toBe('rateLimited')
+    expect(updateErrorKind({ online: true, status: 500 })).toBe('general')
+    expect(updateErrorKind({ online: true })).toBe('general')
   })
 })
