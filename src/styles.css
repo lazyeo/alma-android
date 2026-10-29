@@ -8710,12 +8710,26 @@ dialog:focus,
   flex: 1;
   flex-direction: column;
   overflow-y: auto;
+  border-radius: var(--radius-md);
+  background: var(--agent-terminal-bg);
+  color: var(--agent-terminal-fg);
   overscroll-behavior: contain;
   touch-action: pan-y;
 }
 .agent-terminal-scroll-grid {
-  overflow-x: auto;
+  overflow: auto;
   touch-action: pan-x pan-y;
+}
+.agent-terminal-content {
+  display: flex;
+  min-width: 100%;
+  min-height: 100%;
+  flex: 1 0 auto;
+  flex-direction: column;
+}
+.agent-terminal-scroll-grid .agent-terminal-content {
+  width: max-content;
+  min-width: 100%;
 }
 .agent-terminal-history {
   min-width: 100%;
@@ -8723,8 +8737,8 @@ dialog:focus,
   flex: 0 0 auto;
   margin: 0;
   padding: 10px;
-  border: var(--border-hairline) solid var(--gray-7);
-  border-radius: var(--radius-md);
+  border: 0;
+  border-radius: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: var(--text-xs);
   line-height: var(--leading-tight);
@@ -8767,10 +8781,10 @@ dialog:focus,
   min-height: 0;
   flex: 1;
   overflow: hidden;
-  border: var(--border-hairline) solid var(--gray-7);
-  border-radius: var(--radius-md);
-  background: var(--gray-1);
-  color: var(--gray-12);
+  border: 0;
+  border-radius: 0;
+  background: var(--agent-terminal-bg);
+  color: var(--agent-terminal-fg);
 }
 .terminal-surface {
   width: 100%;
@@ -8787,10 +8801,10 @@ dialog:focus,
   background-color: transparent !important;
 }
 .terminal-viewport[data-display-mode='grid'] {
-  overflow: auto;
+  flex: 0 0 auto;
+  overflow: hidden;
 }
 .terminal-viewport[data-display-mode='grid'] .terminal-surface {
-  width: calc(var(--terminal-content-width) + 20px);
   min-width: 100%;
 }
 .agent-terminal-loading {

@@ -3,7 +3,9 @@
 // and Codex sessions into {kind, text} and {kind:'tool', tool:{name, input,
 // result, is_error}} items. Pure functions so they can be unit tested.
 
-export const TERMINAL_COLORS = { bg: '#1e1f24', fg: '#d4d6dc' }
+import { TERMINAL_COLORS } from '../terminal/terminal'
+
+export { TERMINAL_COLORS }
 
 export interface AnsiStyle {
   bold?: boolean

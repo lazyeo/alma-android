@@ -43,11 +43,13 @@ export const PTY_KEY_MAP: Record<TerminalKey, string> = {
   backspace: '\u007f',
 }
 
+export const TERMINAL_COLORS = { bg: '#1e1f24', fg: '#d4d6dc' } as const
+
 export const TERMINAL_THEME = {
-  background: '#1e1f24',
-  foreground: '#d4d6dc',
-  cursor: '#d4d6dc',
-  cursorAccent: '#1e1f24',
+  background: TERMINAL_COLORS.bg,
+  foreground: TERMINAL_COLORS.fg,
+  cursor: TERMINAL_COLORS.fg,
+  cursorAccent: TERMINAL_COLORS.bg,
   selectionBackground: '#5c637066',
   black: '#1e1f24',
   red: '#e06c75',

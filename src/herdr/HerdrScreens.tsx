@@ -14,6 +14,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from 'react'
 import { useParams } from 'react-router-dom'
@@ -516,6 +517,12 @@ export function AgentPaneScreen() {
             <div
               className={`agent-terminal-scroll agent-terminal-scroll-${terminalDisplayMode}`}
               ref={terminalScrollRef}
+              style={
+                {
+                  '--agent-terminal-bg': TERMINAL_COLORS.bg,
+                  '--agent-terminal-fg': TERMINAL_COLORS.fg,
+                } as CSSProperties
+              }
               onScroll={(event) => {
                 const scroller = event.currentTarget
                 terminalScrollState.current = {
@@ -545,36 +552,38 @@ export function AgentPaneScreen() {
                   {t('agents.loadEarlierOutput')}
                 </button>
               )}
-              {terminalHistory ? (
-                <TerminalHistory
-                  text={terminalHistory}
-                  displayMode={terminalDisplayMode}
-                />
-              ) : null}
-              {terminalHistory ? (
-                <div className="agent-terminal-history-gap" />
-              ) : null}
-              <div className="agent-terminal-area">
-                <Suspense
-                  fallback={
-                    <div className="agent-terminal-loading">
-                      {t('agents.terminalWaiting')}
-                    </div>
-                  }
-                >
-                  <TerminalView
-                    className="agent-terminal"
-                    mode="snapshot"
+              <div className="agent-terminal-content">
+                {terminalHistory ? (
+                  <TerminalHistory
+                    text={terminalHistory}
                     displayMode={terminalDisplayMode}
-                    ariaLabel={t('agents.terminalOutput')}
-                    frame={{
-                      text: terminal,
-                      cols: terminalSize.cols,
-                      rows: terminalSize.rows,
-                    }}
-                    waitingText={t('agents.terminalWaiting')}
                   />
-                </Suspense>
+                ) : null}
+                {terminalHistory ? (
+                  <div className="agent-terminal-history-gap" />
+                ) : null}
+                <div className="agent-terminal-area">
+                  <Suspense
+                    fallback={
+                      <div className="agent-terminal-loading">
+                        {t('agents.terminalWaiting')}
+                      </div>
+                    }
+                  >
+                    <TerminalView
+                      className="agent-terminal"
+                      mode="snapshot"
+                      displayMode={terminalDisplayMode}
+                      ariaLabel={t('agents.terminalOutput')}
+                      frame={{
+                        text: terminal,
+                        cols: terminalSize.cols,
+                        rows: terminalSize.rows,
+                      }}
+                      waitingText={t('agents.terminalWaiting')}
+                    />
+                  </Suspense>
+                </div>
               </div>
             </div>
             <TerminalKeyRow

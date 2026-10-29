@@ -235,10 +235,10 @@ function TerminalViewComponent(props: TerminalViewProps) {
       if (sizingKey !== lastSizingRef.current) {
         lastSizingRef.current = sizingKey
         viewport.dataset.displayMode = job.displayMode
-        viewport.style.setProperty(
-          '--terminal-content-width',
-          `${sizing.contentWidth}px`,
-        )
+        viewport.style.width =
+          job.displayMode === 'grid'
+            ? `${sizing.contentWidth + SURFACE_INSET}px`
+            : ''
       }
 
       const buffer = terminal.buffer.active
