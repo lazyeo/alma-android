@@ -3,4 +3,5 @@
     <external-path name="my_images" path="." />
     <cache-path name="my_cache_images" path="." />
     <cache-path name="file_handoff" path="file-handoff/" />
+    <cache-path name="app_updates" path="updates/" />
 </paths>
