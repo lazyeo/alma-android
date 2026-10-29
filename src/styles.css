@@ -8426,8 +8426,34 @@ dialog:focus,
   text-decoration: none;
   border-bottom: var(--border-hairline) solid var(--gray-7);
 }
-.agent-pane-row:last-child {
+.agent-pane-row-wrap:last-child > .agent-pane-row,
+.agent-pane-row-wrap:last-child > .agent-row-blocked-card {
   border-bottom: 0;
+}
+.agent-row-blocked-card {
+  display: grid;
+  gap: 8px;
+  padding: 0 12px 12px 31px;
+  border-bottom: var(--border-hairline) solid var(--gray-7);
+  background: var(--amber-3);
+}
+.agent-row-blocked-card > strong {
+  padding-top: 10px;
+  font-size: var(--text-xs);
+}
+.agent-row-blocked-card > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.agent-row-blocked-card .chip-button {
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  min-height: 34px;
+  padding-block: 7px;
+  text-align: left;
+  white-space: normal;
 }
 .agent-pane-row.selected {
   background: var(--accent-3);

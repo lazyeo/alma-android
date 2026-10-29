@@ -1,10 +1,16 @@
 import { BellOff, BellRing } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { desktopAgentPanePath } from '../desktopRoutes'
+import { useConnection } from '../desktops/DesktopContext'
 import { useT } from '../i18n'
 import { relative } from '../screens/ThreadListRow'
-import type { AgentPaneModel, AgentWorkspaceModel } from './model'
+import {
+  parseBlockedPrompt,
+  type AgentPaneModel,
+  type AgentWorkspaceModel,
+  type BlockedPrompt,
+} from './model'
 import type { WorkspaceSwitcherItem } from './agentsBoardModel'
 
 export const agentStatusClass = (
@@ -29,29 +35,80 @@ export function AgentPaneRow({
   compact?: boolean
 }) {
   const t = useT()
+  const { api } = useConnection()
+  const [prompt, setPrompt] = useState<BlockedPrompt | null>(null)
+  const [answering, setAnswering] = useState(false)
+  useEffect(() => {
+    setPrompt(null)
+    if (pane.status !== 'blocked') return
+    let cancelled = false
+    void api
+      .readHerdrPane(pane.id, 'text', { source: 'visible' })
+      .then((result) => {
+        if (!cancelled)
+          setPrompt(parseBlockedPrompt(result?.read?.text ?? ''))
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [api, pane.id, pane.status])
+  const choose = async (optionNumber: number) => {
+    if (!prompt || answering) return
+    setAnswering(true)
+    try {
+      await api.chooseHerdrMenuOption(
+        pane.id,
+        prompt.selectedIndex,
+        optionNumber,
+      )
+    } finally {
+      setAnswering(false)
+    }
+  }
   // Already viewing a pane (split layout): switching sessions replaces the
   // entry so Back leaves Agents instead of stepping through every session.
   const { paneId: openPaneId } = useParams()
   const changed = pane.lastChangedAt ? relative(pane.lastChangedAt) : ''
   return (
-    <Link
-      className={`agent-pane-row${selected ? ' selected' : ''}${compact ? ' compact' : ''}`}
-      to={desktopAgentPanePath(desktopId, pane.id)}
-      replace={Boolean(selected || openPaneId)}
-      aria-current={selected ? 'page' : undefined}
-    >
-      <span className={`agent-status ${agentStatusClass(pane.status)}`} />
-      <span className="agent-pane-copy">
-        <span className="agent-pane-heading">
-          <strong>{pane.agent}</strong>
-          {changed ? <small>{changed}</small> : null}
+    <div className="agent-pane-row-wrap">
+      <Link
+        className={`agent-pane-row${selected ? ' selected' : ''}${compact ? ' compact' : ''}`}
+        to={desktopAgentPanePath(desktopId, pane.id)}
+        replace={Boolean(selected || openPaneId)}
+        aria-current={selected ? 'page' : undefined}
+      >
+        <span className={`agent-status ${agentStatusClass(pane.status)}`} />
+        <span className="agent-pane-copy">
+          <span className="agent-pane-heading">
+            <strong>{pane.agent}</strong>
+            {changed ? <small>{changed}</small> : null}
+          </span>
+          <span className="agent-pane-title">{pane.title}</span>
         </span>
-        <span className="agent-pane-title">{pane.title}</span>
-      </span>
-      <span className={`agent-status-badge ${agentStatusClass(pane.status)}`}>
-        {t(`agents.status.${agentStatusClass(pane.status)}`)}
-      </span>
-    </Link>
+        <span className={`agent-status-badge ${agentStatusClass(pane.status)}`}>
+          {t(`agents.status.${agentStatusClass(pane.status)}`)}
+        </span>
+      </Link>
+      {prompt ? (
+        <aside className="agent-row-blocked-card">
+          <strong>{prompt.question}</strong>
+          <div>
+            {prompt.options.map((option, index) => (
+              <button
+                className={`chip-button${index === prompt.selectedIndex ? ' active' : ''}`}
+                disabled={answering}
+                key={option.number}
+                aria-label={`${option.number}. ${option.label}`}
+                onClick={() => void choose(option.number)}
+              >
+                <span>{option.number}.</span> {option.label}
+              </button>
+            ))}
+          </div>
+        </aside>
+      ) : null}
+    </div>
   )
 }
 

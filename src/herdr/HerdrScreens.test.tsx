@@ -10,6 +10,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AgentPaneScreen } from './HerdrScreens'
 
 let paneId = 'pane-a'
+let agentStatus = 'idle'
+const blockedMenu = `Run this command?\n> 1. Yes, run command\n  2. Yes, always allow\n  3. No, cancel`
 const api = {
   getHerdrChat: vi.fn(async (target: string) =>
     target === 'pane-a'
@@ -28,6 +30,7 @@ const api = {
     close: vi.fn(),
   })),
   readHerdrPane: vi.fn(async () => ({ read: { text: '' } })),
+  chooseHerdrMenuOption: vi.fn(async () => undefined),
 }
 
 vi.mock('react-router-dom', () => ({
@@ -43,7 +46,7 @@ vi.mock('./HerdrProvider', () => ({
         snapshot: {
           panes: [
             { pane_id: 'pane-a', agent: 'agy', agent_status: 'idle' },
-            { pane_id: 'pane-b', agent: 'claude', agent_status: 'idle' },
+            { pane_id: 'pane-b', agent: 'claude', agent_status: agentStatus },
           ],
         },
       },
@@ -77,6 +80,7 @@ vi.mock('../terminal/TerminalView', () => ({
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  agentStatus = 'idle'
 })
 
 describe('AgentPaneScreen pane navigation', () => {
@@ -94,6 +98,22 @@ describe('AgentPaneScreen pane navigation', () => {
       expect(screen.getByText('Pane B transcript')).toBeTruthy(),
     )
     expect(screen.getByRole('button', { name: 'agents.chat' })).toBeTruthy()
+  })
+
+  it('shows every blocked option in chat, highlights the cursor, and hides the card in terminal', async () => {
+    paneId = 'pane-b'
+    agentStatus = 'blocked'
+    api.readHerdrPane.mockResolvedValueOnce({ read: { text: blockedMenu } })
+    render(<AgentPaneScreen />)
+
+    await waitFor(() => expect(screen.getByText('Run this command?')).toBeTruthy())
+    const selected = screen.getByRole('button', { name: '1. Yes, run command' })
+    expect(selected.className).toContain('active')
+    expect(screen.getByRole('button', { name: '2. Yes, always allow' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '3. No, cancel' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'agents.terminal' }))
+    expect(screen.queryByText('Run this command?')).toBeNull()
   })
 
   it('requests recent ANSI history for the current display mode', async () => {

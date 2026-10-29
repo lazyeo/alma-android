@@ -348,10 +348,14 @@ export function AgentPaneScreen() {
       setSending(false)
     }
   }
-  const choose = async (key: string) => {
+  const choose = async (optionNumber: number) => {
     setSending(true)
     try {
-      await api.chooseHerdrMenuOption(decodedPaneId, key)
+      await api.chooseHerdrMenuOption(
+        decodedPaneId,
+        blockedPrompt?.selectedIndex,
+        optionNumber,
+      )
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : t('agents.sendFailed'),
@@ -422,27 +426,23 @@ export function AgentPaneScreen() {
             loadTerminalHistory()
         }}
       >
-        {blockedPrompt ? (
+        {view === 'chat' && blockedPrompt ? (
           <aside className="agent-blocked-card">
             <span>{t('agents.needsYou')}</span>
             <strong>{blockedPrompt.question}</strong>
             <div>
-              <button
-                className="quiet-text-button"
-                disabled={sending}
-                onClick={() => void choose(blockedPrompt.deny.key)}
-                title={blockedPrompt.deny.label}
-              >
-                {t('agents.deny')}: {truncateOption(blockedPrompt.deny.label)}
-              </button>
-              <button
-                className="chip-button active"
-                disabled={sending}
-                onClick={() => void choose(blockedPrompt.allow.key)}
-                title={blockedPrompt.allow.label}
-              >
-                {t('agents.allow')}: {truncateOption(blockedPrompt.allow.label)}
-              </button>
+              {blockedPrompt.options.map((option, index) => (
+                <button
+                  className={`chip-button${index === blockedPrompt.selectedIndex ? ' active' : ''}`}
+                  disabled={sending}
+                  key={option.number}
+                  onClick={() => void choose(option.number)}
+                  title={option.label}
+                  aria-label={`${option.number}. ${option.label}`}
+                >
+                  <span>{option.number}.</span> {option.label}
+                </button>
+              ))}
             </div>
           </aside>
         ) : null}
