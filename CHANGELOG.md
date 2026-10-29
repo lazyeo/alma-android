@@ -8,13 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- CSV tables with quoted-field parsing, lazy XLSX worksheets, and sandboxed DOCX previews; tables show at most 2,000 rows and 100 columns with truncation notices.
+- Chat and Markdown files render KaTeX math and Mermaid diagrams (loaded on demand, with a Source toggle in the code block header and a fallback to the source when rendering fails).
+- File previews for audio, video, SVG, PDF (zoom, fit width, page indicator), CSV, Excel worksheets, and Word documents. Tables show at most 2,000 rows and 100 columns; files over the per-type limit can still be opened, shared, or saved.
 
-- Size-bounded file previews and lazy PDF canvas rendering with a bundled worker, fit-width, zoom, and page navigation status.
+### Changed
 
-- Native audio/video controls and isolated SVG image previews, with navigation-safe Blob URL cleanup.
-
-- Shared Markdown previews support local KaTeX math and lazy, isolated Mermaid diagrams with source fallback.
+- Buttons use shared quiet icon, text, and chip styles instead of the WebView default look; the image gallery closes with a plain X at the top end.
 
 ## [0.1.1] - 2026-10-29
 
@@ -31,6 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - Message action sheet items have icons; the text-selection view closes with an icon button instead of a Done label.
+
 ## [0.1.0] - 2026-10-29
 
 ### Added
