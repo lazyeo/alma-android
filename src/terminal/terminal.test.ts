@@ -118,11 +118,11 @@ describe('snapshot terminal', () => {
 })
 
 describe('terminal sizing', () => {
-  it('scales the grid font below the old minimum so the page never overflows', () => {
+  it('keeps grid text readable and reports horizontal terminal overflow', () => {
     expect(calculateSnapshotFontSize(320, 100)).toEqual({
-      fontSize: 5.3,
-      contentWidth: 318,
-      overflows: false,
+      fontSize: 11,
+      contentWidth: 660,
+      overflows: true,
     })
   })
 
@@ -135,12 +135,12 @@ describe('terminal sizing', () => {
     })
   })
 
-  it('uses source dimensions in grid mode', () => {
+  it('uses source dimensions and readable font size in grid mode', () => {
     expect(calculateSnapshotSize(320, 480, 'grid', 160, 40)).toEqual({
       cols: 160,
       rows: 40,
-      fontSize: 3.3,
-      contentWidth: 316,
+      fontSize: 11,
+      contentWidth: 1056,
     })
   })
 })

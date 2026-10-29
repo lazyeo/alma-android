@@ -471,10 +471,15 @@ export function AgentPaneScreen() {
                   onClick={toggleTerminalDisplayMode}
                 >
                   {terminalDisplayMode === 'reflow' ? (
-                    <Grid3X3 size={16} />
-                  ) : (
                     <WrapText size={16} />
+                  ) : (
+                    <Grid3X3 size={16} />
                   )}
+                  <span>
+                    {terminalDisplayMode === 'reflow'
+                      ? t('agents.terminalModeFit')
+                      : t('agents.terminalModeGrid')}
+                  </span>
                 </button>
               }
             />

@@ -31,6 +31,8 @@ export const agents = {
   terminalWaiting: '正在等待终端输出…',
   terminalOutput: '终端输出',
   terminalKeys: '终端按键',
+  terminalModeFit: '适应屏幕',
+  terminalModeGrid: '原始排版',
   terminalUseGrid: '显示原始终端网格',
   terminalUseReflow: '按当前屏幕宽度换行',
   terminalKeyEscape: '退出键',

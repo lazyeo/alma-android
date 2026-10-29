@@ -90,7 +90,7 @@ export interface TerminalDriver {
 }
 
 const DEFAULT_FONT_SIZE = 13
-const MIN_GRID_FONT_SIZE = 3
+const MIN_GRID_FONT_SIZE = 11
 const CELL_WIDTH_EM = 0.6
 const LINE_HEIGHT = 1.2
 

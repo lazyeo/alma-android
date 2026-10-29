@@ -32,6 +32,8 @@ export const agents = {
   terminalWaiting: 'Waiting for terminal output…',
   terminalOutput: 'Terminal output',
   terminalKeys: 'Terminal keys',
+  terminalModeFit: 'Fit',
+  terminalModeGrid: 'Mac grid',
   terminalUseGrid: 'Show the original terminal grid',
   terminalUseReflow: 'Wrap terminal lines to this screen',
   terminalKeyEscape: 'Escape',

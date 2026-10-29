@@ -8751,9 +8751,12 @@ dialog:focus,
 .terminal-surface .xterm-viewport {
   background-color: transparent !important;
 }
-.terminal-viewport[data-display-mode='grid'] .xterm-screen,
-.terminal-viewport[data-display-mode='grid'] .xterm-rows {
-  max-width: 100%;
+.terminal-viewport[data-display-mode='grid'] {
+  overflow: auto;
+}
+.terminal-viewport[data-display-mode='grid'] .terminal-surface {
+  width: calc(var(--terminal-content-width) + 20px);
+  min-width: 100%;
 }
 .agent-terminal-loading {
   display: grid;
