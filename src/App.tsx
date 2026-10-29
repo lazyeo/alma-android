@@ -60,6 +60,12 @@ import { closeTopOverlay, handleOverlayPopState } from './overlayStack'
 import { setDesktopHidden, visiblePairings } from './desktops/desktopVisibility'
 import { useT } from './i18n'
 
+const RemoteScreen = lazy(() =>
+  import('./screens/remoteScreen/RemoteScreen').then((module) => ({
+    default: module.RemoteScreen,
+  })),
+)
+
 const ThreadScreen = lazy(() =>
   import('./screens/ThreadScreen').then((module) => ({
     default: module.ThreadScreen,
@@ -340,6 +346,14 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
                     }
                   />
                   <Route path="time-clues" element={<TimeCluesScreen />} />
+                  <Route
+                    path="screen"
+                    element={
+                      <Suspense fallback={<OpeningThread />}>
+                        <RemoteScreen />
+                      </Suspense>
+                    }
+                  />
                   <Route path="crystals" element={<CrystalsScreen />} />
                   <Route path="references" element={<ReferencesScreen />} />
                   <Route

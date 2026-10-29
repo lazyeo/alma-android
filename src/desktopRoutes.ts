@@ -12,6 +12,10 @@ export function desktopGtdPath(desktopId: string, threadId?: string) {
   return threadId ? `${base}/${encodeURIComponent(threadId)}` : base
 }
 
+export function desktopScreenPath(desktopId: string) {
+  return `/d/${encodeURIComponent(desktopId)}/screen`
+}
+
 export function desktopTimeCluesPath(desktopId: string) {
   return `/d/${encodeURIComponent(desktopId)}/time-clues`
 }

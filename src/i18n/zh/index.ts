@@ -34,6 +34,7 @@ import { composer } from './composer'
 import { library } from './library'
 import { files } from './files'
 import { share } from './share'
+import { screen } from './screen'
 import type { CatalogShape } from '../core'
 import type { Messages } from '../en'
 
@@ -52,4 +53,5 @@ export const zh: CatalogShape<Messages> = {
   library,
   files,
   share,
+  screen,
 }

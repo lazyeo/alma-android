@@ -19,6 +19,7 @@ import {
   Eye,
   EyeOff,
   Laptop,
+  MonitorUp,
   MessageCircleQuestion,
   Play,
   Plus,
@@ -46,6 +47,7 @@ import {
 import { ThemeSettingsView } from '../ThemeProvider'
 import { LanguageSettings } from './LanguageSettings'
 import { useNavigate } from 'react-router-dom'
+import { desktopScreenPath } from '../desktopRoutes'
 import { useDesktops } from '../desktops/DesktopContext'
 import { useHandoff } from '../handoff/HandoffProvider'
 import { desktopRowSecondary, humanConnectionError } from '../uiCopy'
@@ -802,6 +804,21 @@ export function SettingsScreen() {
             </p>
           ) : null}
           <div className="sheet-list desktop-detail-actions">
+            <button
+              className="sheet-row"
+              disabled={selectedDesktop.status !== 'online'}
+              onClick={() => {
+                setDesktopDetail(undefined)
+                navigate(desktopScreenPath(selectedDesktop.pairing.id))
+              }}
+            >
+              <MonitorUp size={18} />
+              <span className="sheet-row-copy">
+                <span>{t('screen.open')}</span>
+                <small>{t('screen.openHint')}</small>
+              </span>
+              <ChevronRight className="settings-chevron" size={16} />
+            </button>
             <button
               className="sheet-row"
               onClick={() => {
