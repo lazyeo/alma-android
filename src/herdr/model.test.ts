@@ -79,6 +79,28 @@ describe('parseBlockedPrompt', () => {
     })
   })
 
+  it.each(['❯', '>', '›', '▶', '→'])(
+    'keeps an agy permission menu detected with %s on every option',
+    (cursor) => {
+      for (const selected of ['1', '2', '3', '4']) {
+        const lines = [
+          'Run this command?',
+          '  1. Yes, run command',
+          '  2. Yes, and always allow in this conversation...',
+          '  3. Yes, and always allow ... (Persist to settings...)',
+          '  4. No, cancel.',
+        ].map((line) =>
+          line.includes(`${selected}.`) ? `${cursor} ${line.trim()}` : line,
+        )
+        expect(parseBlockedPrompt(lines.join('\n'))).toEqual({
+          question: 'Run this command?',
+          allow: { key: '1', label: 'Yes, run command' },
+          deny: { key: '4', label: 'No, cancel.' },
+        })
+      }
+    },
+  )
+
   it('accepts menu chrome and rejects menus without a later No option', () => {
     expect(
       parseBlockedPrompt(`│ Delete the file? │\n│ 1. Yes │\n│ 2. No │`),

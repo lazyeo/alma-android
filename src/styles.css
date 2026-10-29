@@ -8586,9 +8586,12 @@ dialog:focus,
   display: flex;
   overflow: hidden;
   padding: 10px 14px 0;
+  flex-direction: column;
 }
 .agent-blocked-card {
   display: grid;
+  width: 100%;
+  flex: 0 0 auto;
   gap: 8px;
   margin: 2px 0 12px;
   padding: 12px;
@@ -8609,8 +8612,16 @@ dialog:focus,
 }
 .agent-blocked-card > div {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+}
+.agent-blocked-card > div > button {
+  min-height: 36px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .agent-chat {
   display: flex;

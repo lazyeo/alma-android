@@ -373,15 +373,17 @@ export function AgentPaneScreen() {
                 className="quiet-text-button"
                 disabled={sending}
                 onClick={() => void choose(blockedPrompt.deny.key)}
+                title={blockedPrompt.deny.label}
               >
-                {t('agents.deny')}
+                {t('agents.deny')}: {truncateOption(blockedPrompt.deny.label)}
               </button>
               <button
                 className="chip-button active"
                 disabled={sending}
                 onClick={() => void choose(blockedPrompt.allow.key)}
+                title={blockedPrompt.allow.label}
               >
-                {t('agents.allow')}
+                {t('agents.allow')}: {truncateOption(blockedPrompt.allow.label)}
               </button>
             </div>
           </aside>
@@ -618,6 +620,11 @@ function TerminalKeyRow({
     </div>
   )
 }
+
+const truncateOption = (label: string, maxLength = 34) =>
+  label.length > maxLength
+    ? `${label.slice(0, maxLength - 1).trimEnd()}…`
+    : label
 
 const isPinnedToBottom = (element: HTMLElement) =>
   element.scrollHeight - element.scrollTop - element.clientHeight < 32

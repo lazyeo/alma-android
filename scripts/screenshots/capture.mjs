@@ -5436,15 +5436,37 @@ const herdrShots = [
       {
         file: `herdr-blocked-${lang}-412.png`,
         viewport: PHONE,
+        deviceScaleFactor: 2,
         route: '/d/fixture-desktop/agents/w1%3Ap1',
         language: lang,
         query: 'agentState=blocked',
         ready: '.agent-blocked-card',
         safeInsets: true,
         async act(page) {
+          await page.getByRole('button', { name: terminalLabel }).click()
+          await page.locator('.agent-terminal .xterm-rows').waitFor()
           await assertAgentPaneGeometry(page)
         },
       },
+      ...(lang === 'zh'
+        ? [
+            {
+              file: 'herdr-blocked-zh-884.png',
+              viewport: TABLET,
+              deviceScaleFactor: 2,
+              route: '/d/fixture-desktop/agents/w1%3Ap1',
+              language: lang,
+              query: 'agentState=blocked',
+              ready: '.agent-blocked-card',
+              safeInsets: true,
+              async act(page) {
+                await page.getByRole('button', { name: terminalLabel }).click()
+                await page.locator('.agent-terminal .xterm-rows').waitFor()
+                await assertAgentPaneGeometry(page)
+              },
+            },
+          ]
+        : []),
     ]
   }),
 ]

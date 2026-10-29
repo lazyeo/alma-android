@@ -1814,11 +1814,12 @@ const herdrLongLine =
   'Rendering a synthetic 160-column terminal snapshot with a deliberately long command and ANSI colors so narrow phones must wrap it without leaking beyond the detail pane.'
 const herdrTerminal =
   screenshotParams.get('agentState') === 'blocked'
-    ? `Claude Code needs permission to run the Android build.
+    ? `Run this command?
 
-\u001b[1m❯ 1. Yes, allow once\u001b[0m
-  2. Yes, and remember
-  3. No, deny`
+  1. Yes, run command
+> 2. Yes, and always allow in this conversation...
+  3. Yes, and always allow ... (Persist to settings...)
+  4. No, cancel.`
     : `\u001b[2m$\u001b[0m npm run check -- --fixture-terminal-columns=160
 \u001b[38;2;152;195;121m✓\u001b[0m TypeScript
 \u001b[38;2;152;195;121m✓\u001b[0m Vitest

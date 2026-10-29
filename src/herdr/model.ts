@@ -151,7 +151,7 @@ export interface BlockedPrompt {
 
 const cleanMenuLine = (line: string) =>
   line.replace(/^\s*│/, '').split('│')[0].trim()
-const menuLine = /^(?:❯\s*)?(\d+)\.\s+(.*)$/
+const menuLine = /^\s*(?:[❯>›▶→]\s*)?(\d+)\.\s+(.*)$/
 
 /** Mirrors Alma desktop's numbered Yes/No detector for blocked terminals. */
 export function parseBlockedPrompt(text: string): BlockedPrompt | null {
