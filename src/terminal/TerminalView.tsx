@@ -50,6 +50,8 @@ export function TerminalView(props: TerminalViewProps) {
   const sessionRef = useRef<TerminalSession>()
   const lastStreamData = useRef('')
   const [ready, setReady] = useState(false)
+  // Bumped on viewport resize so the snapshot is refitted and rewritten.
+  const [layoutTick, setLayoutTick] = useState(0)
   const [viewportStyle, setViewportStyle] = useState<CSSProperties>({
     backgroundColor: TERMINAL_THEME.background,
     color: TERMINAL_THEME.foreground,
@@ -114,7 +116,7 @@ export function TerminalView(props: TerminalViewProps) {
           fit.fit()
           sessionRef.current?.reportResize(terminal.cols, terminal.rows)
         }
-        setReady((value) => !value)
+        setLayoutTick((tick) => tick + 1)
       })
       if (viewportRef.current) resizeObserver.observe(viewportRef.current)
       setReady(true)
@@ -170,7 +172,7 @@ export function TerminalView(props: TerminalViewProps) {
       cols,
       rows,
     )
-  }, [props, ready])
+  }, [props, ready, layoutTick])
 
   useEffect(() => {
     if (props.mode !== 'stream' || !ready || !props.data) return
