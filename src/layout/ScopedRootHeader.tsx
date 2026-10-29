@@ -40,6 +40,7 @@ export function ScopedRootHeader({
             onClick={() => {
               const parent = parentRoute(pathname, mode)
               if (parent) navigate(parent, { replace: true })
+              else navigate(-1)
             }}
           >
             <ArrowLeft size={20} />

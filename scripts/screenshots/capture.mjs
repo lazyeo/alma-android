@@ -5480,6 +5480,11 @@ const herdrShots = [
                       scroller.getBoundingClientRect().top - 1
                   )
                 })
+                await page
+                  .locator('.agent-terminal-scroll')
+                  .evaluate((element) => {
+                    element.scrollTop = element.scrollHeight
+                  })
                 await assertAgentPaneGeometry(page)
               },
             },
@@ -5568,9 +5573,9 @@ const herdrShots = [
               ready: '.agent-message',
               safeInsets: true,
               async act(page) {
-                await page.getByRole('button', { name: '发消息' }).click()
+                await page.getByRole('button', { name: '终端' }).click()
                 await page.locator('.agent-composer-mode').waitFor()
-                await assertAgentPaneGeometry(page)
+                await assertNoHorizontalOverflow(page, '.agent-pane-page')
               },
             },
             {

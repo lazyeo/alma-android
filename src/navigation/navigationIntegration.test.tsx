@@ -36,10 +36,7 @@ describe('hierarchical navigation integration', () => {
   it('replaces a tab switch and returns a split Herdr pane to Chat root', () => {
     render(
       <MemoryRouter
-        initialEntries={[
-          '/d/desk/threads/previous-thread',
-          '/d/desk/gtd',
-        ]}
+        initialEntries={['/d/desk/threads/previous-thread', '/d/desk/gtd']}
         initialIndex={1}
       >
         <NavigationHarness />
@@ -52,9 +49,9 @@ describe('hierarchical navigation integration', () => {
     expect(screen.getByTestId('location').textContent).toContain(
       '/d/desk/agents/pane|',
     )
-    expect(Number(screen.getByTestId('location').textContent?.split('|')[2])).toBe(
-      beforeLength,
-    )
+    expect(
+      Number(screen.getByTestId('location').textContent?.split('|')[2]),
+    ).toBe(beforeLength)
 
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(screen.getByTestId('location').textContent).toContain(

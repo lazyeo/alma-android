@@ -38,6 +38,7 @@ import {
   cleanAgentText,
   parseAnsi,
   stripAnsi,
+  TERMINAL_COLORS,
   toolView,
   type AnsiStyle,
   type ToolView,
@@ -558,6 +559,9 @@ export function AgentPaneScreen() {
                   displayMode={terminalDisplayMode}
                 />
               ) : null}
+              {terminalHistory ? (
+                <div className="agent-terminal-history-gap" />
+              ) : null}
               <div className="agent-terminal-area">
                 <Suspense
                   fallback={
@@ -694,6 +698,10 @@ function TerminalHistory({
     <pre
       className={`agent-terminal-history agent-terminal-history-${displayMode}`}
       data-history-first-line={stripAnsi(text).split('\n')[0] ?? ''}
+      style={{
+        backgroundColor: TERMINAL_COLORS.bg,
+        color: TERMINAL_COLORS.fg,
+      }}
     >
       {parseAnsi(text).map((segment, index) => (
         <span style={ansiStyle(segment.style)} key={index}>
