@@ -105,6 +105,27 @@
   transform-origin: center;
   will-change: transform;
 }
+/* Canvas and video share one cell; video fades in once it has frames. */
+.remote-screen-transform > .remote-screen-media {
+  grid-area: 1 / 1;
+}
+.remote-screen-video {
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.remote-screen-video.live {
+  opacity: 1;
+}
+.remote-screen-asleep {
+  z-index: 2;
+  padding: 24px;
+  background: var(--gray-2);
+  color: var(--gray-12);
+  text-align: center;
+}
+.remote-screen-asleep strong {
+  font-size: var(--text-md);
+}
 .remote-screen-media {
   display: block;
   width: 100%;

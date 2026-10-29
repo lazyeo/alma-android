@@ -4,6 +4,10 @@ export const screen = {
   openHint: 'View this desktop and optionally control it',
   back: 'Back',
   connecting: 'Connecting to Mac…',
+  noPicture: 'No picture from the Mac',
+  noPictureHint:
+    "The display may be asleep, locked or the lid closed. A closed lid can't be woken remotely.",
+  wake: 'Wake display',
   unavailable: 'Screen sharing is unavailable',
   viewOnly: 'View only',
   control: 'Control',

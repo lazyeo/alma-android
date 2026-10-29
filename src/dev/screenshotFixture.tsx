@@ -48,7 +48,10 @@ const SCREEN_JPEG = (() => {
   image.src = `data:image/svg+xml;base64,${btoa(SCREEN_PATTERN)}`
   return new Promise<string>((resolve) => {
     image.onload = () => {
-      context.drawImage(image, 0, 0)
+      // ?screenState=asleep simulates a sleeping display (all-black capture).
+      if (new URLSearchParams(location.search).get('screenState') === 'asleep')
+        context.fillRect(0, 0, canvas.width, canvas.height)
+      else context.drawImage(image, 0, 0)
       resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1] ?? '')
     }
   })
