@@ -1247,7 +1247,16 @@ function route(method: string, path: string, body?: unknown): TunnelResponse {
       params?: Record<string, unknown>
     }
     if (request.method === 'pane.read')
-      return json(200, { result: { read: { text: herdrTerminal } } })
+      return json(200, {
+        result: {
+          read: {
+            text:
+              request.params?.source === 'visible'
+                ? herdrTerminal
+                : `${herdrTerminalHistory}\n${herdrTerminal}`,
+          },
+        },
+      })
     return json(200, { result: { accepted: true } })
   }
   if (pathname === '/api/files-abs-binary') {
@@ -1817,6 +1826,11 @@ const herdrChatItems = [
 ]
 const herdrLongLine =
   'Rendering a synthetic 160-column terminal snapshot with a deliberately long command and ANSI colors so narrow phones must wrap it without leaking beyond the detail pane.'
+const herdrTerminalHistory = Array.from(
+  { length: 28 },
+  (_, index) =>
+    `\u001b[2m${String(index + 1).padStart(2, '0')}\u001b[0m earlier fixture output preserved above the live terminal screen`,
+).join('\n')
 const herdrTerminal =
   screenshotParams.get('agentState') === 'blocked'
     ? `Run this command?

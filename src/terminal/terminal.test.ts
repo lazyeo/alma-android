@@ -7,6 +7,7 @@ import {
   calculateSnapshotSize,
   loadSnapshotDisplayMode,
   loadTerminalComposerMode,
+  mergeTerminalHistory,
   prepareReflowSnapshot,
   saveSnapshotDisplayMode,
   saveTerminalComposerMode,
@@ -116,6 +117,29 @@ describe('snapshot terminal', () => {
     expect(driver.write).toHaveBeenCalledWith(
       '\u001b[H\u001b[3J\u001b[2Jlong line\r\nnext',
     )
+  })
+})
+
+describe('terminal history', () => {
+  it('drops the visible-screen overlap from the end of recent output', () => {
+    expect(
+      mergeTerminalHistory(
+        'earlier one\nearlier two\nvisible one\nvisible two',
+        'visible one\nvisible two',
+      ),
+    ).toEqual({ text: 'earlier one\nearlier two', hasEarlier: true })
+  })
+
+  it('reports when recent output only contains the visible screen', () => {
+    expect(
+      mergeTerminalHistory(
+        'visible one\nvisible two',
+        'visible one\nvisible two',
+      ),
+    ).toEqual({
+      text: '',
+      hasEarlier: false,
+    })
   })
 })
 

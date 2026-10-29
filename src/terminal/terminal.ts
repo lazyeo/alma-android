@@ -156,6 +156,31 @@ export function saveSnapshotDisplayMode(
   }
 }
 
+const terminalLines = (text: string) => text.replace(/\r\n/g, '\n').split('\n')
+
+export function mergeTerminalHistory(recent: string, visible: string) {
+  const recentLines = terminalLines(recent)
+  const visibleLines = terminalLines(visible)
+  while (recentLines.at(-1) === '' && visibleLines.at(-1) === '') {
+    recentLines.pop()
+    visibleLines.pop()
+  }
+  const overlaps =
+    visibleLines.length > 0 && recentLines.length >= visibleLines.length
+      ? visibleLines.every(
+          (line, index) =>
+            recentLines[recentLines.length - visibleLines.length + index] ===
+            line,
+        )
+      : false
+  const historyLines = overlaps
+    ? recentLines.slice(0, -visibleLines.length)
+    : recentLines
+  while (historyLines.at(-1) === '') historyLines.pop()
+  const text = historyLines.join('\n')
+  return { text, hasEarlier: text.length > 0 }
+}
+
 export function prepareReflowSnapshot(text: string) {
   return text
     .replace(/\r\n/g, '\n')

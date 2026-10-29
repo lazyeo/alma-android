@@ -24,6 +24,7 @@ import { MarkdownContent } from '../screens/MarkdownContent'
 import {
   HERDR_KEY_MAP,
   loadSnapshotDisplayMode,
+  mergeTerminalHistory,
   loadTerminalComposerMode,
   saveSnapshotDisplayMode,
   saveTerminalComposerMode,
@@ -99,6 +100,9 @@ export function AgentPaneScreen() {
   const [chatReady, setChatReady] = useState(false)
   const [chatUnsupported, setChatUnsupported] = useState(false)
   const [terminal, setTerminal] = useState('')
+  const [terminalHistory, setTerminalHistory] = useState('')
+  const [terminalHistoryEmpty, setTerminalHistoryEmpty] = useState(false)
+  const [loadingTerminalHistory, setLoadingTerminalHistory] = useState(false)
   const [terminalSize, setTerminalSize] = useState({ cols: 80, rows: 24 })
   const [draft, setDraft] = useState('')
   const [composerMode, setComposerMode] = useState<TerminalComposerMode>(
@@ -109,6 +113,8 @@ export function AgentPaneScreen() {
   const [error, setError] = useState('')
 
   const toggleTerminalDisplayMode = () => {
+    setTerminalHistory('')
+    setTerminalHistoryEmpty(false)
     setTerminalDisplayMode((current) => {
       const next = current === 'reflow' ? 'grid' : 'reflow'
       saveSnapshotDisplayMode(next)
@@ -159,6 +165,9 @@ export function AgentPaneScreen() {
     setChatReady(false)
     setChatUnsupported(false)
     setTerminal('')
+    setTerminalHistory('')
+    setTerminalHistoryEmpty(false)
+    setLoadingTerminalHistory(false)
     setTerminalSize({ cols: 80, rows: 24 })
     setDraft('')
     setSending(false)
@@ -261,7 +270,7 @@ export function AgentPaneScreen() {
     } else if (scrollMemory.current[view] === null)
       body.scrollTop = body.scrollHeight
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, queued, terminal, blockedPrompt])
+  }, [items, queued, terminal, terminalHistory, blockedPrompt])
   const loadOlder = () => {
     const body = bodyRef.current
     if (body) prependAnchor.current = body.scrollHeight - body.scrollTop
@@ -269,6 +278,29 @@ export function AgentPaneScreen() {
       prependAnchor.current = null
       setError(String(reason))
     })
+  }
+  const loadTerminalHistory = () => {
+    if (loadingTerminalHistory) return
+    const body = bodyRef.current
+    if (body) prependAnchor.current = body.scrollHeight - body.scrollTop
+    setLoadingTerminalHistory(true)
+    setTerminalHistoryEmpty(false)
+    void api
+      .readHerdrPane(decodedPaneId, 'ansi', {
+        source:
+          terminalDisplayMode === 'reflow' ? 'recent_unwrapped' : 'recent',
+        lines: 2000,
+      })
+      .then((result) => {
+        const merged = mergeTerminalHistory(result?.read?.text ?? '', terminal)
+        setTerminalHistory(merged.text)
+        setTerminalHistoryEmpty(!merged.hasEarlier)
+      })
+      .catch((reason) => {
+        prependAnchor.current = null
+        setError(String(reason))
+      })
+      .finally(() => setLoadingTerminalHistory(false))
   }
   // Only the newest unanswered question offers its options as replies.
   const answerableId = useMemo(() => {
@@ -371,7 +403,16 @@ export function AgentPaneScreen() {
       <div
         className={`agent-pane-body agent-pane-body-${view}`}
         ref={bodyRef}
-        onScroll={view === 'chat' ? rememberScroll : undefined}
+        onScroll={() => {
+          rememberScroll()
+          if (
+            view === 'terminal' &&
+            bodyRef.current?.scrollTop === 0 &&
+            !terminalHistory &&
+            !terminalHistoryEmpty
+          )
+            loadTerminalHistory()
+        }}
       >
         {blockedPrompt ? (
           <aside className="agent-blocked-card">
@@ -439,6 +480,18 @@ export function AgentPaneScreen() {
                 {t('agents.chatUnsupported')}
               </p>
             ) : null}
+            <button
+              className="quiet-text-button agent-load-terminal-history"
+              disabled={loadingTerminalHistory}
+              onClick={loadTerminalHistory}
+            >
+              {t('agents.loadEarlierOutput')}
+            </button>
+            {terminalHistoryEmpty ? (
+              <p className="agent-terminal-note">
+                {t('agents.noEarlierOutput')}
+              </p>
+            ) : null}
             <div className="agent-terminal-area">
               <Suspense
                 fallback={
@@ -453,11 +506,14 @@ export function AgentPaneScreen() {
                   displayMode={terminalDisplayMode}
                   ariaLabel={t('agents.terminalOutput')}
                   frame={{
-                    text: terminal,
+                    text: terminalHistory
+                      ? `${terminalHistory}\n${terminal}`
+                      : terminal,
                     cols: terminalSize.cols,
                     rows: terminalSize.rows,
                   }}
                   waitingText={t('agents.terminalWaiting')}
+                  onTopReached={loadTerminalHistory}
                 />
               </Suspense>
             </div>

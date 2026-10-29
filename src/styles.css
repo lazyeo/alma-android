@@ -8719,6 +8719,11 @@ dialog:focus,
   color: var(--text-secondary);
   font-size: var(--text-xs);
 }
+.agent-load-terminal-history {
+  align-self: center;
+  flex: none;
+  margin-bottom: 8px;
+}
 .agent-terminal-area {
   position: relative;
   display: flex;

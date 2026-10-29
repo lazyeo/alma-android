@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AgentPaneScreen } from './HerdrScreens'
 
 let paneId = 'pane-a'
@@ -63,8 +69,15 @@ vi.mock('../screens/MarkdownContent', () => ({
   MarkdownContent: ({ text }: { text: string }) => <span>{text}</span>,
 }))
 vi.mock('../terminal/TerminalView', () => ({
-  TerminalView: () => <div data-testid="terminal" />,
+  TerminalView: ({ frame }: { frame?: { text?: string } }) => (
+    <div data-testid="terminal">{frame?.text}</div>
+  ),
 }))
+
+afterEach(() => {
+  cleanup()
+  vi.clearAllMocks()
+})
 
 describe('AgentPaneScreen pane navigation', () => {
   it('resets unsupported chat state and loads the next pane transcript', async () => {
@@ -81,5 +94,44 @@ describe('AgentPaneScreen pane navigation', () => {
       expect(screen.getByText('Pane B transcript')).toBeTruthy(),
     )
     expect(screen.getByRole('button', { name: 'agents.chat' })).toBeTruthy()
+  })
+
+  it('requests recent ANSI history for the current display mode', async () => {
+    paneId = 'pane-a'
+    api.readHerdrPane.mockResolvedValueOnce({
+      read: { text: 'earlier output\nvisible output' },
+    })
+    render(<AgentPaneScreen />)
+
+    await waitFor(() =>
+      expect(screen.getByText('agents.chatUnsupported')).toBeTruthy(),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: 'agents.loadEarlierOutput' }),
+    )
+
+    await waitFor(() =>
+      expect(api.readHerdrPane).toHaveBeenCalledWith('pane-a', 'ansi', {
+        source: 'recent_unwrapped',
+        lines: 2000,
+      }),
+    )
+  })
+
+  it('shows the empty-history hint when the agent only redraws the visible screen', async () => {
+    paneId = 'pane-a'
+    api.readHerdrPane.mockResolvedValueOnce({ read: { text: '' } })
+    render(<AgentPaneScreen />)
+
+    await waitFor(() =>
+      expect(screen.getByText('agents.chatUnsupported')).toBeTruthy(),
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: 'agents.loadEarlierOutput' }),
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText('agents.noEarlierOutput')).toBeTruthy(),
+    )
   })
 })

@@ -5395,6 +5395,34 @@ const herdrShots = [
           await assertAgentPaneGeometry(page)
         },
       },
+      ...(lang === 'zh'
+        ? [
+            {
+              file: 'herdr-pane-terminal-history-zh-412.png',
+              viewport: PHONE,
+              deviceScaleFactor: 2,
+              route: '/d/fixture-desktop/agents/w1%3Ap1',
+              language: lang,
+              ready: '.agent-message',
+              safeInsets: true,
+              async act(page) {
+                await page.getByRole('button', { name: terminalLabel }).click()
+                await page.getByRole('button', { name: '加载更早输出' }).click()
+                await page
+                  .locator('.agent-terminal .xterm-rows')
+                  .getByText(/earlier fixture output/)
+                  .first()
+                  .waitFor()
+                await page
+                  .locator('.agent-terminal .xterm-viewport')
+                  .evaluate((element) => {
+                    element.scrollTop = 0
+                  })
+                await assertAgentPaneGeometry(page)
+              },
+            },
+          ]
+        : []),
       {
         file: `herdr-pane-terminal-grid-${lang}-412.png`,
         viewport: PHONE,

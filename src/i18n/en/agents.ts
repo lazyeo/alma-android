@@ -29,6 +29,8 @@ export const agents = {
   allow: 'Allow',
   deny: 'Deny',
   loadOlder: 'Load older messages',
+  loadEarlierOutput: 'Load earlier output',
+  noEarlierOutput: 'No earlier output (this agent redraws the full screen)',
   terminalWaiting: 'Waiting for terminal output…',
   terminalOutput: 'Terminal output',
   terminalKeys: 'Terminal keys',

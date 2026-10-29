@@ -847,10 +847,22 @@ export class AlmaApi {
     await this.sendHerdrPaneText(paneId, text)
     return this.sendHerdrPaneKeys(paneId, ['enter'])
   }
-  readHerdrPane(paneId: string, format: 'text' | 'ansi' = 'text') {
+  readHerdrPane(
+    paneId: string,
+    format: 'text' | 'ansi' = 'text',
+    options: {
+      source?: 'visible' | 'recent' | 'recent_unwrapped'
+      lines?: number
+    } = {},
+  ) {
     return this.herdrRpc<{ read?: { text?: string; [key: string]: unknown } }>(
       'pane.read',
-      { pane_id: paneId, source: 'visible', format },
+      {
+        pane_id: paneId,
+        source: options.source ?? 'visible',
+        ...(options.lines === undefined ? {} : { lines: options.lines }),
+        format,
+      },
     )
   }
   getHerdrChat(paneId: string, before = -1, limit = 60) {

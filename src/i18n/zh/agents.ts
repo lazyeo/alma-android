@@ -29,6 +29,8 @@ export const agents = {
   allow: '允许',
   deny: '拒绝',
   loadOlder: '加载更早消息',
+  loadEarlierOutput: '加载更早输出',
+  noEarlierOutput: '没有更早的输出（这个 agent 是整屏重绘的）',
   terminalWaiting: '正在等待终端输出…',
   terminalOutput: '终端输出',
   terminalKeys: '终端按键',

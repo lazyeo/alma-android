@@ -23,6 +23,7 @@ export interface SnapshotTerminalViewProps extends TerminalViewBaseProps {
   displayMode: SnapshotDisplayMode
   frame?: TerminalFrame
   waitingText?: string
+  onTopReached?: () => void
 }
 
 export interface StreamTerminalViewProps extends TerminalViewBaseProps {
@@ -60,6 +61,12 @@ function TerminalViewComponent(props: TerminalViewProps) {
   const frameRequestRef = useRef<number>()
   const resizeRequestRef = useRef<number>()
   const lastSizingRef = useRef('')
+  const topReachedRef = useRef(false)
+  const onTopReachedRef = useRef(
+    props.mode === 'snapshot' ? props.onTopReached : undefined,
+  )
+  onTopReachedRef.current =
+    props.mode === 'snapshot' ? props.onTopReached : undefined
   const [ready, setReady] = useState(false)
 
   const propMode = props.mode
@@ -109,6 +116,12 @@ function TerminalViewComponent(props: TerminalViewProps) {
         dispose: () => terminal.dispose(),
       }
       terminalRef.current = terminal
+      terminal.onScroll((viewportY) => {
+        if (viewportY <= 0) {
+          if (!topReachedRef.current) onTopReachedRef.current?.()
+          topReachedRef.current = true
+        } else topReachedRef.current = false
+      })
       fitRef.current = fit
       sessionRef.current = new TerminalSession(
         driver,
@@ -231,6 +244,7 @@ function TerminalViewComponent(props: TerminalViewProps) {
       const buffer = terminal.buffer.active
       const pinned = buffer.viewportY >= buffer.baseY
       const previousViewportY = buffer.viewportY
+      const previousBaseY = buffer.baseY
       const wrote = session.writeSnapshot(
         job.text,
         sizing.cols,
@@ -240,7 +254,11 @@ function TerminalViewComponent(props: TerminalViewProps) {
       if (!wrote) return
       terminal.write('', () => {
         if (pinned) terminal.scrollToBottom()
-        else terminal.scrollToLine(previousViewportY)
+        else
+          terminal.scrollToLine(
+            previousViewportY +
+              Math.max(0, terminal.buffer.active.baseY - previousBaseY),
+          )
       })
     })
   }
@@ -276,6 +294,7 @@ function equalTerminalViewProps(
     return (
       previous.displayMode === next.displayMode &&
       previous.waitingText === next.waitingText &&
+      previous.onTopReached === next.onTopReached &&
       previous.frame?.text === next.frame?.text &&
       previous.frame?.cols === next.frame?.cols &&
       previous.frame?.rows === next.frame?.rows

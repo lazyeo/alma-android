@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Coding-agent workspaces, pane chat and terminal views, blocked permission answers, workspace mute controls, and local attention notifications for desktops running Herdr.
+- Coding-agent workspaces, pane chat and terminal views with on-demand scrollback history, blocked permission answers, workspace mute controls, and local attention notifications for desktops running Herdr.
 
 ### Fixed
 
@@ -26,6 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - Buttons use shared quiet icon, text, and chip styles instead of the WebView default look; the image gallery closes with a plain X at the top end.
+
 ## [0.1.1] - 2026-10-29
 
 ### Added
