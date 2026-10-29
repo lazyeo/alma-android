@@ -6,8 +6,11 @@ export const screen = {
   connecting: 'Connecting to Mac…',
   noPicture: 'No picture from the Mac',
   noPictureHint:
-    "The display may be asleep, locked or the lid closed. A closed lid can't be woken remotely.",
+    "Wake can turn on an unlocked display. Locked screens still need unlocking at the Mac, and a closed lid can't be woken.",
   wake: 'Wake display',
+  waking: 'Waking…',
+  wakeSent: 'Wake sent',
+  wakeFailed: 'Could not wake the display. Try again.',
   unavailable: 'Screen sharing is unavailable',
   viewOnly: 'View only',
   control: 'Control',

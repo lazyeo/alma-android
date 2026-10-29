@@ -48,6 +48,7 @@ export interface Workspace {
   parentWorkspaceId?: string | null
   isTemporary?: boolean
   isWorktree?: boolean
+  remoteHostId?: string | null
   createdAt?: string | number
   updatedAt?: string | number
   [key: string]: unknown
@@ -198,7 +199,6 @@ const denied = [
   /^\/api\/computer-use(?:\/|$)/,
   /^\/api\/data\/(?:import|export)(?:\/|$)/,
   /^\/api\/threads\/batch-delete(?:\/|$)/,
-  /^\/api\/terminal(?:\/|$)/,
   /^\/ws\/terminal(?:\/|$)/,
 ]
 export function assertSafePath(path: string, method = 'GET') {
@@ -227,12 +227,14 @@ export function assertSafePath(path: string, method = 'GET') {
   const loopAllowed =
     /^\/api\/threads\/[^/]+\/loop$/.test(clean) &&
     ['GET', 'PUT', 'DELETE'].includes(verb)
+  const terminalAllowed = clean === '/api/terminal/exec' && verb === 'POST'
   if (
     (/^\/api\/activity-recorder(?:\/|$)/.test(clean) &&
       !(verb === 'GET' && clean === '/api/activity-recorder/suggestions')) ||
     (/^\/api\/refs(?:\/|$)/.test(clean) && !refsAllowed) ||
     (/^\/api\/crystal(?:\/|$)/.test(clean) && !crystalAllowed) ||
     (loopRoute && !loopAllowed) ||
+    (/^\/api\/terminal(?:\/|$)/.test(clean) && !terminalAllowed) ||
     (/^\/api\/gallery\/cache(?:\/|$)/.test(clean) && verb !== 'GET') ||
     denied.some((pattern) => pattern.test(clean)) ||
     (/^\/api\/settings$/.test(clean) && verb !== 'GET') ||
@@ -385,6 +387,12 @@ export class AlmaApi {
   }
   listWorkspaces() {
     return this.request<Workspace[]>('/api/workspaces')
+  }
+  wakeDisplay(workspaceId: string) {
+    return this.request<unknown>('/api/terminal/exec', {
+      method: 'POST',
+      body: { command: 'caffeinate -u -t 2', workspaceId },
+    })
   }
   listPreviewHtmlFiles(workspaceId: string) {
     return this.request<{ htmlFiles: string[] }>(

@@ -183,15 +183,11 @@ export function useRemoteScreen(
     setVideoLive(true)
     setStalled(false)
   }, [])
-  /** One explicit Shift press: wakes a sleeping display without typing. */
-  const wake = useCallback(() => send({ type: 'key', key: 'shift' }), [send])
-
   return {
     connected,
     markVideoFrame,
     stalled,
     videoLive,
-    wake,
     control,
     error,
     frame,

@@ -38,6 +38,7 @@ import {
 } from './controls'
 import { BLANK_POSTER, isDarkSample } from './liveness'
 import { useRemoteScreen } from './useRemoteScreen'
+import { selectLocalWakeWorkspace } from './wakeDisplay'
 import './remoteScreen.css'
 
 type InputMode = 'direct' | 'trackpad'
@@ -165,7 +166,7 @@ function ScreenMedia({
 export function RemoteScreen() {
   const t = useT()
   const navigate = useNavigate()
-  const { pairing, tunnel } = useConnection()
+  const { pairing, tunnel, api } = useConnection()
   const remote = useRemoteScreen(tunnel)
   const surfaceRef = useRef<HTMLDivElement>(null)
   const videoSize = useMemo(
@@ -184,6 +185,10 @@ export function RemoteScreen() {
   const [text, setText] = useState('')
   const [composing, setComposing] = useState(false)
   const [notice, setNotice] = useState('')
+  const [wakeWorkspaceId, setWakeWorkspaceId] = useState<string>()
+  const [wakeState, setWakeState] = useState<
+    'loading' | 'ready' | 'pending' | 'success' | 'error'
+  >('loading')
   const [modifiers, setModifiers] = useState<KeyModifiers>({})
   const [transform, setTransform] = useState<ViewTransform>({
     scale: 1,
@@ -212,6 +217,26 @@ export function RemoteScreen() {
   const frameTimes = useRef<number[]>([])
   const [fps, setFps] = useState(0)
   const [frameAge, setFrameAge] = useState(0)
+
+  useEffect(() => {
+    let current = true
+    void Promise.all([api.listWorkspaces(), api.getSettings()])
+      .then(([workspaces, settings]) => {
+        if (!current) return
+        const workspace = selectLocalWakeWorkspace(
+          workspaces,
+          settings.general?.defaultWorkspaceId,
+        )
+        setWakeWorkspaceId(workspace?.id)
+        setWakeState('ready')
+      })
+      .catch(() => {
+        if (current) setWakeState('error')
+      })
+    return () => {
+      current = false
+    }
+  }, [api])
 
   useEffect(() => {
     if (!remote.frame) return
@@ -422,6 +447,17 @@ export function RemoteScreen() {
     }
   }
 
+  const wakeDisplay = async () => {
+    if (!wakeWorkspaceId || wakeState === 'pending') return
+    setWakeState('pending')
+    try {
+      await api.wakeDisplay(wakeWorkspaceId)
+      setWakeState('success')
+    } catch {
+      setWakeState('error')
+    }
+  }
+
   const status = remote.message?.type === 'status' ? remote.message : undefined
 
   return (
@@ -493,9 +529,22 @@ export function RemoteScreen() {
             <MonitorOff size={28} />
             <strong>{t('screen.noPicture')}</strong>
             <span>{remote.error || t('screen.noPictureHint')}</span>
-            <button className="chip-button" onClick={remote.wake}>
-              {t('screen.wake')}
-            </button>
+            {wakeWorkspaceId ? (
+              <button
+                className="chip-button"
+                disabled={wakeState === 'pending' || wakeState === 'success'}
+                onClick={() => void wakeDisplay()}
+              >
+                {wakeState === 'pending'
+                  ? t('screen.waking')
+                  : wakeState === 'success'
+                    ? t('screen.wakeSent')
+                    : t('screen.wake')}
+              </button>
+            ) : null}
+            {wakeState === 'error' ? (
+              <small>{t('screen.wakeFailed')}</small>
+            ) : null}
           </div>
         ) : null}
         {remote.control && inputMode === 'trackpad' ? (
