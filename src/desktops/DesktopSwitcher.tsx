@@ -11,7 +11,6 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { AnchoredMenu } from '../components/AnchoredMenu'
 import type { MenuRect } from '../components/anchoredMenuPlacement'
 import { desktopSectionPath } from '../desktopRoutes'
-import { threadNavigationOptions } from '../layout/splitLayout'
 import type { DesktopStatus } from '../relay'
 import { useConnection, useDesktops } from './DesktopContext'
 import { useDesktopSwipe } from './useDesktopSwipe'
@@ -115,7 +114,7 @@ export function DesktopSwitcher({ className = '' }: { className?: string }) {
             onSelect: () => {
               if (!current) {
                 const path = pathForDesktop(desktop.pairing.id)
-                navigate(path, threadNavigationOptions(pathname, path))
+                navigate(path, { replace: true })
               }
             },
           }

@@ -848,7 +848,9 @@ export function SettingsScreen() {
               disabled={selectedDesktop.status !== 'online'}
               onClick={() => {
                 setDesktopDetail(undefined)
-                navigate(desktopScreenPath(selectedDesktop.pairing.id))
+                navigate(desktopScreenPath(selectedDesktop.pairing.id), {
+                  state: { screenOrigin: '/settings' },
+                })
               }}
             >
               <MonitorUp size={18} />

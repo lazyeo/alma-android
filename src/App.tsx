@@ -56,7 +56,7 @@ import {
 } from './desktops/DesktopContext'
 import { desktopThreadPath, desktopThreadsPath } from './desktopRoutes'
 import { AppShell, ThreadsListRoute } from './layout/AppShell'
-import { decideBack } from './layout/splitLayout'
+import { parentRoute } from './navigation/parentRoute'
 import { useLayoutMode } from './layout/useLayoutMode'
 import { exitNativeApp, subscribeNativeAppEvents } from './nativeBridge'
 import { closeTopOverlay, handleOverlayPopState } from './overlayStack'
@@ -198,8 +198,29 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
     loadBackgroundConnectionEnabled,
   )
   const layoutMode = useLayoutMode()
-  const backContext = useRef({ pathname: location.pathname, layoutMode })
-  backContext.current = { pathname: location.pathname, layoutMode }
+  const screenOrigin = useRef<string>()
+  const previousPathname = useRef(location.pathname)
+  if (
+    /^\/d\/[^/]+\/screen\/?$/.test(location.pathname) &&
+    !/^\/d\/[^/]+\/screen\/?$/.test(previousPathname.current)
+  )
+    screenOrigin.current = previousPathname.current
+  previousPathname.current = location.pathname
+  const activeHomePath = store.activeId
+    ? desktopThreadsPath(store.activeId)
+    : undefined
+  const backContext = useRef({
+    pathname: location.pathname,
+    layoutMode,
+    screenOrigin: screenOrigin.current,
+    activeHomePath,
+  })
+  backContext.current = {
+    pathname: location.pathname,
+    layoutMode,
+    screenOrigin: screenOrigin.current,
+    activeHomePath,
+  }
 
   useEffect(() => {
     const unsubscribe = manager.subscribe(() =>
@@ -247,11 +268,15 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
       },
       onBack() {
         if (closeTopOverlay()) return
-        const { pathname, layoutMode: mode } = backContext.current
-        const decision = decideBack(pathname, window.history.length > 1, mode)
-        if (decision.kind === 'exit') void exitNativeApp()
-        else if (decision.kind === 'pop') navigateRef.current(-1)
-        else navigateRef.current(decision.to, { replace: true })
+        const {
+          pathname,
+          layoutMode: mode,
+          screenOrigin: origin,
+          activeHomePath: homePath,
+        } = backContext.current
+        const parent = parentRoute(pathname, mode, origin ?? homePath)
+        if (parent) navigateRef.current(parent, { replace: true })
+        else void exitNativeApp()
       },
     }).then((remove) => {
       if (disposed) remove()

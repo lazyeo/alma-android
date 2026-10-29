@@ -1,8 +1,9 @@
 import { ArrowLeft } from 'lucide-react'
 import { type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useLayoutMode } from './useLayoutMode'
 import { useT } from '../i18n'
+import { parentRoute } from '../navigation/parentRoute'
 
 /**
  * Header for desktop-scoped roots. Phone child pages use history Back and a
@@ -24,6 +25,7 @@ export function ScopedRootHeader({
   const t = useT()
   const mode = useLayoutMode()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const child = childOnPhone && mode === 'single'
 
   return (
@@ -35,7 +37,10 @@ export function ScopedRootHeader({
           <button
             className="scoped-root-back"
             aria-label={t('common.back')}
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              const parent = parentRoute(pathname, mode)
+              if (parent) navigate(parent, { replace: true })
+            }}
           >
             <ArrowLeft size={20} />
           </button>

@@ -33,8 +33,10 @@ const api = {
   chooseHerdrMenuOption: vi.fn(async () => undefined),
 }
 
+const location = { pathname: '/d/desktop/agents/pane-a', key: 'initial' }
 vi.mock('react-router-dom', () => ({
   useParams: () => ({ desktopId: 'desktop', paneId }),
+  useLocation: () => location,
 }))
 vi.mock('../desktops/DesktopContext', () => ({
   useConnection: () => ({ api }),
@@ -98,6 +100,20 @@ describe('AgentPaneScreen pane navigation', () => {
       expect(screen.getByText('Pane B transcript')).toBeTruthy(),
     )
     expect(screen.getByRole('button', { name: 'agents.chat' })).toBeTruthy()
+  })
+
+  it('keeps the route and history entry unchanged when the view toggles', async () => {
+    paneId = 'pane-b'
+    render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('Pane B transcript')).toBeTruthy(),
+    )
+    const before = { ...location, length: window.history.length }
+
+    fireEvent.click(screen.getByRole('button', { name: 'agents.terminal' }))
+
+    expect(location).toEqual({ pathname: before.pathname, key: before.key })
+    expect(window.history.length).toBe(before.length)
   })
 
   it('shows every blocked option in chat, highlights the cursor, and hides the card in terminal', async () => {

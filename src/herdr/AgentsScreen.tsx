@@ -84,7 +84,13 @@ export function AgentsScreen() {
               <button
                 className="header-icon-button"
                 aria-label={t('agents.openRemoteDesktop')}
-                onClick={() => navigate(desktopScreenPath(decodedDesktopId))}
+                onClick={() =>
+                  navigate(desktopScreenPath(decodedDesktopId), {
+                    state: {
+                      screenOrigin: `/d/${encodeURIComponent(decodedDesktopId)}/agents`,
+                    },
+                  })
+                }
               >
                 <MonitorUp size={19} />
               </button>

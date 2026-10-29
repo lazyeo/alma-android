@@ -22,7 +22,7 @@ import {
   type FormEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { copyText } from '../../clipboard'
 import { useConnection } from '../../desktops/DesktopContext'
 import { DesktopSwitcher } from '../../desktops/DesktopSwitcher'
@@ -167,6 +167,7 @@ function ScreenMedia({
 export function RemoteScreen() {
   const t = useT()
   const navigate = useNavigate()
+  const location = useLocation()
   const { pairing, tunnel, api } = useConnection()
   const remote = useRemoteScreen(tunnel)
   const surfaceRef = useRef<HTMLDivElement>(null)
@@ -467,7 +468,13 @@ export function RemoteScreen() {
         <button
           className="quiet-icon-button"
           aria-label={t('screen.back')}
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            const origin = (location.state as { screenOrigin?: string } | null)
+              ?.screenOrigin
+            navigate(origin ?? `/d/${encodeURIComponent(pairing.id)}/agents`, {
+              replace: true,
+            })
+          }}
         >
           <ChevronLeft size={22} />
         </button>

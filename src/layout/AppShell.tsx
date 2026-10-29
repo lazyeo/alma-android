@@ -26,11 +26,7 @@ import { ThreadsScreen } from '../screens/ThreadsScreen'
 import { GtdScreen } from '../screens/GtdScreen'
 import { useTimeCluesStatus } from '../screens/useTimeCluesStatus'
 import { StartScreen } from '../screens/StartScreen'
-import {
-  splitSidebarSection,
-  threadNavigationOptions,
-  threadRouteMatch,
-} from './splitLayout'
+import { splitSidebarSection, threadRouteMatch } from './splitLayout'
 import { useLayoutMode, useSidebarCollapsed } from './useLayoutMode'
 import { useSidebarSwipe } from './useSidebarSwipe'
 import { visiblePairings } from '../desktops/desktopVisibility'
@@ -113,7 +109,7 @@ function MainNav({
               : null}
             <NavLink
               to={destination}
-              {...threadNavigationOptions(pathname, destination)}
+              replace
               aria-label={compact ? label : undefined}
               title={compact ? label : undefined}
               aria-current={active ? 'page' : undefined}
@@ -145,6 +141,7 @@ export function AgentsNavLink({
   return (
     <NavLink
       to={desktopAgentsPath(desktopId)}
+      replace
       aria-label={t('nav.agents')}
       title={t('nav.agents')}
       aria-current={active ? 'page' : undefined}

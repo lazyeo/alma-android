@@ -320,7 +320,12 @@ export function ReferenceDetailScreen() {
   return (
     <section className="root-page reference-detail-page">
       <header className="drill-header reference-detail-header">
-        <button aria-label={t('common.back')} onClick={() => navigate(-1)}>
+        <button
+          aria-label={t('common.back')}
+          onClick={() =>
+            navigate(desktopReferencesPath(pairing.id), { replace: true })
+          }
+        >
           <ArrowLeft size={20} />
         </button>
         <h1>{t('library.references.detailTitle')}</h1>
