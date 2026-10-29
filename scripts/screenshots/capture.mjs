@@ -1393,6 +1393,7 @@ const updateShots = [
     route: '/settings',
     query: 'update=newer&lang=en',
     ready: '.update-release-notes',
+    act: (page) => page.locator('.update-panel').scrollIntoViewIfNeeded(),
     afterCapture: (page) => assertNoHorizontalOverflow(page, '.settings-page'),
   },
   {
@@ -1401,6 +1402,7 @@ const updateShots = [
     route: '/settings',
     query: 'update=newer&lang=zh',
     ready: '.update-release-notes',
+    act: (page) => page.locator('.update-panel').scrollIntoViewIfNeeded(),
     afterCapture: (page) => assertNoHorizontalOverflow(page, '.settings-page'),
   },
   {
@@ -1409,6 +1411,7 @@ const updateShots = [
     route: '/settings',
     query: 'update=current&lang=en',
     ready: '.update-panel',
+    act: (page) => page.locator('.update-panel').scrollIntoViewIfNeeded(),
     afterCapture: (page) => assertNoHorizontalOverflow(page, '.settings-page'),
   },
   {
@@ -1417,6 +1420,7 @@ const updateShots = [
     route: '/settings',
     query: 'update=error&lang=zh',
     ready: '.update-panel',
+    act: (page) => page.locator('.update-panel').scrollIntoViewIfNeeded(),
     afterCapture: (page) => assertNoHorizontalOverflow(page, '.settings-page'),
   },
 ]

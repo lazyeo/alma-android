@@ -8366,3 +8366,8 @@ dialog:focus,
   background: var(--accent-9);
   box-sizing: content-box;
 }
+.update-release-notes :is(h1, h2, h3, h4) {
+  margin: 0 0 6px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
