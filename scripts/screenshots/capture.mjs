@@ -5234,18 +5234,67 @@ async function holdRow(page, title) {
 const herdrShots = [
   ...['en', 'zh'].flatMap((lang) => [
     {
-      file: `herdr-agents-${lang}-412.png`,
+      file: `agents-board-${lang}-412.png`,
       viewport: PHONE,
       route: '/d/fixture-desktop/agents',
       language: lang,
-      ready: '.agent-pane-row',
+      ready: '.agents-board .agent-pane-row',
       safeInsets: true,
       async act(page) {
+        await page.evaluate(() =>
+          localStorage.setItem('alma.agents.view-mode', 'board'),
+        )
+        await page.reload()
+        await page.locator('.agents-board .agent-pane-row').first().waitFor()
         await assertNoHorizontalOverflow(page, '.agents-page-body')
+        if ((await page.locator('.agent-project-tab').count()) < 4)
+          throw new Error('Agents board needs at least four workspaces')
         if (!(await page.locator('.tab-bar .agents-entry').count()))
           throw new Error('phone Agents navigation entry missing')
       },
     },
+    ...(lang === 'en'
+      ? [
+          {
+            file: 'agents-list-en-412.png',
+            viewport: PHONE,
+            route: '/d/fixture-desktop/agents',
+            language: lang,
+            ready: '.agent-pane-row',
+            safeInsets: true,
+            async act(page) {
+              await page.evaluate(() =>
+                localStorage.setItem('alma.agents.view-mode', 'list'),
+              )
+              await page.reload()
+              await page
+                .locator('.agents-list .agent-pane-row')
+                .first()
+                .waitFor()
+              await assertNoHorizontalOverflow(page, '.agents-page-body')
+            },
+          },
+          {
+            file: 'agents-split-en-884.png',
+            viewport: TABLET,
+            route: '/d/fixture-desktop/agents/w1%3Ap1',
+            language: lang,
+            ready: '.split-sidebar .agent-pane-row.selected',
+            safeInsets: true,
+            async act(page) {
+              await page.evaluate(() =>
+                localStorage.setItem('alma.agents.view-mode', 'board'),
+              )
+              await page.reload()
+              await page
+                .locator('.split-sidebar .agent-pane-row.selected')
+                .waitFor()
+              await page.locator('.split-main .agent-pane-page').waitFor()
+              await assertNoHorizontalOverflow(page, '.split-shell')
+            },
+          },
+        ]
+      : []),
     {
       file: `herdr-pane-chat-${lang}-412.png`,
       viewport: PHONE,
