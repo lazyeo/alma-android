@@ -1,4 +1,4 @@
-import { BellOff, BellRing, Send, TerminalSquare } from 'lucide-react'
+import { Send, TerminalSquare } from 'lucide-react'
 import {
   lazy,
   Suspense,
@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { ScopedRootHeader } from '../layout/ScopedRootHeader'
 import { useConnection } from '../desktops/DesktopContext'
 import { useT } from '../i18n'
@@ -61,75 +61,7 @@ const statusClass = (
     ? status
     : 'unknown'
 
-export function AgentsScreen() {
-  const t = useT()
-  const { desktopId = '' } = useParams()
-  const decodedDesktopId = decodeURIComponent(desktopId)
-  const { agents, byDesktop, setWorkspaceMuted } = useHerdr()
-  const workspaces = agents(decodedDesktopId)
-  const state = byDesktop[decodedDesktopId]
-  return (
-    <section className="root-page agents-page">
-      <ScopedRootHeader title={t('agents.title')} />
-      <div className="page-body agents-page-body">
-        {state?.supported === false ? (
-          <p className="empty">{t('agents.unsupported')}</p>
-        ) : state?.error ? (
-          <p className="settings-error agents-state-error">
-            {t('agents.loadFailed')}
-          </p>
-        ) : !state?.online ? (
-          <p className="empty">{t('agents.offline')}</p>
-        ) : null}
-        {workspaces.map((workspace) => {
-          const muted = state.mutedWorkspaces.includes(workspace.id)
-          return (
-            <section className="agent-workspace" key={workspace.id}>
-              <header>
-                <h2>{workspace.label}</h2>
-                <button
-                  className="quiet-icon-button"
-                  aria-label={muted ? t('agents.unmute') : t('agents.mute')}
-                  onClick={() =>
-                    void setWorkspaceMuted(
-                      decodedDesktopId,
-                      workspace.id,
-                      !muted,
-                    )
-                  }
-                >
-                  {muted ? <BellOff size={17} /> : <BellRing size={17} />}
-                </button>
-              </header>
-              <div className="agent-pane-list">
-                {workspace.panes.map((pane) => (
-                  <Link
-                    className="agent-pane-row"
-                    to={`/d/${encodeURIComponent(decodedDesktopId)}/agents/${encodeURIComponent(pane.id)}`}
-                    key={pane.id}
-                  >
-                    <span
-                      className={`agent-status ${statusClass(pane.status)}`}
-                    />
-                    <span className="agent-pane-copy">
-                      <strong>{pane.title}</strong>
-                      <small>{pane.agent}</small>
-                    </span>
-                    <span
-                      className={`agent-status-badge ${statusClass(pane.status)}`}
-                    >
-                      {t(`agents.status.${statusClass(pane.status)}`)}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
+export { AgentsScreen } from './AgentsScreen'
 
 export function AgentPaneScreen() {
   const t = useT()

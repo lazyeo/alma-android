@@ -44,7 +44,8 @@ import {
 } from './screens/ReferencesScreen'
 import { HandoffProvider, useHandoff } from './handoff/HandoffProvider'
 import { HerdrProvider } from './herdr/HerdrProvider'
-import { AgentPaneScreen, AgentsScreen } from './herdr/HerdrScreens'
+import { AgentPaneScreen } from './herdr/HerdrScreens'
+import { AgentsListRoute } from './herdr/AgentsListRoute'
 import { ThreadActivityProvider } from './desktops/ThreadActivityProvider'
 import {
   ConnectionContext,
@@ -456,7 +457,7 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
                         </Suspense>
                       }
                     />
-                    <Route path="agents" element={<AgentsScreen />} />
+                    <Route path="agents" element={<AgentsListRoute />} />
                     <Route
                       path="agents/:paneId"
                       element={<AgentPaneScreen />}
