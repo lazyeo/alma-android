@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Nothing yet.
+- In-app update checks with release notes, a 24-hour automatic-check option, verified APK download progress, version skipping, and Android installer handoff.
 
 ## [0.1.2] - 2026-10-29
 
@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - Buttons use shared quiet icon, text, and chip styles instead of the WebView default look; the image gallery closes with a plain X at the top end.
+
 ## [0.1.1] - 2026-10-29
 
 ### Added
