@@ -5714,8 +5714,6 @@ const gtdShots = [
     ready: '.gtd-page .gtd-list .thread-row',
     safeInsets: true,
     async act(page) {
-      const geometry = await rootHeaderGeometry(page)
-      console.log(`GTD root geometry ${JSON.stringify(geometry)}`)
       if (!threadsRootGeometry) {
         await page.goto(fixtureUrl(DESKTOP))
         await page.waitForFunction(() => Boolean(window.__almaSetNativeInsets))
@@ -5745,6 +5743,8 @@ const gtdShots = [
         )
         await page.locator('.gtd-page .gtd-list .thread-row').first().waitFor()
       }
+      const geometry = await rootHeaderGeometry(page)
+      console.log(`GTD root geometry ${JSON.stringify(geometry)}`)
       for (const key of ['titleTop', 'tabTop', 'indicatorTop'])
         if (Math.abs(geometry[key] - threadsRootGeometry[key]) > 0.5)
           throw new Error(

@@ -140,6 +140,8 @@ describe('GTD navigation structure', () => {
     expect(shell).toMatch(
       /const active = gtd[\s\S]*: threads[\s\S]*pathname === to \|\| pathname\.startsWith\('\/d\/'\)/,
     )
+    expect(shell).toContain('<Link')
+    expect(shell).toContain("aria-current={active ? 'page' : undefined}")
     expect(shell).not.toMatch(/threads[\s\S]*!\/\^\\\/d\\\/\[\^\/\]\+\\\/gtd/)
     expect(capture).toContain('GTD phone Threads tab is not active')
     expect(capture).toContain('GTD phone tab indicator moved')
