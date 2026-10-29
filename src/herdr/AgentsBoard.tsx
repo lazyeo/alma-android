@@ -45,8 +45,7 @@ export function AgentPaneRow({
     void api
       .readHerdrPane(pane.id, 'text', { source: 'visible' })
       .then((result) => {
-        if (!cancelled)
-          setPrompt(parseBlockedPrompt(result?.read?.text ?? ''))
+        if (!cancelled) setPrompt(parseBlockedPrompt(result?.read?.text ?? ''))
       })
       .catch(() => undefined)
     return () => {

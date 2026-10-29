@@ -71,7 +71,7 @@ describe('parseBlockedPrompt', () => {
     'Run this command?',
     '  1. Yes, run command',
     "  2. Yes, and always allow in this conversation for commands that start with 'ioreg'",
-    "     and keep using this permission until the conversation ends",
+    '     and keep using this permission until the conversation ends',
     "  3. Yes, and always allow for commands that start with 'ioreg' (Persist to",
     '     settings.json)',
     '  4. No, cancel',
@@ -81,9 +81,7 @@ describe('parseBlockedPrompt', () => {
     'extracts every wrapped option with the cursor on option %i',
     (selectedIndex) => {
       const lines = menu.map((line, index) =>
-        index === [1, 2, 4, 6][selectedIndex]
-          ? `❯ ${line.trim()}`
-          : line,
+        index === [1, 2, 4, 6][selectedIndex] ? `❯ ${line.trim()}` : line,
       )
       expect(parseBlockedPrompt(lines.join('\n'))).toEqual({
         question: 'Run this command?',

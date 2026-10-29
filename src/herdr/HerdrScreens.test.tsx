@@ -106,10 +106,14 @@ describe('AgentPaneScreen pane navigation', () => {
     api.readHerdrPane.mockResolvedValueOnce({ read: { text: blockedMenu } })
     render(<AgentPaneScreen />)
 
-    await waitFor(() => expect(screen.getByText('Run this command?')).toBeTruthy())
+    await waitFor(() =>
+      expect(screen.getByText('Run this command?')).toBeTruthy(),
+    )
     const selected = screen.getByRole('button', { name: '1. Yes, run command' })
     expect(selected.className).toContain('active')
-    expect(screen.getByRole('button', { name: '2. Yes, always allow' })).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: '2. Yes, always allow' }),
+    ).toBeTruthy()
     expect(screen.getByRole('button', { name: '3. No, cancel' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'agents.terminal' }))

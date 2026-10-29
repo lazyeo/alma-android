@@ -118,8 +118,7 @@ describe('snapshot terminal', () => {
       'history above\nPrompt\nWorking ⠹\nnew row',
     ]
 
-    for (const frame of frames)
-      session.writeSnapshot(frame, 52, 28, 'reflow')
+    for (const frame of frames) session.writeSnapshot(frame, 52, 28, 'reflow')
 
     expect(driver.resize).toHaveBeenCalledTimes(1)
     expect(driver.resize).toHaveBeenCalledWith(52, 28)
