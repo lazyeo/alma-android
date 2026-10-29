@@ -26,4 +26,6 @@ export const agents = {
   messagePlaceholder: 'Message this agent',
   send: 'Send',
   sendFailed: 'Could not send to the agent',
+  chatUnsupported: 'This agent has no chat transcript. Showing its terminal.',
+  toolFailed: 'Failed',
 } as const

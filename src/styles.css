@@ -8396,12 +8396,21 @@ dialog:focus,
 .agent-pane-page {
   position: relative;
   display: flex;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
   flex-direction: column;
+}
+/* The phone detail shell only has a min-height; bound it so the pane body is
+   the one scroller and each view can keep its own position. */
+.detail-main:has(> .agent-pane-page) {
+  height: 100vh;
+  height: 100dvh;
 }
 .agent-pane-body {
   flex: 1;
+  min-height: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 10px 14px 104px;
 }
 .agent-blocked-card {
@@ -8461,15 +8470,73 @@ dialog:focus,
 .agent-load-older {
   align-self: center;
 }
+.agent-tool {
+  max-width: 92%;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+.agent-tool > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 2px;
+  list-style: none;
+  cursor: pointer;
+}
+.agent-tool > summary::-webkit-details-marker {
+  display: none;
+}
+.agent-tool > summary strong {
+  flex: none;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.agent-tool > summary code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agent-tool.error > summary span {
+  color: var(--red-11);
+}
+.agent-tool > pre {
+  max-height: 40vh;
+  margin: 4px 0 6px;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.agent-question {
+  display: grid;
+  gap: 10px;
+}
+.agent-question-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.agent-terminal-note {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
 .agent-terminal {
+  /* Fixed dark surface (vars set inline from the ANSI palette): agents emit
+     absolute colours such as white text that would vanish on the light theme. */
   min-height: 50vh;
   margin: 0;
   padding: 12px;
   overflow: auto;
   border: var(--border-hairline) solid var(--gray-7);
   border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text-primary);
+  background: var(--terminal-bg);
+  color: var(--terminal-fg);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: var(--text-xs);
   line-height: var(--leading-normal);

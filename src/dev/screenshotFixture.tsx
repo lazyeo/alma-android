@@ -1709,20 +1709,56 @@ const herdrChatItems = [
       done: true,
     },
   },
+  {
+    id: 'agent-tool-2',
+    kind: 'tool',
+    tool: {
+      name: 'exec',
+      input: {
+        input:
+          'text(await tools.exec_command({cmd:"npm run android:build",yield_time_ms:1000}));',
+      },
+      result: 'BUILD SUCCESSFUL in 31s',
+      done: true,
+    },
+  },
+  {
+    id: 'agent-assistant-2',
+    kind: 'assistant',
+    text: 'The build passed.\n\n<oai-mem-citation>\n<citation_entries>\nMEMORY.md:1-2|note=[fixture]\n</citation_entries>\n</oai-mem-citation>',
+  },
+  {
+    id: 'agent-tool-3',
+    kind: 'tool',
+    tool: {
+      name: 'request_user_input_async',
+      input: {
+        questions: [
+          {
+            title: 'Install the build on the phone now?',
+            options: ['Install now', 'Later'],
+          },
+        ],
+      },
+      result: '{"accepted":true}',
+      done: true,
+    },
+  },
 ]
 const herdrTerminal =
   screenshotParams.get('agentState') === 'blocked'
     ? `Claude Code needs permission to run the Android build.
 
-❯ 1. Yes, allow once
+\u001b[1m❯ 1. Yes, allow once\u001b[0m
   2. Yes, and remember
   3. No, deny`
-    : `$ npm run check
-✓ TypeScript
-✓ Vitest
-✓ Prettier
+    : `\u001b[2m$\u001b[0m npm run check
+\u001b[38;2;152;195;121m✓\u001b[0m TypeScript
+\u001b[38;2;152;195;121m✓\u001b[0m Vitest
+\u001b[38;2;152;195;121m✓\u001b[0m Prettier
 
-Working on Android build…`
+\u001b[48;2;74;77;84m\u001b[1m› \u001b[0m\u001b[48;2;74;77;84mWorking on Android build…\u001b[0m
+\u001b[38;2;246;226;183mGPT-6 medium\u001b[0m \u001b[38;2;169;170;173m~/project\u001b[0m`
 
 const threadEvents = [
   {

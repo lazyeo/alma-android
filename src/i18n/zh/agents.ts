@@ -25,4 +25,6 @@ export const agents = {
   messagePlaceholder: '给这个 Agent 发消息',
   send: '发送',
   sendFailed: '无法发送给 Agent',
+  chatUnsupported: '这个 Agent 没有对话记录，显示终端画面。',
+  toolFailed: '失败',
 } as const

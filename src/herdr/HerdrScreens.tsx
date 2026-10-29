@@ -1,5 +1,13 @@
 import { BellOff, BellRing, Send, TerminalSquare } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ScopedRootHeader } from '../layout/ScopedRootHeader'
 import { useConnection } from '../desktops/DesktopContext'
@@ -7,12 +15,28 @@ import { useT } from '../i18n'
 import { MarkdownContent } from '../screens/MarkdownContent'
 import { useHerdr } from './HerdrProvider'
 import { mergeChatItems, parseBlockedPrompt, type HerdrPane } from './model'
+import {
+  cleanAgentText,
+  parseAnsi,
+  stripAnsi,
+  toolView,
+  TERMINAL_COLORS,
+  type AnsiStyle,
+  type ToolView,
+} from './transcript'
 
 type ChatItem = {
   id: string
   kind: string
   text?: string
-  tool?: { name?: string; summary?: string; done?: boolean }
+  tool?: {
+    name?: string
+    summary?: string
+    done?: boolean
+    input?: unknown
+    result?: unknown
+    is_error?: boolean
+  }
 }
 type ChatPage = { items?: ChatItem[]; start?: number; end?: number }
 type ChatResponse = {
@@ -116,7 +140,9 @@ export function AgentPaneScreen() {
   const [items, setItems] = useState<ChatItem[]>([])
   const [queued, setQueued] = useState<Array<{ id: string; text: string }>>([])
   const [start, setStart] = useState(-1)
-  const [end, setEnd] = useState(0)
+  const endRef = useRef(0)
+  const [chatReady, setChatReady] = useState(false)
+  const [chatUnsupported, setChatUnsupported] = useState(false)
   const [terminal, setTerminal] = useState('')
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -129,8 +155,17 @@ export function AgentPaneScreen() {
         before,
         60,
       )) as ChatResponse
-      if (response.error)
+      if (response.error) {
+        if (
+          response.error.code === 'unsupported_agent' ||
+          response.error.code === 'no_session'
+        ) {
+          setChatUnsupported(true)
+          setView('terminal')
+          return
+        }
         throw new Error(response.error.message || response.error.code)
+      }
       const page = response.page ?? {}
       setItems((current) =>
         prepend
@@ -139,7 +174,10 @@ export function AgentPaneScreen() {
       )
       setQueued(response.queued ?? [])
       setStart(page.start ?? -1)
-      setEnd(page.end ?? 0)
+      if (!prepend) {
+        endRef.current = page.end ?? 0
+        setChatReady(true)
+      }
     },
     [api, decodedPaneId],
   )
@@ -166,33 +204,39 @@ export function AgentPaneScreen() {
     )
     return () => socket.close()
   }, [api, decodedPaneId, view])
+  // Opened once the first page is in, so `from` resumes after it; `end` lives
+  // in a ref so each batch doesn't tear the socket down and reopen it.
   useEffect(() => {
+    if (!chatReady) return
     const socket = api.openJsonSocket(
-      `/ws/herdr/chat?pane=${encodeURIComponent(decodedPaneId)}&from=${end}`,
+      `/ws/herdr/chat?pane=${encodeURIComponent(decodedPaneId)}&from=${endRef.current}`,
       (event) => {
         if (event.type === 'items' && Array.isArray(event.items)) {
           setItems((current) =>
             mergeChatItems(current, event.items as ChatItem[], 'append'),
           )
-          if (typeof event.end === 'number') setEnd(event.end)
+          if (typeof event.end === 'number') endRef.current = event.end
         }
         if (event.type === 'queued' && Array.isArray(event.queued))
           setQueued(event.queued as Array<{ id: string; text: string }>)
         if (event.type === 'session_changed') {
           setItems([])
           setQueued([])
-          setEnd(0)
-          void loadChat()
+          endRef.current = 0
+          setChatReady(false)
+          void loadChat().catch((reason) => setError(String(reason)))
         }
       },
     )
     socket.opened.catch(() => undefined)
     return () => socket.close()
-  }, [api, decodedPaneId, end, loadChat])
+  }, [api, chatReady, decodedPaneId, loadChat])
 
   const blockedPrompt = useMemo(
     () =>
-      pane?.agent_status === 'blocked' ? parseBlockedPrompt(terminal) : null,
+      pane?.agent_status === 'blocked'
+        ? parseBlockedPrompt(stripAnsi(terminal))
+        : null,
     [pane?.agent_status, terminal],
   )
   useEffect(() => {
@@ -203,8 +247,55 @@ export function AgentPaneScreen() {
       .catch(() => undefined)
   }, [api, decodedPaneId, pane?.agent_status, terminal])
 
-  const send = async () => {
-    const prompt = draft.trim()
+  const terminalSegments = useMemo(() => parseAnsi(terminal), [terminal])
+
+  // Each view keeps its own scroll offset; null means "pinned to the bottom",
+  // which is also where a view starts and what keeps it following new output.
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const scrollMemory = useRef<Record<'chat' | 'terminal', number | null>>({
+    chat: null,
+    terminal: null,
+  })
+  const prependAnchor = useRef<number | null>(null)
+  const rememberScroll = () => {
+    const body = bodyRef.current
+    if (!body) return
+    scrollMemory.current[view] = isPinnedToBottom(body) ? null : body.scrollTop
+  }
+  useLayoutEffect(() => {
+    const body = bodyRef.current
+    if (!body) return
+    const saved = scrollMemory.current[view]
+    body.scrollTop = saved ?? body.scrollHeight
+  }, [view])
+  useLayoutEffect(() => {
+    const body = bodyRef.current
+    if (!body) return
+    if (prependAnchor.current !== null) {
+      // Older messages were inserted above: keep the same message in view.
+      body.scrollTop = body.scrollHeight - prependAnchor.current
+      prependAnchor.current = null
+      rememberScroll()
+    } else if (scrollMemory.current[view] === null)
+      body.scrollTop = body.scrollHeight
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, queued, terminal, blockedPrompt])
+  const loadOlder = () => {
+    const body = bodyRef.current
+    if (body) prependAnchor.current = body.scrollHeight - body.scrollTop
+    void loadChat(start, true).catch((reason) => {
+      prependAnchor.current = null
+      setError(String(reason))
+    })
+  }
+  // Only the newest unanswered question offers its options as replies.
+  const answerableId = useMemo(() => {
+    const last = items.at(-1)
+    return last?.tool && toolView(last.tool).questions ? last.id : undefined
+  }, [items])
+
+  const send = async (text = draft) => {
+    const prompt = text.trim()
     if (!prompt || sending) return
     setSending(true)
     setError('')
@@ -212,7 +303,7 @@ export function AgentPaneScreen() {
       if (pane?.agent_status === 'blocked')
         await api.sendHerdrBlockedText(decodedPaneId, prompt)
       else await api.promptHerdrAgent(decodedPaneId, prompt)
-      setDraft('')
+      if (text === draft) setDraft('')
     } catch (reason) {
       if (
         reason &&
@@ -259,12 +350,14 @@ export function AgentPaneScreen() {
             role="group"
             aria-label={t('agents.view')}
           >
-            <button
-              className={`chip-button${view === 'chat' ? ' active' : ''}`}
-              onClick={() => setView('chat')}
-            >
-              {t('agents.chat')}
-            </button>
+            {chatUnsupported ? null : (
+              <button
+                className={`chip-button${view === 'chat' ? ' active' : ''}`}
+                onClick={() => setView('chat')}
+              >
+                {t('agents.chat')}
+              </button>
+            )}
             <button
               className={`chip-button${view === 'terminal' ? ' active' : ''}`}
               onClick={() => setView('terminal')}
@@ -274,7 +367,7 @@ export function AgentPaneScreen() {
           </div>
         }
       />
-      <div className="agent-pane-body">
+      <div className="agent-pane-body" ref={bodyRef} onScroll={rememberScroll}>
         {blockedPrompt ? (
           <aside className="agent-blocked-card">
             <span>{t('agents.needsYou')}</span>
@@ -302,22 +395,30 @@ export function AgentPaneScreen() {
             {start > 0 ? (
               <button
                 className="quiet-text-button agent-load-older"
-                onClick={() => void loadChat(start, true)}
+                onClick={loadOlder}
               >
                 {t('agents.loadOlder')}
               </button>
             ) : null}
-            {items.map((item) => (
-              <article className={`agent-message ${item.kind}`} key={item.id}>
-                {item.text ? <MarkdownContent text={item.text} /> : null}
-                {item.tool ? (
-                  <p>
-                    <strong>{item.tool.name}</strong>
-                    {item.tool.summary ? ` — ${item.tool.summary}` : ''}
-                  </p>
-                ) : null}
-              </article>
-            ))}
+            {items.map((item) =>
+              item.tool ? (
+                <AgentToolItem
+                  key={item.id}
+                  view={toolView(item.tool)}
+                  onAnswer={
+                    item.id === answerableId && !sending
+                      ? (label) => void send(label)
+                      : undefined
+                  }
+                />
+              ) : (
+                <AgentTextItem
+                  key={item.id}
+                  kind={item.kind}
+                  text={item.text}
+                />
+              ),
+            )}
             {queued.map((item) => (
               <article className="agent-message queued" key={item.id}>
                 {item.text}
@@ -325,9 +426,22 @@ export function AgentPaneScreen() {
             ))}
           </div>
         ) : (
-          <pre className="agent-terminal">
-            {terminal || t('agents.terminalWaiting')}
-          </pre>
+          <>
+            {chatUnsupported ? (
+              <p className="agent-terminal-note">
+                {t('agents.chatUnsupported')}
+              </p>
+            ) : null}
+            <pre className="agent-terminal" style={terminalVars}>
+              {terminal
+                ? terminalSegments.map((segment, index) => (
+                    <span key={index} style={ansiCss(segment.style)}>
+                      {segment.text}
+                    </span>
+                  ))
+                : t('agents.terminalWaiting')}
+            </pre>
+          </>
         )}
         {error ? <p className="settings-error agent-error">{error}</p> : null}
       </div>
@@ -339,7 +453,7 @@ export function AgentPaneScreen() {
           rows={1}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
+            if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
               event.preventDefault()
               void send()
             }
@@ -357,3 +471,78 @@ export function AgentPaneScreen() {
     </section>
   )
 }
+
+function AgentTextItem({ kind, text }: { kind: string; text?: string }) {
+  const cleaned = text ? cleanAgentText(text) : ''
+  if (!cleaned) return null
+  return (
+    <article className={`agent-message ${kind}`}>
+      <MarkdownContent text={cleaned} />
+    </article>
+  )
+}
+
+function AgentToolItem({
+  view,
+  onAnswer,
+}: {
+  view: ToolView
+  onAnswer?: (label: string) => void
+}) {
+  const t = useT()
+  if (view.questions)
+    return (
+      <article className="agent-message agent-question">
+        {view.questions.map((question, index) => (
+          <div key={index}>
+            {question.question ? <strong>{question.question}</strong> : null}
+            <div className="agent-question-options">
+              {question.options.map((option) => (
+                <button
+                  key={option.label}
+                  className="chip-button"
+                  disabled={!onAnswer}
+                  title={option.description}
+                  onClick={() => onAnswer?.(option.label)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </article>
+    )
+  return (
+    <details className={`agent-tool${view.error ? ' error' : ''}`}>
+      <summary>
+        <strong>{view.name}</strong>
+        {view.detail ? <code>{view.detail}</code> : null}
+        {view.error ? <span>{t('agents.toolFailed')}</span> : null}
+      </summary>
+      {view.result ? <pre>{view.result}</pre> : null}
+    </details>
+  )
+}
+
+function ansiCss(style: AnsiStyle): CSSProperties | undefined {
+  if (!Object.keys(style).length) return undefined
+  const fg = style.inverse ? (style.bg ?? 'var(--terminal-bg)') : style.fg
+  const bg = style.inverse ? (style.fg ?? 'var(--terminal-fg)') : style.bg
+  return {
+    color: fg,
+    backgroundColor: bg,
+    fontWeight: style.bold ? 700 : undefined,
+    opacity: style.dim ? 0.6 : undefined,
+    fontStyle: style.italic ? 'italic' : undefined,
+    textDecoration: style.underline ? 'underline' : undefined,
+  }
+}
+
+const isPinnedToBottom = (element: HTMLElement) =>
+  element.scrollHeight - element.scrollTop - element.clientHeight < 32
+
+const terminalVars = {
+  '--terminal-bg': TERMINAL_COLORS.bg,
+  '--terminal-fg': TERMINAL_COLORS.fg,
+} as CSSProperties
