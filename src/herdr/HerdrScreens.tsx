@@ -2,7 +2,7 @@ import {
   Grid3X3,
   MessageCircle,
   Send,
-  TerminalSquare,
+  SquareTerminal,
   WrapText,
 } from 'lucide-react'
 import {
@@ -425,8 +425,8 @@ export function AgentPaneScreen() {
           >
             {chatUnsupported ? null : (
               <button
-                className={`chip-button${view === 'chat' ? ' active' : ''}`}
                 aria-label={t('agents.chat')}
+                aria-pressed={view === 'chat'}
                 onClick={() => setView('chat')}
               >
                 <MessageCircle size={15} />
@@ -434,11 +434,11 @@ export function AgentPaneScreen() {
               </button>
             )}
             <button
-              className={`chip-button${view === 'terminal' ? ' active' : ''}`}
               aria-label={t('agents.terminal')}
+              aria-pressed={view === 'terminal'}
               onClick={() => setView('terminal')}
             >
-              <TerminalSquare size={15} />
+              <SquareTerminal size={15} />
               <span>{t('agents.terminal')}</span>
             </button>
           </div>

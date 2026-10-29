@@ -149,18 +149,42 @@ describe('AgentPaneScreen pane navigation', () => {
     expect(view.container.querySelector('.usage')).toBeNull()
   })
 
-  it('keeps the route and history entry unchanged when the view toggles', async () => {
+  it('renders chat and terminal as one segmented view switch', async () => {
     paneId = 'pane-b'
     render(<AgentPaneScreen />)
     await waitFor(() =>
       expect(screen.getByText('Pane B transcript')).toBeTruthy(),
     )
+    const switcher = screen.getByRole('group', { name: 'agents.view' })
+    const chat = screen.getByRole('button', { name: 'agents.chat' })
+    const terminal = screen.getByRole('button', { name: 'agents.terminal' })
+
+    expect(switcher.className).toContain('agent-view-toggle')
+    expect(chat.getAttribute('aria-pressed')).toBe('true')
+    expect(terminal.getAttribute('aria-pressed')).toBe('false')
+
     const before = { ...location, length: window.history.length }
+    fireEvent.click(terminal)
 
-    fireEvent.click(screen.getByRole('button', { name: 'agents.terminal' }))
-
+    expect(chat.getAttribute('aria-pressed')).toBe('false')
+    expect(terminal.getAttribute('aria-pressed')).toBe('true')
     expect(location).toEqual({ pathname: before.pathname, key: before.key })
     expect(window.history.length).toBe(before.length)
+  })
+
+  it('shows only the terminal segment when chat is unsupported', async () => {
+    paneId = 'pane-a'
+    render(<AgentPaneScreen />)
+
+    await waitFor(() =>
+      expect(screen.getByText('agents.chatUnsupported')).toBeTruthy(),
+    )
+    expect(screen.queryByRole('button', { name: 'agents.chat' })).toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'agents.terminal' }).getAttribute(
+        'aria-pressed',
+      ),
+    ).toBe('true')
   })
 
   it('shows every blocked option in chat, highlights the cursor, and hides the card in terminal', async () => {

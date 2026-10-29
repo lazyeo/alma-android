@@ -8571,12 +8571,25 @@ dialog:focus,
 .agent-view-toggle {
   display: flex;
   flex: none;
-  gap: 6px;
+  padding: 2px;
+  border: var(--border-hairline) solid var(--gray-7);
+  border-radius: var(--radius-md);
+  background: var(--gray-2);
 }
-.agent-view-toggle .chip-button {
+.agent-view-toggle button {
+  min-height: 30px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted-foreground);
+}
+.agent-view-toggle button[aria-pressed='true'] {
+  background: var(--card);
+  color: var(--foreground);
 }
 .agent-pane-page > .scoped-root-header .thread-header-actions {
   min-width: 0;
@@ -8853,13 +8866,13 @@ dialog:focus,
   flex: 0 0 auto;
 }
 @media (max-width: 600px) {
-  .agent-view-toggle .chip-button {
-    width: 36px;
-    min-width: 36px;
+  .agent-view-toggle button {
+    width: 32px;
+    min-width: 32px;
     justify-content: center;
     padding-inline: 0;
   }
-  .agent-view-toggle .chip-button span {
+  .agent-view-toggle button span {
     position: absolute;
     width: 1px;
     height: 1px;
