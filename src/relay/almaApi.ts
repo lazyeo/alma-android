@@ -140,6 +140,7 @@ export interface RealtimeEvent {
   type: string
   data: any
   timestamp?: number
+  [key: string]: any
 }
 export interface ApprovalRequest {
   requestId: string
@@ -782,6 +783,75 @@ export class AlmaApi {
       method: 'POST',
       body: { requestId, response: { action, answers } },
     })
+  }
+  getHerdrInfo() {
+    return this.request<{
+      online: boolean
+      host?: string
+      herdr?: {
+        type: 'pong'
+        version?: string
+        protocol?: number
+        capabilities?: Record<string, unknown>
+      }
+      herdr_error?: string
+    }>('/api/herdr/info')
+  }
+  getHerdrMutes() {
+    return this.request<{ workspaces: string[] }>('/api/herdr/mutes')
+  }
+  setHerdrWorkspaceMuted(workspace: string, muted: boolean) {
+    return this.request<{ workspaces: string[] }>('/api/herdr/mutes', {
+      method: 'PUT',
+      body: { workspace, muted },
+    })
+  }
+  herdrRpc<T>(method: string, params: Record<string, unknown>) {
+    return this.request<{
+      result?: T
+      error?: { code: string; message: string }
+    }>('/api/herdr/rpc', { method: 'POST', body: { method, params } }).then(
+      (response) => {
+        if (response.error) {
+          const error = new Error(response.error.message) as Error & {
+            code?: string
+          }
+          error.code = response.error.code
+          throw error
+        }
+        return response.result as T
+      },
+    )
+  }
+  promptHerdrAgent(paneId: string, text: string) {
+    return this.herdrRpc('agent.prompt', { target: paneId, text })
+  }
+  chooseHerdrMenuOption(paneId: string, key: string) {
+    return this.herdrRpc('pane.send_keys', {
+      pane_id: paneId,
+      keys: [key],
+    })
+  }
+  async sendHerdrBlockedText(paneId: string, text: string) {
+    await this.herdrRpc('pane.send_text', { pane_id: paneId, text })
+    return this.herdrRpc('pane.send_keys', {
+      pane_id: paneId,
+      keys: ['enter'],
+    })
+  }
+  readHerdrPane(paneId: string, format: 'text' | 'ansi' = 'text') {
+    return this.herdrRpc<{ read?: { text?: string; [key: string]: unknown } }>(
+      'pane.read',
+      { pane_id: paneId, source: 'visible', format },
+    )
+  }
+  getHerdrChat(paneId: string, before = -1, limit = 60) {
+    const query = new URLSearchParams({
+      pane: paneId,
+      before: String(before),
+      limit: String(limit),
+    })
+    return this.request<unknown>(`/api/herdr/chat?${query}`)
   }
   openJsonSocket(
     path: string,

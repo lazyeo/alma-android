@@ -24,6 +24,19 @@ describe('Alma API safety', () => {
     expect(() => assertSafePath(path, method)).toThrow(/blocked/i)
   })
 
+  it('allows the Herdr HTTP and WebSocket bridge paths', () => {
+    for (const [path, method] of [
+      ['/api/herdr/info', 'GET'],
+      ['/api/herdr/chat?pane=w1%3Ap1', 'GET'],
+      ['/api/herdr/rpc', 'POST'],
+      ['/api/herdr/mutes', 'PUT'],
+      ['/ws/herdr', 'WS'],
+      ['/ws/herdr/chat?pane=w1%3Ap1&from=0', 'WS'],
+      ['/ws/herdr/screen?pane=w1%3Ap1', 'WS'],
+    ] as const)
+      expect(() => assertSafePath(path, method)).not.toThrow()
+  })
+
   it('allows settings reads but blocks settings writes', () => {
     expect(() => assertSafePath('/api/settings', 'GET')).not.toThrow()
     expect(() => assertSafePath('/api/settings', 'PUT')).toThrow()
