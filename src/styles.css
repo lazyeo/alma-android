@@ -8573,7 +8573,7 @@ dialog:focus,
   flex: none;
   padding: 2px;
   border: var(--border-hairline) solid var(--gray-7);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-full);
   background: var(--gray-2);
 }
 .agent-view-toggle button {
@@ -8583,13 +8583,15 @@ dialog:focus,
   gap: 5px;
   padding: 0 9px;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   background: transparent;
   color: var(--muted-foreground);
 }
+/* Solid accent fill so the pill reads as one control with a clear state. */
 .agent-view-toggle button[aria-pressed='true'] {
-  background: var(--card);
-  color: var(--foreground);
+  background: var(--accent-9);
+  color: var(--accent-contrast);
+  font-weight: var(--weight-medium);
 }
 .agent-pane-page > .scoped-root-header .thread-header-actions {
   min-width: 0;

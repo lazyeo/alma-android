@@ -235,6 +235,19 @@ function TerminalViewComponent(props: TerminalViewProps) {
       if (sizingKey !== lastSizingRef.current) {
         lastSizingRef.current = sizingKey
         viewport.dataset.displayMode = job.displayMode
+        // Hosts that render extra text beside the terminal (e.g. scrollback)
+        // opt in with data-terminal-metrics-host to match its type metrics.
+        const metricsHost = viewport.closest<HTMLElement>(
+          '[data-terminal-metrics-host]',
+        )
+        metricsHost?.style.setProperty(
+          '--terminal-font-size',
+          `${sizing.fontSize}px`,
+        )
+        metricsHost?.style.setProperty(
+          '--terminal-line-height',
+          String(SNAPSHOT_LINE_HEIGHT),
+        )
         viewport.style.width =
           job.displayMode === 'grid'
             ? `${sizing.contentWidth + SURFACE_INSET}px`

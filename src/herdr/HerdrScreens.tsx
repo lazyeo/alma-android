@@ -517,6 +517,7 @@ export function AgentPaneScreen() {
             <div
               className={`agent-terminal-scroll agent-terminal-scroll-${terminalDisplayMode}`}
               ref={terminalScrollRef}
+              data-terminal-metrics-host=""
               style={
                 {
                   '--agent-terminal-bg': TERMINAL_COLORS.bg,
@@ -696,6 +697,10 @@ function TerminalHistory({
       style={{
         backgroundColor: TERMINAL_COLORS.bg,
         color: TERMINAL_COLORS.fg,
+        // Match the live xterm's computed metrics (TerminalView sets these on
+        // the data-terminal-metrics-host scroller); tokens are the fallback.
+        fontSize: 'var(--terminal-font-size, var(--text-xs))',
+        lineHeight: 'var(--terminal-line-height, var(--leading-tight))',
       }}
     >
       {parseAnsi(text).map((segment, index) => (
