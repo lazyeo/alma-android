@@ -5648,8 +5648,8 @@ const phoneGtdNavigationShots = ['en', 'zh'].flatMap((language) => {
       async act(page) {
         await page.getByRole('button', { name: 'GTD', exact: true }).click()
         await page.locator('.gtd-page .gtd-list .thread-row').first().waitFor()
-        if (!page.url().includes('/gtd'))
-          throw new Error(`GTD header did not navigate: ${page.url()}`)
+        if (await page.locator('.threads-page').count())
+          throw new Error('Threads root remained after GTD header navigation')
         const bottomLabels = await page.locator('.tab-bar a').allTextContents()
         if (bottomLabels.join('|') !== labels.bottom.join('|'))
           throw new Error(`GTD bottom navigation: ${bottomLabels.join('|')}`)
