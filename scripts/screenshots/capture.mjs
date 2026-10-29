@@ -5648,6 +5648,14 @@ const phoneGtdNavigationShots = ['en', 'zh'].flatMap((language) => {
       ready: '.thread-list-header',
       safeInsets: true,
       async act(page) {
+        const threadsTab = page.getByRole('link', {
+          name: labels.bottom[0],
+          exact: true,
+        })
+        const before = await threadsTab.evaluate((node) => {
+          const rect = node.getBoundingClientRect()
+          return { left: rect.left, width: rect.width }
+        })
         await page.getByRole('button', { name: 'GTD', exact: true }).click()
         await page.locator('.gtd-page .gtd-list .thread-row').first().waitFor()
         if (await page.locator('.threads-page').count())
@@ -5655,6 +5663,17 @@ const phoneGtdNavigationShots = ['en', 'zh'].flatMap((language) => {
         const bottomLabels = await page.locator('.tab-bar a').allTextContents()
         if (bottomLabels.join('|') !== labels.bottom.join('|'))
           throw new Error(`GTD bottom navigation: ${bottomLabels.join('|')}`)
+        if ((await threadsTab.getAttribute('aria-current')) !== 'page')
+          throw new Error('GTD phone Threads tab is not active')
+        const after = await threadsTab.evaluate((node) => {
+          const rect = node.getBoundingClientRect()
+          return { left: rect.left, width: rect.width }
+        })
+        if (
+          Math.abs(after.left - before.left) > 0.5 ||
+          Math.abs(after.width - before.width) > 0.5
+        )
+          throw new Error('GTD phone tab indicator moved')
         await assertNoHorizontalOverflow(page, '.gtd-page')
       },
     },

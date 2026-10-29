@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Show GTD as a child of Threads on phones with a Back affordance while keeping Threads selected in the bottom navigation.
 - Keep the Agents navigation visible from first render and explain connecting, unsupported, unreachable, and desktop-offline states with recovery guidance.
 - Preserve the selected Agents workspace across live Herdr updates and keep its switcher chip in view.
 - Add an optional foreground service to keep paired desktop connections and local alerts active in the background.
