@@ -1,29 +1,34 @@
 import { BellOff, BellRing, Send, TerminalSquare } from 'lucide-react'
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
 } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ScopedRootHeader } from '../layout/ScopedRootHeader'
 import { useConnection } from '../desktops/DesktopContext'
 import { useT } from '../i18n'
 import { MarkdownContent } from '../screens/MarkdownContent'
+import { HERDR_KEY_MAP, type TerminalKey } from '../terminal/terminal'
 import { useHerdr } from './HerdrProvider'
 import { mergeChatItems, parseBlockedPrompt, type HerdrPane } from './model'
 import {
   cleanAgentText,
-  parseAnsi,
   stripAnsi,
   toolView,
-  TERMINAL_COLORS,
-  type AnsiStyle,
   type ToolView,
 } from './transcript'
+
+const TerminalView = lazy(() =>
+  import('../terminal/TerminalView').then((module) => ({
+    default: module.TerminalView,
+  })),
+)
 
 type ChatItem = {
   id: string
@@ -144,6 +149,7 @@ export function AgentPaneScreen() {
   const [chatReady, setChatReady] = useState(false)
   const [chatUnsupported, setChatUnsupported] = useState(false)
   const [terminal, setTerminal] = useState('')
+  const [terminalSize, setTerminalSize] = useState({ cols: 80, rows: 24 })
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
@@ -193,6 +199,8 @@ export function AgentPaneScreen() {
         if (event.type === 'screen') {
           const read = event.read as { text?: string } | undefined
           if (typeof read?.text === 'string') setTerminal(read.text)
+          if (typeof event.cols === 'number' && typeof event.rows === 'number')
+            setTerminalSize({ cols: event.cols, rows: event.rows })
         }
       },
     )
@@ -246,8 +254,6 @@ export function AgentPaneScreen() {
       .then((result) => setTerminal(result?.read?.text ?? ''))
       .catch(() => undefined)
   }, [api, decodedPaneId, pane?.agent_status, terminal])
-
-  const terminalSegments = useMemo(() => parseAnsi(terminal), [terminal])
 
   // Each view keeps its own scroll offset; null means "pinned to the bottom",
   // which is also where a view starts and what keeps it following new output.
@@ -328,6 +334,19 @@ export function AgentPaneScreen() {
     setSending(true)
     try {
       await api.chooseHerdrMenuOption(decodedPaneId, key)
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : t('agents.sendFailed'),
+      )
+    } finally {
+      setSending(false)
+    }
+  }
+  const sendTerminalKey = async (key: TerminalKey) => {
+    setSending(true)
+    setError('')
+    try {
+      await api.sendHerdrPaneKeys(decodedPaneId, [HERDR_KEY_MAP[key]])
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : t('agents.sendFailed'),
@@ -432,15 +451,26 @@ export function AgentPaneScreen() {
                 {t('agents.chatUnsupported')}
               </p>
             ) : null}
-            <pre className="agent-terminal" style={terminalVars}>
-              {terminal
-                ? terminalSegments.map((segment, index) => (
-                    <span key={index} style={ansiCss(segment.style)}>
-                      {segment.text}
-                    </span>
-                  ))
-                : t('agents.terminalWaiting')}
-            </pre>
+            <Suspense
+              fallback={
+                <div className="agent-terminal-loading">
+                  {t('agents.terminalWaiting')}
+                </div>
+              }
+            >
+              <TerminalView
+                className="agent-terminal"
+                mode="snapshot"
+                ariaLabel={t('agents.terminalOutput')}
+                frame={{
+                  text: terminal,
+                  cols: terminalSize.cols,
+                  rows: terminalSize.rows,
+                }}
+                waitingText={t('agents.terminalWaiting')}
+              />
+            </Suspense>
+            <TerminalKeyRow disabled={sending} onKey={sendTerminalKey} />
           </>
         )}
         {error ? <p className="settings-error agent-error">{error}</p> : null}
@@ -525,24 +555,61 @@ function AgentToolItem({
   )
 }
 
-function ansiCss(style: AnsiStyle): CSSProperties | undefined {
-  if (!Object.keys(style).length) return undefined
-  const fg = style.inverse ? (style.bg ?? 'var(--terminal-bg)') : style.fg
-  const bg = style.inverse ? (style.fg ?? 'var(--terminal-fg)') : style.bg
-  return {
-    color: fg,
-    backgroundColor: bg,
-    fontWeight: style.bold ? 700 : undefined,
-    opacity: style.dim ? 0.6 : undefined,
-    fontStyle: style.italic ? 'italic' : undefined,
-    textDecoration: style.underline ? 'underline' : undefined,
-  }
+const TERMINAL_KEYS: Array<{
+  key: TerminalKey
+  label: string
+  aria:
+    | 'terminalKeyEscape'
+    | 'terminalKeyInterrupt'
+    | 'terminalKeyEnter'
+    | 'terminalKeyTab'
+    | 'terminalKeyBacktab'
+    | 'terminalKeyUp'
+    | 'terminalKeyDown'
+    | 'terminalKeyLeft'
+    | 'terminalKeyRight'
+    | 'terminalKeyBackspace'
+}> = [
+  { key: 'escape', label: 'esc', aria: 'terminalKeyEscape' },
+  { key: 'interrupt', label: '⌃C', aria: 'terminalKeyInterrupt' },
+  { key: 'enter', label: '⏎', aria: 'terminalKeyEnter' },
+  { key: 'tab', label: 'tab', aria: 'terminalKeyTab' },
+  { key: 'backtab', label: '⇧tab', aria: 'terminalKeyBacktab' },
+  { key: 'up', label: '↑', aria: 'terminalKeyUp' },
+  { key: 'down', label: '↓', aria: 'terminalKeyDown' },
+  { key: 'left', label: '←', aria: 'terminalKeyLeft' },
+  { key: 'right', label: '→', aria: 'terminalKeyRight' },
+  { key: 'backspace', label: '⌫', aria: 'terminalKeyBackspace' },
+]
+
+function TerminalKeyRow({
+  disabled,
+  onKey,
+}: {
+  disabled: boolean
+  onKey: (key: TerminalKey) => void
+}) {
+  const t = useT()
+  return (
+    <div
+      className="agent-terminal-keys"
+      role="toolbar"
+      aria-label={t('agents.terminalKeys')}
+    >
+      {TERMINAL_KEYS.map((item) => (
+        <button
+          className="chip-button"
+          key={item.key}
+          disabled={disabled}
+          aria-label={t(`agents.${item.aria}`)}
+          onClick={() => onKey(item.key)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 const isPinnedToBottom = (element: HTMLElement) =>
   element.scrollHeight - element.scrollTop - element.clientHeight < 32
-
-const terminalVars = {
-  '--terminal-bg': TERMINAL_COLORS.bg,
-  '--terminal-fg': TERMINAL_COLORS.fg,
-} as CSSProperties

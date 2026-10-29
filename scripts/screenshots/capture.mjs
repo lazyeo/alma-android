@@ -5204,10 +5204,28 @@ const herdrShots = [
       async act(page) {
         const label = lang === 'zh' ? '终端' : 'Terminal'
         await page.getByRole('button', { name: new RegExp(label) }).click()
-        await page.locator('.agent-terminal').waitFor()
+        await page.locator('.agent-terminal .xterm-rows').waitFor()
+        await page.locator('.agent-terminal-keys').waitFor()
         await assertNoHorizontalOverflow(page, '.agent-pane-body')
       },
     },
+    ...(lang === 'en'
+      ? [
+          {
+            file: 'herdr-pane-terminal-en-884.png',
+            viewport: TABLET,
+            route: '/d/fixture-desktop/agents/w1%3Ap1',
+            language: lang,
+            ready: '.agent-message',
+            safeInsets: true,
+            async act(page) {
+              await page.getByRole('button', { name: /Terminal/ }).click()
+              await page.locator('.agent-terminal .xterm-rows').waitFor()
+              await assertNoHorizontalOverflow(page, '.agent-pane-body')
+            },
+          },
+        ]
+      : []),
     {
       file: `herdr-blocked-${lang}-412.png`,
       viewport: PHONE,

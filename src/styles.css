@@ -8526,22 +8526,49 @@ dialog:focus,
   color: var(--text-secondary);
   font-size: var(--text-xs);
 }
-.agent-terminal {
-  /* Fixed dark surface (vars set inline from the ANSI palette): agents emit
-     absolute colours such as white text that would vanish on the light theme. */
-  min-height: 50vh;
-  margin: 0;
-  padding: 12px;
+.terminal-viewport,
+.agent-terminal-loading {
+  min-height: 240px;
   overflow: auto;
   border: var(--border-hairline) solid var(--gray-7);
   border-radius: var(--radius-md);
-  background: var(--terminal-bg);
-  color: var(--terminal-fg);
+}
+.terminal-surface {
+  height: 100%;
+  min-height: 100%;
+  padding: 10px;
+}
+.terminal-surface .xterm {
+  height: 100%;
+}
+.terminal-surface .xterm-viewport {
+  background-color: transparent !important;
+}
+.agent-terminal-loading {
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  color: var(--gray-6);
+  font-size: var(--text-xs);
+}
+.agent-terminal-keys {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.agent-terminal-keys::-webkit-scrollbar {
+  display: none;
+}
+.agent-terminal-keys .chip-button {
+  min-width: 38px;
+  min-height: 36px;
+  flex: 0 0 auto;
+  padding-inline: 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: var(--text-xs);
-  line-height: var(--leading-normal);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 .agent-error {
   margin: 10px 0 0;
