@@ -7,7 +7,7 @@ import {
   buildWorkspaceSwitcher,
   loadAgentsViewMode,
   loadSelectedWorkspace,
-  resolveSelectedWorkspace,
+  reconcileSelectedWorkspace,
   saveAgentsViewMode,
   saveSelectedWorkspace,
   type AgentsViewMode,
@@ -36,12 +36,16 @@ export function AgentsSidebar() {
     const selectedPaneWorkspace = workspaces.find((workspace) =>
       workspace.panes.some((pane) => pane.id === selectedPaneId),
     )?.id
-    const selected = resolveSelectedWorkspace(
-      workspaces,
-      selectedPaneWorkspace ?? loadSelectedWorkspace(decodedDesktopId),
-    )
-    setSelectedWorkspaceId(selected)
-    if (selected) saveSelectedWorkspace(decodedDesktopId, selected)
+    setSelectedWorkspaceId((current) => {
+      const selected = reconcileSelectedWorkspace(
+        workspaces,
+        selectedPaneWorkspace ?? current,
+        loadSelectedWorkspace(decodedDesktopId),
+      )
+      if (selected && selected !== current)
+        saveSelectedWorkspace(decodedDesktopId, selected)
+      return selected
+    })
   }, [decodedDesktopId, selectedPaneId, workspaces])
 
   const changeMode = () => {

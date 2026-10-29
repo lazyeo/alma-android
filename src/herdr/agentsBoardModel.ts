@@ -45,6 +45,16 @@ export function buildWorkspaceSwitcher(
     )
 }
 
+export function reconcileSelectedWorkspace(
+  workspaces: AgentWorkspaceModel[],
+  currentId?: string,
+  fallbackId?: string | null,
+) {
+  if (currentId && workspaces.some((workspace) => workspace.id === currentId))
+    return currentId
+  return resolveSelectedWorkspace(workspaces, fallbackId)
+}
+
 export function resolveSelectedWorkspace(
   workspaces: AgentWorkspaceModel[],
   selectedId?: string | null,

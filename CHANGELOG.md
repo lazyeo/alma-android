@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - Keep the Agents navigation visible from first render and explain connecting, unsupported, unreachable, and desktop-offline states with recovery guidance.
+- Preserve the selected Agents workspace across live Herdr updates and keep its switcher chip in view.
 - Add an optional foreground service to keep paired desktop connections and local alerts active in the background.
 
 ## [0.1.2] - 2026-10-29

@@ -13,7 +13,7 @@ import {
   buildWorkspaceSwitcher,
   loadAgentsViewMode,
   loadSelectedWorkspace,
-  resolveSelectedWorkspace,
+  reconcileSelectedWorkspace,
   saveAgentsViewMode,
   saveSelectedWorkspace,
   type AgentsViewMode,
@@ -37,12 +37,16 @@ export function AgentsScreen() {
   )
 
   useEffect(() => {
-    const selected = resolveSelectedWorkspace(
-      workspaces,
-      loadSelectedWorkspace(decodedDesktopId),
-    )
-    setSelectedWorkspaceId(selected)
-    if (selected) saveSelectedWorkspace(decodedDesktopId, selected)
+    setSelectedWorkspaceId((current) => {
+      const selected = reconcileSelectedWorkspace(
+        workspaces,
+        current,
+        loadSelectedWorkspace(decodedDesktopId),
+      )
+      if (selected && selected !== current)
+        saveSelectedWorkspace(decodedDesktopId, selected)
+      return selected
+    })
   }, [decodedDesktopId, workspaces])
 
   const changeMode = () => {

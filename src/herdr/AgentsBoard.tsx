@@ -1,4 +1,5 @@
 import { BellOff, BellRing } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { desktopAgentPanePath } from '../desktopRoutes'
 import { useT } from '../i18n'
@@ -71,13 +72,25 @@ export function AgentsBoard({
   onSetWorkspaceMuted(workspaceId: string, muted: boolean): void
 }) {
   const t = useT()
+  const switcherRef = useRef<HTMLDivElement>(null)
   const selected = workspaces.find(
     (workspace) => workspace.id === selectedWorkspaceId,
   )
   const muted = selected ? mutedWorkspaces.includes(selected.id) : false
+  useEffect(() => {
+    const active = switcherRef.current?.querySelector<HTMLElement>(
+      '[role="tab"][aria-selected="true"]',
+    )
+    active?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [selectedWorkspaceId])
   return (
     <div className={`agents-board${compact ? ' compact' : ''}`}>
-      <div className="agent-project-switcher" role="tablist">
+      <div
+        ref={switcherRef}
+        className="agent-project-switcher"
+        role="tablist"
+        data-sidebar-swipe-exclude
+      >
         {workspaces.map((workspace) => (
           <button
             className={`agent-project-tab${workspace.id === selected?.id ? ' active' : ''}`}

@@ -23,6 +23,7 @@ import {
   loadAgentsViewMode,
   loadSelectedWorkspace,
   rememberLastViewedPane,
+  reconcileSelectedWorkspace,
   resolveLastViewedPane,
   resolveSelectedWorkspace,
   saveAgentsViewMode,
@@ -95,6 +96,32 @@ describe('Agents board workspace switcher', () => {
       expect.objectContaining({ id: 'working', blocked: 0, working: 2 }),
       expect.objectContaining({ id: 'quiet', blocked: 0, working: 0 }),
     ])
+  })
+
+  it('keeps the current selection across fresh Herdr workspace arrays', () => {
+    expect(reconcileSelectedWorkspace(workspaces, 'working', 'blocked')).toBe(
+      'working',
+    )
+    expect(
+      reconcileSelectedWorkspace(
+        workspaces.map((workspace) => ({
+          ...workspace,
+          panes: [...workspace.panes],
+        })),
+        'working',
+        'blocked',
+      ),
+    ).toBe('working')
+  })
+
+  it('falls back only when the current workspace actually disappears', () => {
+    expect(
+      reconcileSelectedWorkspace(
+        workspaces.filter((workspace) => workspace.id !== 'working'),
+        'working',
+        'quiet',
+      ),
+    ).toBe('quiet')
   })
 
   it('keeps a persisted workspace when present and falls back when removed', () => {
