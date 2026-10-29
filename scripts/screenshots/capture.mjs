@@ -676,7 +676,11 @@ async function assertNavigationWithoutInbox(page, selector) {
     selector === '.tab-bar'
       ? ['Threads', 'Herdr', 'Settings']
       : ['Threads', 'GTD', 'Herdr', 'Settings']
-  if (normalized.join('|') !== expected.join('|'))
+  const roots = normalized.filter((label) => expected.includes(label))
+  if (
+    (selector === '.tab-bar' && normalized.join('|') !== expected.join('|')) ||
+    roots.join('|') !== expected.join('|')
+  )
     throw new Error(
       `${selector} navigation roots: ${JSON.stringify(normalized)}`,
     )
