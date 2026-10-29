@@ -15,7 +15,10 @@ describe('Herdr terminal surface geometry', () => {
       /\.agent-terminal-scroll-grid\s*{[^}]*overflow:\s*auto;/s,
     )
     expect(css).toMatch(
-      /\.agent-terminal-scroll-grid \.agent-terminal-content\s*{[^}]*width:\s*max-content;[^}]*min-width:\s*100%;/s,
+      /\.agent-terminal-scroll-grid \.agent-terminal-content\s*{[^}]*display:\s*contents;/s,
+    )
+    expect(css).toMatch(
+      /\.agent-terminal-scroll-grid \.agent-terminal-area\s*{[^}]*height:\s*0;[^}]*flex:\s*1 0 auto;/s,
     )
     expect(css).toMatch(
       /\.terminal-viewport\[data-display-mode='grid'\]\s*{[^}]*overflow:\s*hidden;/s,
