@@ -37,6 +37,31 @@ describe('decodeScreenMessage', () => {
     ).toEqual({ type: 'preview_status', ready: true })
   })
 
+  it('keeps the reason when the desktop refuses to stream', () => {
+    expect(
+      decodeScreenMessage(
+        JSON.stringify({
+          type: 'status',
+          bound: false,
+          displayId: 1,
+          width: 1920,
+          height: 1080,
+          scale: 1,
+          mode: 'jpeg',
+          error: 'Screen streaming is only available on macOS',
+        }),
+      ),
+    ).toMatchObject({
+      bound: false,
+      error: 'Screen streaming is only available on macOS',
+    })
+    expect(
+      decodeScreenMessage(
+        JSON.stringify({ type: 'status', bound: false, error: 'nope' }),
+      ),
+    ).toMatchObject({ type: 'status', bound: false, error: 'nope' })
+  })
+
   it('ignores malformed and unknown messages', () => {
     expect(decodeScreenMessage('not json')).toBeUndefined()
     expect(

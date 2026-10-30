@@ -11,6 +11,8 @@ export type ScreenServerMessage =
       height: number
       scale: number
       mode: ScreenMode
+      /** Set with `bound: false` when the desktop refuses to stream. */
+      error?: string
     }
   | { type: 'viewport'; width: number; height: number }
   | {
@@ -55,6 +57,20 @@ export function decodeScreenMessage(
   if (!value || typeof value !== 'object') return undefined
   switch (value.type) {
     case 'status':
+      // A refusal is meaningful even if the desktop omits the display fields.
+      if (value.bound === false && typeof value.error === 'string')
+        return {
+          type: 'status',
+          bound: false,
+          displayId: finite(value.displayId) ? value.displayId : 0,
+          width: finite(value.width) ? value.width : 0,
+          height: finite(value.height) ? value.height : 0,
+          scale: finite(value.scale) ? value.scale : 1,
+          mode: ['jpeg', 'video-jpeg', 'video'].includes(value.mode)
+            ? value.mode
+            : 'jpeg',
+          error: value.error,
+        }
       if (
         typeof value.bound === 'boolean' &&
         finite(value.displayId) &&
