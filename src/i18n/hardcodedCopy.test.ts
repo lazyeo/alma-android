@@ -197,7 +197,8 @@ describe('hardcoded English guard', () => {
       .filter((offender) => !allowed(offender))
       .map(({ file, line, text }) => `${file}:${line} ${JSON.stringify(text)}`)
     expect(offenders).toEqual([])
-  })
+    // Scans every TSX file; under a full parallel run it can exceed 5s.
+  }, 20_000)
 
   it('keeps every allowlist entry in use', () => {
     const stale = ALLOWLIST.filter(
