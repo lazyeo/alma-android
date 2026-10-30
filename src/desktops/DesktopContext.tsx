@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react'
 import type {
   AlmaApi,
+  ActiveTransport,
   DesktopStatus,
   ManagedTunnel,
   PairingStore,
@@ -13,6 +14,7 @@ export interface ConnectionValue {
   tunnel: ManagedTunnel
   api: AlmaApi
   status: DesktopStatus
+  transport: ActiveTransport
   error?: string
 }
 
@@ -21,6 +23,7 @@ export interface DesktopSummary {
   /** Absent until the connection manager has synced this pairing. */
   connection?: ConnectionValue
   status: DesktopStatus
+  transport: ActiveTransport
 }
 
 export interface DesktopsValue {

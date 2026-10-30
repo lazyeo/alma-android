@@ -181,6 +181,7 @@ export interface AppFixture {
   store: PairingStore
   createTunnel(pairing: StoredPairing): ManagedTunnel
   statusByDesktop?: Record<string, DesktopSummary['status']>
+  transportByDesktop?: Record<string, DesktopSummary['transport']>
   updateDependencies?: UpdateDependencies
 }
 
@@ -312,11 +313,17 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
             fixture?.statusByDesktop?.[pairing.id] ??
             connection?.status ??
             'connecting',
+          transport:
+            fixture?.transportByDesktop?.[pairing.id] ??
+            connection?.transport ??
+            'relay',
           connection: connection && {
             pairing,
             tunnel: connection.tunnel,
             api: connection.api,
             status: fixture?.statusByDesktop?.[pairing.id] ?? connection.status,
+            transport:
+              fixture?.transportByDesktop?.[pairing.id] ?? connection.transport,
             error:
               fixture?.statusByDesktop?.[pairing.id] === 'offline'
                 ? 'Desktop is offline'
@@ -349,10 +356,10 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
   const backgroundStatus = backgroundConnectionStatus(
     desktops
       .filter(({ pairing }) => pairing.hidden !== true)
-      .map(({ pairing, status }) => ({
+      .map(({ pairing, status, transport }) => ({
         name: pairing.name,
         status,
-        relayUrl: pairing.relayUrl,
+        transport,
       })),
     desktops.find(({ pairing }) => pairing.id === store.activeId)?.pairing.name,
     {

@@ -2061,7 +2061,7 @@ function createTunnel(targetPairing?: StoredPairing): ManagedTunnel {
     params.has('shareOffline') && targetPairing?.id === THIRD_DESKTOP_ID
   const tunnel: ManagedTunnel = {
     connectionState: fixtureOffline ? 'offline' : 'connected',
-    activeTransport: 'relay',
+    activeTransport: params.has('lan') ? 'direct' : 'relay',
     connect: async () => {
       const status = new URLSearchParams(window.location.search).get('status')
       if (status === 'offline')
@@ -2171,6 +2171,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               createTunnel,
               statusByDesktop: screenshotParams.has('shareOffline')
                 ? { [THIRD_DESKTOP_ID]: 'offline' }
+                : undefined,
+              transportByDesktop: screenshotParams.has('lan')
+                ? { [DESKTOP_ID]: 'direct' }
                 : undefined,
               updateDependencies,
             }}

@@ -1563,6 +1563,22 @@ const updateShots = [
 ]
 
 const shots = [
+  ...['en', 'zh'].map((language) => ({
+    file: `lan-switcher-${language}-412.png`,
+    viewport: PHONE,
+    route: DESKTOP,
+    query: 'lan=1',
+    language,
+    ready: '.desktop-transport-icon',
+    safeInsets: true,
+    async act(page) {
+      const label =
+        language === 'zh' ? '已通过局域网连接' : 'Connected over local network'
+      if (!(await page.getByLabel(label).count()))
+        throw new Error(`LAN transport label missing: ${language}`)
+      await assertNoHorizontalOverflow(page, '.threads-page')
+    },
+  })),
   {
     file: 'zh-settings-360.png',
     viewport: { width: 360, height: 800 },

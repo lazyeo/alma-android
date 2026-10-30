@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- After pairing through the relay, the client now prefers the desktop's authenticated local-network connection when available, falls back to the relay automatically, and shows a LAN icon plus the actual transport in the background notification.
 - Paired desktops show a macOS, Windows or Linux icon in Settings, remembered while the desktop is offline. The screen entry is disabled up front for desktops whose Alma cannot share its screen. The client now reads `GET /api/computer-use/status`; every other Computer Use route stays blocked.
 
 ### Fixed
@@ -35,6 +36,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Keep the Herdr navigation visible from first render and explain connecting, unsupported, unreachable, and desktop-offline states with recovery guidance.
 - Preserve the selected Herdr workspace across live updates and keep its switcher chip in view.
 - Remote screen no longer shows a blank or stretched placeholder when the Mac display is asleep.
+
 ## [0.1.2] - 2026-10-29
 
 ### Added

@@ -109,6 +109,7 @@ describe('AgentsSidebar project selection', () => {
               api,
               tunnel: {} as never,
               status: 'online',
+              transport: 'relay',
             }}
           >
             <HerdrProvider
@@ -193,6 +194,7 @@ describe('AgentsSidebar project selection', () => {
               api,
               tunnel: {} as never,
               status: 'online',
+              transport: 'relay',
             }}
           >
             <HerdrProvider

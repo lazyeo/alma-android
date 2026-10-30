@@ -4,6 +4,7 @@ import {
   LoaderCircle,
   Monitor,
   Plus,
+  Wifi,
   WifiOff,
 } from 'lucide-react'
 import { useRef, useState } from 'react'
@@ -31,7 +32,7 @@ const STATUS_LABELS = {
  */
 export function DesktopSwitcher({ className = '' }: { className?: string }) {
   const t = useT()
-  const { pairing, status } = useConnection()
+  const { pairing, status, transport } = useConnection()
   const { desktops } = useDesktops()
   const visibleDesktops = desktops.filter(
     ({ pairing: candidate }) => !isDesktopHidden(candidate),
@@ -78,6 +79,13 @@ export function DesktopSwitcher({ className = '' }: { className?: string }) {
                 aria-label={t(STATUS_LABELS[status])}
               />
               <span className="desktop-switcher-name">{pairing.name}</span>
+              {status === 'online' && transport === 'direct' ? (
+                <Wifi
+                  className="desktop-transport-icon"
+                  size={12}
+                  aria-label={t('connection.transport.lan')}
+                />
+              ) : null}
             </span>
             {swipe.neighbor ? (
               <span className="desktop-switcher-slide desktop-switcher-neighbor">
