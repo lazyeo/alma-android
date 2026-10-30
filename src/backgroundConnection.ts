@@ -1,5 +1,5 @@
 import { registerPlugin, type PluginListenerHandle } from '@capacitor/core'
-import type { DesktopStatus } from './relay'
+import type { ActiveTransport, DesktopStatus } from './relay'
 import { isAndroidNative } from './nativeRuntime'
 
 export const BACKGROUND_CONNECTION_KEY = 'alma-mobile.background-connection.v1'
@@ -29,7 +29,7 @@ const BackgroundConnection = registerPlugin<BackgroundConnectionPlugin>(
 export interface BackgroundDesktopState {
   name: string
   status: DesktopStatus
-  relayUrl: string
+  transport: ActiveTransport
 }
 
 export interface BackgroundConnectionCopy {
@@ -75,23 +75,6 @@ export function subscribeBackgroundConnectionEnabled(
   return () => window.removeEventListener(preferenceEvent, onChange)
 }
 
-function isLanRelay(relayUrl: string) {
-  try {
-    const host = new URL(relayUrl).hostname
-    return (
-      host === 'localhost' ||
-      host === '127.0.0.1' ||
-      host === '::1' ||
-      /^10\./.test(host) ||
-      /^192\.168\./.test(host) ||
-      /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
-      host.endsWith('.local')
-    )
-  } catch {
-    return false
-  }
-}
-
 export function backgroundConnectionStatus(
   desktops: BackgroundDesktopState[],
   activeName: string | undefined,
@@ -105,7 +88,7 @@ export function backgroundConnectionStatus(
   if (connected)
     return copy.connected(
       connected.name,
-      isLanRelay(connected.relayUrl) ? copy.lan : copy.relay,
+      connected.transport === 'direct' ? copy.lan : copy.relay,
     )
   if (desktops.length) return copy.reconnecting
   return copy.waiting

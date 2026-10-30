@@ -8,6 +8,7 @@ export const connection = {
     error: 'Connection error',
   },
   currentDesktop: 'Current desktop',
+  transport: { lan: 'Connected over local network' },
   relayUnreachable: "Can't reach the relay",
   desktopNotResponding: 'Desktop not responding',
   switcher: {

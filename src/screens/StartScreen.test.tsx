@@ -121,6 +121,7 @@ describe('StartScreen references', () => {
             pairing,
             api: client,
             status: 'online',
+            transport: 'relay',
             tunnel: {} as never,
           }}
         >

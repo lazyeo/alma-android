@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DesktopStatus } from './relay'
+import type { ActiveTransport, DesktopStatus } from './relay'
 
 const { android, start, stop, update, getState, addListener } = vi.hoisted(
   () => ({
@@ -29,11 +29,11 @@ import {
   updateNativeBackgroundConnectionStatus,
 } from './backgroundConnection'
 
-const desktop = (name: string, status: DesktopStatus, relayUrl: string) => ({
-  name,
-  status,
-  relayUrl,
-})
+const desktop = (
+  name: string,
+  status: DesktopStatus,
+  transport: ActiveTransport,
+) => ({ name, status, transport })
 
 describe('background connection setting', () => {
   const values = new Map<string, string>()
@@ -69,21 +69,21 @@ describe('background connection setting', () => {
     }
     expect(
       backgroundConnectionStatus(
-        [desktop('Mini', 'online', 'https://relay.example')],
+        [desktop('Mini', 'online', 'relay')],
         'Mini',
         copy,
       ),
     ).toBe('Connected to Mini · relay')
     expect(
       backgroundConnectionStatus(
-        [desktop('Home', 'online', 'http://192.168.1.8:23001')],
+        [desktop('Home', 'online', 'direct')],
         'Home',
         copy,
       ),
     ).toBe('Connected to Home · LAN')
     expect(
       backgroundConnectionStatus(
-        [desktop('Mini', 'connecting', 'https://relay.example')],
+        [desktop('Mini', 'connecting', 'relay')],
         'Mini',
         copy,
       ),
