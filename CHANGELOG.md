@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Nothing yet.
+
+## [0.1.3] - 2026-10-30
+
+### Added
+
 - Herdr coding agents for desktops running Herdr: a Herdr tab with board and list views of workspaces and sessions, a per-session Chat view rendered with the shared thread message components, and a Terminal view with Fit/Grid layouts, on-demand scrollback, a hideable virtual key row, and Enter-to-terminal input. Permission menus can be answered from the chat or the session list; workspaces can be muted; local "Agent needs you" alerts.
 - Mac screen: view a paired desktop's screen, take control with direct touch or trackpad mode, type and paste text, switch desktops from the header, and wake a sleeping display.
 - In-app update checks with release notes, a 24-hour automatic-check option, verified APK download progress, version skipping, and Android installer handoff.
@@ -24,7 +30,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Keep the Herdr navigation visible from first render and explain connecting, unsupported, unreachable, and desktop-offline states with recovery guidance.
 - Preserve the selected Herdr workspace across live updates and keep its switcher chip in view.
 - Remote screen no longer shows a blank or stretched placeholder when the Mac display is asleep.
-
 ## [0.1.2] - 2026-10-29
 
 ### Added
@@ -67,7 +72,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Foldable layouts, a frosted screen transition, optional Shizuku live hinge-angle input, and an estimated fallback.
 - Foreground-lifetime local notifications for completed replies and pending approvals; no push service is used.
 
-[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.3...HEAD
 [0.1.0]: https://github.com/lazyeo/alma-android/releases/tag/v0.1.0
 [0.1.1]: https://github.com/lazyeo/alma-android/compare/v0.1.0...v0.1.1
 [0.1.2]: https://github.com/lazyeo/alma-android/compare/v0.1.1...v0.1.2
+[0.1.3]: https://github.com/lazyeo/alma-android/compare/v0.1.2...v0.1.3
