@@ -5988,6 +5988,13 @@ const unfoldedGtdRailShots = ['en', 'zh'].map((language) => ({
     const roots = labels.filter((label) => expected.includes(label))
     if (roots.join('|') !== expected.join('|'))
       throw new Error(`split navigation: ${labels.join('|')}`)
+    const active = await page
+      .locator('.split-nav [aria-current="page"]')
+      .count()
+    if (active !== 1)
+      throw new Error(`split GTD has ${active} active navigation items`)
+    if (!(await page.locator('.split-nav [aria-label="GTD"].active').count()))
+      throw new Error('split GTD navigation item is not active')
     if (await page.locator('.split-main .scoped-root-back').count())
       throw new Error('split GTD unexpectedly shows Back')
     await assertNoHorizontalOverflow(page, '.split-shell')
@@ -6007,6 +6014,15 @@ const unfoldedLibraryRailShots = ['en', 'zh'].flatMap((language) =>
     ready: active,
     safeInsets: true,
     async act(page) {
+      const activeCount = await page
+        .locator('.split-nav [aria-current="page"]')
+        .count()
+      if (activeCount !== 1)
+        throw new Error(
+          `split ${key} has ${activeCount} active navigation items`,
+        )
+      if (!(await page.locator(active).count()))
+        throw new Error(`split ${key} navigation item is not active`)
       if (await page.locator('.split-main .scoped-root-back').count())
         throw new Error(`split ${key} unexpectedly shows Back`)
       if (!(await page.locator('.split-rail').count()))
