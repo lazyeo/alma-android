@@ -174,7 +174,10 @@ export function reducePointerGesture(
       return { state: next, actions }
     }
     const startsTapDrag =
-      state.maxPointers === 1 && state.secondTap && updated.moved && !state.dragging
+      state.maxPointers === 1 &&
+      state.secondTap &&
+      updated.moved &&
+      !state.dragging
     next = {
       ...state,
       pointers,

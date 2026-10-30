@@ -52,11 +52,7 @@ export function directPointerEvent(
   return {
     type: 'pointer',
     action:
-      action === 'drag-start'
-        ? 'down'
-        : action === 'drag-end'
-          ? 'up'
-          : action,
+      action === 'drag-start' ? 'down' : action === 'drag-end' ? 'up' : action,
     ...point,
   }
 }
