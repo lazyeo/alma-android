@@ -6586,7 +6586,7 @@ try {
   // Vite optimizes dependencies on first load and then reloads the page;
   // absorb that once before any capture.
   const warmup = await browser.newPage()
-  await warmup.goto(fixtureUrl(`${DESKTOP}/t-gen`))
+  await warmup.goto(fixtureUrl(`${DESKTOP}/t-gen`), { timeout: 120_000 })
   await warmup.waitForLoadState('networkidle')
   await warmup.locator('.thread-generating').waitFor({ timeout: 30_000 })
   await warmup.close()
@@ -6615,6 +6615,7 @@ try {
     try {
       await page.goto(
         fixtureUrl(shot.route, shot.fixture, shot.query, shot.language),
+        { timeout: 120_000 },
       )
       if (themeOverride && themeMode)
         await setFixtureTheme(page, themeOverride, themeMode)
