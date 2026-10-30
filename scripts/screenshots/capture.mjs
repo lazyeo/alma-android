@@ -5610,6 +5610,16 @@ const herdrShots = [
         async act(page) {
           await page.getByRole('button', { name: terminalLabel }).click()
           await page.getByRole('button', { name: gridLabel }).click()
+          await page
+            .getByRole('button', {
+              name: lang === 'zh' ? '加载更早输出' : 'Load earlier output',
+            })
+            .click()
+          await page
+            .locator('.agent-terminal-history')
+            .getByText(/history line 1/)
+            .first()
+            .waitFor()
           await page.locator('.agent-terminal .xterm-rows').waitFor()
           await assertVisibleTerminal(page)
           await assertTerminalModeControl(page, true)
@@ -5676,6 +5686,14 @@ const herdrShots = [
               async act(page) {
                 await page.getByRole('button', { name: terminalLabel }).click()
                 await page.getByRole('button', { name: gridLabel }).click()
+                await page
+                  .getByRole('button', { name: 'Load earlier output' })
+                  .click()
+                await page
+                  .locator('.agent-terminal-history')
+                  .getByText(/history line 1/)
+                  .first()
+                  .waitFor()
                 await page.locator('.agent-terminal .xterm-rows').waitFor()
                 await assertVisibleTerminal(page)
                 await assertTerminalModeControl(page, true)
