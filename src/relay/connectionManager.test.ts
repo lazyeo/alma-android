@@ -3,12 +3,14 @@ import {
   DesktopConnectionManager,
   type ManagedTunnel,
 } from './connectionManager'
-import type { ConnectionState } from './tunnel'
+import type { ActiveTransport, ConnectionState } from './tunnel'
 import type { StoredPairing } from './storage'
 
 class FakeTunnel implements ManagedTunnel {
   connectionState: ConnectionState = 'offline'
+  activeTransport: ActiveTransport = 'relay'
   onConnectionState?: (state: ConnectionState) => void
+  onActiveTransport?: (transport: ActiveTransport) => void
   closed = false
   constructor(private failure?: Error) {}
   async connect() {
@@ -60,6 +62,22 @@ describe('DesktopConnectionManager', () => {
     expect(manager.get('offline')?.status).toBe('offline')
     expect(manager.get('online')?.api).toBeDefined()
     expect(tunnels.get('online')?.closed).toBe(false)
+  })
+
+  it('publishes the active transport from the managed tunnel', async () => {
+    let tunnel!: FakeTunnel
+    const manager = new DesktopConnectionManager(() => {
+      tunnel = new FakeTunnel()
+      return tunnel
+    })
+
+    manager.sync([pairing('home')])
+    await Promise.resolve()
+    expect(manager.get('home')?.transport).toBe('relay')
+
+    tunnel.activeTransport = 'direct'
+    tunnel.onActiveTransport?.('direct')
+    expect(manager.get('home')?.transport).toBe('direct')
   })
 
   it('connects newly added desktops and closes removed ones', async () => {

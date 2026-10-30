@@ -2061,6 +2061,7 @@ function createTunnel(targetPairing?: StoredPairing): ManagedTunnel {
     params.has('shareOffline') && targetPairing?.id === THIRD_DESKTOP_ID
   const tunnel: ManagedTunnel = {
     connectionState: fixtureOffline ? 'offline' : 'connected',
+    activeTransport: 'relay',
     connect: async () => {
       const status = new URLSearchParams(window.location.search).get('status')
       if (status === 'offline')
