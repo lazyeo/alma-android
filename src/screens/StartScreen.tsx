@@ -19,7 +19,7 @@ import {
   createNewConversation,
   loadNewConversationDefaults,
 } from './newConversation'
-import type { UploadedAttachment } from './messageParts'
+import type { ComposerAttachment } from './attachmentUpload'
 import type { ThreadGoal } from './threadGoal'
 import type { ThreadLoop } from './threadLoop'
 import { parseLoopPrompt } from './threadLoop'
@@ -49,11 +49,13 @@ function StartView() {
   const [effort, setEffort] = useState<ReasoningEffort | 'off'>('medium')
   const [fastMode, setFastMode] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
-  const [attachments, setAttachments] = useState<UploadedAttachment[]>(
-    draft.savedAttachments,
+  const [attachments, setAttachments] = useState<ComposerAttachment[]>(
+    draft.attachments,
   )
+  useEffect(() => {
+    if (draft.attachments.length) setAttachments(draft.attachments)
+  }, [draft.attachments])
   const [goal, setGoal] = useState<ThreadGoal | null>(null)
   const [loop, setLoop] = useState<ThreadLoop | null>(null)
   const textarea = useRef<HTMLTextAreaElement>(null)
@@ -144,7 +146,6 @@ function StartView() {
   const start = async () => {
     if (
       busy ||
-      uploading ||
       status !== 'online' ||
       !model ||
       (!prompt.trim() && !attachments.length && !goal && !loop)
@@ -245,10 +246,8 @@ function StartView() {
             }
             attachmentControl={
               <ComposerAttachments
-                api={api}
                 attachments={attachments}
                 onChange={setAttachments}
-                onUploading={setUploading}
                 onError={setError}
                 goalControl={
                   <ComposerGoal state={pendingGoal} variant="sheet-row" />
@@ -261,7 +260,6 @@ function StartView() {
             onProjectChange={setWorkspaceId}
             disabled={
               busy ||
-              uploading ||
               status !== 'online' ||
               !model ||
               (!prompt.trim() && !attachments.length && !goal && !loop)
@@ -327,7 +325,6 @@ function StartView() {
             {error}
           </p>
         ) : null}
-        {uploading ? <p>{t('composer.uploading')}</p> : null}
         <div className="start-suggestions">
           {suggestions.map((suggestion, index) => (
             <button

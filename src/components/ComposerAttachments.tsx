@@ -6,7 +6,7 @@ import {
   downscaleImage,
   relayUploadError,
 } from '../screens/imageProcessing'
-import type { UploadedAttachment } from '../screens/messageParts'
+import type { ComposerAttachment } from '../screens/attachmentUpload'
 import type { AlmaApi } from '../relay/almaApi'
 import { imageCache } from '../screens/relayImages'
 import { BottomSheet } from './BottomSheet'
@@ -18,8 +18,8 @@ export function ComposerAttachmentTray({
   onChange,
 }: {
   api: AlmaApi
-  attachments: UploadedAttachment[]
-  onChange(value: UploadedAttachment[]): void
+  attachments: ComposerAttachment[]
+  onChange(value: ComposerAttachment[]): void
 }) {
   const t = useT()
   const [previews, setPreviews] = useState<Record<number, string>>({})
@@ -31,6 +31,7 @@ export function ComposerAttachmentTray({
         if (
           attachment.previewUrl ||
           attachment.kind !== 'image' ||
+          !('url' in attachment) ||
           !attachment.url
         )
           return
@@ -86,18 +87,14 @@ export function ComposerAttachmentTray({
 }
 
 export function ComposerAttachments({
-  api,
   attachments,
   onChange,
-  onUploading,
   onError,
   goalControl,
   vision = true,
 }: {
-  api: AlmaApi
-  attachments: UploadedAttachment[]
-  onChange(value: UploadedAttachment[]): void
-  onUploading(value: boolean): void
+  attachments: ComposerAttachment[]
+  onChange(value: ComposerAttachment[]): void
   onError(value: string): void
   goalControl?: ReactNode
   vision?: boolean
@@ -108,60 +105,59 @@ export function ComposerAttachments({
   const camera = useRef<HTMLInputElement>(null)
   const files = useRef<HTMLInputElement>(null)
 
-  async function upload(list: FileList | null, images: boolean) {
+  async function pick(list: FileList | null, images: boolean) {
     if (!list?.length) return
     if (images && !vision) {
       onError(t('composer.attachments.noVision'))
       return
     }
-    onUploading(true)
     onError('')
+    const pending: ComposerAttachment[] = []
     try {
-      const uploaded: UploadedAttachment[] = []
       for (const file of Array.from(list)) {
         if (!images && file.size > MAX_RELAY_UPLOAD_BYTES)
           throw new Error(relayUploadError(file.name))
         if (images) {
           const processed = await downscaleImage(file)
-          const result = await api.uploadImage(
-            processed.bytes,
-            processed.mediaType,
-          )
-          uploaded.push({
+          pending.push({
+            id: crypto.randomUUID(),
             kind: 'image',
             name:
               file.name.replace(/\.[^.]+$/, '') +
               (processed.mediaType === 'image/jpeg'
                 ? '.jpg'
                 : '.' + processed.mediaType.split('/')[1]),
-            mediaType: result.mediaType || processed.mediaType,
-            url: result.url,
+            mediaType: processed.mediaType,
             previewUrl: processed.previewUrl,
+            pending: {
+              blob: new Blob([processed.bytes.slice().buffer], {
+                type: processed.mediaType,
+              }),
+            },
           })
         } else {
-          const bytes = new Uint8Array(await file.arrayBuffer())
-          const result = await api.uploadFile(
-            bytes,
-            file.name,
-            file.type || 'application/octet-stream',
-          )
-          uploaded.push({
+          const mediaType = file.type || 'application/octet-stream'
+          pending.push({
+            id: crypto.randomUUID(),
             kind: 'file',
             name: file.name,
-            mediaType: file.type || 'application/octet-stream',
-            filePath: result.filePath,
+            mediaType,
+            previewUrl: URL.createObjectURL(file),
+            pending: { blob: file },
           })
         }
       }
-      onChange([...attachments, ...uploaded])
+      onChange([...attachments, ...pending])
     } catch (error) {
+      for (const attachment of pending) {
+        if (attachment.previewUrl) URL.revokeObjectURL(attachment.previewUrl)
+      }
       onError(
         error instanceof Error
           ? error.message
           : t('composer.attachments.uploadFailed'),
       )
     } finally {
-      onUploading(false)
       for (const input of [photos.current, camera.current, files.current])
         if (input) input.value = ''
     }
@@ -175,7 +171,7 @@ export function ComposerAttachments({
         accept="image/*"
         multiple
         hidden
-        onChange={(event) => void upload(event.target.files, true)}
+        onChange={(event) => void pick(event.target.files, true)}
       />
       <input
         ref={camera}
@@ -183,14 +179,14 @@ export function ComposerAttachments({
         accept="image/*"
         capture="environment"
         hidden
-        onChange={(event) => void upload(event.target.files, true)}
+        onChange={(event) => void pick(event.target.files, true)}
       />
       <input
         ref={files}
         type="file"
         multiple
         hidden
-        onChange={(event) => void upload(event.target.files, false)}
+        onChange={(event) => void pick(event.target.files, false)}
       />
       <button
         className="attach"

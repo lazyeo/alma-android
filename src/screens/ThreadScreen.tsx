@@ -154,6 +154,10 @@ import {
   messageText,
   type UploadedAttachment,
 } from './messageParts'
+import {
+  uploadPendingAttachments,
+  type ComposerAttachment,
+} from './attachmentUpload'
 import { HandoffCards } from '../handoff/HandoffCards'
 import { useHandoff } from '../handoff/HandoffProvider'
 import { pendingForThread } from './inboxModel'
@@ -408,7 +412,7 @@ function ThreadView({ threadId }: { threadId: string }) {
     pendingFirstSend?: {
       id: string
       content: string
-      attachments: UploadedAttachment[]
+      attachments: ComposerAttachment[]
       createdAt: number
     }
     pendingGoal?: ThreadGoal
@@ -543,8 +547,21 @@ function ThreadView({ threadId }: { threadId: string }) {
     area?.focus()
     area?.setSelectionRange(area.value.length, area.value.length)
   }, [editorOpen, editorOverlay.rendered])
-  const [attachments, setAttachments] = useState<UploadedAttachment[]>(() =>
-    draft.savedAttachments(),
+  const [attachments, setAttachments] = useState<ComposerAttachment[]>(
+    draft.attachments,
+  )
+  useEffect(() => {
+    if (draft.attachments.length) setAttachments(draft.attachments)
+  }, [draft.attachments])
+  const attachmentsRef = useRef(attachments)
+  attachmentsRef.current = attachments
+  useEffect(
+    () => () => {
+      for (const attachment of attachmentsRef.current) {
+        if (attachment.previewUrl) URL.revokeObjectURL(attachment.previewUrl)
+      }
+    },
+    [],
   )
   const extensionQueue = useThreadQueue(pairing.id, threadId, {
     model,
@@ -1480,8 +1497,7 @@ function ThreadView({ threadId }: { threadId: string }) {
   useEffect(() => {
     const pending = searchTarget?.pendingFirstSend
     if (!pending || firstSendStarted.current) return
-    const parts = buildMessageParts(pending.content, pending.attachments)
-    if (!parts.length) {
+    if (!pending.content.trim() && !pending.attachments.length) {
       navigate(location.pathname, {
         replace: true,
         state: {
@@ -1504,37 +1520,55 @@ function ThreadView({ threadId }: { threadId: string }) {
     if (decision === 'wait') return
     if (!claimFirstSend(pairing.id, threadId, pending.id)) return
     firstSendStarted.current = true
-    // Queued sends appear in the queue strip, not as a sent bubble.
-    if (decision === 'direct' && !firstSendOptimisticApplied.current) {
-      firstSendOptimisticApplied.current = true
-      applyOptimistic({
-        type: 'sent',
-        threadId,
-        messageId: pending.id,
-        parts,
-        sentAt: pending.createdAt,
-      })
-    }
-    scrollToBottom()
-    void deliverFirstSend(readiness, {
-      sendDirect() {
-        const socket = socketRef.current
-        if (!socket || !socketReady.current)
-          throw new Error(t('thread.errors.desktopOffline'))
-        socket.generateResponse(threadId, parts, generationOptions, pending.id)
-      },
-      writeQueue: () =>
-        updateQueue(
-          addQueuedMessage(
-            queuedRef.current,
-            pending.content,
-            pending.attachments,
-            pending.createdAt,
-            pending.id,
+    void (async () => {
+      setUploading(true)
+      let uploaded: UploadedAttachment[]
+      try {
+        uploaded = await uploadPendingAttachments(api, pending.attachments)
+      } catch (uploadError) {
+        firstSendStarted.current = false
+        releaseFirstSend(pairing.id, threadId, pending.id)
+        setError(
+          uploadError instanceof Error
+            ? uploadError.message
+            : t('composer.attachments.uploadFailed'),
+        )
+        return
+      } finally {
+        setUploading(false)
+      }
+      const parts = buildMessageParts(pending.content, uploaded)
+      // Queued sends appear in the queue strip, not as a sent bubble.
+      if (decision === 'direct' && !firstSendOptimisticApplied.current) {
+        firstSendOptimisticApplied.current = true
+        applyOptimistic({
+          type: 'sent',
+          threadId,
+          messageId: pending.id,
+          parts,
+          sentAt: pending.createdAt,
+        })
+      }
+      scrollToBottom()
+      const result = await deliverFirstSend(readiness, {
+        sendDirect() {
+          const socket = socketRef.current
+          if (!socket || !socketReady.current)
+            throw new Error(t('thread.errors.desktopOffline'))
+          socket.generateResponse(threadId, parts, generationOptions, pending.id)
+        },
+        writeQueue: () =>
+          updateQueue(
+            addQueuedMessage(
+              queuedRef.current,
+              pending.content,
+              uploaded,
+              pending.createdAt,
+              pending.id,
+            ),
+            true,
           ),
-          true,
-        ),
-    }).then((result) => {
+      })
       if (result === 'wait') {
         firstSendStarted.current = false
         releaseFirstSend(pairing.id, threadId, pending.id)
@@ -1556,6 +1590,9 @@ function ThreadView({ threadId }: { threadId: string }) {
         setError(t('thread.errors.firstSend'))
         return
       }
+      for (const attachment of pending.attachments) {
+        if (attachment.previewUrl) URL.revokeObjectURL(attachment.previewUrl)
+      }
       if (result === 'queued') {
         applyOptimistic({
           type: 'discard_optimistic',
@@ -1572,7 +1609,7 @@ function ThreadView({ threadId }: { threadId: string }) {
           pendingLoop: searchTarget?.pendingLoop,
         },
       })
-    })
+    })()
   }, [
     extensionQueue.busy,
     extensionQueue.mode,
@@ -1663,18 +1700,37 @@ function ThreadView({ threadId }: { threadId: string }) {
   const changeComposerText = composerReferences.changeText
   const pickReference = composerReferences.pick
 
+  async function uploadForSend(current: ComposerAttachment[]) {
+    setUploading(true)
+    setError('')
+    try {
+      return await uploadPendingAttachments(api, current)
+    } catch (uploadError) {
+      setError(
+        uploadError instanceof Error
+          ? uploadError.message
+          : t('composer.attachments.uploadFailed'),
+      )
+      return undefined
+    } finally {
+      setUploading(false)
+    }
+  }
+
   async function queueCurrentMessage() {
+    const uploaded = await uploadForSend(attachments)
+    if (!uploaded) return false
     const next = addQueuedMessage(
       queuedRef.current,
       composerContent(),
-      attachments,
+      uploaded,
     )
     if (next === queuedRef.current) return false
     if (!(await updateQueue(next, generating || autoSendWhenIdle.current)))
       return false
     draft.clear()
     restoreComposer('')
-    setAttachments([])
+    clearAttachments()
     return true
   }
 
@@ -1794,8 +1850,8 @@ function ThreadView({ threadId }: { threadId: string }) {
 
   async function send() {
     void haptic('light')
-    const parts = buildMessageParts(composerContent(), attachments)
-    if (!parts.length || !socketRef.current || uploading) return
+    if (!composerContent().trim() && !attachments.length) return
+    if (!socketRef.current || uploading) return
 
     if (generating && !editingMessageId) {
       await closeEditorAfterAcceptedSend(
@@ -1804,6 +1860,11 @@ function ThreadView({ threadId }: { threadId: string }) {
       )
       return
     }
+
+    const uploaded = await uploadForSend(attachments)
+    if (!uploaded) return
+    const parts = buildMessageParts(composerContent(), uploaded)
+    if (!parts.length) return
 
     const messageId = crypto.randomUUID()
     const sentAt = Date.now()
@@ -2081,10 +2142,8 @@ function ThreadView({ threadId }: { threadId: string }) {
         }
         attachmentControl={
           <ComposerAttachments
-            api={api}
             attachments={attachments}
             onChange={setAttachments}
-            onUploading={setUploading}
             onError={setError}
             goalControl={
               <ComposerGoal state={composerGoal} variant="sheet-row" />
