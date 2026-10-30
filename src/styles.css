@@ -8712,6 +8712,7 @@ dialog:focus,
   min-width: 0;
   min-height: 0;
   flex: 1;
+  flex-direction: column;
   overflow: hidden;
   border-radius: var(--radius-md);
   background: var(--agent-terminal-bg);
