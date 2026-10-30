@@ -136,15 +136,14 @@ describe('GTD navigation structure', () => {
     expect(gtd).not.toContain('<h1>GTD</h1>')
   })
 
-  it('keeps Threads active in the phone bottom bar throughout GTD', () => {
-    expect(shell).toMatch(
-      /const active = gtd[\s\S]*: threads[\s\S]*pathname === to \|\| pathname\.startsWith\('\/d\/'\)/,
-    )
-    expect(shell).toContain('<Link')
-    expect(shell).toContain("aria-current={active ? 'page' : undefined}")
-    expect(shell).not.toMatch(/threads[\s\S]*!\/\^\\\/d\\\/\[\^\/\]\+\\\/gtd/)
-    expect(capture).toContain('GTD phone Threads tab is not active')
-    expect(capture).toContain('GTD phone tab indicator moved')
+  it('renders GTD and every Library destination in the phone detail shell', () => {
+    expect(shell).toContain('const phoneChild =')
+    for (const section of ['gtd', 'crystals', 'time-clues', 'references'])
+      expect(shell).toContain(`'${section}'`)
+    expect(shell).toMatch(/const detail =[\s\S]*phoneChild/)
+    expect(shell).toMatch(/detail \? null : \([\s\S]*<ActiveDesktopStrip \/>/)
+    expect(capture).toContain('phone child destination still shows tab bar')
+    expect(capture).toContain('phone child destination left an empty bottom band')
   })
 
   it('uses root headers in split mode and Back-only child headers on phones', () => {
