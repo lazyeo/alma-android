@@ -138,12 +138,13 @@ describe('GTD navigation structure', () => {
 
   it('renders GTD and every Library destination in the phone detail shell', () => {
     expect(shell).toContain('const phoneChild =')
-    for (const section of ['gtd', 'crystals', 'time-clues', 'references'])
-      expect(shell).toContain(`'${section}'`)
+    expect(shell).toContain('(?:gtd|crystals|time-clues|references)')
     expect(shell).toMatch(/const detail =[\s\S]*phoneChild/)
     expect(shell).toMatch(/detail \? null : \([\s\S]*<ActiveDesktopStrip \/>/)
     expect(capture).toContain('phone child destination still shows tab bar')
-    expect(capture).toContain('phone child destination left an empty bottom band')
+    expect(capture).toContain(
+      'phone child destination left an empty bottom band',
+    )
   })
 
   it('uses root headers in split mode and Back-only child headers on phones', () => {

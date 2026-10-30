@@ -164,7 +164,10 @@ describe('thread list interaction styling', () => {
       /\.app-shell,\s*\.detail-shell \{[^}]*height: 100dvh;[^}]*overflow: hidden;/s,
     )
     expect(styles).toMatch(
-      /\.detail-main \{[^}]*height: 100%;[^}]*padding-bottom: var\(--safe-bottom\);[^}]*overflow: hidden;/s,
+      /\.detail-main \{[^}]*height: 100%;[^}]*overflow: hidden;/s,
+    )
+    expect(styles).toMatch(
+      /\.detail-main\.phone-child \{[^}]*padding-bottom: var\(--safe-bottom\);/s,
     )
     const rootPage = styles.match(/\.root-page \{([^}]*)\}/s)?.[1]
     expect(rootPage).toContain('display: flex;')

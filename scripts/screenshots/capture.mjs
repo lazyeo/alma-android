@@ -39,6 +39,42 @@ const simulatedNativeInsets = {
   left: 0,
 }
 
+async function assertPhoneChildShell(page, pageSelector) {
+  if (await page.locator('.tab-bar').count())
+    throw new Error('phone child destination still shows tab bar')
+  if (!(await page.getByRole('button', { name: /Back|返回/ }).count()))
+    throw new Error('phone child destination missing Back')
+  const geometry = await page
+    .locator('.detail-main.phone-child')
+    .evaluate((main, selector) => {
+      const page = document.querySelector(selector)
+      if (!(page instanceof HTMLElement))
+        throw new Error(`phone child page missing: ${selector}`)
+      const mainRect = main.getBoundingClientRect()
+      const pageRect = page.getBoundingClientRect()
+      const safeBottom = Number.parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          '--safe-bottom',
+        ),
+      )
+      return {
+        mainBottom: mainRect.bottom,
+        pageBottom: pageRect.bottom,
+        viewportHeight: innerHeight,
+        safeBottom,
+      }
+    }, pageSelector)
+  if (
+    Math.abs(geometry.mainBottom - geometry.viewportHeight) > 0.5 ||
+    Math.abs(
+      geometry.pageBottom - (geometry.viewportHeight - geometry.safeBottom),
+    ) > 0.5
+  )
+    throw new Error(
+      `phone child destination left an empty bottom band: ${JSON.stringify(geometry)}`,
+    )
+}
+
 async function touch(page, type, x, y) {
   const session =
     page.__touchSession ?? (await page.context().newCDPSession(page))
@@ -5785,37 +5821,50 @@ const phoneGtdNavigationShots = ['en', 'zh'].flatMap((language) => {
       ready: '.thread-list-header',
       safeInsets: true,
       async act(page) {
-        const threadsTab = page.getByRole('link', {
-          name: labels.bottom[0],
-          exact: true,
-        })
-        const before = await threadsTab.evaluate((node) => {
-          const rect = node.getBoundingClientRect()
-          return { left: rect.left, width: rect.width }
-        })
         await page.getByRole('button', { name: 'GTD', exact: true }).click()
         await page.locator('.gtd-page .gtd-list .thread-row').first().waitFor()
         if (await page.locator('.threads-page').count())
           throw new Error('Threads root remained after GTD header navigation')
-        const bottomLabels = await page.locator('.tab-bar a').allTextContents()
-        if (bottomLabels.join('|') !== labels.bottom.join('|'))
-          throw new Error(`GTD bottom navigation: ${bottomLabels.join('|')}`)
-        if ((await threadsTab.getAttribute('aria-current')) !== 'page')
-          throw new Error('GTD phone Threads tab is not active')
-        const after = await threadsTab.evaluate((node) => {
-          const rect = node.getBoundingClientRect()
-          return { left: rect.left, width: rect.width }
-        })
-        if (
-          Math.abs(after.left - before.left) > 0.5 ||
-          Math.abs(after.width - before.width) > 0.5
-        )
-          throw new Error('GTD phone tab indicator moved')
+        await assertPhoneChildShell(page, '.gtd-page')
         await assertNoHorizontalOverflow(page, '.gtd-page')
       },
     },
   ]
 })
+
+const phoneLibraryChildShots = ['en', 'zh'].flatMap((language) =>
+  [
+    {
+      key: 'crystal',
+      route: '/d/fixture-desktop/crystals',
+      ready: '.crystal-row',
+      page: '.crystals-page',
+    },
+    {
+      key: 'time-clue',
+      route: '/d/fixture-desktop/time-clues',
+      ready: '.time-clue-row',
+      page: '.time-clues-page',
+    },
+    {
+      key: 'reference',
+      route: '/d/fixture-desktop/references',
+      ready: '.reference-row',
+      page: '.references-page',
+    },
+  ].map((destination) => ({
+    file: `library-${destination.key}-${language}-412.png`,
+    viewport: PHONE,
+    route: destination.route,
+    language,
+    ready: destination.ready,
+    safeInsets: true,
+    async act(page) {
+      await assertPhoneChildShell(page, destination.page)
+      await assertNoHorizontalOverflow(page, destination.page)
+    },
+  })),
+)
 
 const unfoldedGtdRailShots = ['en', 'zh'].map((language) => ({
   file: `navigation-gtd-rail-${language}-884.png`,
@@ -5837,13 +5886,39 @@ const unfoldedGtdRailShots = ['en', 'zh'].map((language) => ({
     const roots = labels.filter((label) => expected.includes(label))
     if (roots.join('|') !== expected.join('|'))
       throw new Error(`split navigation: ${labels.join('|')}`)
+    if (await page.locator('.split-main .scoped-root-back').count())
+      throw new Error('split GTD unexpectedly shows Back')
     await assertNoHorizontalOverflow(page, '.split-shell')
   },
 }))
 
+const unfoldedLibraryRailShots = ['en', 'zh'].flatMap((language) =>
+  [
+    ['crystal', '/d/fixture-desktop/crystals', '.crystals-entry.active'],
+    ['time-clue', '/d/fixture-desktop/time-clues', '.time-clues-entry.active'],
+    ['reference', '/d/fixture-desktop/references', '.references-entry.active'],
+  ].map(([key, route, active]) => ({
+    file: `navigation-library-${key}-${language}-884.png`,
+    viewport: TABLET,
+    route,
+    language,
+    ready: active,
+    safeInsets: true,
+    async act(page) {
+      if (await page.locator('.split-main .scoped-root-back').count())
+        throw new Error(`split ${key} unexpectedly shows Back`)
+      if (!(await page.locator('.split-rail').count()))
+        throw new Error(`split ${key} rail missing`)
+      await assertNoHorizontalOverflow(page, '.split-shell')
+    },
+  })),
+)
+
 const gtdShots = [
   ...phoneGtdNavigationShots,
+  ...phoneLibraryChildShots,
   ...unfoldedGtdRailShots,
+  ...unfoldedLibraryRailShots,
   {
     file: 'gtd-phone-todo-favorites.png',
     viewport: PHONE,

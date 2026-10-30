@@ -294,8 +294,13 @@ export function AppShell() {
   const { agents } = useHerdr()
   const agentWorkspaces = agentsDesktopId ? agents(agentsDesktopId) : []
   const screenDetail = /^\/d\/[^/]+\/screen\/?$/.test(pathname)
+  const phoneChild =
+    /^\/d\/[^/]+\/(?:gtd|crystals|time-clues|references)(?:\/|$)/.test(pathname)
   const detail =
-    Boolean(thread?.threadId) || screenDetail || Boolean(agentsPaneId)
+    Boolean(thread?.threadId) ||
+    screenDetail ||
+    Boolean(agentsPaneId) ||
+    (mode === 'single' && phoneChild)
 
   useEffect(() => {
     if (agentsDesktopId && agentsPaneId)
@@ -321,7 +326,11 @@ export function AppShell() {
   if (mode === 'single')
     return (
       <div className={detail ? 'detail-shell' : 'app-shell'}>
-        <main className={detail ? 'detail-main' : 'screen'}>
+        <main
+          className={
+            detail ? `detail-main${phoneChild ? ' phone-child' : ''}` : 'screen'
+          }
+        >
           <Outlet />
         </main>
         {detail ? null : (
