@@ -5,11 +5,11 @@ import {
   TerminalSession,
   calculateSnapshotFontSize,
   calculateSnapshotSize,
-  loadComposerHidden,
+  loadKeysHidden,
   loadSnapshotDisplayMode,
   mergeTerminalHistory,
   prepareReflowSnapshot,
-  saveComposerHidden,
+  saveKeysHidden,
   saveSnapshotDisplayMode,
   type TerminalDriver,
 } from './terminal'
@@ -215,20 +215,21 @@ describe('snapshot display mode persistence', () => {
   })
 })
 
-describe('terminal composer visibility persistence', () => {
-  it('defaults to shown and persists the hidden state', () => {
+describe('terminal key row visibility persistence', () => {
+  it('defaults to shown, ignores the old composer key, and persists keys hidden', () => {
+    const values = new Map([['alma.agents.composer-hidden', 'true']])
     const storage = {
-      getItem: vi.fn<() => string | null>(() => null),
+      getItem: vi.fn((key: string) => values.get(key) ?? null),
       setItem: vi.fn(),
     }
-    expect(loadComposerHidden(storage)).toBe(false)
-    storage.getItem.mockReturnValue('true')
-    expect(loadComposerHidden(storage)).toBe(true)
-    storage.getItem.mockReturnValue('legacy')
-    expect(loadComposerHidden(storage)).toBe(false)
-    saveComposerHidden(true, storage)
+    expect(loadKeysHidden(storage)).toBe(false)
+    values.set('alma.agents.keys-hidden', 'true')
+    expect(loadKeysHidden(storage)).toBe(true)
+    values.set('alma.agents.keys-hidden', 'legacy')
+    expect(loadKeysHidden(storage)).toBe(false)
+    saveKeysHidden(true, storage)
     expect(storage.setItem).toHaveBeenCalledWith(
-      'alma.agents.composer-hidden',
+      'alma.agents.keys-hidden',
       'true',
     )
   })

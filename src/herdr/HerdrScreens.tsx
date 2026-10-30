@@ -27,10 +27,10 @@ import { MessageView } from '../messages'
 import { MarkdownContent } from '../screens/MarkdownContent'
 import {
   HERDR_KEY_MAP,
-  loadComposerHidden,
+  loadKeysHidden,
   loadSnapshotDisplayMode,
   mergeTerminalHistory,
-  saveComposerHidden,
+  saveKeysHidden,
   saveSnapshotDisplayMode,
   type SnapshotDisplayMode,
   type TerminalKey,
@@ -100,7 +100,7 @@ export function AgentPaneScreen() {
   const [loadingTerminalHistory, setLoadingTerminalHistory] = useState(false)
   const [terminalSize, setTerminalSize] = useState({ cols: 80, rows: 24 })
   const [draft, setDraft] = useState('')
-  const [composerHidden, setComposerHidden] = useState(loadComposerHidden)
+  const [keysHidden, setKeysHidden] = useState(loadKeysHidden)
   const [composing, setComposing] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
@@ -608,77 +608,82 @@ export function AgentPaneScreen() {
                 </div>
               </div>
             </div>
-            <TerminalKeyRow
-              disabled={sending}
-              onKey={sendTerminalKey}
-              composerHidden={composerHidden}
-              onToggleComposer={() =>
-                setComposerHidden((current) => {
-                  const next = !current
-                  saveComposerHidden(next)
-                  return next
-                })
-              }
-            />
+            {keysHidden ? null : (
+              <TerminalKeyRow disabled={sending} onKey={sendTerminalKey} />
+            )}
           </div>
         )}
         {error ? <p className="settings-error agent-error">{error}</p> : null}
       </div>
-      {view === 'chat' || !composerHidden ? (
-        <footer className="agent-composer">
-          <textarea
-            value={draft}
+      <footer className="agent-composer">
+        {view === 'terminal' ? (
+          <button
+            className="quiet-icon-button agent-keys-visibility"
             aria-label={
-              view === 'terminal'
-                ? t('agents.terminalText')
-                : t('agents.message')
+              keysHidden ? t('agents.showKeys') : t('agents.hideKeys')
             }
-            placeholder={
-              view === 'terminal'
-                ? t('agents.terminalTextPlaceholder')
-                : t('agents.messagePlaceholder')
+            aria-pressed={!keysHidden}
+            onClick={() =>
+              setKeysHidden((current) => {
+                const next = !current
+                saveKeysHidden(next)
+                return next
+              })
             }
-            rows={1}
-            onChange={(event) => setDraft(event.target.value)}
-            onCompositionStart={() => setComposing(true)}
-            onCompositionEnd={() => setComposing(false)}
-            onKeyDown={(event) => {
-              if (composing) return
-              if (view === 'terminal') {
-                const key = keyboardTerminalKey(event)
-                if (key) {
-                  event.preventDefault()
-                  void sendTerminalKey(key)
-                  return
-                }
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  void send()
-                }
+          >
+            {keysHidden ? <Keyboard size={17} /> : <KeyboardOff size={17} />}
+          </button>
+        ) : null}
+        <textarea
+          value={draft}
+          aria-label={
+            view === 'terminal' ? t('agents.terminalText') : t('agents.message')
+          }
+          placeholder={
+            view === 'terminal'
+              ? t('agents.terminalTextPlaceholder')
+              : t('agents.messagePlaceholder')
+          }
+          rows={1}
+          onChange={(event) => setDraft(event.target.value)}
+          onCompositionStart={() => setComposing(true)}
+          onCompositionEnd={() => setComposing(false)}
+          onKeyDown={(event) => {
+            if (composing) return
+            if (view === 'terminal') {
+              const key = keyboardTerminalKey(event)
+              if (key) {
+                event.preventDefault()
+                void sendTerminalKey(key)
                 return
               }
-              if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+              if (event.key === 'Enter') {
                 event.preventDefault()
                 void send()
               }
-            }}
-          />
-          <button
-            className="quiet-icon-button agent-send"
-            aria-label={
-              view === 'terminal' ? t('agents.enter') : t('agents.send')
+              return
             }
-            disabled={(view === 'chat' && !draft.trim()) || sending}
-            onClick={() => void send()}
-          >
-            {view === 'terminal' ? (
-              <CornerDownLeft size={19} />
-            ) : (
-              <Send size={19} />
-            )}
-          </button>
-        </footer>
-      ) : null}
+            if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+              event.preventDefault()
+              void send()
+            }
+          }}
+        />
+        <button
+          className="quiet-icon-button agent-send"
+          aria-label={
+            view === 'terminal' ? t('agents.enter') : t('agents.send')
+          }
+          disabled={(view === 'chat' && !draft.trim()) || sending}
+          onClick={() => void send()}
+        >
+          {view === 'terminal' ? (
+            <CornerDownLeft size={19} />
+          ) : (
+            <Send size={19} />
+          )}
+        </button>
+      </footer>
     </section>
   )
 }
@@ -785,13 +790,9 @@ const TERMINAL_KEYS: Array<{
 function TerminalKeyRow({
   disabled,
   onKey,
-  composerHidden,
-  onToggleComposer,
 }: {
   disabled: boolean
   onKey: (key: TerminalKey) => void
-  composerHidden: boolean
-  onToggleComposer: () => void
 }) {
   const t = useT()
   return (
@@ -813,16 +814,6 @@ function TerminalKeyRow({
           </button>
         ))}
       </div>
-      <button
-        className="chip-button agent-composer-visibility"
-        aria-label={
-          composerHidden ? t('agents.showComposer') : t('agents.hideComposer')
-        }
-        aria-pressed={!composerHidden}
-        onClick={onToggleComposer}
-      >
-        {composerHidden ? <Keyboard size={17} /> : <KeyboardOff size={17} />}
-      </button>
     </div>
   )
 }

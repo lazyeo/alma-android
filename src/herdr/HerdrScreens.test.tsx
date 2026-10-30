@@ -245,7 +245,8 @@ describe('AgentPaneScreen pane navigation', () => {
     expect(view.container.querySelector('.agent-terminal-mode')).toBe(mode)
   })
 
-  it('toggles the terminal composer from the end of the key row and restores it in chat', async () => {
+  it('toggles and persists the terminal key row from the start of the composer', async () => {
+    storage.set('alma.agents.composer-hidden', 'true')
     paneId = 'pane-b'
     const view = render(<AgentPaneScreen />)
     await waitFor(() =>
@@ -253,22 +254,38 @@ describe('AgentPaneScreen pane navigation', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'agents.terminal' }))
 
-    const toolbar = screen.getByRole('toolbar', {
-      name: 'agents.terminalKeys',
-    })
-    const hide = screen.getByRole('button', { name: 'agents.hideComposer' })
-    expect(toolbar.lastElementChild).toBe(hide)
-    expect(view.container.querySelector('.agent-composer')).toBeTruthy()
+    const composer = view.container.querySelector('.agent-composer')
+    const hide = screen.getByRole('button', { name: 'agents.hideKeys' })
+    expect(composer?.firstElementChild).toBe(hide)
+    expect(hide.querySelector('.lucide-keyboard-off')).toBeTruthy()
+    expect(
+      screen.getByRole('toolbar', { name: 'agents.terminalKeys' }),
+    ).toBeTruthy()
 
     fireEvent.click(hide)
-    expect(view.container.querySelector('.agent-composer')).toBeNull()
-    expect(
-      screen.getByRole('button', { name: 'agents.showComposer' }),
-    ).toBeTruthy()
-    expect(localStorage.getItem('alma.agents.composer-hidden')).toBe('true')
-
-    fireEvent.click(screen.getByRole('button', { name: 'agents.chat' }))
     expect(view.container.querySelector('.agent-composer')).toBeTruthy()
+    expect(
+      screen.queryByRole('toolbar', { name: 'agents.terminalKeys' }),
+    ).toBeNull()
+    const show = screen.getByRole('button', { name: 'agents.showKeys' })
+    expect(show.querySelector('.lucide-keyboard')).toBeTruthy()
+    expect(localStorage.getItem('alma.agents.keys-hidden')).toBe('true')
+    expect(localStorage.getItem('alma.agents.composer-hidden')).toBe('true')
+  })
+
+  it('restores the persisted terminal key row state while keeping the composer visible', async () => {
+    storage.set('alma.agents.keys-hidden', 'true')
+    paneId = 'pane-a'
+    const view = render(<AgentPaneScreen />)
+
+    await waitFor(() =>
+      expect(screen.getByText('agents.chatUnsupported')).toBeTruthy(),
+    )
+    expect(view.container.querySelector('.agent-composer')).toBeTruthy()
+    expect(
+      screen.queryByRole('toolbar', { name: 'agents.terminalKeys' }),
+    ).toBeNull()
+    expect(screen.getByRole('button', { name: 'agents.showKeys' })).toBeTruthy()
   })
 
   it('sends chat drafts as prompts and terminal drafts as text followed by Enter', async () => {
