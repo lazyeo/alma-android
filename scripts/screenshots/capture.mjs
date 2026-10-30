@@ -1531,6 +1531,23 @@ const screenShots = [
     afterCapture: (page) =>
       assertNoHorizontalOverflow(page, '.remote-screen-page'),
   })),
+  ...[
+    ['palenight', 'dark'],
+    ['one_light', 'light'],
+  ].map(([theme, mode]) => ({
+    file: `screen-stats-en-412-${theme}.png`,
+    viewport: PHONE,
+    route: '/d/fixture-desktop/screen',
+    query: 'lang=en',
+    ready: '.remote-screen-media',
+    safeInsets: true,
+    colorScheme: mode,
+    act: async (page) => {
+      await setFixtureTheme(page, theme, mode)
+      await page.getByRole('button', { name: 'Stats', exact: true }).click()
+      await page.locator('.remote-screen-stats').waitFor()
+    },
+  })),
   {
     file: 'screen-control-en-884.png',
     viewport: TABLET,
