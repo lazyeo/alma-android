@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Nothing yet.
+
+## [0.1.4] - 2026-10-30
+
+### Added
+
 - After pairing through the relay, the client now prefers the desktop's authenticated local-network connection when available, falls back to the relay automatically, and shows a LAN icon plus the actual transport in the background notification.
 - Paired desktops show a macOS, Windows or Linux icon in Settings, remembered while the desktop is offline. The screen entry is disabled up front for desktops whose Alma cannot share its screen. The client now reads `GET /api/computer-use/status`; every other Computer Use route stays blocked.
 
@@ -20,7 +26,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Unfolded navigation now highlights exactly one rail item on GTD and Library routes.
 - Mac screen now says why a desktop cannot share its screen (Alma for Windows/Linux has no screen sharing yet, or the Computer Use helper is missing on the Mac) instead of waiting forever or showing "No picture from the Mac". Settings shows the last reason under the desktop's screen entry.
 - The Herdr page keeps its remote screen button while Herdr is not running; it only needs the desktop to be online.
-
 ## [0.1.3] - 2026-10-30
 
 ### Added
@@ -84,8 +89,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Foldable layouts, a frosted screen transition, optional Shizuku live hinge-angle input, and an estimated fallback.
 - Foreground-lifetime local notifications for completed replies and pending approvals; no push service is used.
 
-[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.4...HEAD
 [0.1.0]: https://github.com/lazyeo/alma-android/releases/tag/v0.1.0
 [0.1.1]: https://github.com/lazyeo/alma-android/compare/v0.1.0...v0.1.1
 [0.1.2]: https://github.com/lazyeo/alma-android/compare/v0.1.1...v0.1.2
 [0.1.3]: https://github.com/lazyeo/alma-android/compare/v0.1.2...v0.1.3
+[0.1.4]: https://github.com/lazyeo/alma-android/compare/v0.1.3...v0.1.4
