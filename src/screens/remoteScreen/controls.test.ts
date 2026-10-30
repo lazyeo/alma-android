@@ -80,6 +80,13 @@ describe('reduceTrackpadGesture', () => {
     ).toEqual([{ type: 'pointer', action: 'right', x: 0.5, y: 0.5 }])
     expect(
       reduceTrackpadGesture(initial, {
+        type: 'tap',
+        fingers: 1,
+        clicks: 2,
+      }).events,
+    ).toEqual([{ type: 'pointer', action: 'double', x: 0.5, y: 0.5 }])
+    expect(
+      reduceTrackpadGesture(initial, {
         type: 'scroll',
         dx: 4,
         dy: -8,

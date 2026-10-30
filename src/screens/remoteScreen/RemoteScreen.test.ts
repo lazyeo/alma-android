@@ -26,6 +26,8 @@ describe('RemoteScreen input surfaces', () => {
   })
 
   it('keeps pointer handlers on the screen only in direct mode', () => {
-    expect(source).toContain("inputMode === 'direct' ? screenPointerHandlers : {}")
+    expect(source).toMatch(
+      /inputMode === 'direct'\s*\? screenPointerHandlers\s*:\s*\{\}/,
+    )
   })
 })

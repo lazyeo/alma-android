@@ -37,6 +37,12 @@ import {
   type TrackpadState,
   type ViewTransform,
 } from './controls'
+import {
+  createGestureState,
+  reducePointerGesture,
+  type GestureAction,
+  type GestureInput,
+} from './gestures'
 import { BLANK_POSTER, isDarkSample } from './liveness'
 import { useRemoteScreen } from './useRemoteScreen'
 import { selectLocalWakeWorkspace } from './wakeDisplay'
@@ -204,18 +210,8 @@ export function RemoteScreen() {
     phase: 'idle',
   })
   const [cursor, setCursor] = useState(trackpadRef.current.cursor)
-  const pointers = useRef(new Map<number, { x: number; y: number }>())
-  const gesture = useRef<{
-    startX: number
-    startY: number
-    lastX: number
-    lastY: number
-    startAt: number
-    moved: boolean
-    longPress?: ReturnType<typeof setTimeout>
-    pinchDistance?: number
-    startScale?: number
-  }>()
+  const gestureState = useRef(createGestureState())
+  const gestureTimer = useRef<ReturnType<typeof setTimeout>>()
   const frameTimes = useRef<number[]>([])
   const [fps, setFps] = useState(0)
   const [frameAge, setFrameAge] = useState(0)
@@ -292,131 +288,133 @@ export function RemoteScreen() {
     [videoSize],
   )
 
-  const onPointerDown = (event: ReactPointerEvent) => {
-    event.currentTarget.setPointerCapture(event.pointerId)
-    pointers.current.set(event.pointerId, {
-      x: event.clientX,
-      y: event.clientY,
-    })
-    const points = [...pointers.current.values()]
-    if (points.length === 2) {
-      gesture.current = {
-        startX: 0,
-        startY: 0,
-        lastX: 0,
-        lastY: 0,
-        startAt: Date.now(),
-        moved: false,
-        pinchDistance: Math.hypot(
-          points[1].x - points[0].x,
-          points[1].y - points[0].y,
-        ),
-        startScale: transformRef.current.scale,
-      }
-      return
-    }
-    gesture.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      lastX: event.clientX,
-      lastY: event.clientY,
-      startAt: Date.now(),
-      moved: false,
-    }
-    if (remote.control && inputMode === 'trackpad')
-      gesture.current.longPress = setTimeout(
-        () => updateTrackpad({ type: 'drag-start' }),
-        450,
-      )
-  }
-
-  const onPointerMove = (event: ReactPointerEvent) => {
-    const previous = pointers.current.get(event.pointerId)
-    if (!previous) return
-    pointers.current.set(event.pointerId, {
-      x: event.clientX,
-      y: event.clientY,
-    })
-    const points = [...pointers.current.values()]
-    const current = gesture.current
-    if (!current) return
-    if (points.length === 2 && current.pinchDistance && current.startScale) {
-      const distance = Math.hypot(
-        points[1].x - points[0].x,
-        points[1].y - points[0].y,
-      )
-      setTransform((value) => ({
-        ...value,
-        scale: Math.min(
-          4,
-          Math.max(
-            1,
-            current.startScale! * (distance / current.pinchDistance!),
-          ),
-        ),
-      }))
-      current.moved = true
-      return
-    }
-    const dx = event.clientX - current.lastX
-    const dy = event.clientY - current.lastY
-    current.lastX = event.clientX
-    current.lastY = event.clientY
-    if (
-      Math.hypot(
-        event.clientX - current.startX,
-        event.clientY - current.startY,
-      ) > 4
-    )
-      current.moved = true
-    if (!remote.control) {
-      if (transformRef.current.scale > 1)
-        setTransform((value) => ({
-          ...value,
-          x: value.x + dx,
-          y: value.y + dy,
-        }))
-      return
-    }
-    if (inputMode === 'trackpad') {
-      updateTrackpad({ type: 'move', dx, dy, sensitivity: 0.002 })
-      return
-    }
-    const mapped = mappedPoint(event.clientX, event.clientY)
-    if (mapped?.inside)
-      moveCoalescer.push({
-        type: 'pointer',
-        action: 'move',
-        x: mapped.x,
-        y: mapped.y,
-      })
-  }
-
-  const onPointerUp = (event: ReactPointerEvent) => {
-    const current = gesture.current
-    const pointerCount = pointers.current.size
-    pointers.current.delete(event.pointerId)
-    if (!current) return
-    if (current.longPress) clearTimeout(current.longPress)
-    if (!remote.control) return
-    if (inputMode === 'trackpad') {
-      if (trackpadRef.current.phase === 'dragging')
-        updateTrackpad({ type: 'drag-end' })
-      else if (!current.moved)
-        updateTrackpad({ type: 'tap', fingers: pointerCount >= 2 ? 2 : 1 })
-      return
-    }
-    if (!current.moved) {
-      const mapped = mappedPoint(event.clientX, event.clientY)
-      if (mapped?.inside)
+  const sendGestureActions = useCallback(
+    (actions: GestureAction[]) => {
+      for (const action of actions) {
+        if (action.type === 'scroll') {
+          if (inputMode === 'trackpad')
+            updateTrackpad({
+              type: 'scroll',
+              dx: action.delta.x,
+              dy: action.delta.y,
+            })
+          else {
+            const mapped = mappedPoint(action.point.x, action.point.y)
+            if (mapped?.inside)
+              remote.sendControl({
+                type: 'scroll',
+                x: mapped.x,
+                y: mapped.y,
+                dx: action.delta.x,
+                dy: action.delta.y,
+              })
+          }
+          continue
+        }
+        if (action.type === 'move') {
+          if (inputMode === 'trackpad') {
+            const speed = Math.hypot(action.delta.x, action.delta.y)
+            updateTrackpad({
+              type: 'move',
+              dx: action.delta.x,
+              dy: action.delta.y,
+              sensitivity: 0.0015 * Math.min(2.4, 1 + speed / 18),
+            })
+          } else {
+            const mapped = mappedPoint(action.point.x, action.point.y)
+            if (mapped?.inside)
+              moveCoalescer.push({
+                type: 'pointer',
+                action: 'move',
+                x: mapped.x,
+                y: mapped.y,
+              })
+          }
+          continue
+        }
+        if (inputMode === 'trackpad') {
+          if (action.type === 'drag-start')
+            updateTrackpad({ type: 'drag-start' })
+          else if (action.type === 'drag-end')
+            updateTrackpad({ type: 'drag-end' })
+          else
+            updateTrackpad({
+              type: 'tap',
+              fingers: action.type === 'right' ? 2 : 1,
+              clicks: action.type === 'double' ? 2 : 1,
+            })
+          continue
+        }
+        const mapped = mappedPoint(action.point.x, action.point.y)
+        if (!mapped?.inside) continue
         remote.sendControl({
           type: 'pointer',
-          action: 'click',
+          action:
+            action.type === 'drag-start'
+              ? 'down'
+              : action.type === 'drag-end'
+                ? 'up'
+                : action.type,
           x: mapped.x,
           y: mapped.y,
         })
-    }
+      }
+    },
+    [inputMode, mappedPoint, moveCoalescer, remote, updateTrackpad],
+  )
+
+  const dispatchGesture = useCallback(
+    (input: GestureInput) => {
+      const result = reducePointerGesture(gestureState.current, input)
+      gestureState.current = result.state
+      sendGestureActions(result.actions)
+      if (gestureTimer.current) clearTimeout(gestureTimer.current)
+      const deadlines = [
+        result.state.pendingTap?.deadline,
+        ...Object.values(result.state.pointers).map(
+          (pointer) => pointer.downAt + 400,
+        ),
+      ].filter((deadline): deadline is number => deadline !== undefined)
+      if (deadlines.length) {
+        const deadline = Math.min(...deadlines)
+        gestureTimer.current = setTimeout(
+          () => dispatchGesture({ type: 'tick', at: performance.now() }),
+          Math.max(0, deadline - performance.now() + 1),
+        )
+      }
+    },
+    [sendGestureActions],
+  )
+
+  useEffect(
+    () => () => {
+      if (gestureTimer.current) clearTimeout(gestureTimer.current)
+    },
+    [],
+  )
+
+  const pointerInput = (
+    type: 'down' | 'move' | 'up' | 'cancel',
+    event: ReactPointerEvent,
+  ) => {
+    event.preventDefault()
+    if (event.pointerType === 'mouse') return
+    if (type === 'down') event.currentTarget.setPointerCapture(event.pointerId)
+    dispatchGesture({
+      type,
+      id: event.pointerId,
+      point: { x: event.clientX, y: event.clientY },
+      at: event.timeStamp,
+    })
   }
+
+  const onPointerDown = (event: ReactPointerEvent) =>
+    pointerInput('down', event)
+  const onPointerMove = (event: ReactPointerEvent) =>
+    pointerInput('move', event)
+  const onPointerUp = (event: ReactPointerEvent) => pointerInput('up', event)
+  const onPointerCancel = (event: ReactPointerEvent) =>
+    pointerInput('cancel', event)
 
   const onWheel = (event: React.WheelEvent) => {
     if (!remote.control || inputMode !== 'trackpad') return
@@ -428,7 +426,9 @@ export function RemoteScreen() {
     onPointerDown,
     onPointerMove,
     onPointerUp,
-    onPointerCancel: onPointerUp,
+    onPointerCancel,
+    onContextMenu: (event: React.MouseEvent) => event.preventDefault(),
+    onClick: (event: React.MouseEvent) => event.preventDefault(),
   }
   const trackpadPointerHandlers = {
     ...screenPointerHandlers,
@@ -514,8 +514,12 @@ export function RemoteScreen() {
       <div
         ref={surfaceRef}
         className={`remote-screen-surface ${remote.control ? 'is-controlling' : ''}`}
-        data-sidebar-swipe-exclude={remote.control && inputMode === 'direct' ? '' : undefined}
-        {...(remote.control && inputMode === 'direct' ? screenPointerHandlers : {})}
+        data-sidebar-swipe-exclude={
+          remote.control && inputMode === 'direct' ? '' : undefined
+        }
+        {...(remote.control && inputMode === 'direct'
+          ? screenPointerHandlers
+          : {})}
       >
         <div
           className="remote-screen-transform"

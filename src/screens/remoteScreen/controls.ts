@@ -92,7 +92,7 @@ export interface TrackpadState {
 
 export type TrackpadGesture =
   | { type: 'move'; dx: number; dy: number; sensitivity: number }
-  | { type: 'tap'; fingers: 1 | 2 }
+  | { type: 'tap'; fingers: 1 | 2; clicks?: 1 | 2 }
   | { type: 'scroll'; dx: number; dy: number }
   | { type: 'drag-start' }
   | { type: 'drag-end' }
@@ -117,7 +117,12 @@ export function reduceTrackpadGesture(
       events: [
         {
           type: 'pointer',
-          action: gesture.fingers === 2 ? 'right' : 'click',
+          action:
+            gesture.fingers === 2
+              ? 'right'
+              : gesture.clicks === 2
+                ? 'double'
+                : 'click',
           ...state.cursor,
         },
       ],
