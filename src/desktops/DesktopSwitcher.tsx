@@ -4,6 +4,7 @@ import {
   LoaderCircle,
   Monitor,
   Plus,
+  Globe,
   Wifi,
   WifiOff,
 } from 'lucide-react'
@@ -79,12 +80,21 @@ export function DesktopSwitcher({ className = '' }: { className?: string }) {
                 aria-label={t(STATUS_LABELS[status])}
               />
               <span className="desktop-switcher-name">{pairing.name}</span>
-              {status === 'online' && transport === 'direct' ? (
-                <Wifi
-                  className="desktop-transport-icon"
-                  size={12}
-                  aria-label={t('connection.transport.lan')}
-                />
+              {/* Like iOS: Wi-Fi glyph for LAN direct, globe for the relay. */}
+              {status === 'online' ? (
+                transport === 'direct' ? (
+                  <Wifi
+                    className="desktop-transport-icon"
+                    size={12}
+                    aria-label={t('connection.transport.lan')}
+                  />
+                ) : (
+                  <Globe
+                    className="desktop-transport-icon"
+                    size={12}
+                    aria-label={t('connection.transport.relay')}
+                  />
+                )
               ) : null}
             </span>
             {swipe.neighbor ? (
