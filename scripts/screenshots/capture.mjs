@@ -3434,8 +3434,11 @@ const shots = [
       await page.getByRole('button', { name: 'Library' }).click()
       const menu = page.getByRole('menu', { name: 'Library' })
       await menu.waitFor()
-      if (!(await menu.getByRole('menuitem', { name: 'Time clues' }).count()))
-        throw new Error('phone Time clues missing from Library')
+      const labels = await menu.getByRole('menuitem').allTextContents()
+      if (!labels.some((label) => label.trim().startsWith('Time clues')))
+        throw new Error(
+          `phone Time clues missing from Library: ${labels.join('|')}`,
+        )
       if (!(await menu.locator('.library-menu-unread-dot').count()))
         throw new Error('phone Time clues unread dot missing from Library')
     },
@@ -4185,20 +4188,22 @@ const shots = [
     ready: '.crystals-stats',
     async act(page) {
       const geometry = await page.evaluate(() => {
-        const center = (selector) => {
-          const r = document.querySelector(selector)?.getBoundingClientRect()
-          if (!r) throw new Error(`missing ${selector}`)
-          return (r.top + r.bottom) / 2
-        }
+        const title = document.querySelector(
+          '.split-main .scoped-root-title h1',
+        )
+        const header = document.querySelector('.split-main .scoped-root-header')
+        if (!title || !header) throw new Error('split Crystals title missing')
+        const t = title.getBoundingClientRect()
+        const h = header.getBoundingClientRect()
         return {
-          sidebar: center('.split-sidebar .desktop-switcher-name'),
-          title: center('.split-main .scoped-root-title h1'),
+          titleCenter: (t.top + t.bottom) / 2,
+          headerCenter: (h.top + h.bottom) / 2,
         }
       })
       console.log(
         `crystals two-pane title geometry ${JSON.stringify(geometry)}`,
       )
-      if (Math.abs(geometry.sidebar - geometry.title) > 1)
+      if (Math.abs(geometry.titleCenter - geometry.headerCenter) > 1)
         throw new Error(
           `crystals title misaligned: ${JSON.stringify(geometry)}`,
         )
