@@ -189,7 +189,6 @@ export type QuestionSocketEvent =
 
 const denied = [
   /^\/api\/bun\/execute(?:\/|$)/,
-  /^\/api\/computer-use(?:\/|$)/,
   /^\/api\/data\/(?:import|export)(?:\/|$)/,
   /^\/api\/threads\/batch-delete(?:\/|$)/,
   /^\/ws\/terminal(?:\/|$)/,
@@ -221,6 +220,10 @@ export function assertSafePath(path: string, method = 'GET') {
     /^\/api\/threads\/[^/]+\/loop$/.test(clean) &&
     ['GET', 'PUT', 'DELETE'].includes(verb)
   const terminalAllowed = clean === '/api/terminal/exec' && verb === 'POST'
+  // Computer Use drives the Mac; only its read-only status (platform and
+  // helper presence) is reachable, to label desktops and gate the screen.
+  const computerUseAllowed =
+    clean === '/api/computer-use/status' && verb === 'GET'
   if (
     (/^\/api\/activity-recorder(?:\/|$)/.test(clean) &&
       !(verb === 'GET' && clean === '/api/activity-recorder/suggestions')) ||
@@ -228,6 +231,7 @@ export function assertSafePath(path: string, method = 'GET') {
     (/^\/api\/crystal(?:\/|$)/.test(clean) && !crystalAllowed) ||
     (loopRoute && !loopAllowed) ||
     (/^\/api\/terminal(?:\/|$)/.test(clean) && !terminalAllowed) ||
+    (/^\/api\/computer-use(?:\/|$)/.test(clean) && !computerUseAllowed) ||
     (/^\/api\/gallery\/cache(?:\/|$)/.test(clean) && verb !== 'GET') ||
     denied.some((pattern) => pattern.test(clean)) ||
     (/^\/api\/settings$/.test(clean) && verb !== 'GET') ||
@@ -268,6 +272,12 @@ export interface CompactResult {
   savedTokens?: number
   code?: string
   error?: string
+}
+
+/** `GET /api/computer-use/status` (desktop 0.4.246, verified). */
+export interface ComputerUseStatus {
+  available?: boolean
+  platform?: string
 }
 
 export interface DesktopHealth {
@@ -371,6 +381,9 @@ export class AlmaApi {
         provider: model.providerName ?? model.providerId,
       })),
     )
+  }
+  getComputerUseStatus() {
+    return this.request<ComputerUseStatus>('/api/computer-use/status')
   }
   getHealth() {
     return this.request<DesktopHealth>('/api/health')

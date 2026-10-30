@@ -27,6 +27,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { copyText } from '../../clipboard'
 import { useConnection } from '../../desktops/DesktopContext'
 import { DesktopSwitcher } from '../../desktops/DesktopSwitcher'
+import { useDesktopPlatform } from '../../desktops/platform'
 import { useT } from '../../i18n'
 import {
   buildKeyCombo,
@@ -41,6 +42,7 @@ import {
 import {
   rememberScreenUnavailable,
   screenUnavailableFromStatus,
+  UNSUPPORTED_OS,
   unavailableCopy,
 } from './availability'
 import { BLANK_POSTER, isDarkSample } from './liveness'
@@ -467,7 +469,10 @@ export function RemoteScreen() {
   }
 
   const status = remote.message?.type === 'status' ? remote.message : undefined
-  const unavailable = screenUnavailableFromStatus(status)
+  const platform = useDesktopPlatform(pairing.id, api)
+  const unavailable =
+    screenUnavailableFromStatus(status) ??
+    (platform && platform !== 'darwin' ? UNSUPPORTED_OS : undefined)
   useEffect(() => {
     if (status)
       rememberScreenUnavailable(pairing.id, screenUnavailableFromStatus(status))

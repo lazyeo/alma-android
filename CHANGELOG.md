@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Paired desktops show a macOS, Windows or Linux icon in Settings, remembered while the desktop is offline. The screen entry is disabled up front for desktops whose Alma cannot share its screen. The client now reads `GET /api/computer-use/status`; every other Computer Use route stays blocked.
+
 ### Fixed
 
 - Mac screen now says why a desktop cannot share its screen (Alma for Windows/Linux has no screen sharing yet, or the Computer Use helper is missing on the Mac) instead of waiting forever or showing "No picture from the Mac". Settings shows the last reason under the desktop's screen entry.

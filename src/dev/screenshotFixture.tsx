@@ -1417,6 +1417,15 @@ function route(method: string, path: string, body?: unknown): TunnelResponse {
       },
     ])
   }
+  if (pathname === '/api/computer-use/status') {
+    // ?screenState=windows simulates a Windows desktop.
+    const windows =
+      new URLSearchParams(location.search).get('screenState') === 'windows'
+    return json(200, {
+      available: !windows,
+      platform: windows ? 'win32' : 'darwin',
+    })
+  }
   if (pathname === '/api/health')
     return json(200, { name: 'Alma', status: 'ok', timestamp: NOW })
   if (pathname === '/api/models') return json(200, { data: models })

@@ -11,6 +11,8 @@ export interface ScreenUnavailable {
   detail?: string
 }
 
+export const UNSUPPORTED_OS: ScreenUnavailable = { reason: 'unsupported-os' }
+
 /** Reads a `status` message with `bound: false` and an `error` string. */
 export function screenUnavailableFromStatus(status?: {
   bound: boolean

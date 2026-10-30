@@ -1433,6 +1433,14 @@ const codeCopyShot = ({ file, viewport }) => ({
 })
 
 const screenShots = [
+  ...['', 'windows'].map((state) => ({
+    file: `settings-desktops-${state || 'mac'}-zh-412.png`,
+    viewport: PHONE,
+    route: '/settings',
+    query: `lang=zh${state ? `&screenState=${state}` : ''}`,
+    ready: '.desktop-list .platform-icon',
+    act: (page) => page.locator('.desktop-list').scrollIntoViewIfNeeded(),
+  })),
   ...['zh', 'en'].map((lang) => ({
     file: `screen-unsupported-${lang}-412.png`,
     viewport: PHONE,

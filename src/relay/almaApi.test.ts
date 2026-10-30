@@ -12,6 +12,10 @@ describe('Alma API safety', () => {
   it.each([
     ['/api/bun/execute', 'GET'],
     ['/api/computer-use/click', 'GET'],
+    ['/api/computer-use/grant', 'POST'],
+    ['/api/computer-use/status', 'POST'],
+    ['/api/computer-use/status/x', 'GET'],
+    ['/api/computer-use', 'GET'],
     ['/api/data/import', 'GET'],
     ['/api/data/export', 'GET'],
     ['/api/settings', 'PUT'],
@@ -35,6 +39,12 @@ describe('Alma API safety', () => {
       ['/ws/herdr/screen?pane=w1%3Ap1', 'WS'],
     ] as const)
       expect(() => assertSafePath(path, method)).not.toThrow()
+  })
+
+  it('allows only the Computer Use status read', () => {
+    expect(() =>
+      assertSafePath('/api/computer-use/status', 'GET'),
+    ).not.toThrow()
   })
 
   it('allows settings reads but blocks settings writes', () => {
