@@ -16,7 +16,7 @@ describe('Herdr terminal surface geometry', () => {
     expect(screen).toContain('className="agent-terminal-card"')
     expect(screen).toContain('className="agent-terminal-content"')
     expect(css).toMatch(
-      /\.agent-terminal-card\s*{[^}]*position:\s*relative;[^}]*overflow:\s*hidden;/s,
+      /\.agent-terminal-card\s*{[^}]*position:\s*relative;[^}]*\n\s*height:\s*0;[^}]*flex:\s*1;[^}]*overflow:\s*hidden;/s,
     )
     expect(css).toMatch(
       /\.agent-terminal-scroll-grid\s*{[^}]*overflow:\s*auto;/s,

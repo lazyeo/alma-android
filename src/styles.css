@@ -8707,6 +8707,7 @@ dialog:focus,
 .agent-terminal-card {
   --agent-terminal-control-clearance: 40px;
   position: relative;
+  height: 0;
   display: flex;
   min-width: 0;
   min-height: 0;
