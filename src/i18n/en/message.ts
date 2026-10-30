@@ -10,6 +10,16 @@ export const message = {
   renderFailed: 'This message could not be displayed.',
   prompt: 'Prompt',
   attachment: 'Attachment',
+  imageEdit: {
+    title: 'Image edit',
+    visibleHeader: 'Edit requests',
+    overallLabel: 'Overall: ',
+    directive:
+      'The numbered badges on the attached image correspond to the requests above. Apply each request to its matching region.',
+    sourcePathLabel: 'Source: ',
+    request: 'Request {number}',
+    note: 'Overall note',
+  },
   ranActions: { one: 'Ran {count} action', other: 'Ran {count} actions' },
   sending: 'Sending…',
   notSent: 'Not sent',

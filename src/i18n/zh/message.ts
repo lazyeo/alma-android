@@ -13,6 +13,16 @@ export const message: CatalogShape<typeof source> = {
   renderFailed: '无法显示这条消息。',
   prompt: '提示词',
   attachment: '附件',
+  imageEdit: {
+    title: '图片修改',
+    visibleHeader: '修改请求',
+    overallLabel: '整体：',
+    directive:
+      '附件图片上的编号标记与以上请求一一对应。请在对应区域完成每项修改。',
+    sourcePathLabel: '来源：',
+    request: '请求 {number}',
+    note: '整体备注',
+  },
   ranActions: { one: '执行了 {count} 个操作', other: '执行了 {count} 个操作' },
   sending: '发送中…',
   notSent: '未发送',

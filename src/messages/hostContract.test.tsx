@@ -6,7 +6,11 @@ import { toMessageRows, type HerdrChatItem } from '../herdr/toMessageParts'
 import { MessageView, type MessageRowView } from './MessageView'
 
 const sharedFixture: HerdrChatItem[] = [
-  { id: 'user', kind: 'user', text: 'Run the checks.' },
+  {
+    id: 'user',
+    kind: 'user',
+    text: '**Edit requests**\n\n① Move the button\n\n<system-reminder>\nalma-image-edit:{"r":[{"i":1,"c":"#ef4444","l":"Move the button"}],"n":"Keep it compact."}\nApply the requests.\n</system-reminder>',
+  },
   { id: 'assistant', kind: 'assistant', text: '**Checks complete.**' },
   {
     id: 'success',
@@ -110,6 +114,8 @@ describe('shared message host contract', () => {
     expect(herdr.querySelectorAll('.tool-card')).toHaveLength(3)
     expect(herdr.querySelector('.tool-card.error')).toBeTruthy()
     expect(herdr.textContent).toContain('custom_lookup')
+    expect(herdr.querySelector('.image-edit-card')).toBeTruthy()
+    expect(herdr.textContent).not.toContain('system-reminder')
     expect(thread.querySelector('.message-actions-button')).toBeTruthy()
     expect(thread.querySelector('.version-switcher')).toBeTruthy()
     expect(thread.querySelector('.usage-footer')).toBeTruthy()

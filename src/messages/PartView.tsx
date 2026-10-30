@@ -3,6 +3,8 @@ import type { MessagePart } from './index'
 import { ReasoningPart } from './ReasoningPart'
 import { ToolPart, type NestedMessageRow } from './ToolPart'
 import { useT } from '../i18n'
+import { parseAlmaImageEdit } from '../components/imageAnnotatorModel'
+import { ImageEditCard } from './ImageEditCard'
 
 export interface PartViewCapabilities {
   renderMarkdown: (text: string, linkUserFilePaths?: boolean) => ReactNode
@@ -53,7 +55,17 @@ export const PartView = memo(function PartView({
   if (part.type === 'reasoning')
     return <ReasoningPart part={part} live={live} duration={duration} />
   if (part.type === 'text') {
-    return capabilities.renderMarkdown(part.text ?? '', linkUserFilePaths)
+    const parsed = parseAlmaImageEdit(part.text ?? '')
+    if (parsed.request)
+      return (
+        <>
+          {parsed.visibleText
+            ? capabilities.renderMarkdown(parsed.visibleText, linkUserFilePaths)
+            : null}
+          <ImageEditCard request={parsed.request} />
+        </>
+      )
+    return capabilities.renderMarkdown(parsed.visibleText, linkUserFilePaths)
   }
   if (part.type.startsWith('tool-') || part.type === 'dynamic-tool') {
     return (

@@ -68,6 +68,7 @@ import {
 import { reasoningLive } from './streamingPresentation'
 import { RelayImage } from './RelayImage'
 import { ImageGalleryProvider } from './ImageGallery'
+import { buildImageEditDraft } from '../components/imageAnnotatorModel'
 import { FileAwareLink, FileLinkProvider, useFileLinks } from './FileLinkSheet'
 import { ThreadFilesSheet } from './ThreadFilesSheet'
 import {
@@ -2022,6 +2023,47 @@ function ThreadView({ threadId }: { threadId: string }) {
     setActionRow(undefined)
   }
 
+  async function sendImageEdit(
+    image: { source: string; name: string },
+    blob: Blob,
+    regions: Parameters<typeof buildImageEditDraft>[0]['regions'],
+    note: string,
+  ) {
+    const socket = socketRef.current
+    if (!socket || !regions.length) return
+    const bytes = new Uint8Array(await blob.arrayBuffer())
+    const uploaded = await api.uploadImage(bytes, blob.type || 'image/jpeg')
+    const text = buildImageEditDraft({
+      regions,
+      note,
+      visibleHeader: t('message.imageEdit.visibleHeader'),
+      overallLabel: t('message.imageEdit.overallLabel'),
+      directive: t('message.imageEdit.directive'),
+      sourcePathLabel: t('message.imageEdit.sourcePathLabel'),
+      sourcePath: image.source.startsWith('/') ? image.source : undefined,
+    })
+    const parts: MessagePart[] = [
+      { type: 'text', text },
+      {
+        type: 'file',
+        mediaType: uploaded.mediaType || blob.type || 'image/jpeg',
+        url: uploaded.url,
+        filename: uploaded.filename || image.name,
+      },
+    ]
+    const messageId = crypto.randomUUID()
+    applyOptimistic({
+      type: 'sent',
+      threadId,
+      messageId,
+      parts,
+      sentAt: Date.now(),
+    })
+    scrollToBottom()
+    socket.generateResponse(threadId, parts, generationOptions, messageId)
+    startGenerating()
+  }
+
   function retryFailedUserMessage(row: MessageRow) {
     const socket = socketRef.current
     if (!socket) return
@@ -2247,7 +2289,7 @@ function ThreadView({ threadId }: { threadId: string }) {
     <RefOpenContext.Provider value={setOpenedRef}>
       {/* Keep the existing large thread tree stable; the gallery only scopes image clicks. */}
       {/* prettier-ignore */}
-      <ImageGalleryProvider images={galleryImages}>
+      <ImageGalleryProvider images={galleryImages} onAnnotate={sendImageEdit}>
         <FileLinkProvider>
         <div className="thread-detail">
         <header className="detail-header">

@@ -44,15 +44,63 @@ export function constrainedDimensions(
   }
 }
 
-function encodeCanvas(canvas: HTMLCanvasElement, quality: number) {
+function encodeCanvas(
+  canvas: HTMLCanvasElement,
+  mediaType: 'image/jpeg' | 'image/png',
+  quality?: number,
+) {
   return new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(
       (value) =>
         value ? resolve(value) : reject(new Error('Could not encode image')),
-      'image/jpeg',
+      mediaType,
       quality,
     ),
   )
+}
+
+export async function encodeImageCanvas(
+  source: HTMLCanvasElement,
+  options: {
+    preserveAlpha?: boolean
+    byteLimit?: number
+    maxEdge?: number
+  } = {},
+): Promise<Blob> {
+  const byteLimit = options.byteLimit ?? MAX_RELAY_UPLOAD_BYTES
+  const limit = Math.min(options.maxEdge ?? 2200, 2200)
+  const mediaType = options.preserveAlpha ? 'image/png' : 'image/jpeg'
+  let attempt: ImageEncodingAttempt | null = options.preserveAlpha
+    ? { maxEdge: limit, quality: 1 }
+    : {
+        maxEdge: Math.min(limit, IMAGE_MAX_EDGES[0]),
+        quality: IMAGE_QUALITIES[0],
+      }
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Image processing is unavailable')
+  while (attempt) {
+    const size = constrainedDimensions(
+      source.width,
+      source.height,
+      attempt.maxEdge,
+    )
+    canvas.width = size.width
+    canvas.height = size.height
+    context.clearRect(0, 0, size.width, size.height)
+    context.drawImage(source, 0, 0, size.width, size.height)
+    const blob = await encodeCanvas(
+      canvas,
+      mediaType,
+      mediaType === 'image/jpeg' ? attempt.quality : undefined,
+    )
+    if (blob.size <= byteLimit) return blob
+    if (options.preserveAlpha) {
+      const nextEdge = Math.round(attempt.maxEdge * 0.8)
+      attempt = nextEdge >= 640 ? { maxEdge: nextEdge, quality: 1 } : null
+    } else attempt = nextImageEncodingAttempt(attempt)
+  }
+  throw new Error(relayUploadError('Image'))
 }
 
 /** Formats every model accepts as-is, so they can bypass re-encoding. */
@@ -138,7 +186,7 @@ export async function downscaleImage(
       canvas.width = size.width
       canvas.height = size.height
       context.drawImage(bitmap, 0, 0, size.width, size.height)
-      const blob = await encodeCanvas(canvas, attempt.quality)
+      const blob = await encodeCanvas(canvas, 'image/jpeg', attempt.quality)
       if (blob.size <= byteLimit) {
         return {
           bytes: new Uint8Array(await blob.arrayBuffer()),

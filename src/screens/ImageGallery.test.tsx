@@ -1,5 +1,12 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { ImageGalleryProvider, useImageGallery } from './ImageGallery'
 
@@ -12,14 +19,15 @@ vi.mock('../desktops/DesktopContext', () => ({
   useConnection: () => ({ api: {} }),
 }))
 
-function Harness() {
+function Harness({ source = '/two' }: { source?: string }) {
   const gallery = useImageGallery()
-  return (
-    <button onClick={() => gallery.openGallery('/two')}>Open second</button>
-  )
+  return <button onClick={() => gallery.openGallery(source)}>Open image</button>
 }
 
-afterEach(() => cleanup())
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
 
 it('opens at the tapped image, arrows and thumbnails change index, and X closes', async () => {
   vi.useFakeTimers()
@@ -39,7 +47,7 @@ it('opens at the tapped image, arrows and thumbnails change index, and X closes'
     </ImageGalleryProvider>,
   )
 
-  fireEvent.click(screen.getByRole('button', { name: 'Open second' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Open image' }))
   expect(screen.getByText('2 / 3')).toBeTruthy()
 
   const stage = document.querySelector('.gallery-stage')! as HTMLElement & {
@@ -61,4 +69,35 @@ it('opens at the tapped image, arrows and thumbnails change index, and X closes'
   act(() => vi.advanceTimersByTime(320))
   expect(screen.queryByRole('dialog', { name: 'Image gallery' })).toBeNull()
   vi.useRealTimers()
+})
+
+it('shows annotate only when the host supplies the capability', async () => {
+  vi.stubGlobal('URL', {
+    createObjectURL: (blob: Blob) => `blob:${blob.size}`,
+    revokeObjectURL: vi.fn(),
+  })
+  const onAnnotate = vi.fn()
+  const view = render(
+    <ImageGalleryProvider
+      images={[{ source: '/one', name: 'One' }]}
+      onAnnotate={onAnnotate}
+    >
+      <Harness source="/one" />
+    </ImageGalleryProvider>,
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Open image' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Annotate' }))
+  await waitFor(() =>
+    expect(screen.getByRole('dialog', { name: 'Annotate image' })).toBeTruthy(),
+  )
+  expect(onAnnotate).not.toHaveBeenCalled()
+  view.unmount()
+
+  render(
+    <ImageGalleryProvider images={[{ source: '/one', name: 'One' }]}>
+      <Harness source="/one" />
+    </ImageGalleryProvider>,
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Open image' }))
+  expect(screen.queryByRole('button', { name: 'Annotate' })).toBeNull()
 })

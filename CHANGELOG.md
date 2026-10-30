@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Composer attachments now stay local, survive draft restoration, and upload only when the message is sent or queued.
+- Image edit requests can be marked up directly from the gallery with numbered regions, labels, and an overall note, then reviewed as structured cards in the thread.
 
 ## [0.1.4] - 2026-10-30
 
