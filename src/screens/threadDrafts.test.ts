@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ComposerAttachment } from './attachmentUpload'
+import type { AttachmentStore } from './attachmentStore'
 import type { UploadedAttachment } from './messageParts'
 import {
   DRAFT_SAVE_DELAY_MS,
@@ -7,6 +9,7 @@ import {
   draftSnippet,
   listDrafts,
   loadDraft,
+  loadDraftAttachments,
   saveDraft,
   type DraftStorage,
 } from './threadDrafts'
@@ -20,6 +23,19 @@ class MemoryStorage implements DraftStorage {
     this.values.set(key, value)
   }
   removeItem(key: string) {
+    this.values.delete(key)
+  }
+}
+
+class MemoryAttachmentStore implements AttachmentStore {
+  values = new Map<string, Blob>()
+  async get(key: string) {
+    return this.values.get(key)
+  }
+  async put(key: string, blob: Blob) {
+    this.values.set(key, blob)
+  }
+  async delete(key: string) {
     this.values.delete(key)
   }
 }
@@ -70,6 +86,65 @@ describe('thread drafts', () => {
     ])
     saveDraft(storage, 'desktop-a', 'thread-1', '   ', 20, [])
     expect(loadDraft(storage, 'desktop-a', 'thread-1')).toBeUndefined()
+  })
+
+  it('persists pending attachment metadata and restores its blob', async () => {
+    const storage = new MemoryStorage()
+    const blobs = new MemoryAttachmentStore()
+    const attachment: ComposerAttachment = {
+      id: 'attachment-1',
+      kind: 'image',
+      name: 'photo.jpg',
+      mediaType: 'image/jpeg',
+      previewUrl: 'blob:original',
+      pending: { blob: new Blob(['photo'], { type: 'image/jpeg' }) },
+    }
+
+    await saveDraft(
+      storage,
+      'desktop-a',
+      'thread-1',
+      '',
+      10,
+      [attachment],
+      blobs,
+    )
+
+    const stored = storage.getItem('alma-mobile.drafts.v1') || ''
+    expect(stored).not.toContain('blob:original')
+    expect(stored).not.toContain('cGhvdG8=')
+    const restored = await loadDraftAttachments(
+      loadDraft(storage, 'desktop-a', 'thread-1')?.attachments ?? [],
+      blobs,
+    )
+    expect(restored).toHaveLength(1)
+    expect(restored[0]).toMatchObject({
+      id: 'attachment-1',
+      name: 'photo.jpg',
+      mediaType: 'image/jpeg',
+    })
+    expect('pending' in restored[0]).toBe(true)
+    if (!('pending' in restored[0])) throw new Error('expected pending attachment')
+    expect(await restored[0].pending.blob.text()).toBe('photo')
+    expect(restored[0].previewUrl).toMatch(/^blob:/)
+  })
+
+  it('silently drops pending attachment metadata when its blob is missing', async () => {
+    const blobs = new MemoryAttachmentStore()
+    await expect(
+      loadDraftAttachments(
+        [
+          {
+            id: 'attachment-1',
+            kind: 'image',
+            name: 'photo.jpg',
+            mediaType: 'image/jpeg',
+            pendingKey: 'missing',
+          },
+        ],
+        blobs,
+      ),
+    ).resolves.toEqual([])
   })
 
   it('caps stored text at 20,000 characters', () => {
