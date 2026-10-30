@@ -56,15 +56,9 @@ export const PartView = memo(function PartView({
     return <ReasoningPart part={part} live={live} duration={duration} />
   if (part.type === 'text') {
     const parsed = parseAlmaImageEdit(part.text ?? '')
-    if (parsed.request)
-      return (
-        <>
-          {parsed.visibleText
-            ? capabilities.renderMarkdown(parsed.visibleText, linkUserFilePaths)
-            : null}
-          <ImageEditCard request={parsed.request} />
-        </>
-      )
+    // The card carries the same numbered requests as the visible text, so
+    // the phone shows only the card.
+    if (parsed.request) return <ImageEditCard request={parsed.request} />
     return capabilities.renderMarkdown(parsed.visibleText, linkUserFilePaths)
   }
   if (part.type.startsWith('tool-') || part.type === 'dynamic-tool') {

@@ -1,6 +1,6 @@
 import { useT } from '../i18n'
 import {
-  displayNumber,
+  isLightColor,
   type ImageEditRequest,
 } from '../components/imageAnnotatorModel'
 
@@ -21,10 +21,15 @@ export function ImageEditCard({ request }: { request: ImageEditRequest }) {
             <span
               className="image-edit-number"
               style={
-                { '--image-edit-color': region.color } as React.CSSProperties
+                {
+                  '--image-edit-color': region.color,
+                  '--image-edit-ink': isLightColor(region.color)
+                    ? 'var(--gray-12)'
+                    : '#ffffff',
+                } as React.CSSProperties
               }
             >
-              {displayNumber(region.index)}
+              {region.index}
             </span>
             <span>
               {region.label ||

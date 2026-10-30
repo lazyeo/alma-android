@@ -153,6 +153,8 @@ export function ImageAnnotator({
     context.scale(viewport.scale, viewport.scale)
     context.translate(-bounds.width / 2, -bounds.height / 2)
     context.drawImage(image, left, top, width, height)
+    // Regions are normalized to the image box, so draw them from its origin.
+    context.translate(left, top)
     for (const region of draft ? [...state.regions, draft] : state.regions)
       drawRegion(context, region, width, height, region.id === state.selectedId)
     context.restore()

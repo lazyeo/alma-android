@@ -9244,10 +9244,17 @@ dialog:focus,
   line-height: var(--leading-normal);
 }
 .image-edit-number {
-  color: var(--image-edit-color);
-  font-weight: var(--weight-semibold);
-  text-align: center;
-  filter: drop-shadow(0 0 1px var(--gray-12));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--image-edit-color);
+  color: var(--image-edit-ink);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  line-height: 1;
 }
 .image-edit-note {
   display: grid;

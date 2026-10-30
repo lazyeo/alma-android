@@ -141,6 +141,16 @@ export function regionAnchor(region: AnnotationRegion) {
   return region.points[0] ?? { x: 0, y: 0 }
 }
 
+/** Badge ink: dark text on light annotation colors, white otherwise. */
+export function isLightColor(hex: string) {
+  const value = hex.replace('#', '')
+  if (value.length < 6) return false
+  const r = parseInt(value.slice(0, 2), 16)
+  const g = parseInt(value.slice(2, 4), 16)
+  const b = parseInt(value.slice(4, 6), 16)
+  return 0.299 * r + 0.587 * g + 0.114 * b > 160
+}
+
 export function displayNumber(index: number) {
   if (index >= 1 && index <= 20) return String.fromCodePoint(0x245f + index)
   return String(index)
