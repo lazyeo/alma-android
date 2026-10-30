@@ -5208,13 +5208,14 @@ async function assertTerminalModeControl(page, scrollGrid = false) {
     )
       throw new Error('agent terminal mode control target missing')
     const before = control.getBoundingClientRect()
+    const rest = { left: scroller.scrollLeft, top: scroller.scrollTop }
     if (scrollGrid) {
       scroller.scrollLeft = scroller.scrollWidth
       scroller.scrollTop = scroller.scrollHeight
     }
     const cardRect = card.getBoundingClientRect()
     const controlRect = control.getBoundingClientRect()
-    return {
+    const result = {
       visible:
         getComputedStyle(control).visibility !== 'hidden' &&
         getComputedStyle(control).display !== 'none' &&
@@ -5257,6 +5258,10 @@ async function assertTerminalModeControl(page, scrollGrid = false) {
         height: scroller.scrollHeight,
       },
     }
+    // Leave the scroller at rest for later geometry guards.
+    scroller.scrollLeft = rest.left
+    scroller.scrollTop = rest.top
+    return result
   }, scrollGrid)
   if (
     !geometry.visible ||

@@ -538,10 +538,11 @@ export function AgentPaneScreen() {
                 data-sidebar-swipe-exclude
                 onClick={toggleTerminalDisplayMode}
               >
+                {/* Icon and text both show the current mode; aria names the action. */}
                 {terminalDisplayMode === 'reflow' ? (
-                  <Grid3X3 size={14} />
-                ) : (
                   <WrapText size={14} />
+                ) : (
+                  <Grid3X3 size={14} />
                 )}
                 <span>
                   {terminalDisplayMode === 'reflow'
