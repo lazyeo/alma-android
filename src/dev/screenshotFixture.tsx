@@ -24,11 +24,14 @@ import {
   type Thread,
 } from '../relay'
 import type { TunnelResponse, TunnelSocket } from '../relay/tunnel'
+import type { ComposerAttachment } from '../screens/attachmentUpload'
 import { saveDraft } from '../screens/threadDrafts'
 import { addQueuedMessage, saveThreadQueue } from '../screens/threadQueue'
 import { installNativeInsetsBridge } from '../nativeInsets'
 import { setSharePayloadForFixture } from '../share/useSharePayload'
 import { closeTopOverlay } from '../overlayStack'
+import { Composer } from '../components/Composer'
+import { ComposerAttachmentTray } from '../components/ComposerAttachments'
 import { ImageAnnotator } from '../components/ImageAnnotator'
 import '../styles.css'
 
@@ -83,6 +86,52 @@ const updateDependencies: UpdateDependencies | undefined = updateFixture
   : undefined
 const FIXTURE_IMAGE = `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540"><rect width="960" height="540" rx="36" fill="#191d2a"/><rect x="54" y="54" width="852" height="432" rx="24" fill="#252b3d"/><circle cx="144" cy="144" r="38" fill="#8b9eff"/><path d="M94 414 298 226l132 124 124-96 312 160H94Z" fill="#6674b7"/><path d="m94 414 204-188 132 124 62-48 132 112H94Z" fill="#a9b4ff"/><text x="480" y="128" fill="#f4f5fb" font-family="system-ui,sans-serif" font-size="30" text-anchor="middle">Interface preview</text></svg>`
 const ANNOTATOR_FIXTURE_SOURCE = `data:image/svg+xml;base64,${btoa(FIXTURE_IMAGE)}`
+const ANNOTATED_COMPOSER_IMAGE = `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="540" viewBox="0 0 720 540"><rect width="720" height="540" rx="28" fill="#252b3d"/><path d="M50 450 250 220l150 140 100-90 170 180H50Z" fill="#a9b4ff"/><rect x="92" y="92" width="250" height="180" rx="20" fill="none" stroke="#ff5c7a" stroke-width="18"/><circle cx="106" cy="106" r="34" fill="#ff5c7a"/><text x="106" y="118" fill="white" font-family="system-ui,sans-serif" font-size="34" font-weight="700" text-anchor="middle">1</text><path d="M570 110 430 260" stroke="#ffd166" stroke-width="20" stroke-linecap="round"/><path d="m430 260 34-74m-34 74 76-28" fill="none" stroke="#ffd166" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+function AnnotatedComposerFixture() {
+  const [attachments, setAttachments] = React.useState<ComposerAttachment[]>(
+    () => {
+      const blob = new Blob([ANNOTATED_COMPOSER_IMAGE], {
+        type: 'image/svg+xml',
+      })
+      return [
+        {
+          id: 'annotated-composer-image',
+          kind: 'image' as const,
+          name: 'marked-up.png',
+          mediaType: 'image/png',
+          previewUrl: URL.createObjectURL(blob),
+          pending: { blob },
+        },
+      ]
+    },
+  )
+  return (
+    <main className="detail-main">
+      <div className="page-body" />
+      <Composer
+        value=""
+        onChange={() => undefined}
+        onSend={() => undefined}
+        placeholder=""
+        model="openai:gpt-5"
+        models={[]}
+        onModelChange={() => undefined}
+        effort="medium"
+        onEffortChange={() => undefined}
+        attachmentTray={
+          <ComposerAttachmentTray
+            api={{} as never}
+            attachments={attachments}
+            onChange={setAttachments}
+          />
+        }
+        attachmentControl={<span />}
+        disabled
+      />
+    </main>
+  )
+}
+
 const SCREEN_PATTERN = `<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#20324a"/><stop offset="1" stop-color="#11151d"/></linearGradient></defs><rect width="1280" height="800" fill="url(#g)"/><rect x="32" y="28" width="1216" height="56" rx="16" fill="#e7e9ee"/><circle cx="70" cy="56" r="9" fill="#f06b68"/><circle cx="99" cy="56" r="9" fill="#e9bd59"/><circle cx="128" cy="56" r="9" fill="#61bd78"/><rect x="64" y="126" width="360" height="610" rx="24" fill="#f7f8fa"/><rect x="456" y="126" width="760" height="286" rx="24" fill="#dbe5f5"/><rect x="456" y="444" width="360" height="292" rx="24" fill="#dde9df"/><rect x="848" y="444" width="368" height="292" rx="24" fill="#f1dfd6"/><text x="96" y="180" fill="#1b2432" font-family="system-ui,sans-serif" font-size="28" font-weight="700">Synthetic Mac</text><text x="96" y="218" fill="#647087" font-family="system-ui,sans-serif" font-size="18">Remote screen test pattern</text><path d="M504 344 C620 176 744 376 872 214 S1080 188 1168 322" fill="none" stroke="#6c82ad" stroke-width="14" stroke-linecap="round"/><circle cx="636" cy="274" r="18" fill="#4d699c"/><circle cx="902" cy="240" r="18" fill="#4d699c"/><rect x="96" y="274" width="270" height="18" rx="9" fill="#c4cad5"/><rect x="96" y="316" width="210" height="18" rx="9" fill="#d8dce4"/><rect x="96" y="358" width="246" height="18" rx="9" fill="#d8dce4"/></svg>`
 const SCREEN_JPEG = (() => {
   const canvas = document.createElement('canvas')
@@ -2191,7 +2240,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <LanguageProvider>
       <Router {...routerProps}>
         <ThemeProvider>
-          {screenshotParams.has('annotator') ? (
+          {screenshotParams.has('annotatedComposer') ? (
+            <AnnotatedComposerFixture />
+          ) : screenshotParams.has('annotator') ? (
             <ImageAnnotator
               source={ANNOTATOR_FIXTURE_SOURCE}
               onDone={() => undefined}

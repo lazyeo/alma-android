@@ -1080,6 +1080,19 @@ const prepareRunningTask = async (page) => {
     )
 }
 
+const composerAnnotationShots = ['zh', 'en'].map((language) => ({
+  file: `composer-annotated-image-${language}-412.png`,
+  viewport: PHONE,
+  route: DESKTOP,
+  query: 'annotatedComposer=1',
+  language,
+  ready: '.attachment-annotate-badge',
+  async act(page) {
+    await page.locator('.attachment-tray').scrollIntoViewIfNeeded()
+    await assertNoHorizontalOverflow(page, '.detail-main')
+  },
+}))
+
 const imageAnnotatorShots = [
   ...['zh', 'en'].map((language) => ({
     file: `image-edit-card-${language}-412.png`,
@@ -6701,6 +6714,7 @@ try {
   const failures = []
   for (const shot of [
     ...updateShots,
+    ...composerAnnotationShots,
     ...imageAnnotatorShots,
     ...taskCardsShots,
     ...screenShots,
