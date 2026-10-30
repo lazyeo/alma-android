@@ -424,6 +424,17 @@ export function RemoteScreen() {
     updateTrackpad({ type: 'scroll', dx: event.deltaX, dy: event.deltaY })
   }
 
+  const screenPointerHandlers = {
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel: onPointerUp,
+  }
+  const trackpadPointerHandlers = {
+    ...screenPointerHandlers,
+    onWheel,
+  }
+
   const sendText = (event?: FormEvent) => {
     event?.preventDefault()
     if (composing || !text.trim()) return
@@ -503,11 +514,8 @@ export function RemoteScreen() {
       <div
         ref={surfaceRef}
         className={`remote-screen-surface ${remote.control ? 'is-controlling' : ''}`}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        onWheel={onWheel}
+        data-sidebar-swipe-exclude={remote.control && inputMode === 'direct' ? '' : undefined}
+        {...(remote.control && inputMode === 'direct' ? screenPointerHandlers : {})}
       >
         <div
           className="remote-screen-transform"
@@ -584,6 +592,16 @@ export function RemoteScreen() {
           </dl>
         ) : null}
       </div>
+
+      {remote.control && inputMode === 'trackpad' ? (
+        <div
+          className="remote-trackpad"
+          data-sidebar-swipe-exclude
+          {...trackpadPointerHandlers}
+        >
+          <span>{t('screen.trackpad')}</span>
+        </div>
+      ) : null}
 
       <div className="remote-screen-toolbar">
         {remote.control ? (

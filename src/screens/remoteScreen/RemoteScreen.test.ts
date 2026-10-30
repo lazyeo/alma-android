@@ -16,3 +16,16 @@ describe('RemoteScreen desktop switching', () => {
     )
   })
 })
+
+describe('RemoteScreen input surfaces', () => {
+  it('renders a dedicated trackpad only in trackpad mode', () => {
+    expect(source).toContain("inputMode === 'trackpad' ? (")
+    expect(source).toContain('className="remote-trackpad"')
+    expect(source).toContain('data-sidebar-swipe-exclude')
+    expect(source).toContain("{t('screen.trackpad')}")
+  })
+
+  it('keeps pointer handlers on the screen only in direct mode', () => {
+    expect(source).toContain("inputMode === 'direct' ? screenPointerHandlers : {}")
+  })
+})
