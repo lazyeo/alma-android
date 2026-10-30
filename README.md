@@ -57,7 +57,7 @@ The package name is `club.a_dobe.alma`. Settings › Updates can check, verify, 
 
 The pairing link grants full access to that desktop. Treat it like a password: do not share it, paste it into an issue, or include it in logs.
 
-The app connects through Alma's official relay. The inner tunnel is end-to-end encrypted between your Android device and desktop. This app does not store your conversations or pairing data on a third-party server; pairing information and limited UI caches stay on your device, while conversation data comes from your desktop.
+The app connects through Alma's official relay and, when the phone and desktop share a local network, switches to a direct LAN connection that uses the same end-to-end handshake (falling back to the relay automatically). The inner tunnel is end-to-end encrypted between your Android device and desktop. This app does not store your conversations or pairing data on a third-party server; pairing information and limited UI caches stay on your device, while conversation data comes from your desktop.
 
 ## Features
 
@@ -71,9 +71,12 @@ The app connects through Alma's official relay. The inner tunnel is end-to-end e
 - Foldable layouts and a frosted screen-transition effect; optional live hinge angle through Shizuku, with estimation as the fallback
 - Local alerts when a reply finishes or an approval needs attention
 - **New in 0.1.3 — Herdr coding agents:** for desktops running Herdr, a Herdr tab with board and list views of workspaces and sessions. Each session has a Chat view drawn with the same message components as threads, and a Terminal view with Fit/Grid layouts, on-demand scrollback, virtual keys you can hide, and Enter-to-terminal input. Answer an agent's permission menu from the chat or straight from the session list, mute noisy workspaces, and get an "Agent needs you" alert.
-- **New in 0.1.3 — Mac screen:** watch a paired desktop's screen, take control with direct touch or trackpad mode, type or paste text, switch desktops, and wake a sleeping display.
+- **New in 0.1.3 — Mac screen:** watch a paired desktop's screen, take control with direct touch or trackpad mode, type text, switch desktops, and wake a sleeping display.
 - **New in 0.1.3 — In-app updates:** check GitHub Releases, read the notes, and install a SHA-256-verified APK without leaving the app.
 - **New in 0.1.3 — Background connection:** an optional foreground service keeps desktop connections and local alerts alive while the app is in the background.
+- **New in 0.1.4 — LAN direct:** on the same Wi-Fi the app talks to the desktop directly instead of through the relay, and the desktop switcher shows a Wi-Fi icon for LAN or a globe for the relay.
+- **New in 0.1.4 — Better Mac control:** a dedicated trackpad area; taps click, slides only move, two-finger tap right-clicks, two-finger slide scrolls, and long-press or double-tap-hold drags to select text.
+- **New in 0.1.4 — Desktop OS icons:** paired desktops show a macOS, Windows or Linux icon, and Mac screen explains when a desktop cannot share its screen.
 - Rich previews: KaTeX math, Mermaid diagrams, audio and video, PDF, CSV/XLSX and DOCX
 
 ### Notification limitation
