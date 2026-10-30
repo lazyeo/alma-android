@@ -164,6 +164,8 @@ function StartView() {
           fastMode,
         }))
       created.current = id
+      // ThreadScreen takes ownership of pending object URLs through navigation state.
+      attachmentsRef.current = []
       navigate(desktopThreadPath(pairing.id, id), {
         replace: true,
         state: {
