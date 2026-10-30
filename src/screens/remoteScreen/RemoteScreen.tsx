@@ -184,6 +184,7 @@ export function RemoteScreen() {
   const location = useLocation()
   const { pairing, tunnel, api } = useConnection()
   const remote = useRemoteScreen(tunnel)
+  const pageRef = useRef<HTMLElement>(null)
   const surfaceRef = useRef<HTMLDivElement>(null)
   const videoSize = useMemo(
     () =>
@@ -206,7 +207,7 @@ export function RemoteScreen() {
     'loading' | 'ready' | 'pending' | 'success' | 'error'
   >('loading')
   const [modifiers, setModifiers] = useState<KeyModifiers>({})
-  const [transform, setTransform] = useState<ViewTransform>({
+  const [transform] = useState<ViewTransform>({
     scale: 1,
     x: 0,
     y: 0,
@@ -478,7 +479,7 @@ export function RemoteScreen() {
   }, [pairing.id, status])
 
   return (
-    <section className="remote-screen-page">
+    <section ref={pageRef} className="remote-screen-page">
       <header className="remote-screen-header">
         <button
           className="quiet-icon-button"
@@ -643,8 +644,8 @@ export function RemoteScreen() {
         <div className="remote-screen-tools">
           <button
             className="quiet-icon-button"
-            aria-label={t('screen.zoomReset')}
-            onClick={() => setTransform({ scale: 1, x: 0, y: 0 })}
+            aria-label={t('screen.fullscreen')}
+            onClick={() => void pageRef.current?.requestFullscreen?.()}
           >
             <Maximize2 size={18} />
           </button>

@@ -39,7 +39,7 @@ export const screen: CatalogShape<typeof source> = {
   paste: '粘贴到 Mac',
   copiedFromMac: '已将 Mac 剪贴板复制到手机',
   clipboardFailed: '无法使用剪贴板',
-  zoomReset: '重置画面',
+  fullscreen: '全屏',
   inputMode: '输入模式',
   controlWarning: '现在触摸操作会控制 Mac。',
   esc: '退出',

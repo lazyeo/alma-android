@@ -39,7 +39,7 @@ export const screen = {
   paste: 'Paste to Mac',
   copiedFromMac: 'Mac clipboard copied to phone',
   clipboardFailed: 'Clipboard is unavailable',
-  zoomReset: 'Reset view',
+  fullscreen: 'Full screen',
   inputMode: 'Input mode',
   controlWarning: 'Touches can now control the Mac.',
   esc: 'esc',
