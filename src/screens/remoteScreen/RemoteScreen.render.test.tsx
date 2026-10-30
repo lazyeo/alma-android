@@ -29,6 +29,7 @@ vi.mock('../../desktops/DesktopContext', () => ({
     api: {
       listWorkspaces: vi.fn(async () => []),
       getSettings: vi.fn(async () => ({})),
+      getComputerUseStatus: vi.fn(async () => ({ platform: 'darwin' })),
       wakeDisplay: vi.fn(async () => undefined),
     },
   }),
