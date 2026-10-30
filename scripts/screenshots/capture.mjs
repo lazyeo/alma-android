@@ -1080,6 +1080,72 @@ const prepareRunningTask = async (page) => {
     )
 }
 
+const imageAnnotatorShots = [
+  ...['zh', 'en'].map((language) => ({
+    file: `image-edit-card-${language}-412.png`,
+    viewport: PHONE,
+    route: `${DESKTOP}/t-image-edit`,
+    language,
+    ready: '.image-edit-card',
+    async act(page) {
+      await page.locator('.image-edit-card').scrollIntoViewIfNeeded()
+      await assertNoHorizontalOverflow(page, '.thread-detail')
+    },
+  })),
+  ...['zh', 'en'].map((language) => ({
+    file: `image-annotator-${language}-412.png`,
+    viewport: PHONE,
+    route: DESKTOP,
+    query: 'annotator=1',
+    language,
+    ready: '.annotator-canvas-wrap canvas',
+    safeInsets: true,
+    async act(page) {
+      const canvas = page.locator('.annotator-canvas-wrap canvas')
+      await page.waitForFunction(() => {
+        const node = document.querySelector('.annotator-canvas-wrap canvas')
+        return (
+          node instanceof HTMLCanvasElement &&
+          Number(node.dataset.imageWidth) > 0
+        )
+      })
+      const box = await canvas.boundingBox()
+      if (!box) throw new Error('annotator canvas missing')
+      const drag = async (fromX, fromY, toX, toY) => {
+        await page.mouse.move(box.x + fromX, box.y + fromY)
+        await page.mouse.down()
+        await page.mouse.move(box.x + toX, box.y + toY, { steps: 8 })
+        await page.mouse.up()
+      }
+      await drag(
+        box.width * 0.12,
+        box.height * 0.2,
+        box.width * 0.42,
+        box.height * 0.48,
+      )
+      await page
+        .getByRole('button', { name: language === 'zh' ? '椭圆' : 'Ellipse' })
+        .click()
+      await drag(
+        box.width * 0.55,
+        box.height * 0.18,
+        box.width * 0.84,
+        box.height * 0.43,
+      )
+      await page
+        .getByRole('button', { name: language === 'zh' ? '箭头' : 'Arrow' })
+        .click()
+      await drag(
+        box.width * 0.32,
+        box.height * 0.78,
+        box.width * 0.7,
+        box.height * 0.58,
+      )
+      await assertNoHorizontalOverflow(page, '.image-annotator')
+    },
+  })),
+]
+
 const taskCardsShots = [
   {
     file: 'taskCards-running-task-phone.png',
@@ -6635,6 +6701,7 @@ try {
   const failures = []
   for (const shot of [
     ...updateShots,
+    ...imageAnnotatorShots,
     ...taskCardsShots,
     ...screenShots,
     ...shots,

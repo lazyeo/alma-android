@@ -50,7 +50,14 @@ describe('image annotator geometry', () => {
     expect(hitTestRegion(rect, { x: 0.8, y: 0.8 }, 0.02)).toBe(false)
     expect(
       hitTestRegion(
-        { ...rect, tool: 'arrow', points: [{ x: 0, y: 0 }, { x: 1, y: 1 }] },
+        {
+          ...rect,
+          tool: 'arrow',
+          points: [
+            { x: 0, y: 0 },
+            { x: 1, y: 1 },
+          ],
+        },
         { x: 0.52, y: 0.5 },
         0.04,
       ),
@@ -60,7 +67,10 @@ describe('image annotator geometry', () => {
         {
           ...rect,
           tool: 'brush',
-          points: [{ x: 0, y: 0.5 }, { x: 1, y: 0.5 }],
+          points: [
+            { x: 0, y: 0.5 },
+            { x: 1, y: 0.5 },
+          ],
         },
         { x: 0.4, y: 0.53 },
         0.04,

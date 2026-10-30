@@ -9145,7 +9145,8 @@ dialog:focus,
   position: absolute;
   inset: 5px;
   border-radius: 50%;
-  border: 2px solid var(--accent-9);
+  border: 0;
+  outline: var(--border-hairline) solid var(--accent-9);
 }
 .annotator-controls textarea,
 .annotator-label-strip input {

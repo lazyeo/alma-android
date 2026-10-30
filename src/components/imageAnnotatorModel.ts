@@ -93,8 +93,8 @@ export function hitTestRegion(
     const cx = box.left + rx
     const cy = box.top + ry
     return (
-      ((point.x - cx) * (point.x - cx)) / ((rx + tolerance) ** 2) +
-        ((point.y - cy) * (point.y - cy)) / ((ry + tolerance) ** 2) <=
+      ((point.x - cx) * (point.x - cx)) / (rx + tolerance) ** 2 +
+        ((point.y - cy) * (point.y - cy)) / (ry + tolerance) ** 2 <=
       1
     )
   }
@@ -174,7 +174,8 @@ export function drawRegion(
     const top = Math.min(start.y, end.y)
     const regionWidth = Math.abs(end.x - start.x)
     const regionHeight = Math.abs(end.y - start.y)
-    if (region.tool === 'rect') context.rect(left, top, regionWidth, regionHeight)
+    if (region.tool === 'rect')
+      context.rect(left, top, regionWidth, regionHeight)
     else
       context.ellipse(
         left + regionWidth / 2,
