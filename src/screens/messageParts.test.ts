@@ -35,6 +35,20 @@ describe('message parts', () => {
     ])
   })
 
+  it('rejects pending composer attachments', () => {
+    expect(() =>
+      buildMessageParts('caption', [
+        {
+          kind: 'image',
+          name: 'photo.jpg',
+          mediaType: 'image/jpeg',
+          previewUrl: 'blob:photo',
+          pending: { blob: new Blob(['photo'], { type: 'image/jpeg' }) },
+        } as never,
+      ]),
+    ).toThrow('Pending attachment')
+  })
+
   it('extracts editable and copyable text only', () => {
     expect(
       messageText([
