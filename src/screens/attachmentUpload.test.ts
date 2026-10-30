@@ -4,7 +4,9 @@ import { uploadPendingAttachments } from './attachmentUpload'
 
 function pending(
   kind: 'image' | 'file',
-  blob = new Blob(['bytes'], { type: kind === 'image' ? 'image/jpeg' : 'text/plain' }),
+  blob = new Blob(['bytes'], {
+    type: kind === 'image' ? 'image/jpeg' : 'text/plain',
+  }),
 ): ComposerAttachment {
   return {
     id: `${kind}-1`,
@@ -33,7 +35,11 @@ describe('pending attachment upload', () => {
     }
 
     await expect(
-      uploadPendingAttachments(api, [uploaded, pending('image'), pending('file')]),
+      uploadPendingAttachments(api, [
+        uploaded,
+        pending('image'),
+        pending('file'),
+      ]),
     ).resolves.toEqual([
       uploaded,
       {

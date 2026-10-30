@@ -1555,7 +1555,12 @@ function ThreadView({ threadId }: { threadId: string }) {
           const socket = socketRef.current
           if (!socket || !socketReady.current)
             throw new Error(t('thread.errors.desktopOffline'))
-          socket.generateResponse(threadId, parts, generationOptions, pending.id)
+          socket.generateResponse(
+            threadId,
+            parts,
+            generationOptions,
+            pending.id,
+          )
         },
         writeQueue: () =>
           updateQueue(

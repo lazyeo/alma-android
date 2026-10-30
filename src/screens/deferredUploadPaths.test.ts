@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+const read = (path: string) =>
+  readFileSync(new URL(path, import.meta.url), 'utf8')
 
 describe('deferred attachment send paths', () => {
   it('keeps composer picking local without calling relay upload APIs', () => {
@@ -16,12 +17,16 @@ describe('deferred attachment send paths', () => {
   it('uploads before normal send, queueing, and the first send', () => {
     const source = read('./ThreadScreen.tsx')
 
-    expect(source).toContain('const uploaded = await uploadForSend(attachments)')
+    expect(source).toContain(
+      'const uploaded = await uploadForSend(attachments)',
+    )
     expect(source).toContain('composerContent(),\n      uploaded,')
     expect(source).toContain(
       'uploaded = await uploadPendingAttachments(api, pending.attachments)',
     )
-    expect(source).toContain('const parts = buildMessageParts(pending.content, uploaded)')
+    expect(source).toContain(
+      'const parts = buildMessageParts(pending.content, uploaded)',
+    )
     expect(source).not.toContain(
       'addQueuedMessage(\n            queuedRef.current,\n            pending.content,\n            pending.attachments,',
     )

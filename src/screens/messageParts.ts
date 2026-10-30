@@ -27,7 +27,9 @@ export function buildMessageParts(
 
   for (const attachment of attachments) {
     if ('pending' in attachment) {
-      throw new Error('Pending attachment must be uploaded before building message parts')
+      throw new Error(
+        'Pending attachment must be uploaded before building message parts',
+      )
     }
     if (attachment.kind === 'image' && attachment.url) {
       parts.push({

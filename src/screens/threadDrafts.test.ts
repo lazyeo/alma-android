@@ -124,7 +124,8 @@ describe('thread drafts', () => {
       mediaType: 'image/jpeg',
     })
     expect('pending' in restored[0]).toBe(true)
-    if (!('pending' in restored[0])) throw new Error('expected pending attachment')
+    if (!('pending' in restored[0]))
+      throw new Error('expected pending attachment')
     expect(await restored[0].pending.blob.text()).toBe('photo')
     expect(restored[0].previewUrl).toMatch(/^blob:/)
   })

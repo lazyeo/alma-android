@@ -25,7 +25,9 @@ describe('attachment store', () => {
     expect(await restored?.text()).toBe('photo')
     expect(restored?.type).toBe('image/jpeg')
     await store.delete('desktop:thread:attachment')
-    await expect(store.get('desktop:thread:attachment')).resolves.toBeUndefined()
+    await expect(
+      store.get('desktop:thread:attachment'),
+    ).resolves.toBeUndefined()
   })
 
   it('rejects blobs over the per-attachment size cap', async () => {

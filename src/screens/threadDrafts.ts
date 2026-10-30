@@ -36,7 +36,11 @@ export interface ThreadDraft {
   updatedAt: number
 }
 
-const pendingKey = (desktopId: string, threadId: string, attachmentId: string) =>
+const pendingKey = (
+  desktopId: string,
+  threadId: string,
+  attachmentId: string,
+) =>
   `${encodeURIComponent(desktopId)}:${encodeURIComponent(threadId)}:${encodeURIComponent(attachmentId)}`
 
 function storedUploadedAttachment(
@@ -60,10 +64,7 @@ function storedAttachment(value: unknown): StoredDraftAttachment | undefined {
   )
     return undefined
   const pending = attachment as Partial<PendingDraftAttachment>
-  if (
-    typeof pending.id === 'string' &&
-    typeof pending.pendingKey === 'string'
-  )
+  if (typeof pending.id === 'string' && typeof pending.pendingKey === 'string')
     return pending as PendingDraftAttachment
   return storedUploadedAttachment(attachment as UploadedAttachment)
 }
@@ -117,9 +118,8 @@ function readStore(storage: DraftStorage): DraftStore {
             typeof value.updatedAt !== 'number'
           )
             return false
-          value.attachments = (Array.isArray(value.attachments)
-            ? value.attachments
-            : []
+          value.attachments = (
+            Array.isArray(value.attachments) ? value.attachments : []
           )
             .map(storedAttachment)
             .filter(
@@ -257,7 +257,8 @@ export async function clearDraft(
   blobs: AttachmentStore = attachmentStore,
 ) {
   const store = readStore(storage)
-  const attachments = store.drafts[draftKey(desktopId, threadId)]?.attachments ?? []
+  const attachments =
+    store.drafts[draftKey(desktopId, threadId)]?.attachments ?? []
   delete store.drafts[draftKey(desktopId, threadId)]
   writeStore(storage, store)
   await Promise.all(
