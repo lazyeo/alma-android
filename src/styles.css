@@ -127,7 +127,8 @@ strong {
 button {
   cursor: pointer;
 }
-.app-shell {
+.app-shell,
+.detail-shell {
   height: 100vh;
   height: 100dvh;
   display: flex;
@@ -3314,10 +3315,18 @@ select:focus-visible {
   height: 14px;
   border-radius: 50%;
 }
-/* Single-pane detail: the open thread fills the viewport, no tab bar. */
+/* Single-pane detail: the open route fills through the bottom safe area. */
 .detail-main {
-  min-height: 100vh;
-  min-height: 100dvh;
+  width: 100%;
+  max-width: 720px;
+  height: 100%;
+  min-height: 0;
+  margin: auto;
+  padding: 0 18px;
+  overflow: hidden;
+}
+.detail-main.phone-child {
+  padding-bottom: var(--safe-bottom);
 }
 
 /* Split layout (JS switches at SPLIT_MIN_WIDTH): nav rail, list, detail. */

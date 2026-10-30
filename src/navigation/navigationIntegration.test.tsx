@@ -58,10 +58,30 @@ describe('hierarchical navigation integration', () => {
     cleanup()
   })
 
-  it('uses the route hierarchy for GTD root and detail Back', () => {
-    expect(parentRoute('/d/desk/gtd', 'single')).toBe('/d/desk/threads')
-    expect(parentRoute('/d/desk/gtd/thread-1', 'single')).toBe('/d/desk/gtd')
-    expect(parentRoute('/d/desk/gtd', 'split')).toBe('/d/desk/threads')
+  it.each([
+    ['GTD', '/d/desk/gtd'],
+    ['Crystals', '/d/desk/crystals'],
+    ['Time clues', '/d/desk/time-clues'],
+    ['References', '/d/desk/references'],
+  ])('returns the phone %s list to Threads root', (_label, route) => {
+    expect(parentRoute(route, 'single')).toBe('/d/desk/threads')
+  })
+
+  it.each([
+    ['/d/desk/gtd/thread-1', '/d/desk/gtd'],
+    ['/d/desk/crystals/crystal-1', '/d/desk/crystals'],
+    ['/d/desk/references/alma%3A%2F%2Fthread%2F1', '/d/desk/references'],
+  ])('returns phone detail %s to its list', (route, parent) => {
+    expect(parentRoute(route, 'single')).toBe(parent)
+  })
+
+  it.each([
+    '/d/desk/gtd',
+    '/d/desk/crystals',
+    '/d/desk/time-clues',
+    '/d/desk/references',
+  ])('keeps split destination %s at rail level', (route) => {
+    expect(parentRoute(route, 'split')).toBe('/d/desk/threads')
   })
 
   it('replaces a tab switch and returns a split Herdr pane to Chat root', () => {
