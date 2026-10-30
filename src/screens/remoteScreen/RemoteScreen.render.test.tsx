@@ -84,25 +84,9 @@ afterEach(() => {
 })
 
 describe('RemoteScreen toolbar actions', () => {
-  it('requests fullscreen for the remote screen page', () => {
+  it('has no fullscreen or clipboard-push buttons until they work on device', () => {
     render(<RemoteScreen />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Full screen' }))
-
-    expect(requestFullscreen).toHaveBeenCalledTimes(1)
-  })
-
-  it('pushes the phone clipboard to the Mac and pastes it', async () => {
-    render(<RemoteScreen />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Paste to Mac' }))
-
-    await waitFor(() =>
-      expect(sendControl).toHaveBeenCalledWith({
-        type: 'clipboard',
-        text: 'from phone',
-        paste: true,
-      }),
-    )
+    expect(screen.queryByRole('button', { name: 'Full screen' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Paste to Mac' })).toBeNull()
   })
 })

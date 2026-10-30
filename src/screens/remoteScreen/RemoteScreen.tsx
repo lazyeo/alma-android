@@ -5,9 +5,7 @@ import {
   ArrowUp,
   BarChart3,
   ChevronLeft,
-  ClipboardPaste,
   Keyboard,
-  Maximize2,
   Monitor,
   MonitorOff,
   MousePointer2,
@@ -186,7 +184,6 @@ export function RemoteScreen() {
   const location = useLocation()
   const { pairing, tunnel, api } = useConnection()
   const remote = useRemoteScreen(tunnel)
-  const pageRef = useRef<HTMLElement>(null)
   const surfaceRef = useRef<HTMLDivElement>(null)
   const videoSize = useMemo(
     () =>
@@ -448,20 +445,6 @@ export function RemoteScreen() {
     remote.sendControl({ type: 'key', key: buildKeyCombo(modifiers, key) })
   }
 
-  const pasteToMac = async () => {
-    try {
-      const clipboardText = await navigator.clipboard.readText()
-      if (clipboardText)
-        remote.sendControl({
-          type: 'clipboard',
-          text: clipboardText,
-          paste: true,
-        })
-    } catch {
-      setNotice(t('screen.clipboardFailed'))
-    }
-  }
-
   const wakeDisplay = async () => {
     if (!wakeWorkspaceId || wakeState === 'pending') return
     setWakeState('pending')
@@ -484,7 +467,7 @@ export function RemoteScreen() {
   }, [pairing.id, status])
 
   return (
-    <section ref={pageRef} className="remote-screen-page">
+    <section className="remote-screen-page">
       <header className="remote-screen-header">
         <button
           className="quiet-icon-button"
@@ -649,13 +632,6 @@ export function RemoteScreen() {
         <div className="remote-screen-tools">
           <button
             className="quiet-icon-button"
-            aria-label={t('screen.fullscreen')}
-            onClick={() => void pageRef.current?.requestFullscreen?.()}
-          >
-            <Maximize2 size={18} />
-          </button>
-          <button
-            className="quiet-icon-button"
             aria-label={statsOpen ? t('screen.hideStats') : t('screen.stats')}
             aria-pressed={statsOpen}
             onClick={() => setStatsOpen((open) => !open)}
@@ -670,15 +646,6 @@ export function RemoteScreen() {
               onClick={() => setKeyboardOpen((open) => !open)}
             >
               <Keyboard size={18} />
-            </button>
-          ) : null}
-          {remote.control ? (
-            <button
-              className="quiet-icon-button"
-              aria-label={t('screen.paste')}
-              onClick={() => void pasteToMac()}
-            >
-              <ClipboardPaste size={18} />
             </button>
           ) : null}
         </div>
