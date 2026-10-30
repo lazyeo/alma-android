@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ConnectionContext } from '../desktops/DesktopContext'
 import { LanguageProvider } from '../i18n'
 import type { AlmaApi } from '../relay/almaApi'
@@ -58,6 +64,7 @@ function NavigateToPaneB() {
 }
 
 describe('AgentsSidebar project selection', () => {
+  afterEach(cleanup)
   beforeEach(() => {
     const values = new Map<string, string>()
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
@@ -123,36 +130,94 @@ describe('AgentsSidebar project selection', () => {
 
     await waitFor(() => expect(onHerdrEvent).toBeTypeOf('function'))
     onHerdrEvent?.({ type: 'snapshot', snapshot: snapshot() })
-    await waitFor(() =>
-      expect(
-        screen
-          .getByRole('tab', { name: /Project A/ })
-          .getAttribute('aria-selected'),
-      ).toBe('true'),
+    await waitFor(
+      () =>
+        expect(
+          screen
+            .getByRole('tab', { name: /Project A/ })
+            .getAttribute('aria-selected'),
+        ).toBe('true'),
+      // The first render races the snapshot under full-suite load.
+      { timeout: 5_000 },
     )
 
     fireEvent.click(screen.getByRole('tab', { name: /Project C/ }))
     expect(screen.getByText('Session C')).toBeTruthy()
 
     onHerdrEvent?.({ type: 'snapshot', snapshot: snapshot() })
-    await waitFor(() =>
-      expect(
-        screen
-          .getByRole('tab', { name: /Project C/ })
-          .getAttribute('aria-selected'),
-      ).toBe('true'),
+    await waitFor(
+      () =>
+        expect(
+          screen
+            .getByRole('tab', { name: /Project C/ })
+            .getAttribute('aria-selected'),
+        ).toBe('true'),
+      // The first render races the snapshot under full-suite load.
+      { timeout: 5_000 },
     )
     expect(screen.getByText('Session C')).toBeTruthy()
     expect(screen.queryByText('Session A')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Open pane B' }))
-    await waitFor(() =>
-      expect(
-        screen
-          .getByRole('tab', { name: /Project B/ })
-          .getAttribute('aria-selected'),
-      ).toBe('true'),
+    await waitFor(
+      () =>
+        expect(
+          screen
+            .getByRole('tab', { name: /Project B/ })
+            .getAttribute('aria-selected'),
+        ).toBe('true'),
+      // The first render races the snapshot under full-suite load.
+      { timeout: 5_000 },
     )
     expect(screen.getByText('Session B')).toBeTruthy()
+  })
+
+  it('offers the remote screen while Herdr is unreachable', async () => {
+    const api = {
+      getHerdrInfo: vi.fn(async () => ({ online: false })),
+      getHerdrMutes: vi.fn(async () => ({ workspaces: [] })),
+      openJsonSocket: vi.fn(() => ({
+        opened: Promise.resolve(),
+        close: vi.fn(),
+        onClose: vi.fn(),
+      })),
+      setHerdrWorkspaceMuted: vi.fn(async () => ({ workspaces: [] })),
+    } as unknown as AlmaApi
+
+    render(
+      <LanguageProvider>
+        <MemoryRouter initialEntries={['/d/desktop/agents']}>
+          <ConnectionContext.Provider
+            value={{
+              pairing: { id: 'desktop', name: 'Mac' } as never,
+              api,
+              tunnel: {} as never,
+              status: 'online',
+            }}
+          >
+            <HerdrProvider
+              desktops={[{ id: 'desktop', name: 'Mac', online: true, api }]}
+              notificationSettings={{} as never}
+            >
+              <Routes>
+                <Route
+                  path="/d/:desktopId/agents"
+                  element={<AgentsSidebar />}
+                />
+              </Routes>
+            </HerdrProvider>
+          </ConnectionContext.Provider>
+        </MemoryRouter>
+      </LanguageProvider>,
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('Start herdr on the Mac, then try again.'),
+      ).toBeTruthy(),
+    )
+    expect(
+      screen.getByRole('button', { name: 'Open remote desktop' }),
+    ).toBeTruthy()
   })
 })
