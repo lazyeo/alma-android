@@ -30,4 +30,8 @@ describe('RemoteScreen input surfaces', () => {
       /inputMode === 'direct'\s*\? screenPointerHandlers\s*:\s*\{\}/,
     )
   })
+
+  it('does not draw a second local cursor over the Mac stream', () => {
+    expect(source).not.toContain('remote-screen-cursor')
+  })
 })

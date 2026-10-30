@@ -215,7 +215,6 @@ export function RemoteScreen() {
     cursor: { x: 0.5, y: 0.5 },
     phase: 'idle',
   })
-  const [cursor, setCursor] = useState(trackpadRef.current.cursor)
   const gestureState = useRef(createGestureState())
   const gestureTimer = useRef<ReturnType<typeof setTimeout>>()
   const frameTimes = useRef<number[]>([])
@@ -270,7 +269,6 @@ export function RemoteScreen() {
     (event: Parameters<typeof reduceTrackpadGesture>[1]) => {
       const result = reduceTrackpadGesture(trackpadRef.current, event)
       trackpadRef.current = result.state
-      setCursor(result.state.cursor)
       for (const output of result.events)
         output.type === 'pointer' && output.action === 'move'
           ? moveCoalescer.push(output)
@@ -591,14 +589,6 @@ export function RemoteScreen() {
               <small>{t('screen.wakeFailed')}</small>
             ) : null}
           </div>
-        ) : null}
-        {remote.control && inputMode === 'trackpad' ? (
-          <span
-            className="remote-screen-cursor"
-            style={{ left: `${cursor.x * 100}%`, top: `${cursor.y * 100}%` }}
-          >
-            <MousePointer2 size={20} fill="currentColor" />
-          </span>
         ) : null}
         {statsOpen ? (
           <dl className="remote-screen-stats">
