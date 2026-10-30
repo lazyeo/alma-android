@@ -104,6 +104,7 @@ function MainNav({
             ? /^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname)
             : threads
               ? (pathname === to || pathname.startsWith('/d/')) &&
+                !/^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname) &&
                 !pathname.includes('/crystals') &&
                 !pathname.includes('/time-clues') &&
                 !pathname.includes('/references') &&
