@@ -6,9 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-### Added
+### Fixed
 
-- Nothing yet.
+- Unfolded navigation now highlights exactly one rail item on GTD and Library routes.
 
 ## [0.1.3] - 2026-10-30
 
