@@ -3427,16 +3427,17 @@ const shots = [
     file: 'time-clues-time-clue-header-phone.png',
     viewport: PHONE,
     route: DESKTOP,
-    ready: '.thread-list-header .time-clues-entry .time-clues-unread-dot',
+    ready: '.thread-list-header .library-entry .library-unread-dot',
     async act(page) {
-      const entries = await page.locator('.time-clues-entry').count()
-      const headerEntries = await page
-        .locator('.thread-list-header .time-clues-entry')
-        .count()
-      if (entries !== 1 || headerEntries !== 1)
-        throw new Error(
-          `phone time clues entry moved: ${JSON.stringify({ entries, headerEntries })}`,
-        )
+      if (await page.locator('.thread-list-header .time-clues-entry').count())
+        throw new Error('phone Time clues still has a direct header entry')
+      await page.getByRole('button', { name: 'Library' }).click()
+      const menu = page.getByRole('menu', { name: 'Library' })
+      await menu.waitFor()
+      if (!(await menu.getByRole('menuitem', { name: 'Time clues' }).count()))
+        throw new Error('phone Time clues missing from Library')
+      if (!(await menu.locator('.library-menu-unread-dot').count()))
+        throw new Error('phone Time clues unread dot missing from Library')
     },
   },
   {
@@ -4191,7 +4192,7 @@ const shots = [
         }
         return {
           sidebar: center('.split-sidebar .desktop-switcher-name'),
-          title: center('.split-main .desktop-switcher-name'),
+          title: center('.split-main .scoped-root-title h1'),
         }
       })
       console.log(
@@ -6050,7 +6051,7 @@ const gtdShots = [
           .count())
       )
         throw new Error('autoTodo what missing')
-      await assertNavigationWithoutInbox(page, '.tab-bar')
+      await assertPhoneChildShell(page, '.gtd-page')
     },
   },
   {
