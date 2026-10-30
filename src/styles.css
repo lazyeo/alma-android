@@ -6536,6 +6536,12 @@ button:active:not(:disabled),
   height: 58px;
   border-radius: max(calc(var(--radius-md) - 6px), 4px);
 }
+.attachment-chip > span {
+  border-radius: max(calc(var(--radius-md) - 6px), 4px);
+}
+.attachment-chip button {
+  font-size: var(--text-sm);
+}
 .attachment-annotate {
   min-width: 60px;
   min-height: 58px;
@@ -9290,8 +9296,8 @@ dialog:focus,
   background: var(--image-edit-color);
   color: var(--image-edit-ink);
   font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
-  line-height: 1;
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
 }
 .image-edit-note {
   display: grid;
