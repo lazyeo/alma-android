@@ -50,8 +50,11 @@ import { UpdateSettings } from './UpdateSettings'
 import { useNavigate } from 'react-router-dom'
 import { desktopScreenPath } from '../desktopRoutes'
 import { useDesktops } from '../desktops/DesktopContext'
+import { DesktopPlatformIcon } from '../desktops/PlatformIcon'
+import { useDesktopPlatform } from '../desktops/platform'
 import {
   recallScreenUnavailable,
+  UNSUPPORTED_OS,
   unavailableCopy,
 } from './remoteScreen/availability'
 import { useHandoff } from '../handoff/HandoffProvider'
@@ -555,9 +558,23 @@ export function SettingsScreen() {
     ({ pairing }) => pairing.id === desktopDetail,
   )
   // Re-read whenever the detail sheet opens; the screen page updates it.
-  const screenUnavailable = desktopDetail
-    ? recallScreenUnavailable(desktopDetail)
-    : undefined
+  const detailPlatform = useDesktopPlatform(
+    desktopDetail ?? '',
+    selectedDesktop?.status === 'online'
+      ? selectedDesktop.connection?.api
+      : undefined,
+  )
+  // A known non-macOS desktop is refused up front; otherwise fall back to
+  // the last refusal the screen page saw.
+  const platformUnsupported =
+    Boolean(desktopDetail) &&
+    detailPlatform !== undefined &&
+    detailPlatform !== 'darwin'
+  const screenUnavailable = platformUnsupported
+    ? UNSUPPORTED_OS
+    : desktopDetail
+      ? recallScreenUnavailable(desktopDetail)
+      : undefined
   return (
     <section className="root-page settings-page">
       <header className="page-header">
@@ -618,7 +635,12 @@ export function SettingsScreen() {
               {visibleDesktops.map(({ pairing, status, connection }) => (
                 <SettingsRow
                   key={pairing.id}
-                  icon={<Laptop size={17} />}
+                  icon={
+                    <DesktopPlatformIcon
+                      desktopId={pairing.id}
+                      api={status === 'online' ? connection?.api : undefined}
+                    />
+                  }
                   title={pairing.name}
                   secondary={desktopRowSecondary(
                     status,
@@ -682,7 +704,7 @@ export function SettingsScreen() {
                   {hiddenDesktops.map(({ pairing }) => (
                     <SettingsRow
                       key={pairing.id}
-                      icon={<Laptop size={17} />}
+                      icon={<DesktopPlatformIcon desktopId={pairing.id} />}
                       title={pairing.name}
                       secondary={t('settings.desktops.hiddenHint')}
                       onClick={() => {
@@ -850,7 +872,9 @@ export function SettingsScreen() {
           <div className="sheet-list desktop-detail-actions">
             <button
               className="sheet-row"
-              disabled={selectedDesktop.status !== 'online'}
+              disabled={
+                selectedDesktop.status !== 'online' || platformUnsupported
+              }
               onClick={() => {
                 setDesktopDetail(undefined)
                 navigate(desktopScreenPath(selectedDesktop.pairing.id), {
