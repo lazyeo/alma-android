@@ -26,13 +26,13 @@
 
 ### 折叠屏
 
-展开后切换为双栏布局：左侧导航栏和对话列表，右侧是打开的对话。开合时在外屏和内屏之间播放磨砂过渡。
+展开后切换为双栏布局：左侧导航栏和对话列表，右侧是打开的对话；对话列表可以收起，让对话占满整屏。开合时在外屏和内屏之间播放磨砂过渡。
 
-| 展开，回复生成中                                                         | 展开，简体中文                                                                   |
-| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
-| ![双栏布局，回复生成中](docs/screenshots/foldable-generating.png)        | ![简体中文双栏布局](docs/screenshots/foldable-zh.png)                            |
-| Herdr，Chat 视图                                                         | Herdr，终端与历史输出                                                            |
-| ![Herdr 会话列表与 agent 对话](docs/screenshots/foldable-herdr-chat.png) | ![原始排版的 Herdr 终端与更早输出](docs/screenshots/foldable-herdr-terminal.png) |
+| 展开，收起对话列表                                                                      | 展开，简体中文                                                                   |
+| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| ![展开态收起对话列表，只留导航栏，回复生成中](docs/screenshots/foldable-generating.png) | ![简体中文双栏布局](docs/screenshots/foldable-zh.png)                            |
+| Herdr，Chat 视图                                                                        | Herdr，终端与历史输出                                                            |
+| ![Herdr 会话列表与 agent 对话](docs/screenshots/foldable-herdr-chat.png)                | ![原始排版的 Herdr 终端与更早输出](docs/screenshots/foldable-herdr-terminal.png) |
 
 截图使用合成测试数据，不包含真实桌面内容或配对凭据。
 

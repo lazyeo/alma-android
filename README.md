@@ -26,13 +26,13 @@ An unofficial Android client for [Alma Desktop](https://alma.now). Pair it with 
 
 ### Foldables
 
-Unfolded, the app switches to a two-pane layout with a navigation rail, the thread list and the open conversation side by side. Folding and unfolding plays a frosted transition between the cover and inner screens.
+Unfolded, the app switches to a two-pane layout with a navigation rail, the thread list and the open conversation side by side; the thread list can be collapsed to give the conversation the full width. Folding and unfolding plays a frosted transition between the cover and inner screens.
 
-| Unfolded, reply in progress                                                           | Unfolded, 简体中文                                                                                 |
-| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| ![Two-pane layout with a reply in progress](docs/screenshots/foldable-generating.png) | ![Two-pane layout in Simplified Chinese](docs/screenshots/foldable-zh.png)                         |
-| Herdr, chat view                                                                      | Herdr, terminal with scrollback                                                                    |
-| ![Herdr sessions beside an agent's chat](docs/screenshots/foldable-herdr-chat.png)    | ![Herdr terminal in grid layout with earlier output](docs/screenshots/foldable-herdr-terminal.png) |
+| Unfolded, thread list collapsed                                                                                            | Unfolded, 简体中文                                                                                 |
+| -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| ![Unfolded layout with the thread list collapsed to the rail, reply in progress](docs/screenshots/foldable-generating.png) | ![Two-pane layout in Simplified Chinese](docs/screenshots/foldable-zh.png)                         |
+| Herdr, chat view                                                                                                           | Herdr, terminal with scrollback                                                                    |
+| ![Herdr sessions beside an agent's chat](docs/screenshots/foldable-herdr-chat.png)                                         | ![Herdr terminal in grid layout with earlier output](docs/screenshots/foldable-herdr-terminal.png) |
 
 Screenshots use synthetic fixture data and contain no real desktop content or pairing credentials.
 
