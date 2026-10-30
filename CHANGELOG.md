@@ -8,15 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Coding-agent workspaces, pane chat and terminal views with on-demand scrollback history, blocked permission answers, workspace mute controls, and local attention notifications for desktops running Herdr.
+- Herdr coding agents for desktops running Herdr: a Herdr tab with board and list views of workspaces and sessions, a per-session Chat view rendered with the shared thread message components, and a Terminal view with Fit/Grid layouts, on-demand scrollback, a hideable virtual key row, and Enter-to-terminal input. Permission menus can be answered from the chat or the session list; workspaces can be muted; local "Agent needs you" alerts.
+- Mac screen: view a paired desktop's screen, take control with direct touch or trackpad mode, type and paste text, switch desktops from the header, and wake a sleeping display.
 - In-app update checks with release notes, a 24-hour automatic-check option, verified APK download progress, version skipping, and Android installer handoff.
+- An optional foreground service to keep paired desktop connections and local alerts active in the background.
+
+### Changed
+
+- On phones the bottom bar holds Threads, Herdr, and Settings. GTD opens from an icon in the Threads header, and GTD, Crystals, Time clues, and References open as child pages of Threads with a Back arrow and no bottom bar. Unfolded layouts keep them in the rail.
+- Back follows the screen hierarchy instead of replaying tab and view switches.
+- Thread message rendering moved into shared components so threads and Herdr chat look the same.
 
 ### Fixed
 
-- Show GTD, Crystals, Time clues, and References as children of Threads on phones with a Back affordance and no bottom navigation, while preserving their first-level rail destinations when unfolded.
-- Keep the Agents navigation visible from first render and explain connecting, unsupported, unreachable, and desktop-offline states with recovery guidance.
-- Preserve the selected Agents workspace across live Herdr updates and keep its switcher chip in view.
-- Add an optional foreground service to keep paired desktop connections and local alerts active in the background.
+- Keep the Herdr navigation visible from first render and explain connecting, unsupported, unreachable, and desktop-offline states with recovery guidance.
+- Preserve the selected Herdr workspace across live updates and keep its switcher chip in view.
+- Remote screen no longer shows a blank or stretched placeholder when the Mac display is asleep.
 
 ## [0.1.2] - 2026-10-29
 

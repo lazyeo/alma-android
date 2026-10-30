@@ -2,6 +2,8 @@
 
 [简体中文](README.zh-CN.md)
 
+> 🛠️ **Built with Alma, end to end.** This whole project is developed and managed through [Alma](https://alma.now): planning, code, tests, screenshots, releases and this README were produced by Alma and its agent crew, while a human steers and tests on real devices. An Alma client, made by Alma.
+
 An unofficial Android client for [Alma Desktop](https://alma.now). Pair it with one or more desktops and keep working with your threads from an Android phone or foldable.
 
 > **Disclaimer:** This project is not affiliated with, endorsed by, or maintained by the Alma project.
@@ -14,13 +16,23 @@ An unofficial Android client for [Alma Desktop](https://alma.now). Pair it with 
 | Settings (简体中文)                                                 | Files and diffs                                                     |
 | ![Settings in Simplified Chinese](docs/screenshots/settings-zh.png) | ![Thread files and diff](docs/screenshots/files-diff.png)           |
 
+### Herdr agents, Mac screen and updates
+
+| Herdr sessions                                                              | Answer an agent's menu                                                        |
+| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| ![Herdr board of workspaces and sessions](docs/screenshots/herdr-board.png) | ![Agent permission menu in the chat view](docs/screenshots/herdr-blocked.png) |
+| Mac screen                                                                  | In-app updates                                                                |
+| ![Controlling the Mac screen](docs/screenshots/mac-screen.png)              | ![Update panel with release notes](docs/screenshots/updates.png)              |
+
 ### Foldables
 
 Unfolded, the app switches to a two-pane layout with a navigation rail, the thread list and the open conversation side by side. Folding and unfolding plays a frosted transition between the cover and inner screens.
 
-| Unfolded, reply in progress                                                           | Unfolded, 简体中文                                                         |
-| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| ![Two-pane layout with a reply in progress](docs/screenshots/foldable-generating.png) | ![Two-pane layout in Simplified Chinese](docs/screenshots/foldable-zh.png) |
+| Unfolded, reply in progress                                                           | Unfolded, 简体中文                                                                                 |
+| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| ![Two-pane layout with a reply in progress](docs/screenshots/foldable-generating.png) | ![Two-pane layout in Simplified Chinese](docs/screenshots/foldable-zh.png)                         |
+| Herdr, chat view                                                                      | Herdr, terminal with scrollback                                                                    |
+| ![Herdr sessions beside an agent's chat](docs/screenshots/foldable-herdr-chat.png)    | ![Herdr terminal in grid layout with earlier output](docs/screenshots/foldable-herdr-terminal.png) |
 
 Screenshots use synthetic fixture data and contain no real desktop content or pairing credentials.
 
@@ -58,10 +70,15 @@ The app connects through Alma's official relay. The inner tunnel is end-to-end e
 - English and 简体中文, following the system language with a user override
 - Foldable layouts and a frosted screen-transition effect; optional live hinge angle through Shizuku, with estimation as the fallback
 - Local alerts when a reply finishes or an approval needs attention
+- **New in 0.1.3 — Herdr coding agents:** for desktops running Herdr, a Herdr tab with board and list views of workspaces and sessions. Each session has a Chat view drawn with the same message components as threads, and a Terminal view with Fit/Grid layouts, on-demand scrollback, virtual keys you can hide, and Enter-to-terminal input. Answer an agent's permission menu from the chat or straight from the session list, mute noisy workspaces, and get an "Agent needs you" alert.
+- **New in 0.1.3 — Mac screen:** watch a paired desktop's screen, take control with direct touch or trackpad mode, type or paste text, switch desktops, and wake a sleeping display.
+- **New in 0.1.3 — In-app updates:** check GitHub Releases, read the notes, and install a SHA-256-verified APK without leaving the app.
+- **New in 0.1.3 — Background connection:** an optional foreground service keeps desktop connections and local alerts alive while the app is in the background.
+- Rich previews: KaTeX math, Mermaid diagrams, audio and video, PDF, CSV/XLSX and DOCX
 
 ### Notification limitation
 
-There is no push service. Notifications are generated locally from the live relay connection and work only while the app process is alive. Android may stop delivery after the app is killed, force-stopped, frozen, or disconnected.
+There is no push service. Notifications are generated locally from the live relay connection and work only while the app process is alive. Turn on Settings › Keep connected in background to hold the connection with a foreground service (it shows an ongoing notification). Android may still stop delivery after the app is killed, force-stopped, frozen, or disconnected.
 
 ## Privacy and security
 
