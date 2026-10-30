@@ -2009,19 +2009,35 @@ function mockSocket(path: string): TunnelSocket {
   if (path.startsWith('/ws/screen'))
     setTimeout(async () => {
       const data = await SCREEN_JPEG
-      const events = [
-        {
-          type: 'status',
-          bound: true,
-          displayId: 1,
-          width: 1280,
-          height: 800,
-          scale: 2,
-          mode: 'jpeg',
-        },
-        { type: 'viewport', width: 1280, height: 800 },
-        { type: 'frame', data, width: 1280, height: 800, seq: 1 },
-      ]
+      // ?screenState=windows simulates a desktop that refuses to stream.
+      const refused =
+        new URLSearchParams(location.search).get('screenState') === 'windows'
+      const events = refused
+        ? [
+            {
+              type: 'status',
+              bound: false,
+              displayId: 1,
+              width: 1920,
+              height: 1080,
+              scale: 1,
+              mode: 'jpeg',
+              error: 'Screen streaming is only available on macOS',
+            },
+          ]
+        : [
+            {
+              type: 'status',
+              bound: true,
+              displayId: 1,
+              width: 1280,
+              height: 800,
+              scale: 2,
+              mode: 'jpeg',
+            },
+            { type: 'viewport', width: 1280, height: 800 },
+            { type: 'frame', data, width: 1280, height: 800, seq: 1 },
+          ]
       for (const event of events)
         for (const listener of listeners) listener(JSON.stringify(event))
     }, 120)

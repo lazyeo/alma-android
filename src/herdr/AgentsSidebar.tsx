@@ -85,7 +85,7 @@ export function AgentsSidebar() {
             <PanelsTopLeft size={18} />
           )}
         </button>
-        {state?.online ? (
+        {state?.desktopOnline ? (
           <button
             className="header-icon-button"
             aria-label={t('agents.openRemoteDesktop')}

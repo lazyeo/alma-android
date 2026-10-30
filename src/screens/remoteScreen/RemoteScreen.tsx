@@ -12,6 +12,7 @@ import {
   MonitorOff,
   MousePointer2,
   Send,
+  TriangleAlert,
 } from 'lucide-react'
 import {
   useCallback,
@@ -37,6 +38,11 @@ import {
   type TrackpadState,
   type ViewTransform,
 } from './controls'
+import {
+  rememberScreenUnavailable,
+  screenUnavailableFromStatus,
+  unavailableCopy,
+} from './availability'
 import {
   createGestureState,
   reducePointerGesture,
@@ -472,6 +478,11 @@ export function RemoteScreen() {
   }
 
   const status = remote.message?.type === 'status' ? remote.message : undefined
+  const unavailable = screenUnavailableFromStatus(status)
+  useEffect(() => {
+    if (status)
+      rememberScreenUnavailable(pairing.id, screenUnavailableFromStatus(status))
+  }, [pairing.id, status])
 
   return (
     <section className="remote-screen-page">
@@ -496,6 +507,7 @@ export function RemoteScreen() {
         <button
           className="chip-button"
           aria-pressed={remote.control}
+          disabled={Boolean(unavailable)}
           onClick={() => remote.setControl(!remote.control)}
         >
           <MousePointer2 size={14} />
@@ -535,13 +547,26 @@ export function RemoteScreen() {
             onDark={setDark}
           />
         </div>
-        {!remote.frame && !remote.videoLive && !remote.stalled ? (
+        {unavailable ? (
+          <div
+            className="remote-screen-empty remote-screen-asleep"
+            role="alert"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <TriangleAlert size={28} />
+            <strong>{t(unavailableCopy(unavailable.reason).title)}</strong>
+            <span>{t(unavailableCopy(unavailable.reason).body)}</span>
+            {unavailable.detail ? <small>{unavailable.detail}</small> : null}
+          </div>
+        ) : !remote.frame && !remote.videoLive && !remote.stalled ? (
           <div className="remote-screen-empty">
             <Monitor size={28} />
             <span>{remote.error || t('screen.connecting')}</span>
           </div>
         ) : null}
-        {remote.connected && (remote.stalled || (dark && !remote.videoLive)) ? (
+        {!unavailable &&
+        remote.connected &&
+        (remote.stalled || (dark && !remote.videoLive)) ? (
           <div
             className="remote-screen-empty remote-screen-asleep"
             onPointerDown={(event) => event.stopPropagation()}

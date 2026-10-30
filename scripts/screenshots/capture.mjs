@@ -1433,6 +1433,16 @@ const codeCopyShot = ({ file, viewport }) => ({
 })
 
 const screenShots = [
+  ...['zh', 'en'].map((lang) => ({
+    file: `screen-unsupported-${lang}-412.png`,
+    viewport: PHONE,
+    route: '/d/fixture-desktop/screen',
+    query: `lang=${lang}&screenState=windows`,
+    ready: '.remote-screen-page [role="alert"]',
+    safeInsets: true,
+    afterCapture: (page) =>
+      assertNoHorizontalOverflow(page, '.remote-screen-page'),
+  })),
   {
     file: 'screen-view-en-412.png',
     viewport: PHONE,

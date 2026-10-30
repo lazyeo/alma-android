@@ -14,6 +14,14 @@ export const screen: CatalogShape<typeof source> = {
   wakeSent: '已发送唤醒',
   wakeFailed: '无法唤醒屏幕，请重试。',
   unavailable: '屏幕共享不可用',
+  unavailableTitleUnsupportedOs: '这台电脑上的 Alma 暂不支持屏幕共享',
+  unavailableTitleHelperMissing: '这台 Mac 上的 Alma 缺少组件',
+  unavailableTitleOther: '桌面端拒绝了屏幕共享',
+  unavailableBodyUnsupportedOs:
+    '屏幕共享是 Alma 桌面端的功能，目前只有 macOS 版提供。手机和连接都正常，这边不用做任何设置；等桌面端支持这个系统后就能直接用。',
+  unavailableBodyHelperMissing:
+    '屏幕共享依赖桌面端自带的 Alma Computer Use 组件，这台 Mac 上没找到它。请在 Mac 上更新或重新安装 Alma 后再试。',
+  unavailableBodyOther: '下面是桌面端给出的原因。手机和连接都正常。',
   viewOnly: '仅查看',
   control: '控制',
   controlling: '正在控制 Mac',

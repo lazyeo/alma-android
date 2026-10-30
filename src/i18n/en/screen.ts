@@ -12,6 +12,16 @@ export const screen = {
   wakeSent: 'Wake sent',
   wakeFailed: 'Could not wake the display. Try again.',
   unavailable: 'Screen sharing is unavailable',
+  unavailableTitleUnsupportedOs:
+    "This desktop's Alma can't share its screen yet",
+  unavailableTitleHelperMissing: 'Alma on this Mac is missing a component',
+  unavailableTitleOther: 'The desktop declined screen sharing',
+  unavailableBodyUnsupportedOs:
+    'Screen sharing is built into Alma for macOS only. Your phone and the connection are fine, and nothing needs changing here; it will work once the desktop app supports this system.',
+  unavailableBodyHelperMissing:
+    "Screen sharing relies on the Alma Computer Use helper that ships with the desktop app, and it wasn't found on this Mac. Update or reinstall Alma on the Mac, then try again.",
+  unavailableBodyOther:
+    'The desktop app reported the reason below. Your phone and the connection are fine.',
   viewOnly: 'View only',
   control: 'Control',
   controlling: 'Controlling Mac',

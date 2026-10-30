@@ -50,6 +50,10 @@ import { UpdateSettings } from './UpdateSettings'
 import { useNavigate } from 'react-router-dom'
 import { desktopScreenPath } from '../desktopRoutes'
 import { useDesktops } from '../desktops/DesktopContext'
+import {
+  recallScreenUnavailable,
+  unavailableCopy,
+} from './remoteScreen/availability'
 import { useHandoff } from '../handoff/HandoffProvider'
 import { desktopRowSecondary, humanConnectionError } from '../uiCopy'
 import {
@@ -550,6 +554,10 @@ export function SettingsScreen() {
   const selectedDesktop = desktops.find(
     ({ pairing }) => pairing.id === desktopDetail,
   )
+  // Re-read whenever the detail sheet opens; the screen page updates it.
+  const screenUnavailable = desktopDetail
+    ? recallScreenUnavailable(desktopDetail)
+    : undefined
   return (
     <section className="root-page settings-page">
       <header className="page-header">
@@ -853,7 +861,11 @@ export function SettingsScreen() {
               <MonitorUp size={18} />
               <span className="sheet-row-copy">
                 <span>{t('screen.open')}</span>
-                <small>{t('screen.openHint')}</small>
+                <small>
+                  {screenUnavailable
+                    ? t(unavailableCopy(screenUnavailable.reason).title)
+                    : t('screen.openHint')}
+                </small>
               </span>
               <ChevronRight className="settings-chevron" size={16} />
             </button>
