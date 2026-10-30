@@ -10,7 +10,9 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import { WandSparkles, X } from 'lucide-react'
+import { ImageAnnotator } from '../components/ImageAnnotator'
+import type { AnnotationRegion } from '../components/imageAnnotatorModel'
 import { useAnimatedOverlay } from '../components/useAnimatedOverlay'
 import { useConnection } from '../desktops/DesktopContext'
 import { useT } from '../i18n'
@@ -40,17 +42,30 @@ interface ResolvedImage {
 
 const THUMBNAIL_WINDOW = 6
 
+export type GalleryAnnotateCapability = (
+  image: GalleryImage,
+  blob: Blob,
+  regions: AnnotationRegion[],
+  note: string,
+) => void | Promise<void>
+
 export function ImageGalleryProvider({
   images,
+  onAnnotate,
   children,
 }: {
   images: readonly GalleryImage[]
+  onAnnotate?: GalleryAnnotateCapability
   children: ReactNode
 }) {
   const { api } = useConnection()
   const [open, setOpen] = useState(false)
   const [index, setIndex] = useState(0)
   const [chrome, setChrome] = useState(true)
+  const [annotating, setAnnotating] = useState<{
+    image: GalleryImage
+    source: Blob
+  }>()
   const [resolved, setResolved] = useState<Record<string, ResolvedImage>>({})
   const resolvedRef = useRef(resolved)
   const createdUrls = useRef(new Set<string>())
@@ -154,10 +169,30 @@ export function ImageGalleryProvider({
               requestClose={overlay.requestClose}
               finishClose={overlay.finishClose}
               stripRef={stripRef}
+              onAnnotate={
+                onAnnotate
+                  ? async () => {
+                      const image = images[index]
+                      const blob = await imageCache(api).get(image.source)
+                      setAnnotating({ image, source: blob })
+                    }
+                  : undefined
+              }
             />,
             document.body,
           )
         : null}
+      {annotating && onAnnotate ? (
+        <ImageAnnotator
+          source={annotating.source}
+          onCancel={() => setAnnotating(undefined)}
+          onDone={(blob, regions, note) => {
+            const image = annotating.image
+            setAnnotating(undefined)
+            void onAnnotate(image, blob, regions, note)
+          }}
+        />
+      ) : null}
     </GalleryContext.Provider>
   )
 }
@@ -174,6 +209,7 @@ function GalleryViewer({
   requestClose,
   finishClose,
   stripRef,
+  onAnnotate,
 }: {
   images: readonly GalleryImage[]
   index: number
@@ -186,6 +222,7 @@ function GalleryViewer({
   requestClose: () => void
   finishClose: () => void
   stripRef: React.RefObject<HTMLDivElement>
+  onAnnotate?: () => void | Promise<void>
 }) {
   const t = useT()
   const [drag, setDrag] = useState({ x: 0, y: 0 })
@@ -307,6 +344,15 @@ function GalleryViewer({
       }
     >
       <div className="gallery-topbar">
+        {onAnnotate ? (
+          <button
+            className="gallery-annotate quiet-text-button"
+            onClick={() => void onAnnotate()}
+          >
+            <WandSparkles size={16} />
+            <span>{t('files.annotator.action')}</span>
+          </button>
+        ) : null}
         <button
           className="gallery-close"
           aria-label={t('files.image.closeGallery')}

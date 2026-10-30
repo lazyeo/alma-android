@@ -117,6 +117,7 @@ export const files = {
     view: 'View {name}',
   },
   annotator: {
+    action: 'Annotate',
     title: 'Annotate image',
     canvas: 'Image annotation canvas',
     saving: 'Saving…',

@@ -9202,3 +9202,13 @@ dialog:focus,
     display: none;
   }
 }
+.gallery-annotate {
+  grid-column: 1;
+  justify-self: start;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  color: var(--foreground);
+  filter: drop-shadow(0 0 3px var(--background));
+  pointer-events: auto;
+}

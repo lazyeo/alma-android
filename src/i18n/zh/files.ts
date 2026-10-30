@@ -112,6 +112,7 @@ export const files: CatalogShape<typeof source> = {
     view: '查看 {name}',
   },
   annotator: {
+    action: '标注',
     title: '标注图片',
     canvas: '图片标注画布',
     saving: '正在保存…',
