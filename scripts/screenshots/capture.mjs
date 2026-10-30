@@ -5230,8 +5230,14 @@ async function assertTerminalModeControl(page, scrollGrid = false) {
         Math.abs(controlRect.top - before.top) <= 0.5 &&
         Math.abs(controlRect.right - before.right) <= 0.5 &&
         Math.abs(controlRect.bottom - before.bottom) <= 0.5,
+      // Outside the scroller it cannot follow either axis; the fixture may be
+      // too short to overflow vertically, so only demand scrollTop when it can.
+      outsideScroller: !scroller.contains(control),
       scrolled:
-        !scrollGrid || (scroller.scrollLeft > 0 && scroller.scrollTop > 0),
+        !scrollGrid ||
+        (scroller.scrollLeft > 0 &&
+          (scroller.scrollTop > 0 ||
+            scroller.scrollHeight <= scroller.clientHeight)),
       card: {
         left: cardRect.left,
         top: cardRect.top,
@@ -5256,6 +5262,7 @@ async function assertTerminalModeControl(page, scrollGrid = false) {
     !geometry.visible ||
     !geometry.contained ||
     !geometry.unchanged ||
+    !geometry.outsideScroller ||
     !geometry.scrolled
   )
     throw new Error(
