@@ -27,6 +27,10 @@ export interface RelayWebSocket {
   ): void
 }
 export type WebSocketFactory = (url: string) => RelayWebSocket
+export interface SessionEndpoint {
+  url: string
+  handshakeTimeoutMs?: number
+}
 export interface PairingConfig {
   relayUrl: string
   connectCode: string
@@ -60,6 +64,7 @@ export class E2ESession {
     private webSocketFactory: WebSocketFactory = (url) => new WebSocket(url),
     private diagnose: (probeUrl: string) => Promise<Error> = (url) =>
       diagnoseRelayFailure(url),
+    private endpoint?: SessionEndpoint,
   ) {}
 
   private setState(state: SessionState) {
@@ -77,15 +82,21 @@ export class E2ESession {
   }
 
   private async doConnect(): Promise<void> {
-    const id = await routingId(this.pairing.connectCode)
-    const base = new URL(this.pairing.relayUrl)
-    base.protocol = base.protocol === 'http:' ? 'ws:' : 'wss:'
-    base.pathname = `/c/${id}/__alma_e2e__`
+    let url: URL
+    let probeUrl: URL | undefined
+    if (this.endpoint) {
+      url = new URL(this.endpoint.url)
+    } else {
+      const id = await routingId(this.pairing.connectCode)
+      url = new URL(this.pairing.relayUrl)
+      url.protocol = url.protocol === 'http:' ? 'ws:' : 'wss:'
+      url.pathname = `/c/${id}/__alma_e2e__`
+      probeUrl = new URL(url)
+      probeUrl.protocol = url.protocol === 'ws:' ? 'http:' : 'https:'
+    }
     const pair = await createKeyPair()
     const nonce = crypto.getRandomValues(new Uint8Array(16))
-    const probeUrl = new URL(base)
-    probeUrl.protocol = base.protocol === 'ws:' ? 'http:' : 'https:'
-    const socket = this.webSocketFactory(base.toString())
+    const socket = this.webSocketFactory(url.toString())
     this.socket = socket
     socket.binaryType = 'arraybuffer'
     this.setState('await-hi')
@@ -96,7 +107,7 @@ export class E2ESession {
       const timer = setTimeout(() => {
         fail(new Error('Desktop did not respond'))
         socket.close()
-      }, HANDSHAKE_TIMEOUT_MS)
+      }, this.endpoint?.handshakeTimeoutMs ?? HANDSHAKE_TIMEOUT_MS)
       const fail = (error: Error) => {
         clearTimeout(timer)
         if (this.state === 'failed' || this.state === 'closed') {
@@ -128,6 +139,7 @@ export class E2ESession {
           // A failed upgrade gives no reason; probe the relay to name it.
           if (opened || this.state !== 'await-hi')
             return fail(new Error('Relay connection failed'))
+          if (!probeUrl) return fail(new Error('Direct connection failed'))
           diagnosing = true
           clearTimeout(timer)
           void this.diagnose(probeUrl.toString())
