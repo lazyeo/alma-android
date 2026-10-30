@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Mac screen control no longer draws a duplicate cursor, responds to taps sooner, and supports long-press or double-tap selection drags with ordered pointer events.
 - Unfolded navigation now highlights exactly one rail item on GTD and Library routes.
 - Mac screen now says why a desktop cannot share its screen (Alma for Windows/Linux has no screen sharing yet, or the Computer Use helper is missing on the Mac) instead of waiting forever or showing "No picture from the Mac". Settings shows the last reason under the desktop's screen entry.
 - The Herdr page keeps its remote screen button while Herdr is not running; it only needs the desktop to be online.

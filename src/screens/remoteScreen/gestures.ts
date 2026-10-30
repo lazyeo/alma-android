@@ -2,9 +2,9 @@ import type { Point } from './controls'
 
 const TAP_DISTANCE = 8
 const TAP_DURATION = 250
-const DOUBLE_TAP_DELAY = 250
+const DOUBLE_TAP_DELAY = 120
 const DOUBLE_TAP_DISTANCE = 24
-const HOLD_DELAY = 400
+export const GESTURE_HOLD_DELAY = 350
 const TWO_FINGER_DOWN_WINDOW = 150
 const TWO_FINGER_DURATION = 300
 
@@ -99,7 +99,7 @@ export function reducePointerGesture(
       !active[0].moved &&
       !state.dragging &&
       state.firstDownAt !== undefined &&
-      input.at - state.firstDownAt >= HOLD_DELAY
+      input.at - state.firstDownAt >= GESTURE_HOLD_DELAY
     ) {
       next = { ...state, dragging: true }
       actions.push({ type: 'drag-start', point: active[0].point })
@@ -173,7 +173,16 @@ export function reducePointerGesture(
         actions.push({ type: 'scroll', point: center, delta })
       return { state: next, actions }
     }
-    next = { ...state, pointers, sessionSamples }
+    const startsTapDrag =
+      state.maxPointers === 1 && state.secondTap && updated.moved && !state.dragging
+    next = {
+      ...state,
+      pointers,
+      sessionSamples,
+      dragging: state.dragging || startsTapDrag,
+    }
+    if (startsTapDrag)
+      actions.push({ type: 'drag-start', point: current.start })
     if (state.maxPointers === 1 && (updated.moved || state.dragging)) {
       actions.push({
         type: 'move',

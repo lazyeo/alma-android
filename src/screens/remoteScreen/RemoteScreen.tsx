@@ -31,6 +31,7 @@ import { useT } from '../../i18n'
 import {
   buildKeyCombo,
   createMoveCoalescer,
+  directPointerEvent,
   mapClientPoint,
   reduceTrackpadGesture,
   type ControlEvent,
@@ -45,6 +46,7 @@ import {
 } from './availability'
 import {
   createGestureState,
+  GESTURE_HOLD_DELAY,
   reducePointerGesture,
   type GestureAction,
   type GestureInput,
@@ -336,6 +338,7 @@ export function RemoteScreen() {
           }
           continue
         }
+        if (action.type === 'drag-end') moveCoalescer.flush()
         if (inputMode === 'trackpad') {
           if (action.type === 'drag-start')
             updateTrackpad({ type: 'drag-start' })
@@ -351,17 +354,9 @@ export function RemoteScreen() {
         }
         const mapped = mappedPoint(action.point.x, action.point.y)
         if (!mapped?.inside) continue
-        remote.sendControl({
-          type: 'pointer',
-          action:
-            action.type === 'drag-start'
-              ? 'down'
-              : action.type === 'drag-end'
-                ? 'up'
-                : action.type,
-          x: mapped.x,
-          y: mapped.y,
-        })
+        remote.sendControl(
+          directPointerEvent(action.type, { x: mapped.x, y: mapped.y }),
+        )
       }
     },
     [inputMode, mappedPoint, moveCoalescer, remote, updateTrackpad],
@@ -376,7 +371,7 @@ export function RemoteScreen() {
       const deadlines = [
         result.state.pendingTap?.deadline,
         ...Object.values(result.state.pointers).map(
-          (pointer) => pointer.downAt + 400,
+          (pointer) => pointer.downAt + GESTURE_HOLD_DELAY,
         ),
       ].filter((deadline): deadline is number => deadline !== undefined)
       if (deadlines.length) {

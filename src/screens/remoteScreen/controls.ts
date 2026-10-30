@@ -45,6 +45,22 @@ export function mapClientPoint(
   }
 }
 
+export function directPointerEvent(
+  action: 'move' | 'click' | 'double' | 'right' | 'drag-start' | 'drag-end',
+  point: Point,
+): ControlEvent {
+  return {
+    type: 'pointer',
+    action:
+      action === 'drag-start'
+        ? 'down'
+        : action === 'drag-end'
+          ? 'up'
+          : action,
+    ...point,
+  }
+}
+
 export interface KeyModifiers {
   meta?: boolean
   alt?: boolean
@@ -167,6 +183,12 @@ export function createMoveCoalescer<T>(
         send(value)
         timer = setTimeout(flush, intervalMs)
       } else pending = value
+    },
+    flush() {
+      if (closed || pending === undefined) return
+      const value = pending
+      pending = undefined
+      send(value)
     },
     close() {
       closed = true

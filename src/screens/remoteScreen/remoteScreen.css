@@ -161,14 +161,6 @@
   color: var(--muted-foreground);
   font-size: var(--text-sm);
 }
-.remote-screen-cursor {
-  position: absolute;
-  z-index: 2;
-  color: var(--foreground);
-  filter: drop-shadow(0 1px 1px var(--background));
-  pointer-events: none;
-  transform: translate(-2px, -2px);
-}
 .remote-screen-stats {
   position: absolute;
   top: 10px;
