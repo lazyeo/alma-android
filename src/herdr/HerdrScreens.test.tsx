@@ -238,10 +238,13 @@ describe('AgentPaneScreen pane navigation', () => {
       name: 'agents.terminalKeys',
     })
 
-    expect(mode.closest('.agent-terminal-area')).toBeTruthy()
+    expect(mode.closest('.agent-terminal-card')).toBeTruthy()
+    expect(mode.closest('.agent-terminal-scroll')).toBeNull()
     expect(toolbar.contains(mode)).toBe(false)
     expect(mode.hasAttribute('data-sidebar-swipe-exclude')).toBe(true)
-    expect(mode.querySelector('span')).toBeNull()
+    expect(mode.querySelector('span')?.textContent).toBe(
+      'agents.terminalModeFit',
+    )
     expect(view.container.querySelector('.agent-terminal-mode')).toBe(mode)
   })
 

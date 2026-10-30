@@ -515,96 +515,105 @@ export function AgentPaneScreen() {
               </p>
             ) : null}
             <div
-              className={`agent-terminal-scroll agent-terminal-scroll-${terminalDisplayMode}`}
-              ref={terminalScrollRef}
-              data-terminal-metrics-host=""
+              className="agent-terminal-card"
               style={
                 {
                   '--agent-terminal-bg': TERMINAL_COLORS.bg,
                   '--agent-terminal-fg': TERMINAL_COLORS.fg,
                 } as CSSProperties
               }
-              onScroll={(event) => {
-                const scroller = event.currentTarget
-                terminalScrollState.current = {
-                  scrollTop: scroller.scrollTop,
-                  scrollHeight: scroller.scrollHeight,
-                  pinned: isPinnedToBottom(scroller),
-                  prepending: false,
-                }
-                if (
-                  scroller.scrollTop === 0 &&
-                  !terminalHistory &&
-                  !terminalHistoryEmpty
-                )
-                  loadTerminalHistory()
-              }}
             >
-              {terminalHistoryEmpty ? (
-                <p className="agent-terminal-note">
-                  {t('agents.noEarlierOutput')}
-                </p>
-              ) : (
-                <button
-                  className="quiet-text-button agent-load-terminal-history"
-                  disabled={loadingTerminalHistory}
-                  onClick={loadTerminalHistory}
-                >
-                  {t('agents.loadEarlierOutput')}
-                </button>
-              )}
-              <div className="agent-terminal-content">
-                {terminalHistory ? (
-                  <TerminalHistory
-                    text={terminalHistory}
-                    displayMode={terminalDisplayMode}
-                  />
-                ) : null}
-                {terminalHistory ? (
-                  <div className="agent-terminal-history-gap" />
-                ) : null}
-                <div className="agent-terminal-area">
+              <button
+                className="quiet-icon-button agent-terminal-mode"
+                aria-label={
+                  terminalDisplayMode === 'reflow'
+                    ? t('agents.terminalUseGrid')
+                    : t('agents.terminalUseReflow')
+                }
+                title={
+                  terminalDisplayMode === 'reflow'
+                    ? t('agents.terminalUseGrid')
+                    : t('agents.terminalUseReflow')
+                }
+                data-sidebar-swipe-exclude
+                onClick={toggleTerminalDisplayMode}
+              >
+                {terminalDisplayMode === 'reflow' ? (
+                  <Grid3X3 size={14} />
+                ) : (
+                  <WrapText size={14} />
+                )}
+                <span>
+                  {terminalDisplayMode === 'reflow'
+                    ? t('agents.terminalModeFit')
+                    : t('agents.terminalModeGrid')}
+                </span>
+              </button>
+              <div
+                className={`agent-terminal-scroll agent-terminal-scroll-${terminalDisplayMode}`}
+                ref={terminalScrollRef}
+                data-terminal-metrics-host=""
+                onScroll={(event) => {
+                  const scroller = event.currentTarget
+                  terminalScrollState.current = {
+                    scrollTop: scroller.scrollTop,
+                    scrollHeight: scroller.scrollHeight,
+                    pinned: isPinnedToBottom(scroller),
+                    prepending: false,
+                  }
+                  if (
+                    scroller.scrollTop === 0 &&
+                    !terminalHistory &&
+                    !terminalHistoryEmpty
+                  )
+                    loadTerminalHistory()
+                }}
+              >
+                {terminalHistoryEmpty ? (
+                  <p className="agent-terminal-note">
+                    {t('agents.noEarlierOutput')}
+                  </p>
+                ) : (
                   <button
-                    className="quiet-icon-button agent-terminal-mode"
-                    aria-label={
-                      terminalDisplayMode === 'reflow'
-                        ? t('agents.terminalUseGrid')
-                        : t('agents.terminalUseReflow')
-                    }
-                    title={
-                      terminalDisplayMode === 'reflow'
-                        ? t('agents.terminalUseGrid')
-                        : t('agents.terminalUseReflow')
-                    }
-                    data-sidebar-swipe-exclude
-                    onClick={toggleTerminalDisplayMode}
+                    className="quiet-text-button agent-load-terminal-history"
+                    disabled={loadingTerminalHistory}
+                    onClick={loadTerminalHistory}
                   >
-                    {terminalDisplayMode === 'reflow' ? (
-                      <Grid3X3 size={16} />
-                    ) : (
-                      <WrapText size={16} />
-                    )}
+                    {t('agents.loadEarlierOutput')}
                   </button>
-                  <Suspense
-                    fallback={
-                      <div className="agent-terminal-loading">
-                        {t('agents.terminalWaiting')}
-                      </div>
-                    }
-                  >
-                    <TerminalView
-                      className="agent-terminal"
-                      mode="snapshot"
+                )}
+                <div className="agent-terminal-content">
+                  {terminalHistory ? (
+                    <TerminalHistory
+                      text={terminalHistory}
                       displayMode={terminalDisplayMode}
-                      ariaLabel={t('agents.terminalOutput')}
-                      frame={{
-                        text: terminal,
-                        cols: terminalSize.cols,
-                        rows: terminalSize.rows,
-                      }}
-                      waitingText={t('agents.terminalWaiting')}
                     />
-                  </Suspense>
+                  ) : null}
+                  {terminalHistory ? (
+                    <div className="agent-terminal-history-gap" />
+                  ) : null}
+                  <div className="agent-terminal-area">
+                    <Suspense
+                      fallback={
+                        <div className="agent-terminal-loading">
+                          {t('agents.terminalWaiting')}
+                        </div>
+                      }
+                    >
+                      <TerminalView
+                        className="agent-terminal"
+                        mode="snapshot"
+                        displayMode={terminalDisplayMode}
+                        ariaLabel={t('agents.terminalOutput')}
+                        frame={{
+                          text: terminal,
+                          cols: terminalSize.cols,
+                          rows: terminalSize.rows,
+                        }}
+                        waitingText={t('agents.terminalWaiting')}
+                      />
+                    </Suspense>
+                  </div>
                 </div>
               </div>
             </div>

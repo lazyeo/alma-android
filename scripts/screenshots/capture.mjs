@@ -5196,13 +5196,23 @@ async function assertVisibleTerminal(page) {
     )
 }
 
-async function assertTerminalModeControl(page) {
-  const geometry = await page.evaluate(() => {
-    const terminal = document.querySelector('.agent-terminal-area')
+async function assertTerminalModeControl(page, scrollGrid = false) {
+  const geometry = await page.evaluate((scrollGrid) => {
+    const card = document.querySelector('.agent-terminal-card')
+    const scroller = document.querySelector('.agent-terminal-scroll')
     const control = document.querySelector('.agent-terminal-mode')
-    if (!(terminal instanceof HTMLElement) || !(control instanceof HTMLElement))
+    if (
+      !(card instanceof HTMLElement) ||
+      !(scroller instanceof HTMLElement) ||
+      !(control instanceof HTMLElement)
+    )
       throw new Error('agent terminal mode control target missing')
-    const terminalRect = terminal.getBoundingClientRect()
+    const before = control.getBoundingClientRect()
+    if (scrollGrid) {
+      scroller.scrollLeft = scroller.scrollWidth
+      scroller.scrollTop = scroller.scrollHeight
+    }
+    const cardRect = card.getBoundingClientRect()
     const controlRect = control.getBoundingClientRect()
     return {
       visible:
@@ -5211,15 +5221,22 @@ async function assertTerminalModeControl(page) {
         controlRect.width > 0 &&
         controlRect.height > 0,
       contained:
-        controlRect.left >= terminalRect.left &&
-        controlRect.top >= terminalRect.top &&
-        controlRect.right <= terminalRect.right &&
-        controlRect.bottom <= terminalRect.bottom,
-      terminal: {
-        left: terminalRect.left,
-        top: terminalRect.top,
-        right: terminalRect.right,
-        bottom: terminalRect.bottom,
+        controlRect.left >= cardRect.left &&
+        controlRect.top >= cardRect.top &&
+        controlRect.right <= cardRect.right &&
+        controlRect.bottom <= cardRect.bottom,
+      unchanged:
+        Math.abs(controlRect.left - before.left) <= 0.5 &&
+        Math.abs(controlRect.top - before.top) <= 0.5 &&
+        Math.abs(controlRect.right - before.right) <= 0.5 &&
+        Math.abs(controlRect.bottom - before.bottom) <= 0.5,
+      scrolled:
+        !scrollGrid || (scroller.scrollLeft > 0 && scroller.scrollTop > 0),
+      card: {
+        left: cardRect.left,
+        top: cardRect.top,
+        right: cardRect.right,
+        bottom: cardRect.bottom,
       },
       control: {
         left: controlRect.left,
@@ -5227,11 +5244,22 @@ async function assertTerminalModeControl(page) {
         right: controlRect.right,
         bottom: controlRect.bottom,
       },
+      scroll: {
+        left: scroller.scrollLeft,
+        top: scroller.scrollTop,
+        width: scroller.scrollWidth,
+        height: scroller.scrollHeight,
+      },
     }
-  })
-  if (!geometry.visible || !geometry.contained)
+  }, scrollGrid)
+  if (
+    !geometry.visible ||
+    !geometry.contained ||
+    !geometry.unchanged ||
+    !geometry.scrolled
+  )
     throw new Error(
-      `agent terminal mode control is not visible within terminal: ${JSON.stringify(geometry)}`,
+      `agent terminal mode control is not fixed within its card: ${JSON.stringify(geometry)}`,
     )
 }
 
@@ -5242,7 +5270,7 @@ async function assertAgentPaneGeometry(page) {
     const composer = document.querySelector('.agent-composer')
     const terminal = document.querySelector('.agent-terminal-area')
     const firstKey = document.querySelector('.agent-terminal-keys .chip-button')
-    const composerChip = document.querySelector('.agent-composer-mode')
+    const composerChip = document.querySelector('.agent-keys-visibility')
     if (!(pane instanceof HTMLElement) || !(composer instanceof HTMLElement))
       throw new Error('agent pane geometry target missing')
     const paneRect = pane.getBoundingClientRect()
@@ -5584,7 +5612,7 @@ const herdrShots = [
           await page.getByRole('button', { name: gridLabel }).click()
           await page.locator('.agent-terminal .xterm-rows').waitFor()
           await assertVisibleTerminal(page)
-          await assertTerminalModeControl(page)
+          await assertTerminalModeControl(page, true)
           await assertAgentPaneGeometry(page)
         },
       },
@@ -5650,13 +5678,13 @@ const herdrShots = [
                 await page.getByRole('button', { name: gridLabel }).click()
                 await page.locator('.agent-terminal .xterm-rows').waitFor()
                 await assertVisibleTerminal(page)
-                await assertTerminalModeControl(page)
+                await assertTerminalModeControl(page, true)
                 await assertAgentPaneGeometry(page)
               },
             },
             ...[PHONE, TABLET].flatMap((viewport) =>
               ['reflow', 'grid'].map((displayMode) => ({
-                file: `herdr-pane-terminal-${displayMode}-history-hidden-en-${viewport.width}.png`,
+                file: `herdr-pane-terminal-${displayMode}-keys-hidden-en-${viewport.width}.png`,
                 viewport,
                 deviceScaleFactor: 2,
                 route: '/d/fixture-desktop/agents/w1%3Ap1',
@@ -5677,12 +5705,11 @@ const herdrShots = [
                     .getByText(/history line 1/)
                     .first()
                     .waitFor()
+                  await page.getByRole('button', { name: 'Hide keys' }).click()
                   await page
-                    .getByRole('button', { name: 'Hide keyboard' })
-                    .click()
-                  await page
-                    .locator('.agent-composer')
+                    .locator('.agent-terminal-keys')
                     .waitFor({ state: 'hidden' })
+                  await page.locator('.agent-composer').waitFor()
                   await page
                     .locator('.agent-terminal-scroll')
                     .evaluate((element) => {
@@ -5721,7 +5748,7 @@ const herdrShots = [
               safeInsets: true,
               async act(page) {
                 await page.getByRole('button', { name: '终端' }).click()
-                await page.locator('.agent-composer-mode').waitFor()
+                await page.locator('.agent-keys-visibility').waitFor()
                 await assertNoHorizontalOverflow(page, '.agent-pane-page')
               },
             },

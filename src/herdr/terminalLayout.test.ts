@@ -12,8 +12,12 @@ const terminalView = readFileSync(
 )
 
 describe('Herdr terminal surface geometry', () => {
-  it('uses one two-axis scroller for history and the live grid', () => {
+  it('uses a fixed card wrapper around one two-axis content scroller', () => {
+    expect(screen).toContain('className="agent-terminal-card"')
     expect(screen).toContain('className="agent-terminal-content"')
+    expect(css).toMatch(
+      /\.agent-terminal-card\s*{[^}]*position:\s*relative;[^}]*overflow:\s*hidden;/s,
+    )
     expect(css).toMatch(
       /\.agent-terminal-scroll-grid\s*{[^}]*overflow:\s*auto;/s,
     )
@@ -29,6 +33,22 @@ describe('Herdr terminal surface geometry', () => {
     expect(terminalView).toMatch(
       /viewport\.style\.width\s*=\s*[\s\S]*?sizing\.contentWidth \+ SURFACE_INSET/,
     )
+  })
+
+  it('keeps the mode chip tokenized, labeled, and outside the scroller', () => {
+    expect(screen).toMatch(
+      /className="agent-terminal-card"[\s\S]*?className="quiet-icon-button agent-terminal-mode"[\s\S]*?className={`agent-terminal-scroll/,
+    )
+    expect(screen).toContain("t('agents.terminalModeFit')")
+    expect(screen).toContain("t('agents.terminalModeGrid')")
+    expect(css).toMatch(
+      /\.agent-terminal-mode\s*{[^}]*border:\s*var\(--border-hairline\) solid var\(--gray-7\);[^}]*border-radius:\s*var\(--radius-full\);[^}]*background:\s*var\(--surface\);/s,
+    )
+    expect(css).toMatch(
+      /\.agent-terminal-scroll\s*{[^}]*padding-top:\s*var\(--agent-terminal-control-clearance\);/s,
+    )
+    const rule = css.match(/\.agent-terminal-mode\s*{([^}]*)}/s)?.[1] ?? ''
+    expect(rule).not.toMatch(/color-mix|#[0-9a-f]{3,8}|rgba?\(|hsla?\(/i)
   })
 
   it('shares one tokenized surface without an inner border seam', () => {
