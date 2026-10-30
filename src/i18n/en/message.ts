@@ -17,6 +17,7 @@ export const message = {
     directive:
       'The numbered badges on the attached image correspond to the requests above. Apply each request to its matching region.',
     sourcePathLabel: 'Source: ',
+    request: 'Request {number}',
     note: 'Overall note',
   },
   ranActions: { one: 'Ran {count} action', other: 'Ran {count} actions' },

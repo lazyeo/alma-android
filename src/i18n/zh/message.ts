@@ -20,6 +20,7 @@ export const message: CatalogShape<typeof source> = {
     directive:
       '附件图片上的编号标记与以上请求一一对应。请在对应区域完成每项修改。',
     sourcePathLabel: '来源：',
+    request: '请求 {number}',
     note: '整体备注',
   },
   ranActions: { one: '执行了 {count} 个操作', other: '执行了 {count} 个操作' },
