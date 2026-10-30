@@ -51,6 +51,7 @@
   white-space: nowrap;
 }
 .remote-screen-heading strong {
+  color: var(--foreground);
   font-size: var(--text-sm);
 }
 .remote-screen-heading small {
@@ -81,11 +82,14 @@
   padding: 5px 12px;
   border-bottom: var(--border-hairline) solid var(--amber-6);
   background: var(--amber-a3);
-  color: var(--amber-11);
+  color: var(--foreground);
   font-size: var(--text-xs);
 }
+.remote-control-indicator strong {
+  color: var(--accent-11);
+}
 .remote-control-indicator span:last-child {
-  color: var(--muted-foreground);
+  color: var(--foreground);
 }
 .remote-control-pulse {
   width: 7px;

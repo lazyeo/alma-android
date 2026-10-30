@@ -1493,6 +1493,40 @@ const screenShots = [
     afterCapture: (page) =>
       assertNoHorizontalOverflow(page, '.remote-screen-page'),
   },
+  ...[
+    ['palenight', 'dark'],
+    ['chocolate', 'dark'],
+    ['one_light', 'light'],
+  ].map(([theme, mode]) => ({
+    file: `screen-control-en-412-${theme}.png`,
+    viewport: PHONE,
+    route: '/d/fixture-desktop/screen',
+    query: 'lang=en',
+    ready: '.remote-screen-media',
+    safeInsets: true,
+    colorScheme: mode,
+    act: async (page) => {
+      await setFixtureTheme(page, theme, mode)
+      await page.getByRole('button', { name: 'Control', exact: true }).click()
+      await page.getByRole('button', { name: 'Trackpad', exact: true }).click()
+    },
+    afterCapture: (page) =>
+      assertNoHorizontalOverflow(page, '.remote-screen-page'),
+  })),
+  {
+    file: 'screen-control-en-884.png',
+    viewport: TABLET,
+    route: '/d/fixture-desktop/screen',
+    query: 'lang=en',
+    ready: '.remote-screen-media',
+    safeInsets: true,
+    act: async (page) => {
+      await page.getByRole('button', { name: 'Control', exact: true }).click()
+      await page.getByRole('button', { name: 'Trackpad', exact: true }).click()
+    },
+    afterCapture: (page) =>
+      assertNoHorizontalOverflow(page, '.remote-screen-page'),
+  },
   {
     file: 'screen-view-en-884.png',
     viewport: TABLET,
