@@ -7,7 +7,9 @@ import { LanguageProvider } from '../i18n'
 import { AgentsNavLink, AppShell } from './AppShell'
 
 vi.mock('../desktops/DesktopContext', () => ({
-  ConnectionContext: { Provider: ({ children }: { children: ReactNode }) => children },
+  ConnectionContext: {
+    Provider: ({ children }: { children: ReactNode }) => children,
+  },
   useDesktops: () => ({
     store: {
       activeId: 'desktop',
