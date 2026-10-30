@@ -934,7 +934,8 @@ dd {
   font-family: var(--ui-font);
 }
 .attachment-chip img,
-.attachment-chip > span {
+.attachment-chip > span,
+.attachment-annotate {
   width: 34px;
   height: 34px;
   object-fit: cover;
@@ -945,6 +946,31 @@ dd {
   color: var(--muted-foreground);
   font-size: var(--text-xs);
 }
+.attachment-annotate {
+  position: relative;
+  min-width: 40px;
+  min-height: 40px;
+  margin: -3px;
+  padding: 3px;
+  border: 0;
+}
+.attachment-annotate img {
+  width: 34px;
+  height: 34px;
+}
+.attachment-annotate-badge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: var(--border-hairline) solid var(--gray-7);
+  border-radius: 50%;
+  background: var(--accent-9);
+  color: var(--accent-contrast);
+}
 .attachment-chip strong {
   overflow: hidden;
   font-size: var(--text-sm);
@@ -952,7 +978,7 @@ dd {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.attachment-chip button {
+.attachment-chip .attachment-remove {
   border: 0;
   background: transparent;
   color: var(--muted-foreground);
@@ -3085,7 +3111,7 @@ select:focus-visible {
   background: transparent;
   color: var(--muted-foreground);
 }
-.attachment-chip button {
+.attachment-chip .attachment-remove {
   min-width: 40px;
   min-height: 40px;
 }
@@ -6503,11 +6529,22 @@ button:active:not(:disabled),
   padding: 5px;
   border-radius: var(--radius-inner-composer);
 }
-.attachment-chip img,
-.attachment-chip > span {
+.attachment-chip > img,
+.attachment-chip > span,
+.attachment-annotate {
   width: 60px;
   height: 58px;
   border-radius: max(calc(var(--radius-md) - 6px), 4px);
+}
+.attachment-annotate {
+  min-width: 60px;
+  min-height: 58px;
+  margin: 0;
+  padding: 0;
+}
+.attachment-annotate img {
+  width: 60px;
+  height: 58px;
 }
 .attachment-chip strong {
   display: -webkit-box;

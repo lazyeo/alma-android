@@ -1,4 +1,4 @@
-import { Camera, File, Image, Plus, X } from 'lucide-react'
+import { Camera, File, Image, Pencil, Plus, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { haptic } from '../haptics'
 import {
@@ -6,11 +6,21 @@ import {
   downscaleImage,
   relayUploadError,
 } from '../screens/imageProcessing'
-import type { ComposerAttachment } from '../screens/attachmentUpload'
+import {
+  isPendingAttachment,
+  type ComposerAttachment,
+  type PendingAttachment,
+} from '../screens/attachmentUpload'
 import type { AlmaApi } from '../relay/almaApi'
 import { imageCache } from '../screens/relayImages'
 import { BottomSheet } from './BottomSheet'
+import { ImageAnnotator } from './ImageAnnotator'
 import { useT } from '../i18n'
+
+function imageName(name: string, mediaType: string) {
+  const extension = mediaType === 'image/png' ? 'png' : 'jpg'
+  return `${name.replace(/\.[^.]+$/, '')}.${extension}`
+}
 
 export function ComposerAttachmentTray({
   api,
@@ -23,6 +33,10 @@ export function ComposerAttachmentTray({
 }) {
   const t = useT()
   const [previews, setPreviews] = useState<Record<number, string>>({})
+  const [editing, setEditing] = useState<{
+    index: number
+    attachment: PendingAttachment
+  }>()
   useEffect(() => {
     let active = true
     const urls: string[] = []
@@ -53,36 +67,93 @@ export function ComposerAttachmentTray({
   }, [api, attachments])
   if (!attachments.length) return null
   return (
-    <div className="attachment-tray">
-      {attachments.map((attachment, index) => (
-        <div className="attachment-chip" key={`${attachment.name}-${index}`}>
-          {attachment.previewUrl || previews[index] ? (
-            <img src={attachment.previewUrl || previews[index]} alt="" />
-          ) : (
-            <span>
-              {attachment.kind === 'image' ? (
-                <Image size={22} />
+    <>
+      <div className="attachment-tray">
+        {attachments.map((attachment, index) => {
+          const annotatable =
+            attachment.kind === 'image' && isPendingAttachment(attachment)
+          const previewUrl = attachment.previewUrl || previews[index]
+          return (
+            <div
+              className={`attachment-chip${annotatable ? ' annotatable' : ''}`}
+              key={`${attachment.name}-${index}`}
+            >
+              {annotatable ? (
+                <button
+                  className="attachment-annotate"
+                  aria-label={t('composer.attachments.annotate', {
+                    name: attachment.name,
+                  })}
+                  onClick={() => setEditing({ index, attachment })}
+                >
+                  {previewUrl ? <img src={previewUrl} alt="" /> : <Image />}
+                  <span
+                    className="attachment-annotate-badge"
+                    aria-hidden="true"
+                  >
+                    <Pencil size={12} />
+                  </span>
+                </button>
+              ) : previewUrl ? (
+                <img src={previewUrl} alt="" />
               ) : (
-                <File size={22} />
+                <span>
+                  {attachment.kind === 'image' ? (
+                    <Image size={22} />
+                  ) : (
+                    <File size={22} />
+                  )}
+                </span>
               )}
-            </span>
-          )}
-          <strong>{attachment.name}</strong>
-          <button
-            aria-label={t('composer.attachments.remove', {
-              name: attachment.name,
-            })}
-            onClick={() => {
-              if (attachment.previewUrl)
-                URL.revokeObjectURL(attachment.previewUrl)
-              onChange(attachments.filter((_, item) => item !== index))
-            }}
-          >
-            <X size={16} />
-          </button>
-        </div>
-      ))}
-    </div>
+              <strong>{attachment.name}</strong>
+              <button
+                className="attachment-remove"
+                aria-label={t('composer.attachments.remove', {
+                  name: attachment.name,
+                })}
+                onClick={() => {
+                  if (attachment.previewUrl)
+                    URL.revokeObjectURL(attachment.previewUrl)
+                  onChange(attachments.filter((_, item) => item !== index))
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )
+        })}
+      </div>
+      {editing ? (
+        <ImageAnnotator
+          source={editing.attachment.pending.blob}
+          mode="markup"
+          onCancel={() => setEditing(undefined)}
+          onDone={(blob) => {
+            const previewUrl = URL.createObjectURL(blob)
+            const current = attachments[editing.index]
+            if (
+              current !== editing.attachment ||
+              !isPendingAttachment(current)
+            ) {
+              URL.revokeObjectURL(previewUrl)
+              setEditing(undefined)
+              return
+            }
+            const next = [...attachments]
+            next[editing.index] = {
+              ...current,
+              name: imageName(current.name, blob.type),
+              mediaType: blob.type,
+              previewUrl,
+              pending: { ...current.pending, blob },
+            }
+            if (current.previewUrl) URL.revokeObjectURL(current.previewUrl)
+            setEditing(undefined)
+            onChange(next)
+          }}
+        />
+      ) : null}
+    </>
   )
 }
 

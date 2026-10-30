@@ -32,6 +32,7 @@ export const composer: CatalogShape<typeof source> = {
     camera: '相机',
     photos: '照片',
     file: '文件',
+    annotate: '标注 {name}',
     remove: '移除 {name}',
     noVision: '所选模型未声明支持图像识别。',
     uploadFailed: '上传失败',

@@ -29,6 +29,7 @@ export const composer = {
     camera: 'Camera',
     photos: 'Photos',
     file: 'File',
+    annotate: 'Annotate {name}',
     remove: 'Remove {name}',
     noVision: 'The selected model does not advertise vision support.',
     uploadFailed: 'Upload failed',
