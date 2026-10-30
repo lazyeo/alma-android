@@ -286,6 +286,7 @@ export function createDraftAutosave(
   const restored = loadDraft(storage, desktopId, threadId)
   let persisted = restored?.text ?? ''
   let persistedAttachments = restored?.attachments ?? []
+  let persistedBlobs = new Map<string, Blob>()
   let pending: { text: string; attachments: ComposerAttachment[] } | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
 
@@ -313,13 +314,37 @@ export function createDraftAutosave(
       threadId,
       attachments,
     )
+    persistedBlobs = new Map(
+      attachments.flatMap((attachment) =>
+        isPendingAttachment(attachment)
+          ? [
+              [
+                attachment.pending.storeKey ||
+                  pendingKey(desktopId, threadId, attachment.id),
+                attachment.pending.blob,
+              ] as const,
+            ]
+          : [],
+      ),
+    )
   }
 
   return {
     savedText: () => persisted,
     savedAttachments: () => persistedAttachments,
     async restoreAttachments() {
-      return loadDraftAttachments(persistedAttachments, blobs)
+      const attachments = await loadDraftAttachments(
+        persistedAttachments,
+        blobs,
+      )
+      persistedBlobs = new Map(
+        attachments.flatMap((attachment) =>
+          isPendingAttachment(attachment) && attachment.pending.storeKey
+            ? [[attachment.pending.storeKey, attachment.pending.blob] as const]
+            : [],
+        ),
+      )
+      return attachments
     },
     update(text: string, attachments: ComposerAttachment[] = []) {
       const storedAttachments = persistentAttachments(
@@ -327,8 +352,16 @@ export function createDraftAutosave(
         threadId,
         attachments,
       )
+      const blobsUnchanged = attachments.every((attachment) => {
+        if (!isPendingAttachment(attachment)) return true
+        const key =
+          attachment.pending.storeKey ||
+          pendingKey(desktopId, threadId, attachment.id)
+        return persistedBlobs.get(key) === attachment.pending.blob
+      })
       if (
         text === persisted &&
+        blobsUnchanged &&
         JSON.stringify(storedAttachments) ===
           JSON.stringify(persistedAttachments)
       ) {
@@ -344,6 +377,7 @@ export function createDraftAutosave(
       cancel()
       persisted = ''
       persistedAttachments = []
+      persistedBlobs.clear()
       void clearDraft(storage, desktopId, threadId, blobs)
     },
   }
