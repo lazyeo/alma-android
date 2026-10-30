@@ -50,6 +50,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(FileHandoffPlugin.class);
         registerPlugin(HtmlPreviewPlugin.class);
         registerPlugin(BackgroundConnectionPlugin.class);
+        registerPlugin(AppUpdatePlugin.class);
         super.onCreate(savedInstanceState);
         WebView.setWebContentsDebuggingEnabled(
                 (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0

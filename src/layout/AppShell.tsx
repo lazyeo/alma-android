@@ -43,6 +43,7 @@ import {
   rememberLastViewedPane,
   resolveLastViewedPane,
 } from '../herdr/agentsBoardModel'
+import { useUpdates } from '../updates/UpdateProvider'
 
 const NAV_ITEMS = [
   { to: '/threads', labelKey: 'nav.threads', Icon: MessagesSquare },
@@ -83,6 +84,7 @@ function MainNav({
   beforeSettings?: ReactNode
 }) {
   const t = useT()
+  const { badge } = useUpdates()
   const { pathname } = useLocation()
   const threadsPath = useActiveThreadsPath()
   const desktopId = decodeURIComponent(threadsPath.split('/')[2] ?? '')
@@ -125,6 +127,12 @@ function MainNav({
               >
                 <span className="tab-icon">
                   <Icon size={22} />
+                  {to === '/settings' && badge ? (
+                    <span
+                      className="update-badge-dot"
+                      aria-label={t('settings.updates.availableDot')}
+                    />
+                  ) : null}
                 </span>
                 {compact ? null : label}
               </Link>

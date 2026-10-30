@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Coding-agent workspaces, pane chat and terminal views with on-demand scrollback history, blocked permission answers, workspace mute controls, and local attention notifications for desktops running Herdr.
+- In-app update checks with release notes, a 24-hour automatic-check option, verified APK download progress, version skipping, and Android installer handoff.
 
 ### Fixed
 

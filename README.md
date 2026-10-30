@@ -35,7 +35,7 @@ Screenshots use synthetic fixture data and contain no real desktop content or pa
 
 3. Allow installation from your browser or file manager when Android asks, then open the APK.
 
-The package name is `club.a_dobe.alma`. Settings › About shows the installed version.
+The package name is `club.a_dobe.alma`. Settings › Updates can check, verify, and install newer public releases in app.
 
 ## Pair with Alma Desktop
 

@@ -78,6 +78,10 @@ const RemoteScreen = lazy(() =>
     default: module.RemoteScreen,
   })),
 )
+import {
+  UpdateProvider,
+  type UpdateDependencies,
+} from './updates/UpdateProvider'
 
 const ThreadScreen = lazy(() =>
   import('./screens/ThreadScreen').then((module) => ({
@@ -177,6 +181,7 @@ export interface AppFixture {
   store: PairingStore
   createTunnel(pairing: StoredPairing): ManagedTunnel
   statusByDesktop?: Record<string, DesktopSummary['status']>
+  updateDependencies?: UpdateDependencies
 }
 
 export default function App({ fixture }: { fixture?: AppFixture } = {}) {
@@ -436,83 +441,88 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
   )
 
   return (
-    <DesktopsContext.Provider value={desktopsValue}>
-      <ExtensionProvider preview={Boolean(fixture)}>
-        <ThreadActivityProvider>
-          <HandoffProvider desktops={handoffDesktops}>
-            <HerdrBridge desktops={handoffDesktops}>
-              <Routes>
-                <Route path="share" element={<ShareScreen />} />
-                <Route
-                  path="pair"
-                  element={pairScreen(
-                    // The first pairing has nowhere to go back to.
-                    desktops.length
-                      ? () => navigate('/settings', { replace: true })
-                      : undefined,
-                  )}
-                />
-                <Route element={<AppShell />}>
-                  <Route index element={<ActiveRedirect />} />
-                  <Route path="threads" element={<ActiveRedirect />} />
-                  <Route path="inbox" element={<ActiveRedirect />} />
-                  <Route path="settings" element={<SettingsScreen />} />
+    <UpdateProvider dependencies={fixture?.updateDependencies}>
+      <DesktopsContext.Provider value={desktopsValue}>
+        <ExtensionProvider preview={Boolean(fixture)}>
+          <ThreadActivityProvider>
+            <HandoffProvider desktops={handoffDesktops}>
+              <HerdrBridge desktops={handoffDesktops}>
+                <Routes>
+                  <Route path="share" element={<ShareScreen />} />
                   <Route
-                    path="threads/:threadId"
-                    element={<ActiveRedirect />}
+                    path="pair"
+                    element={pairScreen(
+                      // The first pairing has nowhere to go back to.
+                      desktops.length
+                        ? () => navigate('/settings', { replace: true })
+                        : undefined,
+                    )}
                   />
-                  <Route path="d/:desktopId" element={<DesktopScope />}>
-                    <Route index element={<Navigate to="threads" replace />} />
-                    <Route path="threads" element={<ThreadsListRoute />} />
-                    <Route path="gtd" element={<GtdListRoute />} />
-                    <Route
-                      path="gtd/:threadId"
-                      element={
-                        <Suspense fallback={<OpeningThread />}>
-                          <ThreadScreen />
-                        </Suspense>
-                      }
-                    />
-                    <Route path="time-clues" element={<TimeCluesScreen />} />
-                    <Route
-                      path="screen"
-                      element={
-                        <Suspense fallback={<OpeningThread />}>
-                          <RemoteScreen />
-                        </Suspense>
-                      }
-                    />
-                    <Route path="agents" element={<AgentsListRoute />} />
-                    <Route
-                      path="agents/:paneId"
-                      element={<AgentPaneScreen />}
-                    />
-                    <Route path="crystals" element={<CrystalsScreen />} />
-                    <Route path="references" element={<ReferencesScreen />} />
-                    <Route
-                      path="references/:referenceUri"
-                      element={<ReferenceDetailScreen />}
-                    />
-                    <Route
-                      path="crystals/:crystalId"
-                      element={<CrystalDetailScreen />}
-                    />
+                  <Route element={<AppShell />}>
+                    <Route index element={<ActiveRedirect />} />
+                    <Route path="threads" element={<ActiveRedirect />} />
+                    <Route path="inbox" element={<ActiveRedirect />} />
+                    <Route path="settings" element={<SettingsScreen />} />
                     <Route
                       path="threads/:threadId"
-                      element={
-                        <Suspense fallback={<OpeningThread />}>
-                          <ThreadScreen />
-                        </Suspense>
-                      }
+                      element={<ActiveRedirect />}
                     />
+                    <Route path="d/:desktopId" element={<DesktopScope />}>
+                      <Route
+                        index
+                        element={<Navigate to="threads" replace />}
+                      />
+                      <Route path="threads" element={<ThreadsListRoute />} />
+                      <Route path="gtd" element={<GtdListRoute />} />
+                      <Route
+                        path="gtd/:threadId"
+                        element={
+                          <Suspense fallback={<OpeningThread />}>
+                            <ThreadScreen />
+                          </Suspense>
+                        }
+                      />
+                      <Route path="time-clues" element={<TimeCluesScreen />} />
+                      <Route
+                        path="screen"
+                        element={
+                          <Suspense fallback={<OpeningThread />}>
+                            <RemoteScreen />
+                          </Suspense>
+                        }
+                      />
+                      <Route path="agents" element={<AgentsListRoute />} />
+                      <Route
+                        path="agents/:paneId"
+                        element={<AgentPaneScreen />}
+                      />
+                      <Route path="crystals" element={<CrystalsScreen />} />
+                      <Route path="references" element={<ReferencesScreen />} />
+                      <Route
+                        path="references/:referenceUri"
+                        element={<ReferenceDetailScreen />}
+                      />
+                      <Route
+                        path="crystals/:crystalId"
+                        element={<CrystalDetailScreen />}
+                      />
+                      <Route
+                        path="threads/:threadId"
+                        element={
+                          <Suspense fallback={<OpeningThread />}>
+                            <ThreadScreen />
+                          </Suspense>
+                        }
+                      />
+                    </Route>
+                    <Route path="*" element={<ActiveRedirect />} />
                   </Route>
-                  <Route path="*" element={<ActiveRedirect />} />
-                </Route>
-              </Routes>
-            </HerdrBridge>
-          </HandoffProvider>
-        </ThreadActivityProvider>
-      </ExtensionProvider>
-    </DesktopsContext.Provider>
+                </Routes>
+              </HerdrBridge>
+            </HandoffProvider>
+          </ThreadActivityProvider>
+        </ExtensionProvider>
+      </DesktopsContext.Provider>
+    </UpdateProvider>
   )
 }

@@ -4702,6 +4702,62 @@ button:focus-visible,
   color: var(--destructive);
   font-size: var(--text-xs);
 }
+.update-version {
+  max-width: none;
+}
+.update-panel {
+  margin-top: 8px;
+  padding: 12px;
+  border: var(--border-hairline) solid var(--gray-7);
+  border-radius: var(--radius-md);
+  background: var(--gray-2);
+}
+.update-status-line,
+.update-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.update-status-line {
+  justify-content: space-between;
+  color: var(--foreground);
+  font-size: var(--text-sm);
+}
+.update-status-line span {
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}
+.update-release-notes {
+  max-height: 220px;
+  margin-top: 10px;
+  overflow: auto;
+  font-size: var(--text-sm);
+}
+.update-release-notes > :first-child {
+  margin-top: 0;
+}
+.update-release-notes > :last-child {
+  margin-bottom: 0;
+}
+.update-progress {
+  width: 100%;
+  height: 4px;
+  margin-top: 10px;
+  accent-color: var(--primary);
+}
+.update-actions {
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.update-actions button {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 10px;
+  font-size: var(--text-xs);
+}
 .appearance-row {
   min-height: 60px;
 }
@@ -8958,4 +9014,20 @@ dialog:focus,
   flex: none;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+}
+.update-badge-dot {
+  position: absolute;
+  top: -1px;
+  right: -2px;
+  width: 7px;
+  height: 7px;
+  border: var(--border-hairline) solid var(--gray-7);
+  border-radius: var(--radius-full);
+  background: var(--accent-9);
+  box-sizing: content-box;
+}
+.update-release-notes :is(h1, h2, h3, h4) {
+  margin: 0 0 6px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
 }

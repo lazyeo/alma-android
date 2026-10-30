@@ -1505,6 +1505,45 @@ const screenShots = [
   },
 ]
 
+const updateShots = [
+  {
+    file: 'update-newer-en.png',
+    viewport: PHONE,
+    route: '/settings',
+    query: 'update=newer&lang=en',
+    ready: '.update-release-notes',
+    act: (page) => page.locator('.update-panel').scrollIntoViewIfNeeded(),
+    afterCapture: (page) => assertNoHorizontalOverflow(page, '.settings-page'),
+  },
+  {
+    file: 'update-newer-zh.png',
+    viewport: PHONE,
+    route: '/settings',
+    query: 'update=newer&lang=zh',
+    ready: '.update-release-notes',
+    act: (page) => page.locator('.update-panel').scrollIntoViewIfNeeded(),
+    afterCapture: (page) => assertNoHorizontalOverflow(page, '.settings-page'),
+  },
+  {
+    file: 'update-current-en.png',
+    viewport: PHONE,
+    route: '/settings',
+    query: 'update=current&lang=en',
+    ready: '.update-panel',
+    act: (page) => page.locator('.update-panel').scrollIntoViewIfNeeded(),
+    afterCapture: (page) => assertNoHorizontalOverflow(page, '.settings-page'),
+  },
+  {
+    file: 'update-error-zh.png',
+    viewport: PHONE,
+    route: '/settings',
+    query: 'update=error&lang=zh',
+    ready: '.update-panel',
+    act: (page) => page.locator('.update-panel').scrollIntoViewIfNeeded(),
+    afterCapture: (page) => assertNoHorizontalOverflow(page, '.settings-page'),
+  },
+]
+
 const shots = [
   {
     file: 'zh-settings-360.png',
@@ -6494,6 +6533,7 @@ try {
   const keepGoing = process.env.SCREENSHOTS_KEEP_GOING === '1'
   const failures = []
   for (const shot of [
+    ...updateShots,
     ...taskCardsShots,
     ...screenShots,
     ...shots,
