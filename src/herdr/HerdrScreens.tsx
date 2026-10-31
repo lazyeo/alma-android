@@ -20,7 +20,10 @@ import {
   type CSSProperties,
 } from 'react'
 import { useParams } from 'react-router-dom'
-import { ComposerAttachments, ComposerAttachmentTray } from '../components/ComposerAttachments'
+import {
+  ComposerAttachments,
+  ComposerAttachmentTray,
+} from '../components/ComposerAttachments'
 import { ScopedRootHeader } from '../layout/ScopedRootHeader'
 import { useConnection } from '../desktops/DesktopContext'
 import { useT } from '../i18n'
@@ -195,10 +198,7 @@ export function AgentPaneScreen() {
     }
     void loadChat().catch((reason) => setError(String(reason)))
   }, [decodedPaneId, loadChat])
-  useEffect(
-    () => () => revokeAttachmentPreviews(attachmentsRef.current),
-    [],
-  )
+  useEffect(() => () => revokeAttachmentPreviews(attachmentsRef.current), [])
   useEffect(() => {
     if (view !== 'terminal') return
     const socket = api.openJsonSocket(
@@ -502,9 +502,7 @@ export function AgentPaneScreen() {
                 {
                   source: part.url,
                   name:
-                    typeof part.filename === 'string'
-                      ? part.filename
-                      : 'image',
+                    typeof part.filename === 'string' ? part.filename : 'image',
                 },
               ]
             : [],
@@ -516,314 +514,316 @@ export function AgentPaneScreen() {
   return (
     <ImageGalleryProvider images={galleryImages}>
       <section className="root-page agent-pane-page">
-      <ScopedRootHeader
-        title={
-          pane?.terminal_title_stripped || pane?.agent || t('agents.agent')
-        }
-        childOnPhone
-        actions={
-          <div
-            className="agent-view-toggle"
-            role="group"
-            aria-label={t('agents.view')}
-          >
-            {chatUnsupported ? null : (
-              <button
-                aria-label={t('agents.chat')}
-                aria-pressed={view === 'chat'}
-                onClick={() => setView('chat')}
-              >
-                <MessageCircle size={15} />
-                <span>{t('agents.chat')}</span>
-              </button>
-            )}
-            <button
-              aria-label={t('agents.terminal')}
-              aria-pressed={view === 'terminal'}
-              onClick={() => setView('terminal')}
+        <ScopedRootHeader
+          title={
+            pane?.terminal_title_stripped || pane?.agent || t('agents.agent')
+          }
+          childOnPhone
+          actions={
+            <div
+              className="agent-view-toggle"
+              role="group"
+              aria-label={t('agents.view')}
             >
-              <SquareTerminal size={15} />
-              <span>{t('agents.terminal')}</span>
-            </button>
-          </div>
-        }
-      />
-      <div
-        className={`agent-pane-body agent-pane-body-${view}`}
-        ref={bodyRef}
-        onScroll={rememberScroll}
-      >
-        {view === 'chat' && blockedPrompt ? (
-          <aside className="agent-blocked-card">
-            <span>{t('agents.needsYou')}</span>
-            <strong>{blockedPrompt.question}</strong>
-            <div className="agent-menu-options">
-              {blockedPrompt.options.map((option, index) => (
+              {chatUnsupported ? null : (
                 <button
-                  className={`chip-button agent-menu-option${index === blockedPrompt.selectedIndex ? ' active' : ''}`}
-                  disabled={sending}
-                  key={option.number}
-                  onClick={() => void choose(option.number)}
-                  title={option.label}
-                  aria-label={`${option.number}. ${option.label}`}
+                  aria-label={t('agents.chat')}
+                  aria-pressed={view === 'chat'}
+                  onClick={() => setView('chat')}
                 >
-                  <span>{option.number}.</span> {option.label}
+                  <MessageCircle size={15} />
+                  <span>{t('agents.chat')}</span>
                 </button>
+              )}
+              <button
+                aria-label={t('agents.terminal')}
+                aria-pressed={view === 'terminal'}
+                onClick={() => setView('terminal')}
+              >
+                <SquareTerminal size={15} />
+                <span>{t('agents.terminal')}</span>
+              </button>
+            </div>
+          }
+        />
+        <div
+          className={`agent-pane-body agent-pane-body-${view}`}
+          ref={bodyRef}
+          onScroll={rememberScroll}
+        >
+          {view === 'chat' && blockedPrompt ? (
+            <aside className="agent-blocked-card">
+              <span>{t('agents.needsYou')}</span>
+              <strong>{blockedPrompt.question}</strong>
+              <div className="agent-menu-options">
+                {blockedPrompt.options.map((option, index) => (
+                  <button
+                    className={`chip-button agent-menu-option${index === blockedPrompt.selectedIndex ? ' active' : ''}`}
+                    disabled={sending}
+                    key={option.number}
+                    onClick={() => void choose(option.number)}
+                    title={option.label}
+                    aria-label={`${option.number}. ${option.label}`}
+                  >
+                    <span>{option.number}.</span> {option.label}
+                  </button>
+                ))}
+              </div>
+            </aside>
+          ) : null}
+          {view === 'chat' ? (
+            <div className="agent-chat" aria-live="polite">
+              {start > 0 ? (
+                <button
+                  className="quiet-text-button agent-load-older"
+                  onClick={loadOlder}
+                >
+                  {t('agents.loadOlder')}
+                </button>
+              ) : null}
+              {rows.map((row) => (
+                <MessageView
+                  key={row.id}
+                  row={row}
+                  capabilities={{
+                    renderMarkdown: (text) => <MarkdownContent text={text} />,
+                    renderImage: (source, name) => (
+                      <RelayImage source={source} name={name} />
+                    ),
+                  }}
+                  below={
+                    row.questions ? (
+                      <AgentQuestions
+                        questions={row.questions}
+                        onAnswer={
+                          row.id === answerableId && !sending
+                            ? (label) => void send(label)
+                            : undefined
+                        }
+                      />
+                    ) : undefined
+                  }
+                />
+              ))}
+              {queued.map((item) => (
+                <article className="agent-message queued" key={item.id}>
+                  {item.text}
+                </article>
               ))}
             </div>
-          </aside>
-        ) : null}
-        {view === 'chat' ? (
-          <div className="agent-chat" aria-live="polite">
-            {start > 0 ? (
-              <button
-                className="quiet-text-button agent-load-older"
-                onClick={loadOlder}
-              >
-                {t('agents.loadOlder')}
-              </button>
-            ) : null}
-            {rows.map((row) => (
-              <MessageView
-                key={row.id}
-                row={row}
-                capabilities={{
-                  renderMarkdown: (text) => <MarkdownContent text={text} />,
-                  renderImage: (source, name) => (
-                    <RelayImage source={source} name={name} />
-                  ),
-                }}
-                below={
-                  row.questions ? (
-                    <AgentQuestions
-                      questions={row.questions}
-                      onAnswer={
-                        row.id === answerableId && !sending
-                          ? (label) => void send(label)
-                          : undefined
-                      }
-                    />
-                  ) : undefined
-                }
-              />
-            ))}
-            {queued.map((item) => (
-              <article className="agent-message queued" key={item.id}>
-                {item.text}
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="agent-terminal-workspace">
-            {chatUnsupported ? (
-              <p className="agent-terminal-note">
-                {t('agents.chatUnsupported')}
-              </p>
-            ) : null}
-            <div
-              className="agent-terminal-card"
-              style={
-                {
-                  '--agent-terminal-bg': TERMINAL_COLORS.bg,
-                  '--agent-terminal-fg': TERMINAL_COLORS.fg,
-                } as CSSProperties
-              }
-            >
-              <button
-                className="quiet-icon-button agent-terminal-mode"
-                aria-label={
-                  terminalDisplayMode === 'reflow'
-                    ? t('agents.terminalUseGrid')
-                    : t('agents.terminalUseReflow')
-                }
-                title={
-                  terminalDisplayMode === 'reflow'
-                    ? t('agents.terminalUseGrid')
-                    : t('agents.terminalUseReflow')
-                }
-                data-sidebar-swipe-exclude
-                onClick={toggleTerminalDisplayMode}
-              >
-                {/* Icon and text both show the current mode; aria names the action. */}
-                {terminalDisplayMode === 'reflow' ? (
-                  <WrapText size={14} />
-                ) : (
-                  <Grid3X3 size={14} />
-                )}
-                <span>
-                  {terminalDisplayMode === 'reflow'
-                    ? t('agents.terminalModeFit')
-                    : t('agents.terminalModeGrid')}
-                </span>
-              </button>
+          ) : (
+            <div className="agent-terminal-workspace">
+              {chatUnsupported ? (
+                <p className="agent-terminal-note">
+                  {t('agents.chatUnsupported')}
+                </p>
+              ) : null}
               <div
-                className={`agent-terminal-scroll agent-terminal-scroll-${terminalDisplayMode}`}
-                ref={terminalScrollRef}
-                data-terminal-metrics-host=""
-                onScroll={(event) => {
-                  const scroller = event.currentTarget
-                  terminalScrollState.current = {
-                    scrollTop: scroller.scrollTop,
-                    scrollHeight: scroller.scrollHeight,
-                    pinned: isPinnedToBottom(scroller),
-                    prepending: false,
-                  }
-                  if (
-                    scroller.scrollTop === 0 &&
-                    !terminalHistory &&
-                    !terminalHistoryEmpty
-                  )
-                    loadTerminalHistory()
-                }}
+                className="agent-terminal-card"
+                style={
+                  {
+                    '--agent-terminal-bg': TERMINAL_COLORS.bg,
+                    '--agent-terminal-fg': TERMINAL_COLORS.fg,
+                  } as CSSProperties
+                }
               >
-                {terminalHistoryEmpty ? (
-                  <p className="agent-terminal-note">
-                    {t('agents.noEarlierOutput')}
-                  </p>
-                ) : (
-                  <button
-                    className="quiet-text-button agent-load-terminal-history"
-                    disabled={loadingTerminalHistory}
-                    onClick={loadTerminalHistory}
-                  >
-                    {t('agents.loadEarlierOutput')}
-                  </button>
-                )}
-                <div className="agent-terminal-content">
-                  {terminalHistory ? (
-                    <TerminalHistory
-                      text={terminalHistory}
-                      displayMode={terminalDisplayMode}
-                    />
-                  ) : null}
-                  {terminalHistory ? (
-                    <div className="agent-terminal-history-gap" />
-                  ) : null}
-                  <div className="agent-terminal-area">
-                    <Suspense
-                      fallback={
-                        <div className="agent-terminal-loading">
-                          {t('agents.terminalWaiting')}
-                        </div>
-                      }
+                <button
+                  className="quiet-icon-button agent-terminal-mode"
+                  aria-label={
+                    terminalDisplayMode === 'reflow'
+                      ? t('agents.terminalUseGrid')
+                      : t('agents.terminalUseReflow')
+                  }
+                  title={
+                    terminalDisplayMode === 'reflow'
+                      ? t('agents.terminalUseGrid')
+                      : t('agents.terminalUseReflow')
+                  }
+                  data-sidebar-swipe-exclude
+                  onClick={toggleTerminalDisplayMode}
+                >
+                  {/* Icon and text both show the current mode; aria names the action. */}
+                  {terminalDisplayMode === 'reflow' ? (
+                    <WrapText size={14} />
+                  ) : (
+                    <Grid3X3 size={14} />
+                  )}
+                  <span>
+                    {terminalDisplayMode === 'reflow'
+                      ? t('agents.terminalModeFit')
+                      : t('agents.terminalModeGrid')}
+                  </span>
+                </button>
+                <div
+                  className={`agent-terminal-scroll agent-terminal-scroll-${terminalDisplayMode}`}
+                  ref={terminalScrollRef}
+                  data-terminal-metrics-host=""
+                  onScroll={(event) => {
+                    const scroller = event.currentTarget
+                    terminalScrollState.current = {
+                      scrollTop: scroller.scrollTop,
+                      scrollHeight: scroller.scrollHeight,
+                      pinned: isPinnedToBottom(scroller),
+                      prepending: false,
+                    }
+                    if (
+                      scroller.scrollTop === 0 &&
+                      !terminalHistory &&
+                      !terminalHistoryEmpty
+                    )
+                      loadTerminalHistory()
+                  }}
+                >
+                  {terminalHistoryEmpty ? (
+                    <p className="agent-terminal-note">
+                      {t('agents.noEarlierOutput')}
+                    </p>
+                  ) : (
+                    <button
+                      className="quiet-text-button agent-load-terminal-history"
+                      disabled={loadingTerminalHistory}
+                      onClick={loadTerminalHistory}
                     >
-                      <TerminalView
-                        className="agent-terminal"
-                        mode="snapshot"
+                      {t('agents.loadEarlierOutput')}
+                    </button>
+                  )}
+                  <div className="agent-terminal-content">
+                    {terminalHistory ? (
+                      <TerminalHistory
+                        text={terminalHistory}
                         displayMode={terminalDisplayMode}
-                        ariaLabel={t('agents.terminalOutput')}
-                        frame={{
-                          text: terminal,
-                          cols: terminalSize.cols,
-                          rows: terminalSize.rows,
-                        }}
-                        waitingText={t('agents.terminalWaiting')}
                       />
-                    </Suspense>
+                    ) : null}
+                    {terminalHistory ? (
+                      <div className="agent-terminal-history-gap" />
+                    ) : null}
+                    <div className="agent-terminal-area">
+                      <Suspense
+                        fallback={
+                          <div className="agent-terminal-loading">
+                            {t('agents.terminalWaiting')}
+                          </div>
+                        }
+                      >
+                        <TerminalView
+                          className="agent-terminal"
+                          mode="snapshot"
+                          displayMode={terminalDisplayMode}
+                          ariaLabel={t('agents.terminalOutput')}
+                          frame={{
+                            text: terminal,
+                            cols: terminalSize.cols,
+                            rows: terminalSize.rows,
+                          }}
+                          waitingText={t('agents.terminalWaiting')}
+                        />
+                      </Suspense>
+                    </div>
                   </div>
                 </div>
               </div>
+              {keysHidden ? null : (
+                <TerminalKeyRow disabled={sending} onKey={sendTerminalKey} />
+              )}
             </div>
-            {keysHidden ? null : (
-              <TerminalKeyRow disabled={sending} onKey={sendTerminalKey} />
-            )}
-          </div>
-        )}
-        {error ? <p className="settings-error agent-error">{error}</p> : null}
-      </div>
-      {view === 'chat' && !chatUnsupported ? (
-        <ComposerAttachmentTray
-          api={api}
-          attachments={attachments}
-          onChange={setAttachments}
-          onAnnotationText={(text) =>
-            setDraft((current) =>
-              [current.trimEnd(), text].filter(Boolean).join('\n\n'),
-            )
-          }
-        />
-      ) : null}
-      <footer className="agent-composer">
+          )}
+          {error ? <p className="settings-error agent-error">{error}</p> : null}
+        </div>
         {view === 'chat' && !chatUnsupported ? (
-          <ComposerAttachments
+          <ComposerAttachmentTray
+            api={api}
             attachments={attachments}
             onChange={setAttachments}
-            onError={setError}
-            maxAttachments={6}
-            maxFileBytes={HERDR_MAX_UPLOAD_BYTES}
-            preprocessImages={false}
+            onAnnotationText={(text) =>
+              setDraft((current) =>
+                [current.trimEnd(), text].filter(Boolean).join('\n\n'),
+              )
+            }
           />
-        ) : view === 'terminal' ? (
-          <button
-            className="quiet-icon-button agent-keys-visibility"
-            aria-label={
-              keysHidden ? t('agents.showKeys') : t('agents.hideKeys')
-            }
-            aria-pressed={!keysHidden}
-            onClick={() =>
-              setKeysHidden((current) => {
-                const next = !current
-                saveKeysHidden(next)
-                return next
-              })
-            }
-          >
-            {keysHidden ? <Keyboard size={17} /> : <KeyboardOff size={17} />}
-          </button>
         ) : null}
-        <textarea
-          value={draft}
-          aria-label={
-            view === 'terminal' ? t('agents.terminalText') : t('agents.message')
-          }
-          placeholder={
-            view === 'terminal'
-              ? t('agents.terminalTextPlaceholder')
-              : t('agents.messagePlaceholder')
-          }
-          rows={1}
-          onChange={(event) => setDraft(event.target.value)}
-          onCompositionStart={() => setComposing(true)}
-          onCompositionEnd={() => setComposing(false)}
-          onKeyDown={(event) => {
-            if (composing) return
-            if (view === 'terminal') {
-              const key = keyboardTerminalKey(event)
-              if (key) {
-                event.preventDefault()
-                void sendTerminalKey(key)
+        <footer className="agent-composer">
+          {view === 'chat' && !chatUnsupported ? (
+            <ComposerAttachments
+              attachments={attachments}
+              onChange={setAttachments}
+              onError={setError}
+              maxAttachments={6}
+              maxFileBytes={HERDR_MAX_UPLOAD_BYTES}
+              preprocessImages={false}
+            />
+          ) : view === 'terminal' ? (
+            <button
+              className="quiet-icon-button agent-keys-visibility"
+              aria-label={
+                keysHidden ? t('agents.showKeys') : t('agents.hideKeys')
+              }
+              aria-pressed={!keysHidden}
+              onClick={() =>
+                setKeysHidden((current) => {
+                  const next = !current
+                  saveKeysHidden(next)
+                  return next
+                })
+              }
+            >
+              {keysHidden ? <Keyboard size={17} /> : <KeyboardOff size={17} />}
+            </button>
+          ) : null}
+          <textarea
+            value={draft}
+            aria-label={
+              view === 'terminal'
+                ? t('agents.terminalText')
+                : t('agents.message')
+            }
+            placeholder={
+              view === 'terminal'
+                ? t('agents.terminalTextPlaceholder')
+                : t('agents.messagePlaceholder')
+            }
+            rows={1}
+            onChange={(event) => setDraft(event.target.value)}
+            onCompositionStart={() => setComposing(true)}
+            onCompositionEnd={() => setComposing(false)}
+            onKeyDown={(event) => {
+              if (composing) return
+              if (view === 'terminal') {
+                const key = keyboardTerminalKey(event)
+                if (key) {
+                  event.preventDefault()
+                  void sendTerminalKey(key)
+                  return
+                }
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  void send()
+                }
                 return
               }
-              if (event.key === 'Enter') {
+              if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
                 event.preventDefault()
                 void send()
               }
-              return
+            }}
+          />
+          <button
+            className="quiet-icon-button agent-send"
+            aria-label={
+              view === 'terminal' ? t('agents.enter') : t('agents.send')
             }
-            if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-              event.preventDefault()
-              void send()
+            disabled={
+              (view === 'chat' && !draft.trim() && attachments.length === 0) ||
+              sending
             }
-          }}
-        />
-        <button
-          className="quiet-icon-button agent-send"
-          aria-label={
-            view === 'terminal' ? t('agents.enter') : t('agents.send')
-          }
-          disabled={
-            (view === 'chat' && !draft.trim() && attachments.length === 0) ||
-            sending
-          }
-          onClick={() => void send()}
-        >
-          {view === 'terminal' ? (
-            <CornerDownLeft size={19} />
-          ) : (
-            <Send size={19} />
-          )}
-        </button>
-      </footer>
+            onClick={() => void send()}
+          >
+            {view === 'terminal' ? (
+              <CornerDownLeft size={19} />
+            ) : (
+              <Send size={19} />
+            )}
+          </button>
+        </footer>
       </section>
     </ImageGalleryProvider>
   )
@@ -985,7 +985,9 @@ const truncateOption = (label: string, maxLength = 34) =>
 const isPinnedToBottom = (element: HTMLElement) =>
   element.scrollHeight - element.scrollTop - element.clientHeight < 32
 
-const revokeAttachmentPreviews = (attachments: readonly ComposerAttachment[]) => {
+const revokeAttachmentPreviews = (
+  attachments: readonly ComposerAttachment[],
+) => {
   for (const attachment of attachments)
     if (attachment.previewUrl) URL.revokeObjectURL(attachment.previewUrl)
 }
