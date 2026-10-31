@@ -11,7 +11,7 @@ describe('deferred attachment send paths', () => {
     expect(source).not.toContain('api.uploadImage')
     expect(source).not.toContain('api.uploadFile')
     expect(source).toContain('pending: {')
-    expect(source).toContain('downscaleImage(file)')
+    expect(source).toContain('downscaleImage(file, maxFileBytes)')
   })
 
   it('uploads before normal send, queueing, and the first send', () => {
