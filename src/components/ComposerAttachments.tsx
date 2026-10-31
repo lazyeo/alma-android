@@ -7,6 +7,8 @@ import {
   relayUploadError,
 } from '../screens/imageProcessing'
 import {
+  createPendingImageAttachment,
+  imageAttachmentName,
   isPendingAttachment,
   type ComposerAttachment,
   type PendingAttachment,
@@ -17,11 +19,6 @@ import { BottomSheet } from './BottomSheet'
 import { ImageAnnotator } from './ImageAnnotator'
 import { buildMarkupNotes } from './imageAnnotatorModel'
 import { useT } from '../i18n'
-
-function imageName(name: string, mediaType: string) {
-  const extension = mediaType === 'image/png' ? 'png' : 'jpg'
-  return `${name.replace(/\.[^.]+$/, '')}.${extension}`
-}
 
 export function ComposerAttachmentTray({
   api,
@@ -145,7 +142,7 @@ export function ComposerAttachmentTray({
             const next = [...attachments]
             next[editing.index] = {
               ...current,
-              name: imageName(current.name, blob.type),
+              name: imageAttachmentName(current.name, blob.type),
               mediaType: blob.type,
               previewUrl,
               pending: { ...current.pending, blob },
@@ -195,22 +192,15 @@ export function ComposerAttachments({
           throw new Error(relayUploadError(file.name))
         if (images) {
           const processed = await downscaleImage(file)
-          pending.push({
-            id: crypto.randomUUID(),
-            kind: 'image',
-            name:
-              file.name.replace(/\.[^.]+$/, '') +
-              (processed.mediaType === 'image/jpeg'
-                ? '.jpg'
-                : '.' + processed.mediaType.split('/')[1]),
-            mediaType: processed.mediaType,
-            previewUrl: processed.previewUrl,
-            pending: {
+          pending.push(
+            createPendingImageAttachment({
               blob: new Blob([processed.bytes.slice().buffer], {
                 type: processed.mediaType,
               }),
-            },
-          })
+              name: file.name,
+              previewUrl: processed.previewUrl,
+            }),
+          )
         } else {
           const mediaType = file.type || 'application/octet-stream'
           pending.push({

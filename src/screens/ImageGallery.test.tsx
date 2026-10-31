@@ -18,6 +18,23 @@ vi.mock('./relayImages', () => ({
 vi.mock('../desktops/DesktopContext', () => ({
   useConnection: () => ({ api: {} }),
 }))
+vi.mock('../components/ImageAnnotator', () => ({
+  ImageAnnotator: ({
+    onDone,
+  }: {
+    onDone(blob: Blob, regions: [], note: string): void
+  }) => (
+    <div role="dialog" aria-label="Annotate image">
+      <button
+        onClick={() =>
+          onDone(new Blob(['marked'], { type: 'image/png' }), [], '')
+        }
+      >
+        Done
+      </button>
+    </div>
+  ),
+}))
 
 function Harness({ source = '/two' }: { source?: string }) {
   const gallery = useImageGallery()
@@ -91,6 +108,11 @@ it('shows annotate only when the host supplies the capability', async () => {
     expect(screen.getByRole('dialog', { name: 'Annotate image' })).toBeTruthy(),
   )
   expect(onAnnotate).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+  await waitFor(() => expect(onAnnotate).toHaveBeenCalledTimes(1))
+  expect(
+    screen.getByRole('dialog', { name: 'Image gallery' }).className,
+  ).toContain('closing')
   view.unmount()
 
   render(

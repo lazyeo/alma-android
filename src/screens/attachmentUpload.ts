@@ -12,6 +12,33 @@ export interface PendingAttachment {
 
 export type ComposerAttachment = UploadedAttachment | PendingAttachment
 
+export function imageAttachmentName(name: string, mediaType: string) {
+  const extension = mediaType === 'image/png' ? 'png' : 'jpg'
+  return `${name.replace(/\.[^.]+$/, '')}.${extension}`
+}
+
+export function createPendingImageAttachment({
+  blob,
+  name,
+  id = crypto.randomUUID(),
+  previewUrl = URL.createObjectURL(blob),
+}: {
+  blob: Blob
+  name: string
+  id?: string
+  previewUrl?: string
+}): PendingAttachment {
+  const mediaType = blob.type || 'image/jpeg'
+  return {
+    id,
+    kind: 'image',
+    name: imageAttachmentName(name, mediaType),
+    mediaType,
+    previewUrl,
+    pending: { blob },
+  }
+}
+
 export function isPendingAttachment(
   attachment: ComposerAttachment,
 ): attachment is PendingAttachment {

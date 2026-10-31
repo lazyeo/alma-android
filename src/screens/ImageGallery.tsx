@@ -189,6 +189,7 @@ export function ImageGalleryProvider({
           onDone={(blob, regions, note) => {
             const image = annotating.image
             setAnnotating(undefined)
+            overlay.requestClose()
             void onAnnotate(image, blob, regions, note)
           }}
         />
