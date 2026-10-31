@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   MAX_RELAY_UPLOAD_BYTES,
   constrainedDimensions,
@@ -6,6 +6,7 @@ import {
   imageDecodeError,
   nextImageEncodingAttempt,
   relayUploadError,
+  encodeCanvas,
 } from './imageProcessing'
 
 describe('image decode failures', () => {
@@ -73,5 +74,34 @@ describe('relay-aware image encoding', () => {
     expect(relayUploadError('archive.zip')).toContain('archive.zip')
     expect(relayUploadError('archive.zip')).toContain('6 MB')
     expect(relayUploadError('archive.zip')).toContain('single encrypted frame')
+  })
+})
+
+describe('encodeCanvas', () => {
+  const png1x1 =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+
+  it('prefers the synchronous data URL and decodes it to a blob', async () => {
+    const toBlob = vi.fn()
+    const blob = await encodeCanvas(
+      { toDataURL: () => `data:image/png;base64,${png1x1}`, toBlob },
+      'image/png',
+    )
+    expect(blob.type).toBe('image/png')
+    expect(blob.size).toBe(atob(png1x1).length)
+    expect(toBlob).not.toHaveBeenCalled()
+  })
+
+  it('falls back to toBlob when the data URL is unusable', async () => {
+    const fallback = new Blob(['x'], { type: 'image/jpeg' })
+    const blob = await encodeCanvas(
+      {
+        toDataURL: () => 'data:,',
+        toBlob: (cb: BlobCallback) => cb(fallback),
+      },
+      'image/jpeg',
+      0.8,
+    )
+    expect(blob).toBe(fallback)
   })
 })

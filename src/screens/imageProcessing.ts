@@ -44,11 +44,32 @@ export function constrainedDimensions(
   }
 }
 
-function encodeCanvas(
-  canvas: HTMLCanvasElement,
+function dataUrlToBlob(dataUrl: string, mediaType: string): Blob | null {
+  const prefix = `data:${mediaType};base64,`
+  if (!dataUrl.startsWith(prefix)) return null
+  const binary = atob(dataUrl.slice(prefix.length))
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return new Blob([bytes], { type: mediaType })
+}
+
+/**
+ * Encodes a canvas. Android WebView (Chrome 156 on a Redmi Note 13 Pro+)
+ * takes 6–13 s for `toBlob` / `convertToBlob` on a canvas that received a
+ * `drawImage`, while the synchronous `toDataURL` finishes in ~100 ms, so the
+ * data URL path is tried first and `toBlob` is only a fallback.
+ */
+export function encodeCanvas(
+  canvas: Pick<HTMLCanvasElement, 'toBlob' | 'toDataURL'>,
   mediaType: 'image/jpeg' | 'image/png',
   quality?: number,
 ) {
+  try {
+    const blob = dataUrlToBlob(canvas.toDataURL(mediaType, quality), mediaType)
+    if (blob && blob.size > 0) return Promise.resolve(blob)
+  } catch {
+    // Tainted or unsupported canvas: fall through to toBlob.
+  }
   return new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(
       (value) =>
