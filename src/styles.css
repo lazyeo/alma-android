@@ -9139,7 +9139,7 @@ dialog:focus,
 .annotator-controls {
   display: grid;
   gap: 8px;
-  padding: 8px max(12px, var(--safe-right)) calc(8px + var(--safe-bottom))
+  padding: 12px max(12px, var(--safe-right)) calc(8px + var(--safe-bottom))
     max(12px, var(--safe-left));
   background: var(--gray-2);
   border-top: var(--border-hairline) solid var(--gray-7);
@@ -9223,8 +9223,8 @@ dialog:focus,
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
-  padding: 8px max(12px, var(--safe-right)) 0 max(12px, var(--safe-left));
+  gap: 12px;
+  padding: 12px max(12px, var(--safe-right)) 4px max(12px, var(--safe-left));
   background: var(--gray-2);
 }
 .annotator-region-number {
