@@ -118,12 +118,26 @@ describe('image edit request text', () => {
       sourcePathLabel: 'Source: ',
       sourcePath: '/tmp/source.png',
     })
-    expect(text).toContain('**Edit requests**\n\n① Move this button  \n②')
+    expect(text).toContain('**Edit requests**\n\n① Move this button')
+    expect(text).not.toContain('\n②')
     expect(text).toContain('Overall: Keep the spacing compact.')
     expect(text).toContain(
-      'alma-image-edit:{"r":[{"i":1,"c":"#ef4444","l":"Move this button"},{"i":2,"c":"#ef4444"}],"n":"Keep the spacing compact."}',
+      'alma-image-edit:{"r":[{"i":1,"c":"#ef4444","l":"Move this button"}],"n":"Keep the spacing compact."}',
     )
     expect(text).toContain('Source: /tmp/source.png')
+  })
+
+  it('keeps only the header when regions and note are unlabeled', () => {
+    const text = buildImageEditDraft({
+      regions: [{ ...rect, label: '  ' }],
+      visibleHeader: 'Edit requests',
+      overallLabel: 'Overall: ',
+      directive: 'Follow the attached image.',
+      sourcePathLabel: 'Source: ',
+    })
+    expect(text).toContain('**Edit requests**\n\n<system-reminder>')
+    expect(text).toContain('alma-image-edit:{"r":[]}')
+    expect(text).not.toContain('\n①')
   })
 
   it('round trips the reminder and strips it from visible text', () => {

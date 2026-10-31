@@ -269,11 +269,13 @@ export function buildAlmaImageEdit(
     r: Array<{ i: number; c: string; l?: string }>
     n?: string
   } = {
-    r: regions.map((region) => ({
-      i: region.index,
-      c: region.color,
-      ...(region.label?.trim() ? { l: region.label.trim() } : {}),
-    })),
+    r: regions
+      .filter((region) => region.label?.trim())
+      .map((region) => ({
+        i: region.index,
+        c: region.color,
+        l: region.label!.trim(),
+      })),
   }
   if (note?.trim()) payload.n = note.trim()
   return `alma-image-edit:${JSON.stringify(payload)}`
@@ -296,10 +298,10 @@ export function buildImageEditDraft({
   sourcePathLabel: string
   sourcePath?: string
 }) {
-  const rows = regions.map(
-    (region) =>
-      `${displayNumber(region.index)}${region.label?.trim() ? ` ${region.label.trim()}` : ''}`,
-  )
+  const rows = regions.flatMap((region) => {
+    const label = region.label?.trim()
+    return label ? [`${displayNumber(region.index)} ${label}`] : []
+  })
   const visible = [
     `**${visibleHeader}**`,
     rows.join('  \n'),
