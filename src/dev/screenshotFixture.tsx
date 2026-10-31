@@ -2245,6 +2245,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           ) : screenshotParams.has('annotator') ? (
             <ImageAnnotator
               source={ANNOTATOR_FIXTURE_SOURCE}
+              mode="markup"
               onDone={() => undefined}
               onCancel={() => undefined}
             />

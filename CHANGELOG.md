@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Composer attachments now stay local, survive draft restoration, support markup on pending images, and upload only when the message is sent or queued.
+- Composer attachments now stay local, survive draft restoration, support numbered markup with editable region descriptions on pending images, append labeled regions to the composer for review, and upload only when the message is sent or queued.
 - Image edit requests can be marked up directly from the gallery with numbered regions, labels, and an overall note, then reviewed as structured cards in the thread.
 
 ### Fixed

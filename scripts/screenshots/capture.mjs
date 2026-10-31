@@ -1154,6 +1154,11 @@ const imageAnnotatorShots = [
         box.width * 0.7,
         box.height * 0.58,
       )
+      const label = page.locator('.annotator-label-strip input')
+      await label.fill(
+        language === 'zh' ? '把按钮移到这里' : 'Move the button here',
+      )
+      await label.blur()
       await assertNoHorizontalOverflow(page, '.image-annotator')
     },
   })),
