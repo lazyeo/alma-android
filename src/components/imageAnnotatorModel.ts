@@ -156,6 +156,15 @@ export function displayNumber(index: number) {
   return String(index)
 }
 
+export function buildMarkupNotes(regions: readonly AnnotationRegion[]) {
+  return regions
+    .flatMap((region) => {
+      const label = region.label?.trim()
+      return label ? [`${displayNumber(region.index)} ${label}`] : []
+    })
+    .join('\n')
+}
+
 export function drawRegion(
   context: CanvasRenderingContext2D,
   region: AnnotationRegion,

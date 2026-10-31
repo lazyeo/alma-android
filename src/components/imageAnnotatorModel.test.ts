@@ -3,6 +3,7 @@ import {
   arrowHead,
   buildAlmaImageEdit,
   buildImageEditDraft,
+  buildMarkupNotes,
   boundingBox,
   hitTestRegion,
   normalizePoint,
@@ -95,6 +96,17 @@ describe('image annotator geometry', () => {
 })
 
 describe('image edit request text', () => {
+  it('builds composer notes from labeled markup regions', () => {
+    expect(
+      buildMarkupNotes([
+        rect,
+        { ...rect, id: 'r2', index: 2, label: '  ' },
+        { ...rect, id: 'r3', index: 3, label: 'Tighten spacing  ' },
+      ]),
+    ).toBe('① Move this button\n③ Tighten spacing')
+    expect(buildMarkupNotes([{ ...rect, label: undefined }])).toBe('')
+  })
+
   it('builds visible markdown and the machine-readable reminder', () => {
     const text = buildImageEditDraft({
       regions: [rect, { ...rect, id: 'r2', index: 2, label: '' }],
