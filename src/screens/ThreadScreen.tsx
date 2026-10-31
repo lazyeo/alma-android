@@ -2185,6 +2185,7 @@ function ThreadView({ threadId }: { threadId: string }) {
             api={api}
             attachments={attachments}
             onChange={setAttachments}
+            onAnnotationText={composerReferences.appendText}
           />
         }
         attachmentControl={

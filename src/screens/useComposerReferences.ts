@@ -95,6 +95,18 @@ export function useComposerReferences({
     setTrigger(undefined)
   }, [])
 
+  const appendText = useCallback(
+    (value: string) => {
+      const current = stateRef.current
+      const nextText = current.text ? `${current.text}\n\n${value}` : value
+      setText(nextText)
+      setReferences(current.references)
+      setTrigger(undefined)
+      placeCaret(nextText.length)
+    },
+    [placeCaret],
+  )
+
   const pick = useCallback(
     (item: RefPickItem) => {
       if (!trigger) return
@@ -157,6 +169,7 @@ export function useComposerReferences({
     pick,
     close,
     restore,
+    appendText,
     placeCaret,
   }
 }

@@ -79,6 +79,33 @@ describe('useComposerReferences', () => {
     expect(result.current.content()).toBe('@[Roadmap](alma://thread/roadmap) ')
   })
 
+  it.each([
+    ['', '① label'],
+    ['Keep this context', 'Keep this context\n\n① label'],
+  ])(
+    'appends annotation text to %j and places the caret at the end',
+    (initialContent, expected) => {
+      const textarea = document.createElement('textarea')
+      document.body.append(textarea)
+      const textareaRef = { current: textarea }
+      const { result } = renderHook(() =>
+        useComposerReferences({
+          api: api(),
+          initialContent,
+          textareaRef,
+        }),
+      )
+
+      act(() => result.current.appendText('① label'))
+
+      expect(result.current.text).toBe(expected)
+      expect(result.current.content()).toBe(expected)
+      expect(textarea.selectionStart).toBe(expected.length)
+      expect(textarea.selectionEnd).toBe(expected.length)
+      textarea.remove()
+    },
+  )
+
   it('restores materialized drafts as editable labels', () => {
     const client = api()
     const { result } = renderHook(() =>
