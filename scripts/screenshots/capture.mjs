@@ -5797,11 +5797,10 @@ const herdrShots = [
         async act(page) {
           const inputs = page.locator('.agent-composer input[type="file"]')
           await inputs.nth(0).setInputFiles({
-            name: 'fold-layout.png',
-            mimeType: 'image/png',
+            name: 'fold-layout.svg',
+            mimeType: 'image/svg+xml',
             buffer: Buffer.from(
-              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
-              'base64',
+              '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" rx="18" fill="#26354b"/><path d="M24 150 98 72l54 46 46-38 98 70z" fill="#9aa9ff"/><circle cx="76" cy="54" r="20" fill="#ffd166"/></svg>',
             ),
           })
           await inputs.nth(2).setInputFiles({
