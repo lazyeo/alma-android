@@ -45,6 +45,13 @@ export function normalizePoint(point: Point, width: number, height: number) {
   }
 }
 
+/** Shapes smaller than 1% of the image in both axes, or brushes with one point. */
+export function isDegenerateRegion(region: AnnotationRegion) {
+  if (region.tool === 'brush') return region.points.length < 2
+  const box = boundingBox(region)
+  return box.right - box.left < 0.01 && box.bottom - box.top < 0.01
+}
+
 export function boundingBox(region: AnnotationRegion): Bounds {
   const xs = region.points.map((point) => point.x)
   const ys = region.points.map((point) => point.y)

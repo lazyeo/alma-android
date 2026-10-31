@@ -26,6 +26,7 @@ import {
   ANNOTATION_COLORS,
   drawRegion,
   hitTestRegion,
+  isDegenerateRegion,
   normalizePoint,
   translateRegion,
   type AnnotationRegion,
@@ -291,6 +292,14 @@ export function ImageAnnotator({
   const pointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     pointers.current.delete(event.pointerId)
     if (pointers.current.size) return
+    // A bare tap leaves a degenerate shape; ignore it like desktop does so
+    // stray touches do not add numbered regions.
+    if (draft && tool !== 'select' && isDegenerateRegion(draft)) {
+      setDraft(undefined)
+      draftStart.current = undefined
+      moveStart.current = undefined
+      return
+    }
     if (draft) {
       const nextRegions =
         tool === 'select'

@@ -10,6 +10,7 @@ import {
   parseAlmaImageEdit,
   translateRegion,
   type AnnotationRegion,
+  isDegenerateRegion,
 } from './imageAnnotatorModel'
 
 const rect: AnnotationRegion = {
@@ -30,6 +31,25 @@ describe('image annotator geometry', () => {
       x: 1,
       y: 0,
     })
+  })
+
+  it('treats a bare tap as a degenerate region', () => {
+    const tap = {
+      ...rect,
+      points: [
+        { x: 0.5, y: 0.5 },
+        { x: 0.503, y: 0.504 },
+      ],
+    }
+    expect(isDegenerateRegion(tap)).toBe(true)
+    expect(isDegenerateRegion(rect)).toBe(false)
+    expect(
+      isDegenerateRegion({
+        ...rect,
+        tool: 'brush',
+        points: [{ x: 0.1, y: 0.1 }],
+      }),
+    ).toBe(true)
   })
 
   it('computes a brush bounding box', () => {
