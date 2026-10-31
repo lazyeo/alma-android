@@ -20,11 +20,19 @@ import {
   type CSSProperties,
 } from 'react'
 import { useParams } from 'react-router-dom'
+import { ComposerAttachments, ComposerAttachmentTray } from '../components/ComposerAttachments'
 import { ScopedRootHeader } from '../layout/ScopedRootHeader'
 import { useConnection } from '../desktops/DesktopContext'
 import { useT } from '../i18n'
 import { MessageView } from '../messages'
 import { MarkdownContent } from '../screens/MarkdownContent'
+import { ImageGalleryProvider } from '../screens/ImageGallery'
+import { RelayImage } from '../screens/RelayImage'
+import { downscaleImage } from '../screens/imageProcessing'
+import {
+  isPendingAttachment,
+  type ComposerAttachment,
+} from '../screens/attachmentUpload'
 import {
   HERDR_KEY_MAP,
   loadKeysHidden,
@@ -47,6 +55,13 @@ import {
 } from './transcript'
 import { toMessageRows, type HerdrChatItem } from './toMessageParts'
 import { nextTerminalScrollTop } from '../terminal/terminalScroll'
+import { HerdrUploadUnsupportedError } from '../relay/almaApi'
+import {
+  buildHerdrPrompt,
+  HERDR_CHUNK_BYTES,
+  HERDR_MAX_UPLOAD_BYTES,
+  planHerdrUpload,
+} from './attachments'
 
 const TerminalView = lazy(() =>
   import('../terminal/TerminalView').then((module) => ({
@@ -100,6 +115,9 @@ export function AgentPaneScreen() {
   const [loadingTerminalHistory, setLoadingTerminalHistory] = useState(false)
   const [terminalSize, setTerminalSize] = useState({ cols: 80, rows: 24 })
   const [draft, setDraft] = useState('')
+  const [attachments, setAttachments] = useState<ComposerAttachment[]>([])
+  const attachmentsRef = useRef(attachments)
+  attachmentsRef.current = attachments
   const [keysHidden, setKeysHidden] = useState(loadKeysHidden)
   const [composing, setComposing] = useState(false)
   const [sending, setSending] = useState(false)
@@ -163,6 +181,8 @@ export function AgentPaneScreen() {
     setLoadingTerminalHistory(false)
     setTerminalSize({ cols: 80, rows: 24 })
     setDraft('')
+    revokeAttachmentPreviews(attachmentsRef.current)
+    setAttachments([])
     setSending(false)
     setError('')
     scrollMemory.current = { chat: null, terminal: null }
@@ -175,6 +195,10 @@ export function AgentPaneScreen() {
     }
     void loadChat().catch((reason) => setError(String(reason)))
   }, [decodedPaneId, loadChat])
+  useEffect(
+    () => () => revokeAttachmentPreviews(attachmentsRef.current),
+    [],
+  )
   useEffect(() => {
     if (view !== 'terminal') return
     const socket = api.openJsonSocket(
@@ -350,17 +374,68 @@ export function AgentPaneScreen() {
 
   const send = async (text = draft) => {
     const prompt = text.trim()
-    if (sending || composing || (view === 'chat' && !prompt)) return
+    const pendingAttachments = view === 'chat' ? attachments : []
+    if (
+      sending ||
+      composing ||
+      (view === 'chat' && !prompt && pendingAttachments.length === 0)
+    )
+      return
     setSending(true)
     setError('')
     try {
       if (view === 'terminal') {
         if (text) await api.sendHerdrPaneText(decodedPaneId, text)
         await api.sendHerdrPaneKeys(decodedPaneId, [HERDR_KEY_MAP.enter])
-      } else if (pane?.agent_status === 'blocked')
-        await api.sendHerdrBlockedText(decodedPaneId, prompt)
-      else await api.promptHerdrAgent(decodedPaneId, prompt)
-      if (text === draft) setDraft('')
+      } else {
+        const paths: string[] = []
+        for (const attachment of pendingAttachments) {
+          if (!isPendingAttachment(attachment)) continue
+          let blob = attachment.pending.blob
+          let mediaType = attachment.mediaType
+          let temporaryPreview = ''
+          if (attachment.kind === 'image') {
+            const processed = await downscaleImage(
+              new File([blob], attachment.name, { type: mediaType }),
+              HERDR_MAX_UPLOAD_BYTES,
+            )
+            blob = new Blob([processed.bytes.slice().buffer], {
+              type: processed.mediaType,
+            })
+            mediaType = processed.mediaType
+            temporaryPreview = processed.previewUrl
+          }
+          try {
+            const bytes = new Uint8Array(await blob.arrayBuffer())
+            const plan = planHerdrUpload(bytes.byteLength)
+            if (plan === 'tooLarge')
+              throw new Error(
+                t('composer.attachments.tooLarge', { name: attachment.name }),
+              )
+            const result =
+              plan === 'chunked'
+                ? await api.herdrUploadChunked(
+                    bytes,
+                    mediaType,
+                    attachment.name,
+                    { chunkBytes: HERDR_CHUNK_BYTES },
+                  )
+                : await api.herdrUpload(bytes, mediaType, attachment.name)
+            paths.push(result.path)
+          } finally {
+            if (temporaryPreview) URL.revokeObjectURL(temporaryPreview)
+          }
+        }
+        const herdrPrompt = buildHerdrPrompt(paths, prompt)
+        if (pane?.agent_status === 'blocked')
+          await api.sendHerdrBlockedText(decodedPaneId, herdrPrompt)
+        else await api.promptHerdrAgent(decodedPaneId, herdrPrompt)
+      }
+      if (text === draft) {
+        setDraft('')
+        revokeAttachmentPreviews(pendingAttachments)
+        setAttachments([])
+      }
     } catch (reason) {
       if (
         reason &&
@@ -375,7 +450,11 @@ export function AgentPaneScreen() {
         return
       }
       setError(
-        reason instanceof Error ? reason.message : t('agents.sendFailed'),
+        reason instanceof HerdrUploadUnsupportedError
+          ? t('composer.attachments.updateDesktop')
+          : reason instanceof Error
+            ? reason.message
+            : t('agents.sendFailed'),
       )
     } finally {
       setSending(false)
@@ -411,8 +490,32 @@ export function AgentPaneScreen() {
     }
   }
 
+  const galleryImages = useMemo(
+    () =>
+      rows.flatMap((row) =>
+        (row.message.parts ?? []).flatMap((part) =>
+          part.type === 'file' &&
+          typeof part.url === 'string' &&
+          typeof part.mediaType === 'string' &&
+          part.mediaType.startsWith('image/')
+            ? [
+                {
+                  source: part.url,
+                  name:
+                    typeof part.filename === 'string'
+                      ? part.filename
+                      : 'image',
+                },
+              ]
+            : [],
+        ),
+      ),
+    [rows],
+  )
+
   return (
-    <section className="root-page agent-pane-page">
+    <ImageGalleryProvider images={galleryImages}>
+      <section className="root-page agent-pane-page">
       <ScopedRootHeader
         title={
           pane?.terminal_title_stripped || pane?.agent || t('agents.agent')
@@ -486,6 +589,9 @@ export function AgentPaneScreen() {
                 row={row}
                 capabilities={{
                   renderMarkdown: (text) => <MarkdownContent text={text} />,
+                  renderImage: (source, name) => (
+                    <RelayImage source={source} name={name} />
+                  ),
                 }}
                 below={
                   row.questions ? (
@@ -625,8 +731,29 @@ export function AgentPaneScreen() {
         )}
         {error ? <p className="settings-error agent-error">{error}</p> : null}
       </div>
+      {view === 'chat' && !chatUnsupported ? (
+        <ComposerAttachmentTray
+          api={api}
+          attachments={attachments}
+          onChange={setAttachments}
+          onAnnotationText={(text) =>
+            setDraft((current) =>
+              [current.trimEnd(), text].filter(Boolean).join('\n\n'),
+            )
+          }
+        />
+      ) : null}
       <footer className="agent-composer">
-        {view === 'terminal' ? (
+        {view === 'chat' && !chatUnsupported ? (
+          <ComposerAttachments
+            attachments={attachments}
+            onChange={setAttachments}
+            onError={setError}
+            maxAttachments={6}
+            maxFileBytes={HERDR_MAX_UPLOAD_BYTES}
+            preprocessImages={false}
+          />
+        ) : view === 'terminal' ? (
           <button
             className="quiet-icon-button agent-keys-visibility"
             aria-label={
@@ -684,7 +811,10 @@ export function AgentPaneScreen() {
           aria-label={
             view === 'terminal' ? t('agents.enter') : t('agents.send')
           }
-          disabled={(view === 'chat' && !draft.trim()) || sending}
+          disabled={
+            (view === 'chat' && !draft.trim() && attachments.length === 0) ||
+            sending
+          }
           onClick={() => void send()}
         >
           {view === 'terminal' ? (
@@ -694,7 +824,8 @@ export function AgentPaneScreen() {
           )}
         </button>
       </footer>
-    </section>
+      </section>
+    </ImageGalleryProvider>
   )
 }
 
@@ -853,3 +984,8 @@ const truncateOption = (label: string, maxLength = 34) =>
 
 const isPinnedToBottom = (element: HTMLElement) =>
   element.scrollHeight - element.scrollTop - element.clientHeight < 32
+
+const revokeAttachmentPreviews = (attachments: readonly ComposerAttachment[]) => {
+  for (const attachment of attachments)
+    if (attachment.previewUrl) URL.revokeObjectURL(attachment.previewUrl)
+}

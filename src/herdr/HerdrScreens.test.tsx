@@ -17,6 +17,13 @@ let chatItems: Array<Record<string, unknown>> = [
 const blockedMenu = `Run this command?\n> 1. Yes, run command\n  2. Yes, always allow\n  3. No, cancel`
 const api = {
   promptHerdrAgent: vi.fn(async () => undefined),
+  herdrUpload: vi.fn(async (_bytes, _mediaType, name) => ({
+    path: `/desktop/uploads/${name}`,
+  })),
+  herdrUploadChunked: vi.fn(async (_bytes, _mediaType, name) => ({
+    path: `/desktop/uploads/${name}`,
+  })),
+  getImage: vi.fn(async () => new Blob(['image'], { type: 'image/png' })),
   sendHerdrBlockedText: vi.fn(async () => undefined),
   sendHerdrPaneText: vi.fn(async () => undefined),
   sendHerdrPaneKeys: vi.fn(async () => undefined),
@@ -90,6 +97,11 @@ const storage = new Map<string, string>()
 
 beforeEach(() => {
   storage.clear()
+  vi.stubGlobal('URL', {
+    ...URL,
+    createObjectURL: vi.fn(() => 'blob:attachment'),
+    revokeObjectURL: vi.fn(),
+  })
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => storage.get(key) ?? null,
     setItem: (key: string, value: string) => storage.set(key, value),
@@ -324,6 +336,74 @@ describe('AgentPaneScreen pane navigation', () => {
       expect(api.sendHerdrPaneText).toHaveBeenCalledWith('pane-b', 'ls -la'),
     )
     expect(api.sendHerdrPaneKeys).toHaveBeenCalledWith('pane-b', ['enter'])
+  })
+
+  it('uploads pending chat files at send and preserves the draft on failure', async () => {
+    paneId = 'pane-b'
+    const view = render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('Pane B transcript')).toBeTruthy(),
+    )
+
+    const files = view.container.querySelector(
+      'input[type="file"]:not([accept])',
+    ) as HTMLInputElement
+    const attachment = new File(['hello'], 'hello world.txt', {
+      type: 'text/plain',
+    })
+    Object.defineProperty(files, 'files', {
+      configurable: true,
+      value: [attachment],
+    })
+    fireEvent.change(files)
+    await waitFor(() =>
+      expect(screen.getByText('hello world.txt')).toBeTruthy(),
+    )
+
+    const composer = screen.getByRole('textbox', { name: 'agents.message' })
+    fireEvent.change(composer, { target: { value: 'review it' } })
+    api.herdrUpload.mockRejectedValueOnce(new Error('upload failed'))
+    fireEvent.click(screen.getByRole('button', { name: 'agents.send' }))
+
+    await waitFor(() => expect(screen.getByText('upload failed')).toBeTruthy())
+    expect((composer as HTMLTextAreaElement).value).toBe('review it')
+    expect(screen.getByText('hello world.txt')).toBeTruthy()
+    expect(api.promptHerdrAgent).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'agents.send' }))
+    await waitFor(() =>
+      expect(api.promptHerdrAgent).toHaveBeenCalledWith(
+        'pane-b',
+        '"/desktop/uploads/hello world.txt" review it',
+      ),
+    )
+    expect((composer as HTMLTextAreaElement).value).toBe('')
+    expect(screen.queryByText('hello world.txt')).toBeNull()
+  })
+
+  it('shows attachments only for supported chat panes', async () => {
+    paneId = 'pane-b'
+    const view = render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('Pane B transcript')).toBeTruthy(),
+    )
+    expect(
+      screen.getByRole('button', { name: 'composer.attachments.add' }),
+    ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'agents.terminal' }))
+    expect(
+      screen.queryByRole('button', { name: 'composer.attachments.add' }),
+    ).toBeNull()
+
+    paneId = 'pane-a'
+    view.rerender(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('agents.chatUnsupported')).toBeTruthy(),
+    )
+    expect(
+      screen.queryByRole('button', { name: 'composer.attachments.add' }),
+    ).toBeNull()
   })
 
   it('sends a bare Enter from an empty terminal composer', async () => {
