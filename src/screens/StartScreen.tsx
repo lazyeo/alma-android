@@ -244,6 +244,7 @@ function StartView() {
                 api={api}
                 attachments={attachments}
                 onChange={setAttachments}
+                onAnnotationText={references.appendText}
               />
             }
             attachmentControl={

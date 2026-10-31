@@ -143,3 +143,21 @@ describe('StartScreen references', () => {
     )
   })
 })
+
+describe('StartScreen attachment markup', () => {
+  it('hands annotation labels from the tray to the composer text', async () => {
+    // The start screen owns its own tray; a missing callback silently drops
+    // the "① …" lines after Done (found on a real device, 2026-10-31).
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const source = fs.readFileSync(
+      path.join(process.cwd(), 'src/screens/StartScreen.tsx'),
+      'utf8',
+    )
+    const tray = source.slice(
+      source.indexOf('<ComposerAttachmentTray'),
+      source.indexOf('/>', source.indexOf('<ComposerAttachmentTray')),
+    )
+    expect(tray).toContain('onAnnotationText={references.appendText}')
+  })
+})
