@@ -9160,7 +9160,6 @@ dialog:focus,
 .annotator-tools .quiet-icon-button[aria-pressed='true'] {
   background: var(--accent-3);
   color: var(--accent-11);
-  outline: var(--border-hairline) solid var(--accent-8);
 }
 .annotator-toolbar-spacer {
   flex: 1 0 4px;
@@ -9183,13 +9182,20 @@ dialog:focus,
   background: var(--annotation-color);
   border: var(--border-hairline) solid var(--gray-7);
 }
+/* A 2px ring painted inside the 40px button; hairline outlines rendered
+   partially on Android and were clipped by the scrolling row. */
 .annotator-color[aria-pressed='true']::after {
   content: '';
   position: absolute;
-  inset: 5px;
+  inset: 0;
   border-radius: 50%;
-  border: 0;
-  outline: var(--border-hairline) solid var(--accent-9);
+  background: radial-gradient(
+    circle,
+    transparent 13px,
+    var(--accent-9) 13.5px,
+    var(--accent-9) 15.5px,
+    transparent 16px
+  );
 }
 .annotator-controls textarea,
 .annotator-label-strip input {

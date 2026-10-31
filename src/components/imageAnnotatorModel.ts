@@ -227,8 +227,15 @@ export function drawRegion(
     )
   }
   const anchor = regionAnchor(region)
-  const badgeX = Math.max(badgeRadius, anchor.x * width)
-  const badgeY = Math.max(badgeRadius, anchor.y * height)
+  // Keep the whole badge inside the image on every edge.
+  const badgeX = Math.min(
+    width - badgeRadius,
+    Math.max(badgeRadius, anchor.x * width),
+  )
+  const badgeY = Math.min(
+    height - badgeRadius,
+    Math.max(badgeRadius, anchor.y * height),
+  )
   context.setLineDash([])
   context.beginPath()
   context.arc(badgeX, badgeY, badgeRadius, 0, Math.PI * 2)
