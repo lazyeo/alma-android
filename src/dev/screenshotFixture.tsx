@@ -1349,12 +1349,18 @@ function route(method: string, path: string, body?: unknown): TunnelResponse {
     })
   }
   if (pathname === '/api/herdr/mutes') return json(200, { workspaces: [] })
-  if (pathname === '/api/herdr/chat')
+  if (pathname === '/api/herdr/chat') {
+    const items = screenshotParams.has('herdrImageReply')
+      ? herdrImageReplyItems
+      : herdrChatItems
     return json(200, {
       session_id: 'fixture-session',
-      page: { items: herdrChatItems, start: 0, end: herdrChatItems.length },
+      page: { items, start: 0, end: items.length },
       queued: [],
     })
+  }
+  if (pathname.startsWith('/api/herdr/image/'))
+    return binary(200, new TextEncoder().encode(herdrReplySvg), 'image/svg+xml')
   if (pathname === '/api/herdr/rpc') {
     const request = JSON.parse(String(body ?? '{}')) as {
       method?: string
@@ -1945,6 +1951,25 @@ const herdrChatItems = [
       result: '{"accepted":true}',
       done: true,
     },
+  },
+]
+const herdrReplySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#25354a"/><stop offset="1" stop-color="#72988b"/></linearGradient></defs><rect width="720" height="420" rx="32" fill="url(#bg)"/><rect x="72" y="70" width="576" height="280" rx="24" fill="#f6f2e9" opacity=".94"/><circle cx="170" cy="166" r="48" fill="#d6a85d"/><path d="M112 306l124-112 92 78 72-62 150 96z" fill="#5f806f"/><text x="360" y="116" text-anchor="middle" font-family="system-ui" font-size="28" fill="#25354a">Herdr image reply</text></svg>`
+const herdrImageReplyItems = [
+  {
+    id: 'agent-user-image',
+    kind: 'user',
+    text: 'Show me the mobile attachment preview.',
+  },
+  {
+    id: 'agent-assistant-image',
+    kind: 'assistant',
+    text: 'Here is the rendered preview from the desktop agent.',
+    images: [
+      {
+        url: '/api/herdr/image/mobile-preview.svg',
+        media_type: 'image/svg+xml',
+      },
+    ],
   },
 ]
 const herdrLongLine =

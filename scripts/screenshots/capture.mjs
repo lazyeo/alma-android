@@ -5788,6 +5788,45 @@ const herdrShots = [
         },
       },
       {
+        file: `herdr-chat-attachments-${lang}-412.png`,
+        viewport: PHONE,
+        route: '/d/fixture-desktop/agents/w1%3Ap1',
+        language: lang,
+        ready: '.agent-chat .message',
+        safeInsets: true,
+        async act(page) {
+          const inputs = page.locator('.agent-composer input[type="file"]')
+          await inputs.nth(0).setInputFiles({
+            name: 'fold-layout.png',
+            mimeType: 'image/png',
+            buffer: Buffer.from(
+              'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+              'base64',
+            ),
+          })
+          await inputs.nth(2).setInputFiles({
+            name: 'release-notes.pdf',
+            mimeType: 'application/pdf',
+            buffer: Buffer.from('%PDF-1.4 fixture'),
+          })
+          await page.locator('.attachment-chip').nth(1).waitFor()
+          await assertNoHorizontalOverflow(page, '.agent-pane-page')
+        },
+      },
+      {
+        file: `herdr-chat-image-reply-${lang}-412.png`,
+        viewport: PHONE,
+        route: '/d/fixture-desktop/agents/w1%3Ap1',
+        query: 'herdrImageReply=1',
+        language: lang,
+        ready: '.agent-chat .relay-image',
+        safeInsets: true,
+        async act(page) {
+          await page.locator('.message-image').waitFor()
+          await assertNoHorizontalOverflow(page, '.agent-pane-page')
+        },
+      },
+      {
         file: `herdr-pane-terminal-reflow-${lang}-412.png`,
         viewport: PHONE,
         deviceScaleFactor: 2,
