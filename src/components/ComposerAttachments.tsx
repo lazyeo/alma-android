@@ -165,12 +165,18 @@ export function ComposerAttachments({
   onError,
   goalControl,
   vision = true,
+  maxAttachments,
+  maxFileBytes = MAX_RELAY_UPLOAD_BYTES,
+  preprocessImages = true,
 }: {
   attachments: ComposerAttachment[]
   onChange(value: ComposerAttachment[]): void
   onError(value: string): void
   goalControl?: ReactNode
   vision?: boolean
+  maxAttachments?: number
+  maxFileBytes?: number
+  preprocessImages?: boolean
 }) {
   const t = useT()
   const [open, setOpen] = useState(false)
@@ -187,20 +193,37 @@ export function ComposerAttachments({
     onError('')
     const pending: ComposerAttachment[] = []
     try {
+      if (
+        maxAttachments !== undefined &&
+        attachments.length + list.length > maxAttachments
+      )
+        throw new Error(
+          t('composer.attachments.tooMany', { count: maxAttachments }),
+        )
       for (const file of Array.from(list)) {
-        if (!images && file.size > MAX_RELAY_UPLOAD_BYTES)
+        if (file.size > maxFileBytes)
           throw new Error(relayUploadError(file.name))
         if (images) {
-          const processed = await downscaleImage(file)
-          pending.push(
-            createPendingImageAttachment({
-              blob: new Blob([processed.bytes.slice().buffer], {
-                type: processed.mediaType,
+          if (preprocessImages) {
+            const processed = await downscaleImage(file, maxFileBytes)
+            pending.push(
+              createPendingImageAttachment({
+                blob: new Blob([processed.bytes.slice().buffer], {
+                  type: processed.mediaType,
+                }),
+                name: file.name,
+                previewUrl: processed.previewUrl,
               }),
-              name: file.name,
-              previewUrl: processed.previewUrl,
-            }),
-          )
+            )
+          } else {
+            pending.push(
+              createPendingImageAttachment({
+                blob: file,
+                name: file.name,
+                previewUrl: URL.createObjectURL(file),
+              }),
+            )
+          }
         } else {
           const mediaType = file.type || 'application/octet-stream'
           pending.push({
