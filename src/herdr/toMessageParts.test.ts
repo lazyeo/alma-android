@@ -2,6 +2,69 @@ import { describe, expect, it } from 'vitest'
 import { groupTurns, toItemRows, type HerdrMessageRow } from './toMessageParts'
 
 describe('toItemRows', () => {
+  it('maps item and tool-result images to shared file parts', () => {
+    const rows = toItemRows([
+      {
+        id: 'user-image',
+        kind: 'user',
+        text: 'Reference',
+        images: [
+          { url: '/api/herdr/image/reference.png', media_type: 'image/png' },
+        ],
+      },
+      {
+        id: 'assistant-image',
+        kind: 'assistant',
+        images: [
+          { url: '/api/herdr/image/result.jpg', media_type: 'image/jpeg' },
+        ],
+      },
+      {
+        id: 'tool-image',
+        kind: 'tool',
+        tool: {
+          name: 'Read',
+          done: true,
+          result: {
+            text: 'Rendered preview',
+            images: [
+              { url: '/api/herdr/image/tool.png', media_type: 'image/png' },
+            ],
+          },
+        },
+      },
+    ])
+
+    expect(rows[0].message.parts).toEqual([
+      { type: 'text', text: 'Reference' },
+      {
+        type: 'file',
+        mediaType: 'image/png',
+        url: '/api/herdr/image/reference.png',
+        filename: 'reference.png',
+      },
+    ])
+    expect(rows[1].message.parts).toEqual([
+      {
+        type: 'file',
+        mediaType: 'image/jpeg',
+        url: '/api/herdr/image/result.jpg',
+        filename: 'result.jpg',
+      },
+    ])
+    expect(rows[2].message.parts).toEqual([
+      expect.objectContaining({
+        type: 'tool-Read',
+        output: 'Rendered preview',
+      }),
+      {
+        type: 'file',
+        mediaType: 'image/png',
+        url: '/api/herdr/image/tool.png',
+        filename: 'tool.png',
+      },
+    ])
+  })
   it('maps Claude text, reasoning, file tools, and tool errors', () => {
     expect(
       toItemRows([

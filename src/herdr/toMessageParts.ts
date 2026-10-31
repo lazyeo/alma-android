@@ -10,6 +10,14 @@ export interface HerdrChatTool {
   is_error?: boolean
 }
 
+export interface HerdrChatImage {
+  url?: string
+  media_type?: string
+  mediaType?: string
+  filename?: string
+  name?: string
+}
+
 export interface HerdrChatItem {
   id: string
   kind: string
@@ -21,6 +29,28 @@ export interface HerdrChatItem {
 
 export interface HerdrMessageRow extends MessageRowView {
   questions?: AgentQuestion[]
+}
+
+function imageParts(value: unknown): MessagePart[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== 'object') return []
+    const image = candidate as HerdrChatImage
+    if (typeof image.url !== 'string') return []
+    const mediaType = image.media_type ?? image.mediaType ?? 'image/png'
+    const filename =
+      image.filename ??
+      image.name ??
+      decodeURIComponent(image.url.split('/').pop() || 'image')
+    return [
+      {
+        type: 'file',
+        mediaType,
+        url: image.url,
+        filename,
+      },
+    ]
+  })
 }
 
 function textParts(item: HerdrChatItem): MessagePart[] {
@@ -39,36 +69,50 @@ function textParts(item: HerdrChatItem): MessagePart[] {
     const text = cleanAgentText(item.text ?? '')
     if (text) parts.push({ type: 'text', text })
   }
+  parts.push(...imageParts(item.images))
   return parts
 }
 
-function toolPart(tool: HerdrChatTool): MessagePart {
+function toolParts(tool: HerdrChatTool): MessagePart[] {
   const name = tool.name || 'tool'
   const view = toolView(tool)
   const input =
     name.toLowerCase() === 'exec' && view.detail
       ? { command: view.detail }
       : (tool.input ?? tool.summary)
+  const result =
+    tool.result &&
+    typeof tool.result === 'object' &&
+    !Array.isArray(tool.result)
+      ? (tool.result as Record<string, unknown>)
+      : undefined
+  const output = result && 'text' in result ? result.text : tool.result
   const errorText = tool.is_error
-    ? typeof tool.result === 'string'
-      ? tool.result
-      : tool.result == null
+    ? typeof output === 'string'
+      ? output
+      : output == null
         ? name
-        : JSON.stringify(tool.result, null, 2)
+        : JSON.stringify(output, null, 2)
     : undefined
-  return {
-    type: knownTool(name) ? `tool-${name}` : 'dynamic-tool',
-    toolName: name,
-    ...(tool.summary ? { summary: tool.summary } : {}),
-    input,
-    output: tool.result,
-    ...(errorText ? { errorText } : {}),
-    state: tool.is_error
-      ? 'output-error'
-      : tool.done === false
-        ? 'input-available'
-        : 'output-available',
-  }
+  return [
+    {
+      type: knownTool(name) ? `tool-${name}` : 'dynamic-tool',
+      toolName: name,
+      ...(tool.summary ? { summary: tool.summary } : {}),
+      input,
+      output,
+      ...(errorText ? { errorText } : {}),
+      state: tool.is_error
+        ? 'output-error'
+        : tool.done === false
+          ? 'input-available'
+          : 'output-available',
+    },
+    ...imageParts(result?.images),
+    ...imageParts(
+      (tool as HerdrChatTool & { result_images?: unknown }).result_images,
+    ),
+  ]
 }
 
 function knownTool(name: string) {
@@ -97,7 +141,7 @@ export function toItemRows(items: readonly HerdrChatItem[]): HerdrMessageRow[] {
           item.kind === 'user' || item.kind === 'human' ? 'user' : 'assistant',
         parts:
           item.tool && !view?.questions
-            ? [toolPart(item.tool)]
+            ? [...toolParts(item.tool), ...imageParts(item.images)]
             : textParts(item),
       },
       ...(view?.questions ? { questions: view.questions } : {}),
