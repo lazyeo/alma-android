@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AlmaApi } from '../relay/almaApi'
 import type { ComposerAttachment } from '../screens/attachmentUpload'
+import type { AnnotationRegion } from './imageAnnotatorModel'
 import { ComposerAttachmentTray } from './ComposerAttachments'
 
 vi.mock('./ImageAnnotator', () => ({
@@ -12,16 +13,35 @@ vi.mock('./ImageAnnotator', () => ({
     onCancel,
   }: {
     source: Blob | string
-    onDone(blob: Blob, regions: [], note: string): void
+    onDone(blob: Blob, regions: AnnotationRegion[], note: string): void
     onCancel(): void
   }) => (
     <div role="dialog" aria-label="Annotate image">
       <span data-testid="annotator-source">
         {source instanceof Blob ? source.type : source}
       </span>
+      <input aria-label="Region label" defaultValue="label" />
       <button
         onClick={() =>
-          onDone(new Blob(['annotated'], { type: 'image/png' }), [], '')
+          onDone(
+            new Blob(['annotated'], { type: 'image/png' }),
+            [
+              {
+                id: 'region-1',
+                index: 1,
+                tool: 'rect',
+                color: '#ef4444',
+                label: screen.getByRole<HTMLInputElement>('textbox', {
+                  name: 'Region label',
+                }).value,
+                points: [
+                  { x: 0.1, y: 0.1 },
+                  { x: 0.3, y: 0.3 },
+                ],
+              },
+            ],
+            '',
+          )
         }
       >
         Done
@@ -117,6 +137,27 @@ describe('ComposerAttachmentTray image markup', () => {
     expect(await next[0].pending.blob.text()).toBe('annotated')
     expect(URL.createObjectURL).toHaveBeenCalledWith(next[0].pending.blob)
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:original')
+  })
+
+  it('reports labeled markup notes on Done', () => {
+    const attachment = pendingImage()
+    const onAnnotationText = vi.fn()
+
+    render(
+      <ComposerAttachmentTray
+        api={api}
+        attachments={[attachment]}
+        onChange={vi.fn()}
+        onAnnotationText={onAnnotationText}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Annotate photo.jpg' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Region label' }), {
+      target: { value: 'label' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+
+    expect(onAnnotationText).toHaveBeenCalledWith('① label')
   })
 
   it('keeps the attachment unchanged on Cancel', () => {

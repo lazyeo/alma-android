@@ -15,6 +15,7 @@ import type { AlmaApi } from '../relay/almaApi'
 import { imageCache } from '../screens/relayImages'
 import { BottomSheet } from './BottomSheet'
 import { ImageAnnotator } from './ImageAnnotator'
+import { buildMarkupNotes } from './imageAnnotatorModel'
 import { useT } from '../i18n'
 
 function imageName(name: string, mediaType: string) {
@@ -26,10 +27,12 @@ export function ComposerAttachmentTray({
   api,
   attachments,
   onChange,
+  onAnnotationText,
 }: {
   api: AlmaApi
   attachments: ComposerAttachment[]
   onChange(value: ComposerAttachment[]): void
+  onAnnotationText?(text: string): void
 }) {
   const t = useT()
   const [previews, setPreviews] = useState<Record<number, string>>({})
@@ -128,7 +131,7 @@ export function ComposerAttachmentTray({
           source={editing.attachment.pending.blob}
           mode="markup"
           onCancel={() => setEditing(undefined)}
-          onDone={(blob) => {
+          onDone={(blob, regions) => {
             const previewUrl = URL.createObjectURL(blob)
             const current = attachments[editing.index]
             if (
@@ -150,6 +153,8 @@ export function ComposerAttachmentTray({
             if (current.previewUrl) URL.revokeObjectURL(current.previewUrl)
             setEditing(undefined)
             onChange(next)
+            const annotationText = buildMarkupNotes(regions)
+            if (annotationText) onAnnotationText?.(annotationText)
           }}
         />
       ) : null}

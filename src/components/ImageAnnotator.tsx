@@ -401,7 +401,7 @@ export function ImageAnnotator({
           <span className="annotator-status">{t('files.image.loading')}</span>
         ) : null}
       </div>
-      {mode === 'edit-request' && selected ? (
+      {selected ? (
         <div className="annotator-label-strip">
           <span className="annotator-region-number">{selected.index}</span>
           <input
