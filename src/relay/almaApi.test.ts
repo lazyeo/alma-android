@@ -34,6 +34,8 @@ describe('Alma API safety', () => {
       ['/api/herdr/chat?pane=w1%3Ap1', 'GET'],
       ['/api/herdr/rpc', 'POST'],
       ['/api/herdr/mutes', 'PUT'],
+      ['/api/herdr/upload?name=note.txt', 'POST'],
+      ['/api/herdr/image/example.png', 'GET'],
       ['/ws/herdr', 'WS'],
       ['/ws/herdr/chat?pane=w1%3Ap1&from=0', 'WS'],
       ['/ws/herdr/screen?pane=w1%3Ap1', 'WS'],
@@ -397,6 +399,80 @@ describe('Alma API safety', () => {
       },
       body: bytes,
     })
+  })
+
+  it('uploads Herdr files in one request with the basename and media type', async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      status: 200,
+      json: async () => ({ path: '/Users/me/uploads/report.pdf' }),
+      text: async () => '',
+      headers: {},
+    })
+    const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)
+    const bytes = new Uint8Array([1, 2, 3])
+
+    await expect(
+      api.herdrUpload(bytes, 'application/pdf', '../report final.pdf'),
+    ).resolves.toEqual({ path: '/Users/me/uploads/report.pdf' })
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/herdr/upload?name=report+final.pdf',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'content-type': 'application/pdf' },
+        body: bytes,
+      }),
+    )
+  })
+
+  it('uploads Herdr files in ordered chunks and marks the final request done', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: 200,
+        json: async () => ({ received: 4 }),
+        text: async () => '',
+        headers: {},
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        json: async () => ({ path: '/Users/me/uploads/archive.zip' }),
+        text: async () => '',
+        headers: {},
+      })
+    const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)
+
+    await expect(
+      api.herdrUploadChunked(
+        new Uint8Array([1, 2, 3, 4, 5, 6]),
+        'application/zip',
+        'archive.zip',
+        { uploadId: 'upload-12345678', chunkBytes: 4 },
+      ),
+    ).resolves.toEqual({ path: '/Users/me/uploads/archive.zip' })
+    expect(fetch.mock.calls.map(([path, init]) => [path, init.body])).toEqual([
+      [
+        '/api/herdr/upload?upload=upload-12345678&name=archive.zip&offset=0',
+        new Uint8Array([1, 2, 3, 4]),
+      ],
+      [
+        '/api/herdr/upload?upload=upload-12345678&name=archive.zip&offset=4&done=1',
+        new Uint8Array([5, 6]),
+      ],
+    ])
+  })
+
+  it('maps a missing Herdr upload route to a typed desktop update error', async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      status: 415,
+      json: async () => ({}),
+      text: async () => 'unsupported image type',
+      headers: {},
+    })
+    const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)
+
+    await expect(
+      api.herdrUpload(new Uint8Array([1]), 'text/plain', 'note.txt'),
+    ).rejects.toMatchObject({ name: 'HerdrUploadUnsupportedError' })
   })
 
   it('reads the desktop name from /api/health', async () => {

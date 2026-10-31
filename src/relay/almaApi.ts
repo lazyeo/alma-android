@@ -18,6 +18,10 @@ import type { RelayTunnel, TunnelSocket } from './tunnel'
 
 export const MAX_RELAY_UPLOAD_BYTES = 6 * 1024 * 1024
 
+function basename(value: string) {
+  return value.replace(/\\/g, '/').split('/').pop() || 'attachment'
+}
+
 export type ReasoningEffort =
   'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra'
 
@@ -238,6 +242,13 @@ export function assertSafePath(path: string, method = 'GET') {
     (/^\/api\/providers(?:\/|$)/.test(clean) && !['GET', 'HEAD'].includes(verb))
   )
     throw new Error(`Blocked dangerous Alma path: ${clean}`)
+}
+
+export class HerdrUploadUnsupportedError extends Error {
+  constructor() {
+    super('Update Alma on that computer to send files')
+    this.name = 'HerdrUploadUnsupportedError'
+  }
 }
 
 export class AlmaHttpError extends Error {
@@ -771,6 +782,68 @@ export class AlmaApi {
         rawBody: bytes,
       },
     )
+  }
+  private async requestHerdrUpload(
+    path: string,
+    bytes: Uint8Array,
+    mediaType: string,
+  ) {
+    try {
+      return await this.request<{ path?: string; received?: number }>(path, {
+        method: 'POST',
+        headers: { 'content-type': mediaType || 'application/octet-stream' },
+        rawBody: bytes,
+      })
+    } catch (error) {
+      if (error instanceof AlmaHttpError && error.status === 415)
+        throw new HerdrUploadUnsupportedError()
+      throw error
+    }
+  }
+  herdrUpload(bytes: Uint8Array, mediaType: string, name: string) {
+    this.assertRelayUploadSize(bytes, name)
+    const query = new URLSearchParams({ name: basename(name) })
+    return this.requestHerdrUpload(
+      `/api/herdr/upload?${query}`,
+      bytes,
+      mediaType,
+    ).then((result) => {
+      if (!result.path) throw new Error('Herdr upload did not return a path')
+      return { path: result.path }
+    })
+  }
+  async herdrUploadChunked(
+    bytes: Uint8Array,
+    mediaType: string,
+    name: string,
+    options: { uploadId?: string; chunkBytes?: number } = {},
+  ) {
+    const uploadId = options.uploadId ?? crypto.randomUUID()
+    if (!/^[A-Za-z0-9-]{8,64}$/.test(uploadId))
+      throw new Error('Invalid Herdr upload id')
+    const chunkBytes = Math.min(
+      options.chunkBytes ?? 4 * 1024 * 1024,
+      MAX_RELAY_UPLOAD_BYTES,
+    )
+    if (!Number.isSafeInteger(chunkBytes) || chunkBytes <= 0)
+      throw new Error('Invalid Herdr chunk size')
+    let result: { path?: string; received?: number } = {}
+    for (let offset = 0; offset < bytes.byteLength; offset += chunkBytes) {
+      const end = Math.min(bytes.byteLength, offset + chunkBytes)
+      const query = new URLSearchParams({
+        upload: uploadId,
+        name: basename(name),
+        offset: String(offset),
+      })
+      if (end === bytes.byteLength) query.set('done', '1')
+      result = await this.requestHerdrUpload(
+        `/api/herdr/upload?${query}`,
+        bytes.slice(offset, end),
+        mediaType,
+      )
+    }
+    if (!result.path) throw new Error('Herdr upload did not return a path')
+    return { path: result.path }
   }
   listApprovals() {
     return this.request<ApprovalRequest[]>('/api/handoff/tool-approvals')
