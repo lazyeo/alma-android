@@ -36,6 +36,8 @@ export const composer: CatalogShape<typeof source> = {
     remove: '移除 {name}',
     noVision: '所选模型未声明支持图像识别。',
     uploadFailed: '上传失败',
+    tooMany: '附件过多（最多 {count} 个）',
+    updateDesktop: '请更新那台电脑上的 Alma 后再发送文件。',
     tooLarge:
       '{name} 太大，无法经移动端中继发送。上传内容必须放进单个加密帧，因此移动端上限为 6 MB。',
   },

@@ -33,6 +33,8 @@ export const composer = {
     remove: 'Remove {name}',
     noVision: 'The selected model does not advertise vision support.',
     uploadFailed: 'Upload failed',
+    tooMany: 'Too many attachments (max {count})',
+    updateDesktop: 'Update Alma on that computer to send files.',
     tooLarge:
       '{name} is too large for the mobile relay. Uploads must fit in a single encrypted frame, so the mobile limit is 6 MB.',
   },
