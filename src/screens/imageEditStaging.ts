@@ -35,11 +35,16 @@ export function stageImageEditResult({
       id: createId?.(),
       previewUrl: createObjectUrl?.(blob),
     }),
-    text: buildImageEditDraft({
-      regions,
-      note,
-      ...copy,
-      sourcePath: image.source.startsWith('/') ? image.source : undefined,
-    }),
+    // Nothing labelled and no note: the marked-up image alone is the
+    // request, so leave the composer text untouched.
+    text:
+      regions.some((region) => region.label?.trim()) || note.trim()
+        ? buildImageEditDraft({
+            regions,
+            note,
+            ...copy,
+            sourcePath: image.source.startsWith('/') ? image.source : undefined,
+          })
+        : '',
   }
 }

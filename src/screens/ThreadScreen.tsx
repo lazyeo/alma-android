@@ -2042,7 +2042,7 @@ function ThreadView({ threadId }: { threadId: string }) {
       },
     })
     setAttachments((current) => [...current, staged.attachment])
-    composerReferences.appendText(staged.text)
+    if (staged.text) composerReferences.appendText(staged.text)
   }
 
   function retryFailedUserMessage(row: MessageRow) {

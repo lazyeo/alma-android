@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Annotation labels typed on a brand-new chat now reach the composer; a gallery markup with no labels and no note no longer inserts an empty request block.
 - Image annotator: the selected tool and colour are marked with a fill and a solid ring instead of hairline outlines, which Android rendered partially; number badges stay inside the image on every edge.
 
 ## [0.1.4] - 2026-10-30

@@ -48,4 +48,23 @@ describe('gallery image edit staging', () => {
     expect(uploadImage).not.toHaveBeenCalled()
     expect(generateResponse).not.toHaveBeenCalled()
   })
+
+  it('leaves the composer text empty when nothing is labelled', () => {
+    const result = stageImageEditResult({
+      image: { source: 'http://localhost/cache/a.png', name: 'a.png' },
+      blob: new Blob(['flattened'], { type: 'image/png' }),
+      regions: [{ ...region, label: '' }],
+      note: '  ',
+      copy: {
+        visibleHeader: 'Edit requests',
+        overallLabel: 'Overall: ',
+        directive: 'Follow the numbered badges on the attached image.',
+        sourcePathLabel: 'Source: ',
+      },
+      createId: () => 'attachment-2',
+      createObjectUrl: () => 'blob:flattened',
+    })
+    expect(result.text).toBe('')
+    expect(result.attachment.kind).toBe('image')
+  })
 })
