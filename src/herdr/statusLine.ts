@@ -7,7 +7,7 @@ export interface AgentStatusLine {
 }
 
 const statusLinePattern =
-  /^\s*[✻✶✽✢·•⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\s+(.+?)(?:…|\.\.\.)?\s+\((?:(\d+)m\s*)?(\d+)s(?:\s*[·|].*)?\)\s*$/
+  /^\s*[✻✶✽✢\u00b7•⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\s+(.+?)(?:…|\.\.\.)?\s+\((?:(\d+)m\s*)?(\d+)s(?:\s*[\u00b7|].*)?\)\s*$/
 
 /** Extracts Claude Code's transient status line from the visible screen tail. */
 export function agentStatusLine(screenText: string): AgentStatusLine {
