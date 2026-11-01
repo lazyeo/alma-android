@@ -9,6 +9,7 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.hardware.display.DisplayManager;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -31,6 +32,9 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import java.lang.reflect.Array;
+import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.Locale;
 import java.util.concurrent.Executor;
 
@@ -163,6 +167,24 @@ public class FoldTransitionPlugin extends Plugin implements SensorEventListener 
     protected void handleOnConfigurationChanged(Configuration newConfig) {
         super.handleOnConfigurationChanged(newConfig);
         decorView().post(this::checkSwap);
+    }
+
+    @PluginMethod
+    public void capabilities(PluginCall call) {
+        PackageManager packages = getContext().getPackageManager();
+        boolean hingeFeature = Build.VERSION.SDK_INT >= 30 && packages.hasSystemFeature(
+            "android.hardware.sensor.hinge_angle");
+        boolean hingeSensor = Build.VERSION.SDK_INT >= 30 && sensorManager != null
+            && sensorManager.getDefaultSensor(Sensor.TYPE_HINGE_ANGLE) != null;
+        int stateCount = supportedDeviceStateCount();
+        boolean foldable = FoldTransitionModel.isFoldable(
+            hingeFeature, stateCount, hingeSensor);
+        JSObject result = new JSObject();
+        result.put("foldable", foldable);
+        result.put("reason", hingeFeature ? "hinge_feature"
+            : stateCount > 1 ? "device_states"
+            : hingeSensor ? "hinge_sensor" : "none");
+        call.resolve(result);
     }
 
     @PluginMethod
@@ -660,6 +682,23 @@ public class FoldTransitionPlugin extends Plugin implements SensorEventListener 
     }
 
     // ── helpers ────────────────────────────────────────────────────────────
+
+    private int supportedDeviceStateCount() {
+        if (Build.VERSION.SDK_INT < 31) return 0;
+        try {
+            Class<?> managerClass = Class.forName("android.hardware.devicestate.DeviceStateManager");
+            Object manager = getContext().getSystemService(managerClass);
+            if (manager == null) return 0;
+            String methodName = Build.VERSION.SDK_INT >= 34
+                ? "getSupportedDeviceStates" : "getSupportedStates";
+            Method method = managerClass.getMethod(methodName);
+            Object states = method.invoke(manager);
+            if (states instanceof Collection<?>) return ((Collection<?>) states).size();
+            return states != null && states.getClass().isArray() ? Array.getLength(states) : 0;
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            return 0;
+        }
+    }
 
     private View decorView() {
         return getActivity().getWindow().getDecorView();

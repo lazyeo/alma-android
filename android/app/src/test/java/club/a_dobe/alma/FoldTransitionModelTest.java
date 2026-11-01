@@ -25,6 +25,17 @@ public class FoldTransitionModelTest {
         return model;
     }
 
+    // ── device capabilities ────────────────────────────────────────────────
+
+    @Test
+    public void foldableCapabilityAcceptsAnyFoldEvidence() {
+        assertFalse(FoldTransitionModel.isFoldable(false, 0, false));
+        assertFalse(FoldTransitionModel.isFoldable(false, 1, false));
+        assertTrue(FoldTransitionModel.isFoldable(true, 0, false));
+        assertTrue(FoldTransitionModel.isFoldable(false, 2, false));
+        assertTrue(FoldTransitionModel.isFoldable(false, 0, true));
+    }
+
     // ── filtering and velocity ─────────────────────────────────────────────
 
     @Test

@@ -10,6 +10,11 @@ package club.a_dobe.alma;
 final class FoldTransitionModel {
     /** Below this the effect is invisible and the frame loop stops. */
     static final float ACTIVE_EPSILON = 0.02f;
+
+    static boolean isFoldable(boolean hingeFeature, int supportedStateCount,
+                              boolean hingeSensor) {
+        return hingeFeature || supportedStateCount > 1 || hingeSensor;
+    }
     // exp(-4) < ACTIVE_EPSILON: a quarter of a "clear in N ms" budget as the
     // time constant reaches the epsilon right at N ms.
     private static final float CLEAR_TIME_CONSTANTS = 4f;
