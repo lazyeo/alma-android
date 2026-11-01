@@ -1,6 +1,7 @@
 export * from './crypto'
 export * from './e2eSession'
 export * from './tunnel'
+export * from './latency'
 export * from './almaApi'
 export * from './storage'
 export * from './threadCache'

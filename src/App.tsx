@@ -182,6 +182,7 @@ export interface AppFixture {
   createTunnel(pairing: StoredPairing): ManagedTunnel
   statusByDesktop?: Record<string, DesktopSummary['status']>
   transportByDesktop?: Record<string, DesktopSummary['transport']>
+  latencyByDesktop?: Record<string, DesktopSummary['latency']>
   updateDependencies?: UpdateDependencies
 }
 
@@ -317,6 +318,9 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
             fixture?.transportByDesktop?.[pairing.id] ??
             connection?.transport ??
             'relay',
+          latency:
+            fixture?.latencyByDesktop?.[pairing.id] ??
+            connection?.latency ?? { transport: 'relay', ms: null, sampledAt: 0 },
           connection: connection && {
             pairing,
             tunnel: connection.tunnel,
@@ -324,6 +328,8 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
             status: fixture?.statusByDesktop?.[pairing.id] ?? connection.status,
             transport:
               fixture?.transportByDesktop?.[pairing.id] ?? connection.transport,
+            latency:
+              fixture?.latencyByDesktop?.[pairing.id] ?? connection.latency,
             error:
               fixture?.statusByDesktop?.[pairing.id] === 'offline'
                 ? 'Desktop is offline'

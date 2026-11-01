@@ -5,14 +5,17 @@ import {
   type ConnectionState,
 } from './tunnel'
 import type { StoredPairing } from './storage'
+import type { TransportLatency } from './latency'
 
 export type DesktopStatus = 'connecting' | 'online' | 'offline' | 'error'
 
 export interface ManagedTunnel {
   connectionState: ConnectionState
   activeTransport: ActiveTransport
+  latency: TransportLatency
   onConnectionState?: (state: ConnectionState) => void
   onActiveTransport?: (transport: ActiveTransport) => void
+  onLatency?: (latency: TransportLatency) => void
   connect(): Promise<void>
   close(): void
   fetch: RelayTunnel['fetch']
@@ -25,6 +28,7 @@ export interface DesktopConnection {
   api: AlmaApi
   status: DesktopStatus
   transport: ActiveTransport
+  latency: TransportLatency
   error?: string
 }
 
@@ -81,6 +85,7 @@ export class DesktopConnectionManager {
         api: new AlmaApi(tunnel),
         status: desktopStatus(tunnel.connectionState),
         transport: tunnel.activeTransport,
+        latency: tunnel.latency,
       }
       tunnel.onConnectionState = (state) => {
         connection.status = desktopStatus(state)
@@ -89,6 +94,10 @@ export class DesktopConnectionManager {
       }
       tunnel.onActiveTransport = (transport) => {
         connection.transport = transport
+        this.emit()
+      }
+      tunnel.onLatency = (latency) => {
+        connection.latency = latency
         this.emit()
       }
       this.connections.set(pairing.id, connection)

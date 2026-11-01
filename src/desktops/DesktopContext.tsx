@@ -6,6 +6,7 @@ import type {
   ManagedTunnel,
   PairingStore,
   StoredPairing,
+  TransportLatency,
 } from '../relay'
 
 /** The desktop a scoped route (`/d/:desktopId/...`) is bound to. */
@@ -15,6 +16,7 @@ export interface ConnectionValue {
   api: AlmaApi
   status: DesktopStatus
   transport: ActiveTransport
+  latency: TransportLatency
   error?: string
 }
 
@@ -24,6 +26,7 @@ export interface DesktopSummary {
   connection?: ConnectionValue
   status: DesktopStatus
   transport: ActiveTransport
+  latency: TransportLatency
 }
 
 export interface DesktopsValue {

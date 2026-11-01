@@ -4,13 +4,16 @@ import {
   type ManagedTunnel,
 } from './connectionManager'
 import type { ActiveTransport, ConnectionState } from './tunnel'
+import type { TransportLatency } from './latency'
 import type { StoredPairing } from './storage'
 
 class FakeTunnel implements ManagedTunnel {
   connectionState: ConnectionState = 'offline'
   activeTransport: ActiveTransport = 'relay'
+  latency: TransportLatency = { transport: 'relay', ms: null, sampledAt: 0 }
   onConnectionState?: (state: ConnectionState) => void
   onActiveTransport?: (transport: ActiveTransport) => void
+  onLatency?: (latency: TransportLatency) => void
   closed = false
   constructor(private failure?: Error) {}
   async connect() {
@@ -78,6 +81,22 @@ describe('DesktopConnectionManager', () => {
     tunnel.activeTransport = 'direct'
     tunnel.onActiveTransport?.('direct')
     expect(manager.get('home')?.transport).toBe('direct')
+  })
+
+  it('publishes latency updates from the managed tunnel', async () => {
+    let tunnel!: FakeTunnel
+    const manager = new DesktopConnectionManager(() => {
+      tunnel = new FakeTunnel()
+      return tunnel
+    })
+
+    manager.sync([pairing('home')])
+    await Promise.resolve()
+    expect(manager.get('home')?.latency.ms).toBeNull()
+
+    tunnel.latency = { transport: 'relay', ms: 42, sampledAt: 1_000 }
+    tunnel.onLatency?.(tunnel.latency)
+    expect(manager.get('home')?.latency).toEqual(tunnel.latency)
   })
 
   it('connects newly added desktops and closes removed ones', async () => {

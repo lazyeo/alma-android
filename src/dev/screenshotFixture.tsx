@@ -2327,6 +2327,11 @@ function createTunnel(targetPairing?: StoredPairing): ManagedTunnel {
   const tunnel: ManagedTunnel = {
     connectionState: fixtureOffline ? 'offline' : 'connected',
     activeTransport: params.has('lan') ? 'direct' : 'relay',
+    latency: {
+      transport: params.has('lan') ? 'direct' : 'relay',
+      ms: 42,
+      sampledAt: Date.now(),
+    },
     connect: async () => {
       const status = new URLSearchParams(window.location.search).get('status')
       if (status === 'offline')
