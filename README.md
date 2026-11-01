@@ -117,6 +117,12 @@ The generated page metadata records `alma-build` as `<version> <sha>`, and Setti
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). By participating, you agree to follow the repository's contribution and security guidance.
 
+## Third-party assets
+
+- The [Herdr](https://github.com/herdrdev/herdr) logo is from Herdr's `assets/logo.svg` and is used under the [Apache License 2.0](https://github.com/herdrdev/herdr/blob/main/LICENSE). The Herdr trademark belongs to the Herdr project.
+- The Claude mark is an Anthropic trademark; its path was taken from Alma Desktop's bundle. See [Anthropic's official brand assets](https://brandfolder.com/anthropic).
+- The [pi](https://pi.dev/) mark's paths were taken from Alma Desktop's bundle. See pi's [official press kit](https://pi.dev/press-kit).
+
 ## License
 
 [MIT](LICENSE) © 2026 lazyeo and contributors.

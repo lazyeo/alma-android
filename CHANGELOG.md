@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- Herdr mark is now the official vector logo (Apache-2.0) instead of a traced bitmap.
+
 ### Added
 
 - Herdr navigation now uses the official ram-head mark, and Herdr session rows and headers show Claude, pi, or neutral fallback agent marks.
