@@ -6035,7 +6035,6 @@ const herdrShots = [
             {
               file: 'herdr-pane-terminal-grid-en-884.png',
               viewport: TABLET,
-              deviceScaleFactor: 2,
               route: '/d/fixture-desktop/agents/w1%3Ap1',
               language: lang,
               ready: '.agent-chat .message',
@@ -6101,7 +6100,6 @@ const herdrShots = [
       {
         file: `herdr-blocked-${lang}-412.png`,
         viewport: PHONE,
-        deviceScaleFactor: 2,
         route: '/d/fixture-desktop/agents/w1%3Ap1',
         language: lang,
         query: 'agentState=blocked',
