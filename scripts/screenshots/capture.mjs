@@ -5828,6 +5828,23 @@ const herdrShots = [
         },
       },
       {
+        file: `herdr-working-bar-${lang}-412.png`,
+        viewport: PHONE,
+        route: '/d/fixture-desktop/agents/w1%3Ap1',
+        query: 'herdrWorkingBar=1',
+        language: lang,
+        ready: '.agent-working-bar',
+        safeInsets: true,
+        async act(page) {
+          await page.getByText('Reading files').waitFor()
+          await page.getByText('0:42').waitFor()
+          await page
+            .getByRole('button', { name: lang === 'zh' ? '停止' : 'Stop' })
+            .waitFor()
+          await assertAgentPaneGeometry(page)
+        },
+      },
+      {
         file: `herdr-chat-attachments-${lang}-412.png`,
         viewport: PHONE,
         route: '/d/fixture-desktop/agents/w1%3Ap1',

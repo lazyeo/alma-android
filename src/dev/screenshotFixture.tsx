@@ -1372,7 +1372,9 @@ function route(method: string, path: string, body?: unknown): TunnelResponse {
           read: {
             text:
               request.params?.source === 'visible'
-                ? herdrTerminal
+                ? screenshotParams.has('herdrWorkingBar')
+                  ? '✻ Reading files… (42s \u00b7 esc to interrupt)'
+                  : herdrTerminal
                 : `${herdrTerminalHistory}\n${herdrTerminal}`,
           },
         },
