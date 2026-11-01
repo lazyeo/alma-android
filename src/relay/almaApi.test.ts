@@ -32,6 +32,7 @@ describe('Alma API safety', () => {
     for (const [path, method] of [
       ['/api/herdr/info', 'GET'],
       ['/api/herdr/chat?pane=w1%3Ap1', 'GET'],
+      ['/api/herdr/subagent?pane=w1%3Ap1&tool=tool-1', 'GET'],
       ['/api/herdr/rpc', 'POST'],
       ['/api/herdr/mutes', 'PUT'],
       ['/api/herdr/upload?name=note.txt', 'POST'],
@@ -163,6 +164,55 @@ describe('Alma API safety', () => {
     expect(fetch.mock.calls[0][0]).toBe(
       '/api/system/site-icon?url=https%3A%2F%2Fexample.com%2Fpage',
     )
+  })
+
+  it('requests a Herdr subagent transcript with optional pagination', async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      status: 200,
+      json: async () => ({
+        agent: { type: 'general-purpose', finished: false },
+        page: { items: [], start: 0, end: 0 },
+      }),
+      text: async () => '',
+      headers: {},
+    })
+    const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)
+
+    await expect(
+      api.getHerdrSubagent('w1:p1', 'tool/1', { limit: 400, before: 12 }),
+    ).resolves.toMatchObject({ agent: { finished: false } })
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/herdr/subagent?pane=w1%3Ap1&tool=tool%2F1&limit=400&before=12',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('maps Herdr subagent protocol errors and unsupported desktops', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: 200,
+        json: async () => ({
+          error: { code: 'subagent_not_found', message: 'Not ready' },
+        }),
+        text: async () => '',
+        headers: {},
+      })
+      .mockResolvedValueOnce({
+        status: 404,
+        json: async () => ({ error: 'Not found' }),
+        text: async () => 'Not found',
+        headers: {},
+      })
+    const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)
+
+    await expect(api.getHerdrSubagent('w1:p1', 'tool-1')).resolves.toEqual({
+      status: 'error',
+      error: { code: 'subagent_not_found', message: 'Not ready' },
+    })
+    await expect(api.getHerdrSubagent('w1:p1', 'tool-1')).resolves.toEqual({
+      status: 'unsupported',
+    })
   })
 
   it('reads models and settings without attempting a settings write', async () => {

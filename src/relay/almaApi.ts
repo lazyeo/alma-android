@@ -350,6 +350,28 @@ export interface DesktopHealth {
   timestamp?: string | number
 }
 
+export interface HerdrSubagentPage {
+  items?: Array<Record<string, unknown>>
+  start?: number
+  end?: number
+  [key: string]: unknown
+}
+
+export type HerdrSubagentResponse =
+  | {
+      status: 'ok'
+      agent: { type?: string; description?: string; finished: boolean }
+      page: HerdrSubagentPage
+    }
+  | {
+      status: 'error'
+      error: {
+        code: 'pane_not_found' | 'subagent_not_found' | 'read_failed' | string
+        message: string
+      }
+    }
+  | { status: 'unsupported' }
+
 export interface RefKind {
   kind: string
   label: string
@@ -1145,6 +1167,44 @@ export class AlmaApi {
       limit: String(limit),
     })
     return this.request<unknown>(`/api/herdr/chat?${query}`)
+  }
+  async getHerdrSubagent(
+    paneId: string,
+    toolId: string,
+    options: { limit?: number; before?: number } = {},
+  ): Promise<HerdrSubagentResponse> {
+    const query = new URLSearchParams({ pane: paneId, tool: toolId })
+    if (options.limit !== undefined)
+      query.set('limit', String(options.limit))
+    if (options.before !== undefined)
+      query.set('before', String(options.before))
+    try {
+      const response = await this.request<{
+        agent?: { type?: string; description?: string; finished?: boolean }
+        page?: HerdrSubagentPage
+        error?: { code?: string; message?: string }
+      }>(`/api/herdr/subagent?${query}`)
+      if (response.error)
+        return {
+          status: 'error',
+          error: {
+            code: response.error.code ?? 'read_failed',
+            message: response.error.message ?? '',
+          },
+        }
+      return {
+        status: 'ok',
+        agent: {
+          ...response.agent,
+          finished: response.agent?.finished === true,
+        },
+        page: response.page ?? {},
+      }
+    } catch (error) {
+      if (error instanceof AlmaHttpError && error.status === 404)
+        return { status: 'unsupported' }
+      throw error
+    }
   }
   openJsonSocket(
     path: string,
