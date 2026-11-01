@@ -56,6 +56,7 @@ import {
 import { useThreadOrganize } from './ThreadOrganize'
 import { useDesktopThreadList } from './useDesktopThreadList'
 import { useT } from '../i18n'
+import { ProjectCardSection } from './ProjectCardSection'
 
 export function ThreadsScreen({
   selectedThreadId,
@@ -419,6 +420,14 @@ export function ThreadsScreen({
                     </button>
                     <div className="project-threads" aria-hidden={!open}>
                       <div className="project-threads-inner">
+                        {project.id !== 'none' ? (
+                          <ProjectCardSection
+                            api={api}
+                            desktopId={pairing.id}
+                            workspaceId={project.id}
+                            onNavigate={(path) => navigate(path)}
+                          />
+                        ) : null}
                         <button
                           className="project-new-action"
                           onClick={() =>
