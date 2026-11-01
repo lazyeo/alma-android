@@ -154,8 +154,12 @@ describe('Alma API safety', () => {
     await expect(api.getSiteIcon('https://example.com/page')).resolves.toBe(
       'data:image/png;base64,icon',
     )
-    await expect(api.getSiteIcon('https://missing.example/page')).resolves.toBeNull()
-    await expect(api.getSiteIcon('https://invalid.example/page')).resolves.toBeNull()
+    await expect(
+      api.getSiteIcon('https://missing.example/page'),
+    ).resolves.toBeNull()
+    await expect(
+      api.getSiteIcon('https://invalid.example/page'),
+    ).resolves.toBeNull()
     expect(fetch.mock.calls[0][0]).toBe(
       '/api/system/site-icon?url=https%3A%2F%2Fexample.com%2Fpage',
     )

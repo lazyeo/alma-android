@@ -39,9 +39,7 @@ it('renders a loaded favicon before external link text without changing link beh
     expect(link.querySelector('.markdown-link-favicon')).toBeTruthy(),
   )
   const icon = link.querySelector('.markdown-link-favicon')!
-  expect(icon.getAttribute('src')).toBe(
-    'data:image/png;base64,external-icon',
-  )
+  expect(icon.getAttribute('src')).toBe('data:image/png;base64,external-icon')
   expect(link.firstElementChild).toBe(icon)
   link.click()
   expect(onClick).toHaveBeenCalledOnce()
@@ -52,7 +50,9 @@ it('does not request favicons for references or non-http links', () => {
   const getSiteIcon = vi.fn()
   render(
     <MarkdownContent
-      text={'@[Thread](alma://thread/one) [relative](./note) [mail](mailto:a@example.com)'}
+      text={
+        '@[Thread](alma://thread/one) [relative](./note) [mail](mailto:a@example.com)'
+      }
       getSiteIcon={getSiteIcon}
       renderReference={(_href, children) => <span>{children}</span>}
     />,

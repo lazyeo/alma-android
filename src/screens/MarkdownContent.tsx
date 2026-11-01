@@ -61,7 +61,9 @@ function MarkdownLink({
 
   const content = (
     <>
-      {icon ? <img className="markdown-link-favicon" src={icon} alt="" /> : null}
+      {icon ? (
+        <img className="markdown-link-favicon" src={icon} alt="" />
+      ) : null}
       {children}
     </>
   )
