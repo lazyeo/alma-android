@@ -1,4 +1,4 @@
-import { LayoutList, MonitorUp, PanelsTopLeft } from 'lucide-react'
+import { LayoutList, MonitorUp, PanelsTopLeft, Plus } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { desktopScreenPath } from '../desktopRoutes'
@@ -15,12 +15,23 @@ import {
 import { AgentsBoard, AgentsList } from './AgentsBoard'
 import { AgentsState } from './AgentsScreen'
 import { useHerdr } from './HerdrProvider'
+import { AgentsManageProvider, useAgentsManage } from './AgentsManage'
 
 export function AgentsSidebar() {
+  const { desktopId = '' } = useParams()
+  const decodedDesktopId = decodeURIComponent(desktopId)
+  return (
+    <AgentsManageProvider desktopId={decodedDesktopId}>
+      <AgentsSidebarContent desktopId={decodedDesktopId} />
+    </AgentsManageProvider>
+  )
+}
+
+function AgentsSidebarContent({ desktopId: decodedDesktopId }: { desktopId: string }) {
   const t = useT()
   const navigate = useNavigate()
-  const { desktopId = '', paneId } = useParams()
-  const decodedDesktopId = decodeURIComponent(desktopId)
+  const manage = useAgentsManage()
+  const { paneId } = useParams()
   const selectedPaneId = paneId ? decodeURIComponent(paneId) : undefined
   const { agents, byDesktop, retry, setWorkspaceMuted } = useHerdr()
   const workspaces = agents(decodedDesktopId)
@@ -70,6 +81,13 @@ export function AgentsSidebar() {
     <section className="root-page agents-sidebar-page">
       <header className="agents-sidebar-header">
         <h1>{t('agents.title')}</h1>
+        <button
+          className="header-icon-button"
+          aria-label={t('agents.newWorkspace')}
+          onClick={manage.openNewWorkspace}
+        >
+          <Plus size={18} />
+        </button>
         <button
           className="header-icon-button"
           aria-label={

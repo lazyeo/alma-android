@@ -1,4 +1,4 @@
-import { BellOff, BellRing } from 'lucide-react'
+import { BellOff, BellRing, LoaderCircle, MoreHorizontal } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { desktopAgentPanePath } from '../desktopRoutes'
@@ -13,6 +13,8 @@ import {
 } from './model'
 import type { WorkspaceSwitcherItem } from './agentsBoardModel'
 import { AgentMark } from './AgentMark'
+import { useAgentsManage } from './AgentsManage'
+import { useLongPress } from '../components/useLongPress'
 
 export const agentStatusClass = (
   status: string,
@@ -36,6 +38,8 @@ export function AgentPaneRow({
   compact?: boolean
 }) {
   const t = useT()
+  const manage = useAgentsManage()
+  const longPress = useLongPress(() => manage.openPane(pane))
   // The split sidebar sits outside ConnectionProvider; resolve the api here.
   const api = useHerdr().apiFor(desktopId)
   const [prompt, setPrompt] = useState<BlockedPrompt | null>(null)
@@ -72,7 +76,7 @@ export function AgentPaneRow({
   const { paneId: openPaneId } = useParams()
   const changed = pane.lastChangedAt ? relative(pane.lastChangedAt) : ''
   return (
-    <div className="agent-pane-row-wrap">
+    <div className="agent-pane-row-wrap" {...longPress}>
       <Link
         className={`agent-pane-row${selected ? ' selected' : ''}${compact ? ' compact' : ''}`}
         to={desktopAgentPanePath(desktopId, pane.id)}
@@ -96,6 +100,15 @@ export function AgentPaneRow({
           {t(`agents.status.${agentStatusClass(pane.status)}`)}
         </span>
       </Link>
+      {compact ? (
+        <button
+          className="agent-more-button"
+          aria-label={t('agents.tabActions')}
+          onClick={() => manage.openPane(pane)}
+        >
+          <MoreHorizontal size={18} />
+        </button>
+      ) : null}
       {prompt ? (
         <aside className="agent-row-blocked-card">
           <strong>{prompt.question}</strong>
@@ -138,6 +151,7 @@ export function AgentsBoard({
   onSetWorkspaceMuted(workspaceId: string, muted: boolean): void
 }) {
   const t = useT()
+  const manage = useAgentsManage()
   const switcherRef = useRef<HTMLDivElement>(null)
   const selected = workspaces.find(
     (workspace) => workspace.id === selectedWorkspaceId,
@@ -190,15 +204,32 @@ export function AgentsBoard({
                 {t('agents.sessionCount', { count: selected.panes.length })}
               </span>
             </div>
-            <button
-              className="quiet-icon-button"
-              aria-label={muted ? t('agents.unmute') : t('agents.mute')}
-              onClick={() => onSetWorkspaceMuted(selected.id, !muted)}
-            >
-              {muted ? <BellOff size={17} /> : <BellRing size={17} />}
-            </button>
+            <div className="agent-header-actions">
+              <button
+                className="quiet-icon-button"
+                aria-label={muted ? t('agents.unmute') : t('agents.mute')}
+                onClick={() => onSetWorkspaceMuted(selected.id, !muted)}
+              >
+                {muted ? <BellOff size={17} /> : <BellRing size={17} />}
+              </button>
+              {compact ? (
+                <button
+                  className="quiet-icon-button"
+                  aria-label={t('agents.workspaceActions')}
+                  onClick={() => manage.openWorkspace(selected)}
+                >
+                  <MoreHorizontal size={18} />
+                </button>
+              ) : null}
+            </div>
           </header>
           <div className="agent-pane-list">
+            {manage.startingWorkspaceId === selected.id ? (
+              <div className="agent-pane-row agent-starting-row" aria-live="polite">
+                <LoaderCircle className="spinner" size={16} />
+                <span>{t('agents.starting')}</span>
+              </div>
+            ) : null}
             {selected.panes.map((pane) => (
               <AgentPaneRow
                 desktopId={desktopId}
@@ -233,6 +264,7 @@ export function AgentsList({
   onSetWorkspaceMuted(workspaceId: string, muted: boolean): void
 }) {
   const t = useT()
+  const manage = useAgentsManage()
   if (!workspaces.length) return <p className="empty">{t('agents.empty')}</p>
   return (
     <div className={`agents-list${compact ? ' compact' : ''}`}>
@@ -242,15 +274,32 @@ export function AgentsList({
           <section className="agent-workspace" key={workspace.id}>
             <header>
               <h2>{workspace.label}</h2>
-              <button
-                className="quiet-icon-button"
-                aria-label={muted ? t('agents.unmute') : t('agents.mute')}
-                onClick={() => onSetWorkspaceMuted(workspace.id, !muted)}
-              >
-                {muted ? <BellOff size={17} /> : <BellRing size={17} />}
-              </button>
+              <div className="agent-header-actions">
+                <button
+                  className="quiet-icon-button"
+                  aria-label={muted ? t('agents.unmute') : t('agents.mute')}
+                  onClick={() => onSetWorkspaceMuted(workspace.id, !muted)}
+                >
+                  {muted ? <BellOff size={17} /> : <BellRing size={17} />}
+                </button>
+                {compact ? (
+                  <button
+                    className="quiet-icon-button"
+                    aria-label={t('agents.workspaceActions')}
+                    onClick={() => manage.openWorkspace(workspace)}
+                  >
+                    <MoreHorizontal size={18} />
+                  </button>
+                ) : null}
+              </div>
             </header>
             <div className="agent-pane-list">
+              {manage.startingWorkspaceId === workspace.id ? (
+                <div className="agent-pane-row agent-starting-row" aria-live="polite">
+                  <LoaderCircle className="spinner" size={16} />
+                  <span>{t('agents.starting')}</span>
+                </div>
+              ) : null}
               {workspace.panes.map((pane) => (
                 <AgentPaneRow
                   desktopId={desktopId}

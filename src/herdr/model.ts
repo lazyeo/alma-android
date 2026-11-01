@@ -23,6 +23,7 @@ export interface HerdrPane {
   agent_session?: unknown
   terminal_title_stripped?: string
   title?: string
+  cwd?: string
   [key: string]: unknown
 }
 
@@ -43,6 +44,7 @@ export interface AgentPaneModel {
   sessionAgent?: string
   status: HerdrAgentStatus
   title: string
+  cwd?: string
   lastChangedAt?: number
 }
 
@@ -107,6 +109,7 @@ export function agentListFromSnapshot(
           ? pane.agent_session.agent
           : undefined,
       status: pane.agent_status ?? 'unknown',
+      cwd: typeof pane.cwd === 'string' ? pane.cwd : undefined,
       title:
         pane.terminal_title_stripped?.trim() ||
         pane.title?.trim() ||

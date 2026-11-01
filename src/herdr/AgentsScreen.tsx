@@ -3,6 +3,7 @@ import {
   LoaderCircle,
   MonitorUp,
   PanelsTopLeft,
+  Plus,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -20,12 +21,22 @@ import {
 } from './agentsBoardModel'
 import { AgentsBoard, AgentsList } from './AgentsBoard'
 import { useHerdr, type DesktopHerdrState } from './HerdrProvider'
+import { AgentsManageProvider, useAgentsManage } from './AgentsManage'
 
 export function AgentsScreen() {
-  const t = useT()
-  const navigate = useNavigate()
   const { desktopId = '' } = useParams()
   const decodedDesktopId = decodeURIComponent(desktopId)
+  return (
+    <AgentsManageProvider desktopId={decodedDesktopId}>
+      <AgentsScreenContent desktopId={decodedDesktopId} />
+    </AgentsManageProvider>
+  )
+}
+
+function AgentsScreenContent({ desktopId: decodedDesktopId }: { desktopId: string }) {
+  const t = useT()
+  const manage = useAgentsManage()
+  const navigate = useNavigate()
   const { agents, byDesktop, retry, setWorkspaceMuted } = useHerdr()
   const workspaces = agents(decodedDesktopId)
   const state = byDesktop[decodedDesktopId]
@@ -65,6 +76,13 @@ export function AgentsScreen() {
         title={t('agents.title')}
         actions={
           <>
+            <button
+              className="header-icon-button"
+              aria-label={t('agents.newWorkspace')}
+              onClick={manage.openNewWorkspace}
+            >
+              <Plus size={19} />
+            </button>
             <button
               className="header-icon-button"
               aria-label={
