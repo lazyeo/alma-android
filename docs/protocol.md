@@ -148,6 +148,22 @@ Thread detail includes message rows. A row contains its own database id plus a n
 
 `PUT /api/threads/:id` is also used for model/composer preferences, workspace moves, GTD status, favorites, and pinning. Organization-only writes include top-level `skipUpdatedAt: true` so they do not reorder recency lists.
 
+### Project card
+
+**Verified.** A workspace can expose a project card through:
+
+```text
+GET  /api/workspaces/:id/project-card
+PUT  /api/workspaces/:id/project-card
+POST /api/workspaces/:id/project-card/resolve-proposal
+```
+
+`GET` returns `{ card, config }`. `card` is null or contains `brief`, `focus`, `resume: [{ uri, label }]`, optional confirmation timestamps, and an optional proposal. A proposal can replace any subset of the card fields and also contains `reason`, `proposedAt`, and optional `source`.
+
+`PUT` accepts `{ brief, focus, resume }`, confirms the card, and clears a pending proposal. The Android MVP edits brief and focus while preserving the existing resume array. Resolving a proposal accepts `{ accept: boolean }`; accepting merges only the proposal fields that are present, while rejecting drops the proposal.
+
+A missing workspace or an older desktop can return `404`; the client hides the project-card entry. Successful writes broadcast a `workspace_updated` event on `/ws/threads`, and the open project card is refetched for that workspace.
+
 **Verified.** The client uses these optional goal routes:
 
 ```text

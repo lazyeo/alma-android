@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Herdr chat shows messages from teammate sessions as distinct compact cards with localized labels and collapsible Markdown details.
 - External links in rendered Markdown show the desktop-resolved site favicon when available.
+- Project groups can open a project card with the current brief, focus, resume references, editable text fields, and accept or reject controls for proposed updates.
 
 ## [0.1.5] - 2026-11-01
 
