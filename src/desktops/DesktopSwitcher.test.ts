@@ -13,5 +13,8 @@ describe('DesktopSwitcher transport indicator', () => {
     expect(source).toContain('Wifi')
     expect(source).toContain('<Globe')
     expect(source).toContain('connection.transport.relay')
+    expect(source).toContain('latency.ms !== null')
+    expect(source).toContain('isLatencyStale(latency)')
+    expect(source).toContain('connection.transport.short')
   })
 })

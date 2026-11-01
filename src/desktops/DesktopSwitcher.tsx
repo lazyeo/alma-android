@@ -13,7 +13,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { AnchoredMenu } from '../components/AnchoredMenu'
 import type { MenuRect } from '../components/anchoredMenuPlacement'
 import { desktopSectionPath } from '../desktopRoutes'
-import type { DesktopStatus } from '../relay'
+import { isLatencyStale, type DesktopStatus } from '../relay'
 import { useConnection, useDesktops } from './DesktopContext'
 import { useDesktopSwipe } from './useDesktopSwipe'
 import { isDesktopHidden } from './desktopVisibility'
@@ -33,7 +33,7 @@ const STATUS_LABELS = {
  */
 export function DesktopSwitcher({ className = '' }: { className?: string }) {
   const t = useT()
-  const { pairing, status, transport } = useConnection()
+  const { pairing, status, transport, latency } = useConnection()
   const { desktops } = useDesktops()
   const visibleDesktops = desktops.filter(
     ({ pairing: candidate }) => !isDesktopHidden(candidate),
@@ -82,19 +82,33 @@ export function DesktopSwitcher({ className = '' }: { className?: string }) {
               <span className="desktop-switcher-name">{pairing.name}</span>
               {/* Like iOS: Wi-Fi glyph for LAN direct, globe for the relay. */}
               {status === 'online' ? (
-                transport === 'direct' ? (
-                  <Wifi
-                    className="desktop-transport-icon"
-                    size={12}
-                    aria-label={t('connection.transport.lan')}
-                  />
-                ) : (
-                  <Globe
-                    className="desktop-transport-icon"
-                    size={12}
-                    aria-label={t('connection.transport.relay')}
-                  />
-                )
+                <span
+                  className={`desktop-transport-indicator${isLatencyStale(latency) ? ' stale' : ''}`}
+                >
+                  {transport === 'direct' ? (
+                    <Wifi
+                      className="desktop-transport-icon"
+                      size={12}
+                      aria-label={t('connection.transport.lan')}
+                    />
+                  ) : (
+                    <Globe
+                      className="desktop-transport-icon"
+                      size={12}
+                      aria-label={t('connection.transport.relay')}
+                    />
+                  )}
+                  <span>
+                    {t(
+                      transport === 'direct'
+                        ? 'connection.transport.short.lan'
+                        : 'connection.transport.short.relay',
+                    )}
+                  </span>
+                  {latency.ms !== null ? (
+                    <span>{`${Math.round(latency.ms)} ms`}</span>
+                  ) : null}
+                </span>
               ) : null}
             </span>
             {swipe.neighbor ? (

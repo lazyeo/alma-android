@@ -574,6 +574,9 @@ export function SettingsScreen() {
   const selectedDesktop = desktops.find(
     ({ pairing }) => pairing.id === desktopDetail,
   )
+  const currentDesktop = desktops.find(
+    ({ pairing }) => pairing.id === activeId,
+  )
   // Re-read whenever the detail sheet opens; the screen page updates it.
   const detailPlatform = useDesktopPlatform(
     desktopDetail ?? '',
@@ -649,6 +652,42 @@ export function SettingsScreen() {
               {t('settings.desktops.title')}
             </h2>
             <div className="settings-group desktop-list">
+              {currentDesktop ? (
+                <>
+                  <SettingsRow
+                    icon={<Cable size={17} />}
+                    title={t('settings.desktops.connection')}
+                    trailing={
+                      <span className="settings-value">
+                        {currentDesktop.transport === 'direct'
+                          ? t('settings.desktops.connectionLan')
+                          : t('settings.desktops.connectionRelay', {
+                              host: (() => {
+                                try {
+                                  return new URL(
+                                    currentDesktop.pairing.relayUrl,
+                                  ).hostname
+                                } catch {
+                                  return currentDesktop.pairing.relayUrl
+                                }
+                              })(),
+                            })}
+                      </span>
+                    }
+                  />
+                  <SettingsRow
+                    icon={<Gauge size={17} />}
+                    title={t('settings.desktops.latency')}
+                    trailing={
+                      <span className="settings-value">
+                        {currentDesktop.latency.ms === null
+                          ? '—'
+                          : `${Math.round(currentDesktop.latency.ms)} ms`}
+                      </span>
+                    }
+                  />
+                </>
+              ) : null}
               {visibleDesktops.map(({ pairing, status, connection }) => (
                 <SettingsRow
                   key={pairing.id}

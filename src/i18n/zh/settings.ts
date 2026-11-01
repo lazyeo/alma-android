@@ -81,6 +81,10 @@ export const settings: CatalogShape<typeof source> = {
   },
   desktops: {
     title: '桌面端',
+    connection: '连接通道',
+    connectionLan: '局域网直连',
+    connectionRelay: '中继（{host}）',
+    latency: '延迟',
     hiddenCount: '已隐藏（{count}）',
     expandHidden: '展开已隐藏的桌面端',
     collapseHidden: '收起已隐藏的桌面端',

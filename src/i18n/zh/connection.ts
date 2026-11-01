@@ -11,7 +11,11 @@ export const connection: CatalogShape<typeof source> = {
     error: '连接错误',
   },
   currentDesktop: '当前桌面端',
-  transport: { lan: '已通过局域网连接', relay: '已通过互联网中继连接' },
+  transport: {
+    lan: '已通过局域网连接',
+    relay: '已通过互联网中继连接',
+    short: { lan: '局域网', relay: '中继' },
+  },
   relayUnreachable: '无法连接中继',
   desktopNotResponding: '桌面端无响应',
   switcher: {
