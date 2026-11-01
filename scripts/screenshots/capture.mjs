@@ -5732,6 +5732,40 @@ const agentsBoardShots = ['en', 'zh'].flatMap((lang) => [
     : []),
 ])
 
+const herdrManageShots = ['en', 'zh'].flatMap((lang) => [
+  {
+    file: `herdr-pane-menu-${lang}-412.png`,
+    viewport: PHONE,
+    route: '/d/fixture-desktop/agents',
+    language: lang,
+    ready: '.agent-pane-row',
+    safeInsets: true,
+    async act(page) {
+      await page.locator('.agent-pane-row').first().dispatchEvent('contextmenu', {
+        clientX: 180,
+        clientY: 260,
+      })
+      await page.locator('.bottom-sheet').waitFor()
+      await page.waitForTimeout(350)
+    },
+  },
+  {
+    file: `herdr-new-workspace-${lang}-412.png`,
+    viewport: PHONE,
+    route: '/d/fixture-desktop/agents',
+    language: lang,
+    ready: '.agent-pane-row',
+    safeInsets: true,
+    async act(page) {
+      await page.getByRole('button', {
+        name: lang === 'zh' ? '新建工作区' : 'New workspace',
+      }).click()
+      await page.locator('.bottom-sheet').waitFor()
+      await page.waitForTimeout(350)
+    },
+  },
+])
+
 const agentsStateShots = [
   ['unsupported', PHONE, 'zh'],
   ['unreachable', TABLET, 'en'],
@@ -5754,6 +5788,7 @@ const agentsStateShots = [
 
 const herdrShots = [
   ...agentsBoardShots,
+  ...herdrManageShots,
   ...agentsStateShots,
   ...['en', 'zh'].flatMap((lang) => {
     const terminalLabel = lang === 'zh' ? '终端' : 'Terminal'

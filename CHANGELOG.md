@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Herdr navigation now uses the official ram-head mark, and Herdr session rows and headers show Claude, pi, or neutral fallback agent marks.
+- Herdr workspaces and agent tabs can now be created, renamed, and closed from mobile-friendly action sheets, with Claude, Codex, or Pi startup for new sessions.
 - Herdr chats now support up to six pending image or file attachments, upload them to the desktop when sending, and render inbound Herdr images in the shared gallery.
 - Composer attachments now stay local, survive draft restoration, support numbered markup with editable region descriptions on pending images, append labeled regions to the composer for review, and upload only when the message is sent or queued.
 - Image edit requests can be marked up directly from the gallery with numbered regions, labels, and an overall note; the annotated image and request text now land in the composer for review before sending, and unlabeled regions no longer produce empty rows.

@@ -1,6 +1,6 @@
 import { BellOff, BellRing, LoaderCircle, MoreHorizontal } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { desktopAgentPanePath } from '../desktopRoutes'
 import { useT } from '../i18n'
 import { useHerdr } from './HerdrProvider'
@@ -38,6 +38,7 @@ export function AgentPaneRow({
   compact?: boolean
 }) {
   const t = useT()
+  const navigate = useNavigate()
   const manage = useAgentsManage()
   const longPress = useLongPress(() => manage.openPane(pane))
   // The split sidebar sits outside ConnectionProvider; resolve the api here.
@@ -77,11 +78,24 @@ export function AgentPaneRow({
   const changed = pane.lastChangedAt ? relative(pane.lastChangedAt) : ''
   return (
     <div className="agent-pane-row-wrap" {...longPress}>
-      <Link
+      <div
         className={`agent-pane-row${selected ? ' selected' : ''}${compact ? ' compact' : ''}`}
-        to={desktopAgentPanePath(desktopId, pane.id)}
-        replace={Boolean(selected || openPaneId)}
+        role="link"
+        tabIndex={0}
         aria-current={selected ? 'page' : undefined}
+        onClick={() =>
+          navigate(desktopAgentPanePath(desktopId, pane.id), {
+            replace: Boolean(selected || openPaneId),
+          })
+        }
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            navigate(desktopAgentPanePath(desktopId, pane.id), {
+              replace: Boolean(selected || openPaneId),
+            })
+          }
+        }}
       >
         <span className={`agent-status ${agentStatusClass(pane.status)}`} />
         <AgentMark
@@ -99,7 +113,7 @@ export function AgentPaneRow({
         <span className={`agent-status-badge ${agentStatusClass(pane.status)}`}>
           {t(`agents.status.${agentStatusClass(pane.status)}`)}
         </span>
-      </Link>
+      </div>
       {compact ? (
         <button
           className="agent-more-button"
