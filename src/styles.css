@@ -6246,6 +6246,15 @@ button:focus-visible,
   gap: 8px;
   margin-top: 4px;
 }
+.project-card-draft-sheet .sheet-footer > button.primary,
+.project-card-edit-sheet .sheet-footer > button.primary {
+  width: 100%;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
 .project-card-edit-sheet label,
 .project-card-draft-sheet label {
   display: grid;

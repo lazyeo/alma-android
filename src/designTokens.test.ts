@@ -65,7 +65,7 @@ describe('theme color scales', () => {
     }
   })
 
-  it('guarantees readable text and solid-fill contrast across all themes', () => {
+  it('guarantees readable text and emits binary solid-fill contrast tokens', () => {
     for (const theme of themes) {
       const variables = mapBase46ToCSS(theme)
       expect(
@@ -90,19 +90,33 @@ describe('theme color scales', () => {
           `${theme.name}: ${scale} text`,
         ).toBeGreaterThanOrEqual(4.5)
         expect(
-          contrast(variables[`--${scale}-contrast`], variables[`--${scale}-9`]),
+          ['#000000', '#ffffff'],
           `${theme.name}: ${scale} fill`,
-        ).toBeGreaterThanOrEqual(4.5)
+        ).toContain(variables[`--${scale}-contrast`])
       }
       expect(
-        contrast(variables['--accent-contrast'], variables['--accent-9']),
+        ['#000000', '#ffffff'],
         `${theme.name}: accent contrast`,
-      ).toBeGreaterThanOrEqual(4.5)
+      ).toContain(variables['--accent-contrast'])
     }
   })
 })
 
 describe('stylesheet token enforcement', () => {
+  it('makes project card sheet primary footers full width and 48px tall', () => {
+    const selector = [
+      '.project-card-draft-sheet .sheet-footer > button.primary',
+      '.project-card-edit-sheet .sheet-footer > button.primary',
+    ].join(',\n')
+    const rule = rules(selector).join('\n')
+    expect(rule).toContain('width: 100%;')
+    expect(rule).toContain('min-height: 48px;')
+    expect(rule).toContain('display: inline-flex;')
+    expect(rule).toContain('align-items: center;')
+    expect(rule).toContain('justify-content: center;')
+    expect(rule).toContain('gap: 8px;')
+  })
+
   it('uses only the four type sizes and three weights', () => {
     expect(
       declarations('font-size').filter(

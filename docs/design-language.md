@@ -65,7 +65,7 @@ All 74 Base46 palettes remain unchanged. `mapBase46ToCSS` derives five 12-step s
 | 9–10  | Solid fills                                        |
 | 11–12 | Secondary/accent and primary text                  |
 
-Contrast is checked after sRGB quantization. Gray-11 on gray-2 and colored step 11 on gray-1/2 meet WCAG 4.5:1. Gray-12 preserves the palette foreground when it meets 4.5:1 (including its existing 7:1 contrast where available); otherwise lightness is corrected. Each colored scale has a black/white `--<scale>-contrast` token with at least 4.5:1 against step 9.
+Contrast is checked after sRGB quantization. Gray-11 on gray-2 and colored step 11 on gray-1/2 meet WCAG 4.5:1. Gray-12 preserves the palette foreground when it meets 4.5:1 (including its existing 7:1 contrast where available); otherwise lightness is corrected. Each colored scale has a black/white `--<scale>-contrast` token chosen by the seed's perceptual OKLCH lightness: seeds below 0.68 use white, while genuinely light seeds use black.
 
 Semantic mapping is identical in both modes: background/sidebar → gray-1, card/popover → gray-2, secondary/muted/input/chat-user-bg → gray-3, border → gray-7, muted-foreground → gray-11, foreground → gray-12. Primary is accent-9 with accent-contrast text; accent is accent-3 with accent-11 text. Destructive text is red-11; solid destructive controls use red-9 with red-contrast. Use accent-11/amber-11/green-11 for colored labels, not solid-fill colors. No CSS color mixes or literal colors; backdrop and shadow color recipes live in the theme mapper.
 

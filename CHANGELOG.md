@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Sheet footer primary buttons for project card drafting and editing now fill the footer and use the standard 48px action height.
+- Solid accent buttons use perceptual seed lightness for readable black or white text, keeping blue and similarly dark accents white-on-color.
 - Project card brief and focus only offer "Show more" when the clamped text actually overflows.
 
 ## [0.1.5] - 2026-11-01

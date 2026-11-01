@@ -79,6 +79,9 @@ function mix(a: string, b: string, amount: number) {
     x[2] + hueDelta * amount,
   ])
 }
+function solidFillContrast(seed: string) {
+  return toOKLCH(seed)[0] < 0.68 ? '#ffffff' : '#000000'
+}
 function readable(color: string, backgrounds: string[], ratio: number) {
   if (backgrounds.every((bg) => contrast(color, bg) >= ratio)) return color
   const [l, c, h] = toOKLCH(color)
@@ -150,10 +153,7 @@ export function mapBase46ToCSS(theme: Base46Theme): Record<string, string> {
       [background, tokens['--gray-2']],
       7,
     )
-    tokens[`--${name}-contrast`] =
-      contrast('#000000', seed) >= contrast('#ffffff', seed)
-        ? '#000000'
-        : '#ffffff'
+    tokens[`--${name}-contrast`] = solidFillContrast(seed)
   }
   const aliases: Record<string, string> = {
     background: 'gray-1',

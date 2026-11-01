@@ -34,6 +34,27 @@ it('maps semantic roles to the same scale steps in dark and light themes', () =>
       )
   }
 })
+it('uses perceptual lightness for solid-fill contrast tokens', () => {
+  const base = themes.find((theme) => theme.name === 'one_light')!
+  for (const [seed, expected] of [
+    ['#4078f2', '#ffffff'],
+    ['#f5d90a', '#000000'],
+    ['#18202f', '#ffffff'],
+  ] as const) {
+    const tokens = mapBase46ToCSS({
+      ...base,
+      base_30: {
+        ...base.base_30,
+        blue: seed,
+        red: seed,
+      },
+    })
+    expect(tokens['--accent-contrast'], seed).toBe(expected)
+    expect(tokens['--red-contrast'], seed).toBe(expected)
+    expect(tokens['--primary-foreground'], seed).toBe(expected)
+    expect(tokens['--destructive-foreground'], seed).toBe(expected)
+  }
+})
 it('keeps every sidebar surface perceptibly distinct with readable text', () => {
   for (const theme of themes) {
     const tokens = mapBase46ToCSS(theme)
