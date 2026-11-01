@@ -7127,6 +7127,10 @@ button:active:not(:disabled),
 .agent-subagent-trailing {
   color: var(--muted-foreground);
 }
+/* Elapsed time / Done must never be ellipsised; the trailing span is auto-width. */
+.agent-subagent-trailing .settings-value {
+  max-width: none;
+}
 .agent-subagent-detail {
   height: 100%;
   min-height: 0;

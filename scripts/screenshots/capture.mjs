@@ -5911,7 +5911,9 @@ const herdrShots = [
               async act(page) {
                 await page.getByRole('button', { name: 'Subagents' }).click()
                 await page
-                  .getByRole('button', { name: /Verify reconnect behavior/ })
+                  .locator('.settings-row')
+                  .filter({ hasText: 'Verify reconnect behavior' })
+                  .first()
                   .click()
                 await page.locator('.agent-subagent-step').nth(7).waitFor()
               },
