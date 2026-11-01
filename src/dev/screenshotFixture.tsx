@@ -1940,6 +1940,13 @@ const herdrChatItems = [
     text: 'The build passed.\n\n<oai-mem-citation>\n<citation_entries>\nMEMORY.md:1-2|note=[fixture]\n</citation_entries>\n</oai-mem-citation>',
   },
   {
+    id: 'agent-teammate-1',
+    kind: 'teammate',
+    from: 'reviewer',
+    summary: 'Review complete',
+    text: 'The reconnect tests and phone layout look good. Keep the notification boundary aligned with desktop behavior.',
+  },
+  {
     id: 'agent-tool-3',
     kind: 'tool',
     tool: {
