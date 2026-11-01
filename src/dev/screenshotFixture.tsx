@@ -1520,29 +1520,80 @@ function route(method: string, path: string, body?: unknown): TunnelResponse {
       general: { defaultWorkspaceId: 'ws-app' },
     })
   if (pathname === '/api/workspaces') return json(200, workspaces)
-  if (pathname === '/api/workspaces/ws-app/project-card')
+  if (pathname === '/api/workspaces/ws-app/project-card/consult') {
+    if (method === 'DELETE')
+      return json(200, { transcript: { version: 1, messages: [] } })
+    const transcript = {
+      version: 1,
+      messages: [
+        {
+          id: 'consult-user-1',
+          role: 'user',
+          content: 'What should the project card emphasize next?',
+          at: new Date(NOW - 4 * 60_000).toISOString(),
+        },
+        {
+          id: 'consult-assistant-1',
+          role: 'assistant',
+          content:
+            'Emphasize the **quiet mobile workflow**, proposal review, and verified desktop compatibility.',
+          at: new Date(NOW - 3 * 60_000).toISOString(),
+          model: 'openai:gpt-5',
+        },
+      ],
+    }
+    return json(200, {
+      ...(method === 'POST'
+        ? { answer: transcript.messages[1] }
+        : { file: '/fixture/.alma/project-card-consult.json' }),
+      transcript,
+    })
+  }
+  if (
+    pathname === '/api/workspaces/ws-app/project-card/draft' &&
+    method === 'POST'
+  )
     return json(200, {
       card: {
-        brief:
-          'An unofficial Android client for Alma Desktop, built for reliable work away from the Mac.',
-        focus:
-          'Ship the project card MVP with a quiet mobile layout and verified desktop compatibility.',
-        resume: [
-          { uri: 'alma://thread/t-refs', label: 'Reference navigation' },
-        ],
+        brief: 'An unofficial Android client for Alma Desktop.',
+        focus: 'Turn the consultation into a focused mobile proposal.',
+        resume: [],
         proposal: {
-          focus:
-            'Polish the project card MVP, verify the proposal flow, and prepare one focused screenshot.',
-          resume: [
-            { uri: 'alma://thread/t-refs', label: 'Reference navigation' },
-            { uri: 'alma://thread/t-gen', label: 'Mobile polish' },
-          ],
-          reason:
-            'The implementation is ready for a focused verification pass.',
-          proposedAt: new Date(NOW - 38 * 60_000).toISOString(),
-          source: 'cli',
+          focus: 'Turn the consultation into a focused mobile proposal.',
+          reason: 'Drafted from your consultation',
+          proposedAt: new Date(NOW).toISOString(),
+          source: 'draft',
         },
       },
+    })
+  if (pathname === '/api/workspaces/ws-app/project-card')
+    return json(200, {
+      card: screenshotParams.has('projectCardEmpty')
+        ? null
+        : {
+            brief:
+              'An unofficial Android client for Alma Desktop, built for reliable work away from the Mac.',
+            focus:
+              'Ship the project card MVP with a quiet mobile layout and verified desktop compatibility.',
+            resume: [
+              { uri: 'alma://thread/t-refs', label: 'Reference navigation' },
+            ],
+            proposal: {
+              focus:
+                'Polish the project card MVP, verify the proposal flow, and prepare one focused screenshot.',
+              resume: [
+                {
+                  uri: 'alma://thread/t-refs',
+                  label: 'Reference navigation',
+                },
+                { uri: 'alma://thread/t-gen', label: 'Mobile polish' },
+              ],
+              reason:
+                'The implementation is ready for a focused verification pass.',
+              proposedAt: new Date(NOW - 38 * 60_000).toISOString(),
+              source: 'cli',
+            },
+          },
       config: null,
     })
   if (pathname === '/api/attachments/file' && method === 'POST')

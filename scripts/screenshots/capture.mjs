@@ -1707,8 +1707,38 @@ const shots = [
       await page.getByRole('tab', { name: 'Projects' }).click()
       await page.locator('.project-group').first().waitFor()
       await page.getByRole('button', { name: /alma-mobile/ }).click()
-      await page.getByRole('button', { name: /Project card/ }).click()
+      await page.locator('.project-header').waitFor()
+      await page.locator('.project-card-summary-row').click()
       await page.getByText('Proposed update').first().waitFor()
+      await page.locator('.project-thread-row').first().waitFor()
+    },
+  },
+  {
+    file: 'project-header-empty-412.png',
+    viewport: PHONE,
+    route: DESKTOP,
+    query: 'projectCardEmpty=1',
+    ready: '.thread-tabs',
+    async act(page) {
+      await page.getByRole('tab', { name: 'Projects' }).click()
+      await page.locator('.project-group').first().waitFor()
+      await page.getByRole('button', { name: /alma-mobile/ }).click()
+      await page.getByText('No project card yet').waitFor()
+      await page.locator('.project-thread-row').first().waitFor()
+    },
+  },
+  {
+    file: 'project-consult-412.png',
+    viewport: PHONE,
+    route: DESKTOP,
+    ready: '.thread-tabs',
+    async act(page) {
+      await page.getByRole('tab', { name: 'Projects' }).click()
+      await page.locator('.project-group').first().waitFor()
+      await page.getByRole('button', { name: /alma-mobile/ }).click()
+      await page.getByRole('button', { name: 'Consult' }).click()
+      await page.getByText('Card consultation').waitFor()
+      await page.locator('.project-consult-messages .message').nth(1).waitFor()
     },
   },
   ...['en', 'zh'].map((language) => ({

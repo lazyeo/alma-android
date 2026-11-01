@@ -425,20 +425,18 @@ export function ThreadsScreen({
                             api={api}
                             desktopId={pairing.id}
                             workspaceId={project.id}
+                            onNewThread={() => void create(project.id)}
                             onNavigate={(path) => navigate(path)}
                           />
-                        ) : null}
-                        <button
-                          className="project-new-action"
-                          onClick={() =>
-                            void create(
-                              project.id === 'none' ? null : project.id,
-                            )
-                          }
-                        >
-                          <Plus size={14} />
-                          {t('threads.newInProject')}
-                        </button>
+                        ) : (
+                          <button
+                            className="project-new-action"
+                            onClick={() => void create(null)}
+                          >
+                            <Plus size={14} />
+                            {t('threads.newInProject')}
+                          </button>
+                        )}
                         {projectThreads.map((thread) => (
                           <CompactProjectThread
                             key={thread.id}
