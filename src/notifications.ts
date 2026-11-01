@@ -103,6 +103,7 @@ export function notificationCopy(input: {
   threadTitle?: string
   desktopName?: string
   queued?: boolean
+  message?: string
 }) {
   const status = t(
     input.type === 'approval'
@@ -115,11 +116,13 @@ export function notificationCopy(input: {
             ? 'notifications.status.queued'
             : 'notifications.status.finished',
   )
+  const statusLine = input.desktopName
+    ? t('notifications.onDesktop', { status, desktop: input.desktopName })
+    : status
+  const message = input.message?.trim()
   return {
     title: input.threadTitle?.trim() || t('common.untitledThread'),
-    body: input.desktopName
-      ? t('notifications.onDesktop', { status, desktop: input.desktopName })
-      : status,
+    body: message ? `${statusLine}\n${message}` : statusLine,
   }
 }
 
@@ -166,6 +169,7 @@ export async function showForegroundNotification(input: {
   threadTitle?: string
   queued?: boolean
   desktopName?: string
+  message?: string
 }) {
   if (isNativePlatform()) {
     const permission = await currentNotificationPermission()

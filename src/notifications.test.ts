@@ -51,6 +51,20 @@ describe('notification settings', () => {
     ).toEqual({ title: 'Protocol capture', body: 'Reply finished' })
   })
 
+  it('includes a concise agent message after the desktop status line', () => {
+    expect(
+      notificationCopy({
+        type: 'agent-needs-you',
+        threadTitle: 'Release checks',
+        desktopName: 'Mac mini',
+        message: 'Should I run the release build?',
+      }),
+    ).toEqual({
+      title: 'Release checks',
+      body: 'Agent needs you on Mac mini\nShould I run the release build?',
+    })
+  })
+
   it('matches remote extension push copy with a natural desktop phrase', () => {
     expect(
       notificationCopy({

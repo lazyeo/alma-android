@@ -16,8 +16,11 @@ import {
   type NotificationSettings,
 } from '../notifications'
 import { desktopAgentPanePath } from '../desktopRoutes'
+import { stripAnsi } from './transcript'
+import type { HerdrChatItem } from './toMessageParts'
 import {
   agentListFromSnapshot,
+  parseBlockedPrompt,
   shouldNotifyAgentStatus,
   type AgentWorkspaceModel,
   type HerdrPane,
@@ -54,6 +57,33 @@ export function useHerdr() {
   return value
 }
 
+const notificationMessage = (text: string) => {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 5)
+  const joined = lines.join('\n')
+  return joined.length > 200 ? `${joined.slice(0, 199).trimEnd()}…` : joined
+}
+
+const lastAssistantText = (response: unknown, firstLineOnly = false) => {
+  const page =
+    response && typeof response === 'object' && 'page' in response
+      ? (response.page as { items?: HerdrChatItem[] } | undefined)
+      : undefined
+  const item = [...(page?.items ?? [])]
+    .reverse()
+    .find(
+      (candidate) =>
+        candidate.kind === 'assistant' && typeof candidate.text === 'string',
+    )
+  const text = item?.text ?? ''
+  return firstLineOnly
+    ? (notificationMessage(text).split('\n')[0] ?? '')
+    : notificationMessage(text)
+}
+
 export function useHerdrNotificationEvents({
   desktopId,
   desktopName,
@@ -61,6 +91,7 @@ export function useHerdrNotificationEvents({
   mutedWorkspaces,
   pathname,
   enabled,
+  api,
   notify = showForegroundNotification,
 }: {
   desktopId: string
@@ -69,6 +100,7 @@ export function useHerdrNotificationEvents({
   mutedWorkspaces: string[]
   pathname: string
   enabled: boolean
+  api: Pick<HandoffDesktop['api'], 'readHerdrPane' | 'getHerdrChat'>
   notify?: typeof showForegroundNotification
 }) {
   const previous = useRef(new Map<string, HerdrPane['agent_status']>())
@@ -91,17 +123,47 @@ export function useHerdrNotificationEvents({
         })
       )
         continue
-      void notify({
-        type: 'agent-needs-you',
-        tag: scopedNotificationTag(desktopId, `agent:${pane.pane_id}:${to}`),
-        url: desktopAgentPanePath(desktopId, pane.pane_id),
-        threadTitle:
-          pane.terminal_title_stripped || pane.title || pane.agent || undefined,
-        desktopName,
-      }).catch(() => undefined)
+      const sendNotification = async () => {
+        let message = ''
+        if (to === 'blocked') {
+          try {
+            const screen = await api.readHerdrPane(pane.pane_id)
+            message = notificationMessage(
+              parseBlockedPrompt(stripAnsi(screen?.read?.text ?? ''))
+                ?.question ?? '',
+            )
+          } catch {
+            // Fall through to the chat transcript.
+          }
+        }
+        if (!message) {
+          try {
+            message = lastAssistantText(
+              await api.getHerdrChat(pane.pane_id),
+              to === 'blocked',
+            )
+          } catch {
+            // Message enrichment is best effort; never suppress notification.
+          }
+        }
+        await notify({
+          type: 'agent-needs-you',
+          tag: scopedNotificationTag(desktopId, `agent:${pane.pane_id}:${to}`),
+          url: desktopAgentPanePath(desktopId, pane.pane_id),
+          threadTitle:
+            pane.terminal_title_stripped ||
+            pane.title ||
+            pane.agent ||
+            undefined,
+          desktopName,
+          ...(message ? { message } : {}),
+        })
+      }
+      void sendNotification().catch(() => undefined)
     }
     previous.current = next
   }, [
+    api,
     desktopId,
     desktopName,
     enabled,
@@ -140,6 +202,7 @@ function HerdrDesktopSource({
     mutedWorkspaces: stateRef.current.mutedWorkspaces,
     pathname: location.pathname,
     enabled: notificationTypeEnabled(settingsRef.current, 'agent-needs-you'),
+    api,
   })
 
   const publish = useCallback(

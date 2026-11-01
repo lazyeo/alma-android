@@ -4,8 +4,22 @@ import { describe, expect, it, vi } from 'vitest'
 import { useHerdrNotificationEvents } from './HerdrProvider'
 
 describe('useHerdrNotificationEvents', () => {
-  it('emits blocked and working-to-done notifications once per transition', () => {
+  it('includes blocked questions and completed assistant messages', async () => {
     const notify = vi.fn().mockResolvedValue(true)
+    const api = {
+      readHerdrPane: vi.fn().mockResolvedValue({
+        read: {
+          text: 'Should I run the release build?\n> 1. Yes\n  2. No',
+        },
+      }),
+      getHerdrChat: vi.fn().mockResolvedValue({
+        page: {
+          items: [
+            { id: 'a1', kind: 'assistant', text: 'All checks passed.\nReady.' },
+          ],
+        },
+      }),
+    }
     const { result, rerender } = renderHook(
       ({ panes }) =>
         useHerdrNotificationEvents({
@@ -15,6 +29,7 @@ describe('useHerdrNotificationEvents', () => {
           mutedWorkspaces: [],
           pathname: '/d/desktop/agents',
           enabled: true,
+          api,
           notify,
         }),
       {
@@ -32,8 +47,10 @@ describe('useHerdrNotificationEvents', () => {
       panes: [{ pane_id: 'p1', workspace_id: 'w1', agent_status: 'blocked' }],
     })
     act(() => result.current())
-    act(() => result.current())
-    expect(notify).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1))
+    expect(notify.mock.calls[0][0].message).toBe(
+      'Should I run the release build?',
+    )
 
     rerender({
       panes: [{ pane_id: 'p1', workspace_id: 'w1', agent_status: 'working' }],
@@ -43,6 +60,87 @@ describe('useHerdrNotificationEvents', () => {
       panes: [{ pane_id: 'p1', workspace_id: 'w1', agent_status: 'done' }],
     })
     act(() => result.current())
-    expect(notify).toHaveBeenCalledTimes(2)
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(2))
+    expect(notify.mock.calls[1][0].message).toBe('All checks passed.\nReady.')
+  })
+
+  it('falls back to chat when a blocked screen cannot be read', async () => {
+    const notify = vi.fn().mockResolvedValue(true)
+    const api = {
+      readHerdrPane: vi.fn().mockRejectedValue(new Error('screen unavailable')),
+      getHerdrChat: vi.fn().mockResolvedValue({
+        page: {
+          items: [
+            {
+              id: 'a1',
+              kind: 'assistant',
+              text: '\nShould I continue?\nMore detail',
+            },
+          ],
+        },
+      }),
+    }
+    const { result, rerender } = renderHook(
+      ({ panes }) =>
+        useHerdrNotificationEvents({
+          desktopId: 'desktop',
+          desktopName: 'Mac',
+          panes,
+          mutedWorkspaces: [],
+          pathname: '/d/desktop/agents',
+          enabled: true,
+          api,
+          notify,
+        }),
+      {
+        initialProps: {
+          panes: [
+            { pane_id: 'p1', workspace_id: 'w1', agent_status: 'working' },
+          ],
+        },
+      },
+    )
+    act(() => result.current())
+    rerender({
+      panes: [{ pane_id: 'p1', workspace_id: 'w1', agent_status: 'blocked' }],
+    })
+    act(() => result.current())
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1))
+    expect(notify.mock.calls[0][0].message).toBe('Should I continue?')
+  })
+
+  it('still notifies with old copy when message fetching fails', async () => {
+    const notify = vi.fn().mockResolvedValue(true)
+    const api = {
+      readHerdrPane: vi.fn().mockRejectedValue(new Error('offline')),
+      getHerdrChat: vi.fn().mockRejectedValue(new Error('offline')),
+    }
+    const { result, rerender } = renderHook(
+      ({ panes }) =>
+        useHerdrNotificationEvents({
+          desktopId: 'desktop',
+          desktopName: 'Mac',
+          panes,
+          mutedWorkspaces: [],
+          pathname: '/d/desktop/agents',
+          enabled: true,
+          api,
+          notify,
+        }),
+      {
+        initialProps: {
+          panes: [
+            { pane_id: 'p1', workspace_id: 'w1', agent_status: 'working' },
+          ],
+        },
+      },
+    )
+    act(() => result.current())
+    rerender({
+      panes: [{ pane_id: 'p1', workspace_id: 'w1', agent_status: 'blocked' }],
+    })
+    act(() => result.current())
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1))
+    expect(notify.mock.calls[0][0].message).toBeUndefined()
   })
 })
