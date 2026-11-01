@@ -403,6 +403,67 @@ describe('Alma API safety', () => {
     ).not.toThrow()
   })
 
+  it('drafts and consults on a workspace project card with long request timeouts', async () => {
+    const transcript = {
+      version: 1,
+      messages: [
+        {
+          id: 'message-1',
+          role: 'assistant',
+          content: 'Start with the mobile workflow.',
+          at: '2026-11-01T10:00:00.000Z',
+        },
+      ],
+    }
+    const fetch = vi.fn().mockResolvedValue({
+      status: 200,
+      json: async () => ({ card: null, transcript, answer: transcript.messages[0] }),
+      text: async () => '',
+      headers: {},
+    })
+    const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)
+
+    await api.draftProjectCard('ws 1', { hint: ' Android client ', fromConsult: true })
+    await api.getProjectCardConsult('ws 1')
+    await api.askProjectCardConsult('ws 1', 'What should we focus on?')
+    await api.clearProjectCardConsult('ws 1')
+
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
+      '/api/workspaces/ws%201/project-card/draft',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ hint: ' Android client ', fromConsult: true }),
+        signal: expect.any(AbortSignal),
+      }),
+    )
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      '/api/workspaces/ws%201/project-card/consult',
+      expect.objectContaining({ method: 'GET', signal: expect.any(AbortSignal) }),
+    )
+    expect(fetch).toHaveBeenNthCalledWith(
+      3,
+      '/api/workspaces/ws%201/project-card/consult',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ question: 'What should we focus on?' }),
+        signal: expect.any(AbortSignal),
+      }),
+    )
+    expect(fetch).toHaveBeenNthCalledWith(
+      4,
+      '/api/workspaces/ws%201/project-card/consult',
+      expect.objectContaining({ method: 'DELETE', signal: expect.any(AbortSignal) }),
+    )
+    expect(() =>
+      assertSafePath('/api/workspaces/ws%201/project-card/draft', 'POST'),
+    ).not.toThrow()
+    expect(() =>
+      assertSafePath('/api/workspaces/ws%201/project-card/consult', 'DELETE'),
+    ).not.toThrow()
+  })
+
   it('lists previewable HTML files of one workspace', async () => {
     const fetch = vi.fn().mockResolvedValue({
       status: 200,

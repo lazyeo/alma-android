@@ -87,6 +87,30 @@ export interface ProjectCardResponse {
   config: unknown | null
 }
 
+export interface ProjectCardConsultMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  at: string
+  model?: string
+}
+
+export interface ProjectCardConsultTranscript {
+  version: 1
+  messages: ProjectCardConsultMessage[]
+  summary?: {
+    text: string
+    throughId: string
+    count: number
+    at: string
+  }
+}
+
+export interface ProjectCardConsultResponse {
+  transcript: ProjectCardConsultTranscript
+  file?: string
+}
+
 export interface AlmaSettings {
   chat?: {
     defaultModel?: string
@@ -372,19 +396,31 @@ export class AlmaApi {
       body?: unknown
       rawBody?: Uint8Array
       headers?: Record<string, string>
+      timeoutMs?: number
     } = {},
   ): Promise<T> {
     const method = init.method ?? 'GET'
     assertSafePath(path, method)
-    const response = await this.tunnel.fetch(path, {
-      method,
-      headers:
-        init.headers ??
-        (init.body === undefined ? {} : { 'content-type': 'application/json' }),
-      body:
-        init.rawBody ??
-        (init.body === undefined ? undefined : JSON.stringify(init.body)),
-    })
+    const controller = init.timeoutMs ? new AbortController() : undefined
+    const timeout = controller
+      ? setTimeout(() => controller.abort(), init.timeoutMs)
+      : undefined
+    const response = await this.tunnel
+      .fetch(path, {
+        method,
+        headers:
+          init.headers ??
+          (init.body === undefined
+            ? {}
+            : { 'content-type': 'application/json' }),
+        body:
+          init.rawBody ??
+          (init.body === undefined ? undefined : JSON.stringify(init.body)),
+        ...(controller ? { signal: controller.signal } : {}),
+      })
+      .finally(() => {
+        if (timeout) clearTimeout(timeout)
+      })
     if (response.status < 200 || response.status >= 300)
       throw new AlmaHttpError(
         `${method} ${path} failed (${response.status}): ${(await response.text()).slice(0, 300)}`,
@@ -462,6 +498,36 @@ export class AlmaApi {
     return this.request<{ card: ProjectCard }>(
       `/api/workspaces/${encodeURIComponent(workspaceId)}/project-card/resolve-proposal`,
       { method: 'POST', body: { accept } },
+    )
+  }
+  draftProjectCard(
+    workspaceId: string,
+    options: { hint?: string; fromConsult?: boolean } = {},
+  ) {
+    return this.request<{ card: ProjectCard }>(
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/project-card/draft`,
+      { method: 'POST', body: options, timeoutMs: 130_000 },
+    )
+  }
+  getProjectCardConsult(workspaceId: string) {
+    return this.request<ProjectCardConsultResponse>(
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/project-card/consult`,
+      { timeoutMs: 75_000 },
+    )
+  }
+  askProjectCardConsult(workspaceId: string, question: string) {
+    return this.request<
+      ProjectCardConsultResponse & { answer: ProjectCardConsultMessage }
+    >(`/api/workspaces/${encodeURIComponent(workspaceId)}/project-card/consult`, {
+      method: 'POST',
+      body: { question },
+      timeoutMs: 75_000,
+    })
+  }
+  clearProjectCardConsult(workspaceId: string) {
+    return this.request<ProjectCardConsultResponse>(
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/project-card/consult`,
+      { method: 'DELETE', timeoutMs: 75_000 },
     )
   }
   wakeDisplay(workspaceId: string) {
