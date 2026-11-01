@@ -210,6 +210,28 @@ Approval responses use actions such as `allow_once`, `allow_always`, `deny`, and
 
 A `404`, `405`, or `501` means the connected desktop does not support the handoff feature; the client treats it as unavailable rather than failing the whole desktop connection.
 
+### Herdr sessions and subagents
+
+**Verified.** Herdr chat history and its live stream use:
+
+```text
+GET /api/herdr/chat?pane=<pane_id>&before=<seq>&limit=<count>
+WS  /ws/herdr/chat?pane=<pane_id>&from=<seq>
+```
+
+Chat items include tool rows shaped as `{ id, kind: "tool", time, tool }`. A dispatched Claude subagent is a tool whose `name` is `Task`; `tool.id` is the Claude tool-use id, `tool.input.description` is its short title, and `tool.input.subagent_type` identifies its type. A Task is running until `tool.done === true`.
+
+**Verified.** A dispatched subagent's own transcript is read through:
+
+```text
+GET /api/herdr/subagent?pane=<pane_id>&tool=<tool.id>&limit=400
+GET /api/herdr/subagent?pane=<pane_id>&tool=<tool.id>&limit=400&before=<seq>
+```
+
+A successful response is `{ agent: { type?, description?, finished }, page }`, where `page` has the same pagination and regular chat-item shape as `/api/herdr/chat`. The client can therefore render assistant text and tool calls with the shared Herdr message conversion. While `agent.finished` is false, the client polls about every 1.5 seconds and stops when the detail closes or the agent finishes.
+
+Protocol failures are returned with HTTP 200 as `{ error: { code, message } }`. Verified codes are `pane_not_found`, `subagent_not_found`, and `read_failed`. `subagent_not_found` can be transient immediately after a Task starts because its transcript file has not appeared yet; clients should show a quiet no-transcript state and keep polling. HTTP 404 means the connected desktop predates this route and should be presented as an update-required compatibility state.
+
 ### Attachments and previews
 
 **Verified.** Images and generic files use:
