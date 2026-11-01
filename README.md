@@ -121,6 +121,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). By participating, you agree to follow th
 
 - The [Herdr](https://github.com/herdrdev/herdr) logo is from Herdr's `assets/logo.svg` and is used under the [Apache License 2.0](https://github.com/herdrdev/herdr/blob/main/LICENSE). The Herdr trademark belongs to the Herdr project.
 - The Claude Code mark is from [simple-icons 16.36.0](https://github.com/simple-icons/simple-icons/tree/16.36.0) and is used under [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/). Claude Code is a trademark of Anthropic.
+- The Codex mark is an original vector drawing of the Codex product icon. Codex is a trademark of OpenAI.
 - The [pi](https://pi.dev/) mark's paths were taken from Alma Desktop's bundle. See pi's [official press kit](https://pi.dev/press-kit).
 
 ## License
