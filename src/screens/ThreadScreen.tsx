@@ -262,10 +262,12 @@ function MessageMarkdownContent({
   text: string
   linkUserFilePaths?: boolean
 }) {
+  const { api } = useConnection()
   return (
     <MarkdownContent
       text={text}
       linkUserFilePaths={linkUserFilePaths}
+      getSiteIcon={(url) => api.getSiteIcon(url)}
       renderReference={(href, children) => (
         <RefChip uri={href}>{children}</RefChip>
       )}

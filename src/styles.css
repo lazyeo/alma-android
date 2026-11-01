@@ -2581,7 +2581,7 @@ select:focus-visible {
   width: var(--text-sm);
   height: var(--text-sm);
   margin-right: 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   vertical-align: -2px;
 }
 

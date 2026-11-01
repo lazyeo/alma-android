@@ -13,7 +13,6 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { CodeBlock } from './CodeBlock'
 import { baseRemarkPlugins } from './markdownPlugins'
 import remarkUserFilePaths from './remarkUserFilePaths'
-import { ConnectionContext } from '../desktops/DesktopContext'
 import { stripReferenceAtSigns as stripMessageReferenceAtSigns } from './references'
 import { getCachedSiteIcon } from './siteIconCache'
 
@@ -40,24 +39,25 @@ function MarkdownLink({
   href,
   children,
   renderLink,
+  getSiteIcon,
   ...props
-}: AnchorProps & { renderLink?: (props: AnchorProps) => ReactNode }) {
-  const connection = useContext(ConnectionContext)
+}: AnchorProps & {
+  renderLink?: (props: AnchorProps) => ReactNode
+  getSiteIcon?: (url: string) => Promise<string | null>
+}) {
   const externalUrl = externalHttpUrl(href)
   const [icon, setIcon] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
-    if (!externalUrl || !connection) return
-    void getCachedSiteIcon(externalUrl, (url) => connection.api.getSiteIcon(url)).then(
-      (dataUrl) => {
-        if (active) setIcon(dataUrl)
-      },
-    )
+    if (!externalUrl || !getSiteIcon) return
+    void getCachedSiteIcon(externalUrl, getSiteIcon).then((dataUrl) => {
+      if (active) setIcon(dataUrl)
+    })
     return () => {
       active = false
     }
-  }, [connection, externalUrl])
+  }, [externalUrl, getSiteIcon])
 
   const content = (
     <>
@@ -115,6 +115,7 @@ export function MarkdownContent({
   renderReference,
   renderLink,
   renderImage,
+  getSiteIcon,
   components,
   className = '',
 }: {
@@ -124,6 +125,7 @@ export function MarkdownContent({
   renderReference?: (href: string, children: ReactNode) => ReactNode
   renderLink?: (props: AnchorProps) => ReactNode
   renderImage?: (props: ImageProps) => ReactNode
+  getSiteIcon?: (url: string) => Promise<string | null>
   components?: ComponentProps<typeof Markdown>['components']
   className?: string
 }) {
@@ -153,7 +155,12 @@ export function MarkdownContent({
               if (href && isReferenceUri(href) && renderReference)
                 return renderReference(href, children)
               return (
-                <MarkdownLink href={href} renderLink={renderLink} {...props}>
+                <MarkdownLink
+                  href={href}
+                  renderLink={renderLink}
+                  getSiteIcon={getSiteIcon}
+                  {...props}
+                >
                   {children}
                 </MarkdownLink>
               )

@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { render, waitFor, cleanup, screen, act } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
-import { ConnectionContext } from '../desktops/DesktopContext'
 import { clearSiteIconCache } from './siteIconCache'
 import { MarkdownContent } from './MarkdownContent'
 const mocks = vi.hoisted(() => ({
@@ -24,16 +23,15 @@ it('renders a loaded favicon before external link text without changing link beh
   )
 
   render(
-    <ConnectionContext.Provider value={{ api: { getSiteIcon } } as never}>
-      <MarkdownContent
-        text="Read [the guide](https://example.com/docs)."
-        renderLink={({ node: _node, children, ...props }) => (
-          <a {...props} onClick={onClick}>
-            {children}
-          </a>
-        )}
-      />
-    </ConnectionContext.Provider>,
+    <MarkdownContent
+      text="Read [the guide](https://example.com/docs)."
+      getSiteIcon={getSiteIcon}
+      renderLink={({ node: _node, children, ...props }) => (
+        <a {...props} onClick={onClick}>
+          {children}
+        </a>
+      )}
+    />,
   )
 
   const link = screen.getByRole('link', { name: 'the guide' })
@@ -53,12 +51,11 @@ it('renders a loaded favicon before external link text without changing link beh
 it('does not request favicons for references or non-http links', () => {
   const getSiteIcon = vi.fn()
   render(
-    <ConnectionContext.Provider value={{ api: { getSiteIcon } } as never}>
-      <MarkdownContent
-        text={'@[Thread](alma://thread/one) [relative](./note) [mail](mailto:a@example.com)'}
-        renderReference={(_href, children) => <span>{children}</span>}
-      />
-    </ConnectionContext.Provider>,
+    <MarkdownContent
+      text={'@[Thread](alma://thread/one) [relative](./note) [mail](mailto:a@example.com)'}
+      getSiteIcon={getSiteIcon}
+      renderReference={(_href, children) => <span>{children}</span>}
+    />,
   )
 
   expect(getSiteIcon).not.toHaveBeenCalled()
