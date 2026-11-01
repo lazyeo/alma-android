@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Herdr chat shows messages from teammate sessions as distinct compact cards with localized labels and collapsible Markdown details.
+- External links in rendered Markdown show the desktop-resolved site favicon when available.
 
 ## [0.1.5] - 2026-11-01
 

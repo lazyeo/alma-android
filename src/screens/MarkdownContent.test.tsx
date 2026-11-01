@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { render, waitFor, cleanup, screen, act } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
+import { ConnectionContext } from '../desktops/DesktopContext'
+import { clearSiteIconCache } from './siteIconCache'
 import { MarkdownContent } from './MarkdownContent'
 const mocks = vi.hoisted(() => ({
   render: vi.fn(async () => ({ svg: '<svg />' })),
@@ -11,7 +13,57 @@ afterEach(() => {
   cleanup()
   vi.useRealTimers()
   vi.clearAllMocks()
+  clearSiteIconCache()
 })
+it('renders a loaded favicon before external link text without changing link behavior', async () => {
+  const getSiteIcon = vi
+    .fn()
+    .mockResolvedValue('data:image/png;base64,external-icon')
+  const onClick = vi.fn((event: React.MouseEvent<HTMLAnchorElement>) =>
+    event.preventDefault(),
+  )
+
+  render(
+    <ConnectionContext.Provider value={{ api: { getSiteIcon } } as never}>
+      <MarkdownContent
+        text="Read [the guide](https://example.com/docs)."
+        renderLink={({ node: _node, children, ...props }) => (
+          <a {...props} onClick={onClick}>
+            {children}
+          </a>
+        )}
+      />
+    </ConnectionContext.Provider>,
+  )
+
+  const link = screen.getByRole('link', { name: 'the guide' })
+  await waitFor(() =>
+    expect(link.querySelector('.markdown-link-favicon')).toBeTruthy(),
+  )
+  const icon = link.querySelector('.markdown-link-favicon')!
+  expect(icon.getAttribute('src')).toBe(
+    'data:image/png;base64,external-icon',
+  )
+  expect(link.firstElementChild).toBe(icon)
+  link.click()
+  expect(onClick).toHaveBeenCalledOnce()
+  expect(getSiteIcon).toHaveBeenCalledWith('https://example.com/docs')
+})
+
+it('does not request favicons for references or non-http links', () => {
+  const getSiteIcon = vi.fn()
+  render(
+    <ConnectionContext.Provider value={{ api: { getSiteIcon } } as never}>
+      <MarkdownContent
+        text={'@[Thread](alma://thread/one) [relative](./note) [mail](mailto:a@example.com)'}
+        renderReference={(_href, children) => <span>{children}</span>}
+      />
+    </ConnectionContext.Provider>,
+  )
+
+  expect(getSiteIcon).not.toHaveBeenCalled()
+})
+
 it('renders inline, display and fenced math but keeps currency literal', async () => {
   const { container } = render(
     <MarkdownContent

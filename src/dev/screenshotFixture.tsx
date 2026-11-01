@@ -2183,6 +2183,8 @@ function createTunnel(targetPairing?: StoredPairing): ManagedTunnel {
     close: () => undefined,
     fetch: async (path, init = {}) => {
       const pathname = new URL(path, 'https://fixture.local').pathname
+      if (pathname === '/api/system/site-icon')
+        return json(200, { dataUrl: null })
       const delay = /^\/api\/threads\/[^/]+$/.test(pathname)
         ? delayThreadMs
         : pathname === '/api/threads' || pathname === '/api/workspaces'

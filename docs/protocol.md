@@ -199,6 +199,14 @@ Image bodies are raw bytes. Generic file uploads include `x-alma-filename`. The 
 
 Read-only image and file previews normalize desktop-local `/api/...` URLs into tunneled paths. Foreign origins are rejected. HTML previews remain sandboxed and must not gain same-origin access to the application.
 
+**Verified.** External links in rendered Markdown can request the desktop-resolved site icon:
+
+```text
+GET /api/system/site-icon?url=<encoded absolute http(s) URL>
+```
+
+A successful response is `{ "dataUrl": "data:image/png;base64,..." }`. Older desktops and lookup failures are treated as no icon. The mobile client caches positive and negative results by origin for the app run.
+
 ### References, crystals, and time clues
 
 **Verified.** The read-oriented reference browser uses:

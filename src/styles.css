@@ -2577,6 +2577,14 @@ select:focus-visible {
   width: 12px;
   height: 12px;
 }
+.markdown-link-favicon {
+  width: var(--text-sm);
+  height: var(--text-sm);
+  margin-right: 4px;
+  border-radius: 4px;
+  vertical-align: -2px;
+}
+
 /* The anchor's own underline would stack on top of the code's, so keep only one. */
 .markdown-content a.markdown-file-path:has(> code) {
   text-decoration: none;
