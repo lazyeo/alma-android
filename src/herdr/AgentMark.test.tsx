@@ -26,18 +26,43 @@ describe('AgentMark', () => {
     ).toEqual(['#F09082', '#4D9ABF', '#F1BE58'])
   })
 
-  it.each(['codex', 'unknown'])(
-    'uses a monochrome fallback for %s',
-    (agent) => {
-      const { container } = render(<AgentMark agent={agent} muted />)
+  it('renders the Codex cloud with its brand gradient', () => {
+    const { container } = render(<AgentMark agent="codex" />)
+    const gradient = container.querySelector('linearGradient')
+    const cloud = container.querySelector('[data-codex-cloud]')
 
-      expect(container.querySelector('svg')).toBeTruthy()
-      expect(
-        container.querySelector('[data-agent-mark="fallback"]'),
-      ).toBeTruthy()
-      expect(container.querySelectorAll('path')).not.toHaveLength(0)
-    },
-  )
+    expect(gradient?.querySelectorAll('stop')).toHaveLength(2)
+    expect(
+      gradient?.querySelector('stop:first-child')?.getAttribute('stop-color'),
+    ).toBe('#A78BFA')
+    expect(
+      gradient?.querySelector('stop:last-child')?.getAttribute('stop-color'),
+    ).toBe('#3B82F6')
+    expect(cloud?.getAttribute('fill')).toBe(
+      `url(#${gradient?.getAttribute('id')})`,
+    )
+    expect(cloud?.getAttribute('d')).toBeTruthy()
+    expect(container.querySelector('mask')).toBeTruthy()
+    expect(container.querySelector('[data-agent-mark="fallback"]')).toBeNull()
+  })
+
+  it('renders the muted Codex cloud in current color without a gradient', () => {
+    const { container } = render(<AgentMark agent="codex" muted />)
+
+    expect(container.querySelector('linearGradient')).toBeNull()
+    expect(
+      container.querySelector('[data-codex-cloud]')?.getAttribute('fill'),
+    ).toBe('currentColor')
+    expect(container.querySelector('mask')).toBeTruthy()
+  })
+
+  it('uses the Bot fallback for unknown agents', () => {
+    const { container } = render(<AgentMark agent="unknown" muted />)
+
+    expect(container.querySelector('svg')).toBeTruthy()
+    expect(container.querySelector('[data-agent-mark="fallback"]')).toBeTruthy()
+    expect(container.querySelectorAll('path')).not.toHaveLength(0)
+  })
 
   it('uses current color when muted', () => {
     const { container } = render(<AgentMark agent="claude" muted />)
