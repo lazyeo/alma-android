@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Claude panes show the Claude Code mark.
 - Herdr mark is now the official vector logo (Apache-2.0) instead of a traced bitmap.
 
 ### Added
@@ -22,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- README screenshot tables use same-scale images.
 - Herdr composer: the attach button matches the send button (40px, no border) instead of the taller bordered box from the thread composer.
 - Image annotator: a bare tap no longer adds an empty numbered region.
 - Image annotator: the region label row is vertically centred with equal 12px padding above and below, and the toolbar sits 12px under the divider.

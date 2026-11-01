@@ -120,7 +120,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). By participating, you agree to follow th
 ## Third-party assets
 
 - The [Herdr](https://github.com/herdrdev/herdr) logo is from Herdr's `assets/logo.svg` and is used under the [Apache License 2.0](https://github.com/herdrdev/herdr/blob/main/LICENSE). The Herdr trademark belongs to the Herdr project.
-- The Claude mark is an Anthropic trademark; its path was taken from Alma Desktop's bundle. See [Anthropic's official brand assets](https://brandfolder.com/anthropic).
+- The Claude Code mark is from [simple-icons 16.36.0](https://github.com/simple-icons/simple-icons/tree/16.36.0) and is used under [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/). Claude Code is a trademark of Anthropic.
 - The [pi](https://pi.dev/) mark's paths were taken from Alma Desktop's bundle. See pi's [official press kit](https://pi.dev/press-kit).
 
 ## License
