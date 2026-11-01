@@ -6285,8 +6285,8 @@ button:focus-visible,
 .project-consult-composer .spinner {
   width: 15px;
   height: 15px;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
+  border: var(--border-hairline) solid var(--gray-7);
+  border-right: var(--border-hairline) solid transparent;
   border-radius: 50%;
   animation: spin var(--dur-spin) var(--ease-loop-linear) infinite;
 }
