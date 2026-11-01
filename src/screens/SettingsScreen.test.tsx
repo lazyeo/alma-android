@@ -115,7 +115,9 @@ describe('SettingsScreen desktop connection details', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.getByText('Relay relay.example.test · 42 ms')).toBeTruthy()
+    expect(
+      screen.getByText('Current desktop · Relay relay.example.test · 42 ms'),
+    ).toBeTruthy()
     expect(screen.getByText('LAN direct · 58 ms')).toBeTruthy()
     expect(screen.queryByText('Connection')).toBeNull()
     expect(screen.queryByText('Latency')).toBeNull()

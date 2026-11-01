@@ -29,6 +29,7 @@ interface DesktopTransportCopy {
   transport: ActiveTransport
   relayUrl: string
   latency: TransportLatency
+  current?: boolean
 }
 
 function relayHostname(relayUrl: string) {
@@ -51,9 +52,14 @@ export function desktopRowSecondary(
         : t('connection.transport.desktopRowRelay', {
             host: relayHostname(online.relayUrl),
           })
-    return online.latency.ms === null
-      ? transport
-      : `${transport} \u00b7 ${Math.round(online.latency.ms)} ms`
+    const parts = [
+      ...(online.current ? [t('connection.currentDesktop')] : []),
+      transport,
+      ...(online.latency.ms === null
+        ? []
+        : [`${Math.round(online.latency.ms)} ms`]),
+    ]
+    return parts.join(' \u00b7 ')
   }
   if (error) return humanConnectionError(error)
   if (status === 'connecting') return t('connection.status.connecting')

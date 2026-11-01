@@ -659,7 +659,12 @@ export function SettingsScreen() {
                       status,
                       connection?.error,
                       status === 'online'
-                        ? { transport, relayUrl: pairing.relayUrl, latency }
+                        ? {
+                            transport,
+                            relayUrl: pairing.relayUrl,
+                            latency,
+                            current: pairing.id === store.activeId,
+                          }
                         : undefined,
                     )}
                     ariaLabel={t('connection.switcher.item', {

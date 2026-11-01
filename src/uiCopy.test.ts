@@ -31,6 +31,17 @@ describe('desktop row secondary copy', () => {
     ).toBe('Relay relay.example.test · 150 ms')
   })
 
+  it('prefixes the current desktop marker', () => {
+    expect(
+      desktopRowSecondary('online', undefined, {
+        transport: 'direct',
+        relayUrl: 'https://relay.example.test/path',
+        latency: { transport: 'direct', ms: 58, sampledAt: 1 },
+        current: true,
+      }),
+    ).toBe('Current desktop · LAN direct · 58 ms')
+  })
+
   it('shows only the transport before the first latency sample', () => {
     expect(
       desktopRowSecondary('online', undefined, {
