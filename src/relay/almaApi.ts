@@ -518,11 +518,14 @@ export class AlmaApi {
   askProjectCardConsult(workspaceId: string, question: string) {
     return this.request<
       ProjectCardConsultResponse & { answer: ProjectCardConsultMessage }
-    >(`/api/workspaces/${encodeURIComponent(workspaceId)}/project-card/consult`, {
-      method: 'POST',
-      body: { question },
-      timeoutMs: 75_000,
-    })
+    >(
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/project-card/consult`,
+      {
+        method: 'POST',
+        body: { question },
+        timeoutMs: 75_000,
+      },
+    )
   }
   clearProjectCardConsult(workspaceId: string) {
     return this.request<ProjectCardConsultResponse>(

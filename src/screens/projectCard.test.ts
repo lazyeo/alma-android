@@ -171,9 +171,9 @@ describe('project card errors', () => {
   })
 
   it('uses ordinary error messages and the fallback when needed', () => {
-    expect(extractProjectCardError(new Error('Network offline'), 'Fallback')).toBe(
-      'Network offline',
-    )
+    expect(
+      extractProjectCardError(new Error('Network offline'), 'Fallback'),
+    ).toBe('Network offline')
     expect(extractProjectCardError({}, 'Fallback')).toBe('Fallback')
   })
 })

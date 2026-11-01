@@ -417,13 +417,20 @@ describe('Alma API safety', () => {
     }
     const fetch = vi.fn().mockResolvedValue({
       status: 200,
-      json: async () => ({ card: null, transcript, answer: transcript.messages[0] }),
+      json: async () => ({
+        card: null,
+        transcript,
+        answer: transcript.messages[0],
+      }),
       text: async () => '',
       headers: {},
     })
     const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)
 
-    await api.draftProjectCard('ws 1', { hint: ' Android client ', fromConsult: true })
+    await api.draftProjectCard('ws 1', {
+      hint: ' Android client ',
+      fromConsult: true,
+    })
     await api.getProjectCardConsult('ws 1')
     await api.askProjectCardConsult('ws 1', 'What should we focus on?')
     await api.clearProjectCardConsult('ws 1')
@@ -440,7 +447,10 @@ describe('Alma API safety', () => {
     expect(fetch).toHaveBeenNthCalledWith(
       2,
       '/api/workspaces/ws%201/project-card/consult',
-      expect.objectContaining({ method: 'GET', signal: expect.any(AbortSignal) }),
+      expect.objectContaining({
+        method: 'GET',
+        signal: expect.any(AbortSignal),
+      }),
     )
     expect(fetch).toHaveBeenNthCalledWith(
       3,
@@ -454,7 +464,10 @@ describe('Alma API safety', () => {
     expect(fetch).toHaveBeenNthCalledWith(
       4,
       '/api/workspaces/ws%201/project-card/consult',
-      expect.objectContaining({ method: 'DELETE', signal: expect.any(AbortSignal) }),
+      expect.objectContaining({
+        method: 'DELETE',
+        signal: expect.any(AbortSignal),
+      }),
     )
     expect(() =>
       assertSafePath('/api/workspaces/ws%201/project-card/draft', 'POST'),
