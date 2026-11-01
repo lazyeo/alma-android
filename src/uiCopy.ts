@@ -55,6 +55,13 @@ export function teammateMessageTitle(from?: string) {
     : t('agents.teammateMessage')
 }
 
+export function projectCardProposalMeta(source?: string, time?: string) {
+  return [
+    source ? t('threads.projectCard.proposedBy', { source }) : undefined,
+    time ? t('threads.projectCard.proposedAt', { time }) : undefined,
+  ].filter((value): value is string => Boolean(value))
+}
+
 export function humanErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : ''
   const normalized = message.toLowerCase()

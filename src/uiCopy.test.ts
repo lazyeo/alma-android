@@ -7,6 +7,7 @@ import {
   formatLoopSchedule,
   humanConnectionError,
   humanErrorMessage,
+  projectCardProposalMeta,
 } from './uiCopy'
 
 describe('desktop row secondary copy', () => {
@@ -76,6 +77,15 @@ describe('primary error copy', () => {
   })
 })
 
+describe('project card copy guard', () => {
+  it('formats proposal source and time through the catalog', () => {
+    expect(projectCardProposalMeta('cli', '1 hour ago')).toEqual([
+      'Proposed by cli',
+      'Proposed 1 hour ago',
+    ])
+  })
+})
+
 describe('Chinese copy', () => {
   afterEach(() => setLanguage('en'))
 
@@ -86,6 +96,10 @@ describe('Chinese copy', () => {
     expect(formatLoopSchedule('5m', 12)).toBe('每 5m，共 12 次')
     expect(formatDiffStats(12, 3, 4)).toBe('4 个文件 +12 −3')
     expect(humanErrorMessage('camera denied')).toBe('出了点问题，请重试。')
+    expect(projectCardProposalMeta('cli', '1 小时前')).toEqual([
+      '由 cli 提议',
+      '1 小时前提议',
+    ])
   })
 
   it('recognises relay failures stored in the other language', () => {
