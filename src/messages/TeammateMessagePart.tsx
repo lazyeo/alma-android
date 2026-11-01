@@ -5,9 +5,18 @@ import { useT } from '../i18n'
 import { teammateMessageTitle } from '../uiCopy'
 
 const LONG_MESSAGE_LINES = 6
+const APPROXIMATE_CHARACTERS_PER_LINE = 44
 
 function shouldCollapseMessage(text: string, summary?: string) {
-  return Boolean(summary) || text.split(/\r?\n/).length > LONG_MESSAGE_LINES
+  const estimatedLines = text
+    .split(/\r?\n/)
+    .reduce(
+      (lines, line) =>
+        lines +
+        Math.max(1, Math.ceil(line.length / APPROXIMATE_CHARACTERS_PER_LINE)),
+      0,
+    )
+  return Boolean(summary) || estimatedLines > LONG_MESSAGE_LINES
 }
 
 export function TeammateMessagePart({

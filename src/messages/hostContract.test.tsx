@@ -122,6 +122,25 @@ describe('shared message host contract', () => {
     expect(card?.querySelectorAll('.markdown-content')).toHaveLength(2)
   })
 
+  it('collapses long teammate messages without a summary', () => {
+    const longText = Array.from(
+      { length: 12 },
+      (_, index) =>
+        `Detailed review point ${index + 1} explains the implementation.`,
+    ).join(' ')
+    const [row] = toMessageRows([
+      {
+        id: 'teammate-long',
+        kind: 'teammate',
+        text: longText,
+      },
+    ])
+    const view = render(<MessageView row={row} capabilities={capabilities} />)
+
+    expect(view.container.textContent).not.toContain('Detailed review point 1')
+    expect(view.getByRole('button', { name: 'Show full message' })).toBeTruthy()
+  })
+
   it('uses the teammate fallback label and expands short messages', () => {
     const [row] = toMessageRows([
       {
