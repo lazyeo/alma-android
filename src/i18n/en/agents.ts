@@ -94,4 +94,11 @@ export const agents = {
   sendFailed: 'Could not send to the agent',
   chatUnsupported: 'This agent has no chat transcript. Showing its terminal.',
   toolFailed: 'Failed',
+  subagents: 'Subagents',
+  subagent: 'Subagent',
+  subagentDone: 'Done',
+  subagentSteps: '{count} steps',
+  subagentNoTranscript: 'No transcript yet',
+  subagentUnsupported: "Update your Mac's Alma",
+  subagentReadFailed: 'Could not read this subagent transcript.',
 } as const

@@ -93,4 +93,11 @@ export const agents = {
   sendFailed: '无法发送给 Agent',
   chatUnsupported: '这个 Agent 没有对话记录，显示终端画面。',
   toolFailed: '失败',
+  subagents: '子助手',
+  subagent: '子助手',
+  subagentDone: '已完成',
+  subagentSteps: '{count} 个步骤',
+  subagentNoTranscript: '暂时没有对话记录',
+  subagentUnsupported: '请更新 Mac 上的 Alma',
+  subagentReadFailed: '无法读取这个子助手的对话记录',
 } as const

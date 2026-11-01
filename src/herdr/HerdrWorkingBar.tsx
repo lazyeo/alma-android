@@ -1,5 +1,5 @@
 import { Square } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { useT } from '../i18n'
 import { useSharedSecond } from '../screens/useSharedSecond'
 import type { HerdrChatItem } from './toMessageParts'
@@ -23,12 +23,14 @@ export function HerdrWorkingBar({
   items,
   statusText,
   statusStartedAt,
+  leading,
   onStop,
 }: {
   working: boolean
   items: HerdrChatItem[]
   statusText?: string
   statusStartedAt?: number
+  leading?: ReactNode
   onStop(): void
 }) {
   const t = useT()
@@ -43,6 +45,7 @@ export function HerdrWorkingBar({
   const activity = statusText || unfinishedTool(items) || t('agents.working')
   return (
     <div className="activity-bar agent-working-bar" role="status">
+      {leading}
       <span className="activity-bar-phase agent-working-phase">{activity}</span>
       <time className="activity-bar-elapsed">
         {elapsedClock(now - startedAt)}
