@@ -1,6 +1,8 @@
 export const agents = {
   title: 'Herdr',
   agent: 'Agent',
+  working: 'Working…',
+  stop: 'Stop',
   connecting: 'Connecting to coding agents…',
   desktopOffline: 'This desktop is offline.',
   unsupported: 'Update Alma on this desktop to use coding agents.',

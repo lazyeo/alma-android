@@ -59,6 +59,8 @@ import {
 } from './transcript'
 import { toMessageRows, type HerdrChatItem } from './toMessageParts'
 import { nextTerminalScrollTop } from '../terminal/terminalScroll'
+import { agentStatusLine } from './statusLine'
+import { HerdrWorkingBar } from './HerdrWorkingBar'
 import { HerdrUploadUnsupportedError } from '../relay/almaApi'
 import {
   buildHerdrPrompt,
@@ -114,6 +116,10 @@ export function AgentPaneScreen() {
   const [chatReady, setChatReady] = useState(false)
   const [chatUnsupported, setChatUnsupported] = useState(false)
   const [terminal, setTerminal] = useState('')
+  const [workingStatus, setWorkingStatus] = useState<{
+    text: string
+    startedAt?: number
+  }>({ text: '' })
   const [terminalHistory, setTerminalHistory] = useState('')
   const [terminalHistoryEmpty, setTerminalHistoryEmpty] = useState(false)
   const [loadingTerminalHistory, setLoadingTerminalHistory] = useState(false)
@@ -180,6 +186,7 @@ export function AgentPaneScreen() {
     setChatReady(false)
     setChatUnsupported(false)
     setTerminal('')
+    setWorkingStatus({ text: '' })
     setTerminalHistory('')
     setTerminalHistoryEmpty(false)
     setLoadingTerminalHistory(false)
@@ -263,6 +270,42 @@ export function AgentPaneScreen() {
       .then((result) => setTerminal(result?.read?.text ?? ''))
       .catch(() => undefined)
   }, [api, decodedPaneId, pane?.agent_status, terminal])
+  useEffect(() => {
+    if (!pane?.agent?.toLowerCase().includes('claude')) return
+    const working = pane.agent_status === 'working'
+    let current = true
+    let timeout = 0
+    const stoppedAt = working ? undefined : Date.now()
+    const poll = async () => {
+      try {
+        const result = await api.readHerdrPane(decodedPaneId)
+        if (!current) return
+        const status = agentStatusLine(result?.read?.text ?? '')
+        if (status.live) {
+          setWorkingStatus((previous) => ({
+            text: status.text,
+            startedAt:
+              status.elapsedMs === undefined
+                ? (previous.startedAt ?? Date.now())
+                : Date.now() - status.elapsedMs,
+          }))
+        }
+        if (
+          working ||
+          (stoppedAt !== undefined &&
+            Date.now() - stoppedAt < (status.live ? 60_000 : 4_000))
+        )
+          timeout = window.setTimeout(poll, working ? 2_000 : 800)
+      } catch {
+        if (current && working) timeout = window.setTimeout(poll, 2_000)
+      }
+    }
+    if (working || workingStatus.text) void poll()
+    return () => {
+      current = false
+      window.clearTimeout(timeout)
+    }
+  }, [api, decodedPaneId, pane?.agent, pane?.agent_status])
 
   // Each view keeps its own scroll offset; null means "pinned to the bottom",
   // which is also where a view starts and what keeps it following new output.
@@ -748,6 +791,17 @@ export function AgentPaneScreen() {
           )}
           {error ? <p className="settings-error agent-error">{error}</p> : null}
         </div>
+        {view === 'chat' && pane?.agent_status === 'working' ? (
+          <HerdrWorkingBar
+            working
+            items={items}
+            statusText={workingStatus.text}
+            statusStartedAt={workingStatus.startedAt}
+            onStop={() =>
+              void api.sendHerdrPaneKeys(decodedPaneId, [HERDR_KEY_MAP.escape])
+            }
+          />
+        ) : null}
         {view === 'chat' && !chatUnsupported ? (
           <ComposerAttachmentTray
             api={api}

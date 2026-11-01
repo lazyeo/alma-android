@@ -178,6 +178,22 @@ describe('AgentPaneScreen pane navigation', () => {
     expect(view.container.querySelector('.usage')).toBeNull()
   })
 
+  it('stops a working pane with escape from the chat activity bar', async () => {
+    paneId = 'pane-b'
+    agentStatus = 'working'
+    api.readHerdrPane.mockResolvedValueOnce({
+      read: { text: '✻ Reading files… (42s · esc to interrupt)' },
+    })
+    render(<AgentPaneScreen />)
+
+    const stop = await screen.findByRole('button', { name: 'agents.stop' })
+    fireEvent.click(stop)
+
+    await waitFor(() =>
+      expect(api.sendHerdrPaneKeys).toHaveBeenCalledWith('pane-b', ['esc']),
+    )
+  })
+
   it('renders chat and terminal as one segmented view switch', async () => {
     paneId = 'pane-b'
     render(<AgentPaneScreen />)

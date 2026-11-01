@@ -1,6 +1,8 @@
 export const agents = {
   title: 'Herdr',
   agent: '助手',
+  working: '正在工作…',
+  stop: '停止',
   connecting: '正在连接编码助手…',
   desktopOffline: '这个桌面端当前离线',
   unsupported: '请更新这个桌面端的 Alma 以使用编码助手',

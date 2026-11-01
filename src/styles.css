@@ -6751,6 +6751,31 @@ button:active:not(:disabled),
   /* The hold owns this touch: no pan, selection or callout may start. */
   touch-action: none;
 }
+.agent-working-bar {
+  margin-bottom: 4px;
+}
+.agent-working-phase {
+  animation: thinking var(--dur-thinking) var(--ease-loop-wave) infinite;
+}
+.agent-working-stop {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: var(--border-hairline) solid var(--gray-7);
+  border-radius: var(--radius-full);
+  background: var(--gray-3);
+  color: var(--foreground);
+  font: inherit;
+  font-weight: var(--weight-medium);
+}
+.agent-working-stop svg {
+  color: var(--destructive);
+}
+.agent-working-stop:active {
+  background: var(--gray-4);
+}
 .hold-stop-wrap {
   position: relative;
   z-index: var(--z-activity);
@@ -6879,7 +6904,8 @@ button:active:not(:disabled),
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .activity-bar-phase {
+  .activity-bar-phase,
+  .agent-working-phase {
     background: none;
     color: var(--muted-foreground);
     animation: none;
