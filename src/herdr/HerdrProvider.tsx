@@ -17,7 +17,7 @@ import {
 } from '../notifications'
 import { desktopAgentPanePath } from '../desktopRoutes'
 import { stripAnsi } from './transcript'
-import type { HerdrChatItem } from './toMessageParts'
+import { lastAssistantText, notificationMessage } from './lastAssistantText'
 import {
   agentListFromSnapshot,
   parseBlockedPrompt,
@@ -55,33 +55,6 @@ export function useHerdr() {
   const value = useContext(HerdrContext)
   if (!value) throw new Error('useHerdr requires HerdrProvider')
   return value
-}
-
-const notificationMessage = (text: string) => {
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, 5)
-  const joined = lines.join('\n')
-  return joined.length > 200 ? `${joined.slice(0, 199).trimEnd()}…` : joined
-}
-
-const lastAssistantText = (response: unknown, firstLineOnly = false) => {
-  const page =
-    response && typeof response === 'object' && 'page' in response
-      ? (response.page as { items?: HerdrChatItem[] } | undefined)
-      : undefined
-  const item = [...(page?.items ?? [])]
-    .reverse()
-    .find(
-      (candidate) =>
-        candidate.kind === 'assistant' && typeof candidate.text === 'string',
-    )
-  const text = item?.text ?? ''
-  return firstLineOnly
-    ? (notificationMessage(text).split('\n')[0] ?? '')
-    : notificationMessage(text)
 }
 
 export function useHerdrNotificationEvents({
