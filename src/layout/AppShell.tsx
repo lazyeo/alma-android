@@ -4,7 +4,6 @@ import {
   Gem,
   ListTodo,
   MessagesSquare,
-  SquareTerminal,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
@@ -39,6 +38,7 @@ import { visiblePairings } from '../desktops/desktopVisibility'
 import { useT } from '../i18n'
 import { useHerdr } from '../herdr/HerdrProvider'
 import { AgentsSidebar } from '../herdr/AgentsSidebar'
+import { HerdrMark } from '../herdr/HerdrMark'
 import {
   rememberLastViewedPane,
   resolveLastViewedPane,
@@ -166,7 +166,7 @@ export function AgentsNavLink({
       className={`agents-entry${active ? ' active' : ''}`}
     >
       <span className="tab-icon">
-        <SquareTerminal size={22} />
+        <HerdrMark size={22} />
       </span>
       {compact ? null : t('nav.agents')}
     </NavLink>

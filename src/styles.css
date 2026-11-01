@@ -8535,6 +8535,19 @@ dialog:focus,
   text-decoration: none;
   border-bottom: var(--border-hairline) solid var(--gray-7);
 }
+.agent-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: var(--foreground);
+}
+.agent-mark.muted {
+  color: var(--text-tertiary);
+}
+.agent-mark svg {
+  display: block;
+}
 .agent-pane-row-wrap:last-child > .agent-pane-row,
 .agent-pane-row-wrap:last-child > .agent-row-blocked-card {
   border-bottom: 0;
@@ -8708,6 +8721,17 @@ dialog:focus,
 .agent-pane-page > .scoped-root-header .scoped-root-title {
   min-width: 0;
   overflow: hidden;
+}
+.agent-pane-page > .scoped-root-header .scoped-root-title h1 {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+.agent-pane-page > .scoped-root-header .scoped-root-title h1 > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .agent-pane-page {
   position: relative;

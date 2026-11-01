@@ -12,6 +12,7 @@ import {
   type BlockedPrompt,
 } from './model'
 import type { WorkspaceSwitcherItem } from './agentsBoardModel'
+import { AgentMark } from './AgentMark'
 
 export const agentStatusClass = (
   status: string,
@@ -79,6 +80,11 @@ export function AgentPaneRow({
         aria-current={selected ? 'page' : undefined}
       >
         <span className={`agent-status ${agentStatusClass(pane.status)}`} />
+        <AgentMark
+          agent={pane.sessionAgent ?? pane.agent}
+          small
+          muted={!selected}
+        />
         <span className="agent-pane-copy">
           <span className="agent-pane-heading">
             <strong>{pane.agent}</strong>

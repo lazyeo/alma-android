@@ -16,7 +16,7 @@ export function ScopedRootHeader({
   className = '',
   children,
 }: {
-  title: string
+  title: ReactNode
   childOnPhone?: boolean
   actions?: ReactNode
   className?: string

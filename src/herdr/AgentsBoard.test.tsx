@@ -35,6 +35,27 @@ afterEach(() => {
 })
 
 describe('AgentPaneRow blocked quick answer', () => {
+  it('shows the session agent mark and mutes it when unselected', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <AgentPaneRow
+          desktopId="desktop"
+          pane={{
+            id: 'pane-1',
+            workspaceId: 'workspace-1',
+            agent: 'codex',
+            sessionAgent: 'claude',
+            status: 'idle',
+            title: 'Review changes',
+          }}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(container.querySelector('[data-agent-mark="claude"]')).toBeTruthy()
+    expect(container.querySelector('.agent-mark.muted')).toBeTruthy()
+  })
+
   it('reads a blocked visible pane once and sends cursor-relative keys', async () => {
     render(
       <MemoryRouter>

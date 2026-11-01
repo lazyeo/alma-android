@@ -75,7 +75,7 @@ vi.mock('../layout/ScopedRootHeader', () => ({
     title,
     actions,
   }: {
-    title: string
+    title: React.ReactNode
     actions: unknown
   }) => (
     <header>

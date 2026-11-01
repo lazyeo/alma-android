@@ -84,8 +84,9 @@ describe('Agents navigation', () => {
         </MemoryRouter>
       </LanguageProvider>,
     )
-    expect(
-      screen.getByRole('link', { name: 'Herdr' }).getAttribute('href'),
-    ).toBe('/d/desktop/agents')
+    const link = screen.getByRole('link', { name: 'Herdr' })
+    expect(link.getAttribute('href')).toBe('/d/desktop/agents')
+    expect(link.querySelector('.herdr-mark')).toBeTruthy()
+    expect(link.querySelector('.lucide-square-terminal')).toBeNull()
   })
 })

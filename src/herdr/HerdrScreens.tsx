@@ -47,6 +47,7 @@ import {
   type TerminalKey,
 } from '../terminal/terminal'
 import { useHerdr } from './HerdrProvider'
+import { AgentMark } from './AgentMark'
 import { mergeChatItems, parseBlockedPrompt, type HerdrPane } from './model'
 import {
   parseAnsi,
@@ -516,7 +517,25 @@ export function AgentPaneScreen() {
       <section className="root-page agent-pane-page">
         <ScopedRootHeader
           title={
-            pane?.terminal_title_stripped || pane?.agent || t('agents.agent')
+            <>
+              {pane?.agent ? (
+                <AgentMark
+                  agent={
+                    pane.agent_session &&
+                    typeof pane.agent_session === 'object' &&
+                    'agent' in pane.agent_session &&
+                    typeof pane.agent_session.agent === 'string'
+                      ? pane.agent_session.agent
+                      : pane.agent
+                  }
+                />
+              ) : null}
+              <span>
+                {pane?.terminal_title_stripped ||
+                  pane?.agent ||
+                  t('agents.agent')}
+              </span>
+            </>
           }
           childOnPhone
           actions={

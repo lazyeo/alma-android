@@ -40,6 +40,7 @@ export interface AgentPaneModel {
   workspaceId: string
   tabId?: string
   agent: string
+  sessionAgent?: string
   status: HerdrAgentStatus
   title: string
   lastChangedAt?: number
@@ -98,6 +99,13 @@ export function agentListFromSnapshot(
       workspaceId: pane.workspace_id,
       tabId: pane.tab_id,
       agent: pane.agent,
+      sessionAgent:
+        pane.agent_session &&
+        typeof pane.agent_session === 'object' &&
+        'agent' in pane.agent_session &&
+        typeof pane.agent_session.agent === 'string'
+          ? pane.agent_session.agent
+          : undefined,
       status: pane.agent_status ?? 'unknown',
       title:
         pane.terminal_title_stripped?.trim() ||
