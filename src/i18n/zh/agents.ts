@@ -34,9 +34,9 @@ export const agents = {
   closeTabAction: '关闭标签页',
   closeWorkspaceAction: '关闭工作区',
   kind: {
-    claude: 'Claude',
-    codex: 'Codex',
-    pi: 'Pi',
+    claude: 'Claude 助手',
+    codex: 'Codex 助手',
+    pi: 'Pi 助手',
   },
   blockedCount: '{count} 个待处理',
   workingCount: '{count} 个工作中',
