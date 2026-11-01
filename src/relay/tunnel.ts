@@ -2,6 +2,7 @@ import { base64url, fromBase64url } from './crypto'
 import { isAndroidNative } from '../nativeRuntime'
 import { lanCandidateUrls, raceLanProbes } from './lanDirect'
 import { nativeLanWebSocketFactory } from './nativeLanSocket'
+import { LatencyTracker, type TransportLatency } from './latency'
 import {
   E2ESession,
   type PairingConfig,
@@ -33,6 +34,9 @@ interface RelayTunnelDependencies {
     delay: number,
   ) => ReturnType<typeof setInterval>
   clearReprobeInterval?: (timer: ReturnType<typeof setInterval>) => void
+  isVisible?: () => boolean
+  now?: () => number
+  sampledAt?: () => number
 }
 export interface TunnelResponse {
   status: number
@@ -50,6 +54,8 @@ export interface TunnelSocket {
 }
 interface PendingHttp {
   session?: TunnelSession
+  sentAt?: number
+  latencySampled?: boolean
   status?: number
   headers?: Record<string, string>
   chunks: Uint8Array[]
@@ -81,6 +87,8 @@ export class RelayTunnel {
   onConnectionState?: (state: ConnectionState) => void
   activeTransport: ActiveTransport = 'relay'
   onActiveTransport?: (transport: ActiveTransport) => void
+  latency: TransportLatency = { transport: 'relay', ms: null, sampledAt: 0 }
+  onLatency?: (latency: TransportLatency) => void
   private relaySession?: TunnelSession
   private directSession?: TunnelSession
   private probing?: Promise<void>
@@ -90,6 +98,7 @@ export class RelayTunnel {
   private reconnectTimer?: ReturnType<typeof setTimeout>
   private reprobeTimer?: ReturnType<typeof setInterval>
   private removeNetworkListeners: Array<() => void> = []
+  private latencyTracker = new LatencyTracker()
   private closed = false
 
   constructor(
@@ -97,8 +106,18 @@ export class RelayTunnel {
     private webSocketFactory?: WebSocketFactory,
     private dependencies: RelayTunnelDependencies = {},
   ) {
+    const isVisible =
+      dependencies.isVisible ??
+      (() =>
+        typeof document === 'undefined' || document.visibilityState === 'visible')
     const reprobe = () => {
-      if (this.activeTransport === 'relay') void this.probeLan()
+      if (!isVisible() || this.connectionState !== 'connected') return
+      if (
+        this.activeTransport === 'relay' &&
+        (this.dependencies.isNative ?? isAndroidNative)()
+      )
+        void this.probeLan()
+      else void this.probeLatency()
     }
     const addReprobeListener =
       dependencies.addReprobeListener ??
@@ -121,7 +140,7 @@ export class RelayTunnel {
     )
     this.reprobeTimer = (dependencies.setReprobeInterval ?? setInterval)(
       reprobe,
-      3 * 60_000,
+      30_000,
     )
   }
   private setConnectionState(state: ConnectionState) {
@@ -171,13 +190,38 @@ export class RelayTunnel {
   private setActiveTransport(transport: ActiveTransport) {
     if (this.activeTransport === transport) return
     this.activeTransport = transport
+    this.latency = this.latencyTracker.current(transport)
     this.onActiveTransport?.(transport)
+    this.onLatency?.(this.latency)
+  }
+
+  private transportForSession(session: TunnelSession): ActiveTransport {
+    return session === this.directSession ? 'direct' : 'relay'
+  }
+
+  private recordLatency(session: TunnelSession, sentAt: number) {
+    const ms = Math.max(0, (this.dependencies.now ?? performance.now.bind(performance))() - sentAt)
+    this.latency = this.latencyTracker.record(
+      this.transportForSession(session),
+      ms,
+      (this.dependencies.sampledAt ?? Date.now)(),
+    )
+    if (this.latency.transport === this.activeTransport)
+      this.onLatency?.(this.latency)
   }
 
   private activeSession() {
     return this.directSession?.state === 'ready'
       ? this.directSession
       : this.relaySession
+  }
+
+  private async probeLatency() {
+    try {
+      await this.fetchWithSession(this.activeSession(), '/__alma_lan__')
+    } catch {
+      // The regular connection lifecycle owns failures; probes are best effort.
+    }
   }
 
   private probeLan(): Promise<void> {
@@ -280,6 +324,10 @@ export class RelayTunnel {
       const pending = this.http.get(frame.id)
       if (!pending || pending.session !== session) return
       if (frame.t === 'hres') {
+        if (!pending.latencySampled && pending.sentAt !== undefined) {
+          pending.latencySampled = true
+          this.recordLatency(session, pending.sentAt)
+        }
         pending.status = frame.status
         pending.headers = frame.headers ?? {}
       }
@@ -355,6 +403,8 @@ export class RelayTunnel {
         typeof init.body === 'string'
           ? new TextEncoder().encode(init.body)
           : init.body
+      pending.sentAt = (this.dependencies.now ??
+        performance.now.bind(performance))()
       session
         ?.send({
           t: 'hreq',

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { RelayTunnel, type TunnelSession } from './tunnel'
+import type { TransportLatency } from './latency'
 import type { RelayWebSocket, SessionState } from './e2eSession'
 
 afterEach(() => vi.useRealTimers())
@@ -83,6 +84,89 @@ describe('RelayTunnel.connect', () => {
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(factory).toHaveBeenCalledTimes(1)
     tunnel.close()
+  })
+})
+
+describe('RelayTunnel latency', () => {
+  it('measures hreq to hres RTT on the session that owns the request', async () => {
+    const now = vi
+      .fn<() => number>()
+      .mockReturnValueOnce(100)
+      .mockReturnValueOnce(112)
+      .mockReturnValueOnce(200)
+      .mockReturnValueOnce(240)
+    const relay = new FakeSession((frame, session) => {
+      if (frame.path === '/__alma_lan__') respond(session, frame, null)
+      else respond(session, frame, {})
+    })
+    const tunnel = new RelayTunnel(pairing, undefined, {
+      isNative: () => false,
+      createRelaySession: () => relay,
+      now,
+      sampledAt: () => 5_000,
+    })
+    const updates: TransportLatency[] = []
+    tunnel.onLatency = (latency) => updates.push(latency)
+
+    await tunnel.connect()
+    await tunnel.fetch('/first')
+    await tunnel.fetch('/second')
+
+    expect(updates).toEqual([
+      { transport: 'relay', ms: 12, sampledAt: 5_000 },
+      { transport: 'relay', ms: 26, sampledAt: 5_000 },
+    ])
+    tunnel.close()
+  })
+
+  it('probes the active session every thirty seconds only while visible and connected', async () => {
+    vi.useFakeTimers()
+    let visible = true
+    const listeners = new Map<string, () => void>()
+    const relay = new FakeSession((frame, session) => {
+      if (frame.path === '/__alma_lan__') respond(session, frame, null)
+    })
+    const tunnel = new RelayTunnel(pairing, undefined, {
+      isNative: () => false,
+      createRelaySession: () => relay,
+      isVisible: () => visible,
+      addReprobeListener: (name, listener) => {
+        listeners.set(name, listener)
+        return () => listeners.delete(name)
+      },
+      setReprobeInterval: (listener, delay) => {
+        expect(delay).toBe(30_000)
+        return setInterval(listener, delay)
+      },
+      clearReprobeInterval: clearInterval,
+    })
+
+    await tunnel.connect()
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(
+      relay.sent.filter((frame) => frame.path === '/__alma_lan__'),
+    ).toHaveLength(1)
+
+    visible = false
+    listeners.get('visible')?.()
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(
+      relay.sent.filter((frame) => frame.path === '/__alma_lan__'),
+    ).toHaveLength(1)
+
+    visible = true
+    listeners.get('visible')?.()
+    await vi.waitFor(() =>
+      expect(
+        relay.sent.filter((frame) => frame.path === '/__alma_lan__'),
+      ).toHaveLength(2),
+    )
+
+    tunnel.close()
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(
+      relay.sent.filter((frame) => frame.path === '/__alma_lan__'),
+    ).toHaveLength(2)
   })
 })
 
