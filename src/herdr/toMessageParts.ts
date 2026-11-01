@@ -54,6 +54,24 @@ function imageParts(value: unknown): MessagePart[] {
 }
 
 function textParts(item: HerdrChatItem): MessagePart[] {
+  if (item.kind === 'teammate') {
+    const text = cleanAgentText(item.text ?? '')
+    return text
+      ? [
+          {
+            type: 'teammate-message',
+            text,
+            ...(typeof item.from === 'string' && item.from
+              ? { from: item.from }
+              : {}),
+            ...(typeof item.summary === 'string' && item.summary
+              ? { summary: item.summary }
+              : {}),
+          },
+        ]
+      : []
+  }
+
   const parts: MessagePart[] = []
   const reasoning = cleanAgentText(
     typeof item.reasoning === 'string'
@@ -138,7 +156,11 @@ export function toItemRows(items: readonly HerdrChatItem[]): HerdrMessageRow[] {
       id: item.id,
       message: {
         role:
-          item.kind === 'user' || item.kind === 'human' ? 'user' : 'assistant',
+          item.kind === 'user' || item.kind === 'human'
+            ? 'user'
+            : item.kind === 'teammate'
+              ? 'teammate'
+              : 'assistant',
         parts:
           item.tool && !view?.questions
             ? [...toolParts(item.tool), ...imageParts(item.images)]

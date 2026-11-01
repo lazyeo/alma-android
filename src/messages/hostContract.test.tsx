@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render } from '@testing-library/react'
+import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MarkdownContent } from '../screens/MarkdownContent'
 import { toMessageRows, type HerdrChatItem } from '../herdr/toMessageParts'
@@ -99,6 +99,44 @@ function sharedClassStructure(host: Element) {
 afterEach(cleanup)
 
 describe('shared message host contract', () => {
+  it('renders teammate messages as compact collapsible markdown cards', () => {
+    const [row] = toMessageRows([
+      {
+        id: 'teammate',
+        kind: 'teammate',
+        from: 'reviewer',
+        summary: '**Review complete**',
+        text: 'The implementation is ready.\n\n- Tests pass\n- Layout checked',
+      },
+    ])
+    const view = render(<MessageView row={row} capabilities={capabilities} />)
+
+    const card = view.container.querySelector('.teammate-message-card')
+    expect(card).toBeTruthy()
+    expect(card?.textContent).toContain('Message from @reviewer')
+    expect(card?.textContent).toContain('Review complete')
+    expect(card?.textContent).not.toContain('Tests pass')
+
+    fireEvent.click(view.getByRole('button', { name: 'Show full message' }))
+    expect(card?.textContent).toContain('Tests pass')
+    expect(card?.querySelectorAll('.markdown-content')).toHaveLength(2)
+  })
+
+  it('uses the teammate fallback label and expands short messages', () => {
+    const [row] = toMessageRows([
+      {
+        id: 'teammate-fallback',
+        kind: 'teammate',
+        text: 'A short teammate note.',
+      },
+    ])
+    const view = render(<MessageView row={row} capabilities={capabilities} />)
+
+    expect(view.container.textContent).toContain('Teammate message')
+    expect(view.container.textContent).toContain('A short teammate note.')
+    expect(view.queryByRole('button')).toBeNull()
+  })
+
   it('keeps shared DOM classes identical and omits thread controls in Herdr', () => {
     const view = render(
       <>

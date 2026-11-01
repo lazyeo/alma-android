@@ -49,6 +49,12 @@ export function formatDiffStats(
   return t('thread.diffStats', { additions, deletions, count: filesChanged })
 }
 
+export function teammateMessageTitle(from?: string) {
+  return from
+    ? t('agents.teammateMessageFrom', { name: from })
+    : t('agents.teammateMessage')
+}
+
 export function humanErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : ''
   const normalized = message.toLowerCase()

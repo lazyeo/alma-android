@@ -8904,6 +8904,65 @@ dialog:focus,
 .agent-chat > .message {
   flex: none;
 }
+.message.teammate {
+  width: 100%;
+}
+.message.teammate > .message-footer {
+  display: none;
+}
+.teammate-message-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: var(--border-hairline) solid var(--gray-7);
+  border-radius: var(--radius-md);
+  background: var(--gray-2);
+}
+.teammate-message-card > header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--gray-12);
+  font-size: var(--text-sm);
+  line-height: var(--leading-tight);
+}
+.teammate-message-card > header svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  color: var(--gray-11);
+}
+.teammate-message-card > header strong {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: var(--weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.teammate-message-summary,
+.teammate-message-body {
+  min-width: 0;
+}
+.teammate-message-summary {
+  color: var(--gray-12);
+  font-weight: var(--weight-medium);
+}
+.teammate-message-body {
+  color: var(--gray-11);
+}
+.teammate-message-card .markdown-content {
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.teammate-message-toggle {
+  justify-self: start;
+  min-height: 32px;
+  margin-left: -6px;
+}
+.teammate-message-toggle svg {
+  width: 14px;
+  height: 14px;
+}
 .agent-message.queued {
   max-width: 88%;
   align-self: flex-end;

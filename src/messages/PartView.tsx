@@ -5,6 +5,7 @@ import { ToolPart, type NestedMessageRow } from './ToolPart'
 import { useT } from '../i18n'
 import { parseAlmaImageEdit } from '../components/imageAnnotatorModel'
 import { ImageEditCard } from './ImageEditCard'
+import { TeammateMessagePart } from './TeammateMessagePart'
 
 export interface PartViewCapabilities {
   renderMarkdown: (text: string, linkUserFilePaths?: boolean) => ReactNode
@@ -54,6 +55,13 @@ export const PartView = memo(function PartView({
 
   if (part.type === 'reasoning')
     return <ReasoningPart part={part} live={live} duration={duration} />
+  if (part.type === 'teammate-message')
+    return (
+      <TeammateMessagePart
+        part={part}
+        renderMarkdown={(text) => capabilities.renderMarkdown(text)}
+      />
+    )
   if (part.type === 'text') {
     const parsed = parseAlmaImageEdit(part.text ?? '')
     // The card carries the same numbered requests as the visible text, so

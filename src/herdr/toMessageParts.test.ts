@@ -2,6 +2,35 @@ import { describe, expect, it } from 'vitest'
 import { groupTurns, toItemRows, type HerdrMessageRow } from './toMessageParts'
 
 describe('toItemRows', () => {
+  it('maps teammate messages to a distinct shared message part', () => {
+    expect(
+      toItemRows([
+        {
+          id: 'teammate-1',
+          kind: 'teammate',
+          from: 'reviewer',
+          summary: 'Review complete',
+          text: 'The implementation is ready to merge.',
+        },
+      ]),
+    ).toEqual([
+      {
+        id: 'teammate-1',
+        message: {
+          role: 'teammate',
+          parts: [
+            {
+              type: 'teammate-message',
+              from: 'reviewer',
+              summary: 'Review complete',
+              text: 'The implementation is ready to merge.',
+            },
+          ],
+        },
+      },
+    ])
+  })
+
   it('maps item and tool-result images to shared file parts', () => {
     const rows = toItemRows([
       {
