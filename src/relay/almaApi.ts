@@ -403,6 +403,16 @@ export class AlmaApi {
   getSettings() {
     return this.request<AlmaSettings>('/api/settings')
   }
+  async getSiteIcon(url: string): Promise<string | null> {
+    try {
+      const result = await this.request<{ dataUrl?: unknown }>(
+        `/api/system/site-icon?url=${encodeURIComponent(url)}`,
+      )
+      return typeof result.dataUrl === 'string' ? result.dataUrl : null
+    } catch {
+      return null
+    }
+  }
   listWorkspaces() {
     return this.request<Workspace[]>('/api/workspaces')
   }

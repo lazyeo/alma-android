@@ -128,6 +128,39 @@ describe('Alma API safety', () => {
     )
   })
 
+  it('returns a site icon data URL and silently handles unavailable icons', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: 200,
+        json: async () => ({ dataUrl: 'data:image/png;base64,icon' }),
+        text: async () => '',
+        headers: {},
+      })
+      .mockResolvedValueOnce({
+        status: 404,
+        json: async () => ({ error: 'Not found' }),
+        text: async () => 'Not found',
+        headers: {},
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        json: async () => ({ dataUrl: 42 }),
+        text: async () => '',
+        headers: {},
+      })
+    const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)
+
+    await expect(api.getSiteIcon('https://example.com/page')).resolves.toBe(
+      'data:image/png;base64,icon',
+    )
+    await expect(api.getSiteIcon('https://missing.example/page')).resolves.toBeNull()
+    await expect(api.getSiteIcon('https://invalid.example/page')).resolves.toBeNull()
+    expect(fetch.mock.calls[0][0]).toBe(
+      '/api/system/site-icon?url=https%3A%2F%2Fexample.com%2Fpage',
+    )
+  })
+
   it('reads models and settings without attempting a settings write', async () => {
     const fetch = vi.fn().mockResolvedValue({
       status: 200,
