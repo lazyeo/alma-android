@@ -12,7 +12,9 @@ describe('Herdr management helpers', () => {
   })
 
   it('returns undefined when the key has no string value', () => {
-    expect(firstString('pane_id', { pane_id: null, nested: [] })).toBeUndefined()
+    expect(
+      firstString('pane_id', { pane_id: null, nested: [] }),
+    ).toBeUndefined()
   })
 
   it('builds a desktop-compatible agent tab name', () => {

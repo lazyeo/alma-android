@@ -5741,10 +5741,13 @@ const herdrManageShots = ['en', 'zh'].flatMap((lang) => [
     ready: '.agent-pane-row',
     safeInsets: true,
     async act(page) {
-      await page.locator('.agent-pane-row').first().dispatchEvent('contextmenu', {
-        clientX: 180,
-        clientY: 260,
-      })
+      await page
+        .locator('.agent-pane-row')
+        .first()
+        .dispatchEvent('contextmenu', {
+          clientX: 180,
+          clientY: 260,
+        })
       await page.locator('.bottom-sheet').waitFor()
       await page.waitForTimeout(350)
     },
@@ -5757,9 +5760,11 @@ const herdrManageShots = ['en', 'zh'].flatMap((lang) => [
     ready: '.agent-pane-row',
     safeInsets: true,
     async act(page) {
-      await page.getByRole('button', {
-        name: lang === 'zh' ? '新建工作区' : 'New workspace',
-      }).click()
+      await page
+        .getByRole('button', {
+          name: lang === 'zh' ? '新建工作区' : 'New workspace',
+        })
+        .click()
       await page.locator('.bottom-sheet').waitFor()
       await page.waitForTimeout(350)
     },

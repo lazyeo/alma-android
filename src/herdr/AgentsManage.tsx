@@ -1,10 +1,5 @@
 import { LoaderCircle, Pencil, Plus, Trash2 } from 'lucide-react'
-import {
-  createContext,
-  useContext,
-  useState,
-  type ReactNode,
-} from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BottomSheet } from '../components/BottomSheet'
 import { desktopAgentPanePath } from '../desktopRoutes'
@@ -80,7 +75,10 @@ export function AgentsManageProvider({
     }
   }
 
-  const start = async (workspace: AgentWorkspaceModel, kind: HerdrAgentKind) => {
+  const start = async (
+    workspace: AgentWorkspaceModel,
+    kind: HerdrAgentKind,
+  ) => {
     if (!api || busy) return
     setBusy(true)
     setStartingWorkspaceId(workspace.id)
@@ -156,7 +154,8 @@ export function AgentsManageProvider({
     <Context.Provider
       value={{
         openPane: (pane) => setTarget({ kind: 'pane', pane }),
-        openWorkspace: (workspace) => setTarget({ kind: 'workspace', workspace }),
+        openWorkspace: (workspace) =>
+          setTarget({ kind: 'workspace', workspace }),
         openNewWorkspace: () => setCreatingWorkspace(true),
         startingWorkspaceId,
       }}
@@ -165,7 +164,9 @@ export function AgentsManageProvider({
       {error ? (
         <div className="herdr-manage-error error" role="alert">
           <span>{error}</span>
-          <button onClick={() => setError(undefined)}>{t('common.close')}</button>
+          <button onClick={() => setError(undefined)}>
+            {t('common.close')}
+          </button>
         </div>
       ) : null}
       {target ? (
@@ -267,7 +268,11 @@ export function AgentsManageProvider({
           title={t('agents.closeTitle')}
           onClose={() => !busy && setClosing(undefined)}
           footer={
-            <button className="danger" disabled={busy} onClick={() => void close()}>
+            <button
+              className="danger"
+              disabled={busy}
+              onClick={() => void close()}
+            >
               {closing.kind === 'pane'
                 ? t('agents.closeTabAction')
                 : t('agents.closeWorkspaceAction')}
@@ -286,7 +291,10 @@ export function AgentsManageProvider({
           title={t('agents.newAgentTab')}
           onClose={() => !busy && setAgentWorkspace(undefined)}
         >
-          <AgentKinds disabled={busy} onSelect={(kind) => void start(agentWorkspace, kind)} />
+          <AgentKinds
+            disabled={busy}
+            onSelect={(kind) => void start(agentWorkspace, kind)}
+          />
         </BottomSheet>
       ) : null}
       {creatingWorkspace ? (
@@ -294,7 +302,11 @@ export function AgentsManageProvider({
           title={t('agents.newWorkspace')}
           onClose={() => !busy && setCreatingWorkspace(false)}
           footer={
-            <button className="primary" disabled={busy} onClick={() => void createWorkspace()}>
+            <button
+              className="primary"
+              disabled={busy}
+              onClick={() => void createWorkspace()}
+            >
               {busy ? <LoaderCircle className="spinner" size={16} /> : null}
               {t('agents.createWorkspace')}
             </button>

@@ -27,7 +27,11 @@ export function AgentsSidebar() {
   )
 }
 
-function AgentsSidebarContent({ desktopId: decodedDesktopId }: { desktopId: string }) {
+function AgentsSidebarContent({
+  desktopId: decodedDesktopId,
+}: {
+  desktopId: string
+}) {
   const t = useT()
   const navigate = useNavigate()
   const manage = useAgentsManage()

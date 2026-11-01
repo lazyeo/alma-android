@@ -33,7 +33,11 @@ export function AgentsScreen() {
   )
 }
 
-function AgentsScreenContent({ desktopId: decodedDesktopId }: { desktopId: string }) {
+function AgentsScreenContent({
+  desktopId: decodedDesktopId,
+}: {
+  desktopId: string
+}) {
   const t = useT()
   const manage = useAgentsManage()
   const navigate = useNavigate()

@@ -239,7 +239,10 @@ export function AgentsBoard({
           </header>
           <div className="agent-pane-list">
             {manage.startingWorkspaceId === selected.id ? (
-              <div className="agent-pane-row agent-starting-row" aria-live="polite">
+              <div
+                className="agent-pane-row agent-starting-row"
+                aria-live="polite"
+              >
                 <LoaderCircle className="spinner" size={16} />
                 <span>{t('agents.starting')}</span>
               </div>
@@ -309,7 +312,10 @@ export function AgentsList({
             </header>
             <div className="agent-pane-list">
               {manage.startingWorkspaceId === workspace.id ? (
-                <div className="agent-pane-row agent-starting-row" aria-live="polite">
+                <div
+                  className="agent-pane-row agent-starting-row"
+                  aria-live="polite"
+                >
                   <LoaderCircle className="spinner" size={16} />
                   <span>{t('agents.starting')}</span>
                 </div>

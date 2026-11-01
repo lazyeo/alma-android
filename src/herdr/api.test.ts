@@ -103,9 +103,11 @@ describe('Herdr API', () => {
   })
 
   it('sends exact management RPC shapes and returns create responses', async () => {
-    const fetch = vi.fn().mockResolvedValue(
-      response({ result: { nested: { pane_id: 'pane-created' } } }),
-    )
+    const fetch = vi
+      .fn()
+      .mockResolvedValue(
+        response({ result: { nested: { pane_id: 'pane-created' } } }),
+      )
     const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as never)
 
     await api.herdrRenameTab('tab-1', 'Review')

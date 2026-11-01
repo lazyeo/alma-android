@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LanguageProvider } from '../i18n'
@@ -53,7 +59,9 @@ function renderManage(api: Partial<AlmaApi>, action: 'pane' | 'workspace') {
     <LanguageProvider>
       <MemoryRouter>
         <HerdrProvider
-          desktops={[{ id: 'desktop', name: 'Mac', online: true, api: fullApi }]}
+          desktops={[
+            { id: 'desktop', name: 'Mac', online: true, api: fullApi },
+          ]}
           notificationSettings={{} as never}
         >
           <AgentsManageProvider desktopId="desktop">
@@ -73,7 +81,10 @@ afterEach(() => {
 
 describe('Herdr management sheets', () => {
   it('renames a tab with the entered label', async () => {
-    const api = renderManage({ herdrRenameTab: vi.fn(async () => undefined) }, 'pane')
+    const api = renderManage(
+      { herdrRenameTab: vi.fn(async () => undefined) },
+      'pane',
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Open actions' }))
     fireEvent.click(screen.getByRole('button', { name: 'Rename tab' }))
     fireEvent.change(screen.getByDisplayValue('Implementation'), {
@@ -114,8 +125,8 @@ describe('Herdr management sheets', () => {
       expect(api.herdrCreateTab).toHaveBeenCalledWith('workspace-1', '/repo'),
     )
     expect(api.herdrStartAgent).toHaveBeenCalledWith('codex', 'pane-new')
-    expect(vi.mocked(api.herdrCreateTab).mock.invocationCallOrder[0]).toBeLessThan(
-      vi.mocked(api.herdrStartAgent).mock.invocationCallOrder[0],
-    )
+    expect(
+      vi.mocked(api.herdrCreateTab).mock.invocationCallOrder[0],
+    ).toBeLessThan(vi.mocked(api.herdrStartAgent).mock.invocationCallOrder[0])
   })
 })
