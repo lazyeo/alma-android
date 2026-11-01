@@ -102,6 +102,89 @@ describe('Herdr API', () => {
     )
   })
 
+  it('sends exact management RPC shapes and returns create responses', async () => {
+    const fetch = vi.fn().mockResolvedValue(
+      response({ result: { nested: { pane_id: 'pane-created' } } }),
+    )
+    const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as never)
+
+    await api.herdrRenameTab('tab-1', 'Review')
+    await api.herdrRenameWorkspace('workspace-1', 'Mobile')
+    await api.herdrCloseTab('tab-1')
+    await api.herdrCloseWorkspace('workspace-1')
+    expect(await api.herdrCreateTab('workspace-1', '/repo')).toEqual({
+      nested: { pane_id: 'pane-created' },
+    })
+    expect(await api.herdrCreateWorkspace('Release', '/repo')).toEqual({
+      nested: { pane_id: 'pane-created' },
+    })
+
+    const calls = fetch.mock.calls.map(([, init]) =>
+      JSON.parse(String((init as RequestInit).body)),
+    )
+    expect(calls).toEqual([
+      { method: 'tab.rename', params: { tab_id: 'tab-1', label: 'Review' } },
+      {
+        method: 'workspace.rename',
+        params: { workspace_id: 'workspace-1', label: 'Mobile' },
+      },
+      { method: 'tab.close', params: { tab_id: 'tab-1' } },
+      { method: 'workspace.close', params: { workspace_id: 'workspace-1' } },
+      {
+        method: 'tab.create',
+        params: { workspace_id: 'workspace-1', focus: false, cwd: '/repo' },
+      },
+      {
+        method: 'workspace.create',
+        params: { focus: false, label: 'Release', cwd: '/repo' },
+      },
+    ])
+  })
+
+  it('retries agent.start while the new pane shell is unavailable', async () => {
+    vi.useFakeTimers()
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        response({
+          error: {
+            code: 'invalid_state',
+            message: 'pane is not an available shell',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        response({
+          error: {
+            code: 'invalid_state',
+            message: 'not an available shell yet',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(response({ result: { started: true } }))
+    const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as never)
+
+    const started = api.herdrStartAgent('pi', 'pane-created', () => 0x1234abcd)
+    await vi.advanceTimersByTimeAsync(2_000)
+    await expect(started).resolves.toEqual({ started: true })
+    expect(fetch).toHaveBeenCalledTimes(3)
+    expect(
+      fetch.mock.calls.map(([, init]) =>
+        JSON.parse(String((init as RequestInit).body)),
+      ),
+    ).toEqual(
+      Array.from({ length: 3 }, () => ({
+        method: 'agent.start',
+        params: {
+          name: 'pi-1234abcd',
+          kind: 'pi',
+          pane_id: 'pane-created',
+        },
+      })),
+    )
+    vi.useRealTimers()
+  })
+
   it('preserves the agent_blocked code for composer routing', async () => {
     const fetch = vi.fn().mockResolvedValue(
       response({

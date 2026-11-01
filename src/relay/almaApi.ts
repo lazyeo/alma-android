@@ -1,3 +1,4 @@
+import { agentTabName, type HerdrAgentKind } from '../herdr/manage'
 import { parseGoal } from '../screens/threadGoal'
 import { parseLoop } from '../screens/threadLoop'
 import {
@@ -909,6 +910,60 @@ export class AlmaApi {
         return response.result as T
       },
     )
+  }
+  herdrRenameTab(tabId: string, label: string) {
+    return this.herdrRpc('tab.rename', { tab_id: tabId, label })
+  }
+  herdrRenameWorkspace(workspaceId: string, label: string) {
+    return this.herdrRpc('workspace.rename', {
+      workspace_id: workspaceId,
+      label,
+    })
+  }
+  herdrCloseTab(tabId: string) {
+    return this.herdrRpc('tab.close', { tab_id: tabId })
+  }
+  herdrCloseWorkspace(workspaceId: string) {
+    return this.herdrRpc('workspace.close', { workspace_id: workspaceId })
+  }
+  herdrCreateTab(workspaceId: string, cwd?: string) {
+    return this.herdrRpc<unknown>('tab.create', {
+      workspace_id: workspaceId,
+      focus: false,
+      ...(cwd ? { cwd } : {}),
+    })
+  }
+  herdrCreateWorkspace(label?: string, cwd?: string) {
+    return this.herdrRpc<unknown>('workspace.create', {
+      focus: false,
+      ...(label ? { label } : {}),
+      ...(cwd ? { cwd } : {}),
+    })
+  }
+  async herdrStartAgent(
+    kind: HerdrAgentKind,
+    paneId: string,
+    random: () => number = Math.random,
+  ) {
+    const params = {
+      name: agentTabName(kind, random),
+      kind,
+      pane_id: paneId,
+    }
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        return await this.herdrRpc('agent.start', params)
+      } catch (error) {
+        if (
+          attempt === 4 ||
+          !/not an available shell/i.test(
+            error instanceof Error ? error.message : String(error),
+          )
+        )
+          throw error
+        await new Promise((resolve) => setTimeout(resolve, 1_000))
+      }
+    }
   }
   promptHerdrAgent(paneId: string, text: string) {
     return this.herdrRpc('agent.prompt', { target: paneId, text })
