@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Connection indicators and Desktop settings now show live median round-trip latency for the active LAN or relay transport.
+- Each online desktop row in Settings shows its LAN or relay transport and live median round-trip latency.
 - Herdr chat shows dispatched subagents, their running count, and a live transcript sheet with assistant text and compact tool steps.
 - Herdr chat shows messages from teammate sessions as distinct compact cards with localized labels and collapsible Markdown details.
 - External links in rendered Markdown show the desktop-resolved site favicon when available.

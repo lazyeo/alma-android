@@ -2457,13 +2457,19 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
                 transportByDesktop: screenshotParams.has('lan')
                   ? { [DESKTOP_ID]: 'direct' }
                   : undefined,
-                latencyByDesktop: {
-                  [DESKTOP_ID]: {
-                    transport: screenshotParams.has('lan') ? 'direct' : 'relay',
-                    ms: 42,
-                    sampledAt: Date.now(),
-                  },
-                },
+                latencyByDesktop: Object.fromEntries(
+                  fixturePairings.map(({ id }) => [
+                    id,
+                    {
+                      transport:
+                        id === DESKTOP_ID && screenshotParams.has('lan')
+                          ? 'direct'
+                          : 'relay',
+                      ms: 42,
+                      sampledAt: NOW,
+                    },
+                  ]),
+                ),
                 updateDependencies,
               }}
             />
