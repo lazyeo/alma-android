@@ -50,9 +50,9 @@ function renderFoldSettings() {
 describe('SettingsScreen desktop connection details', () => {
   afterEach(cleanup)
 
-  it('shows the active connection channel, relay hostname, and live latency', () => {
+  it('shows transport and latency on each online desktop row', () => {
     capabilities.mockResolvedValue({ foldable: false, reason: 'none' })
-    const pairing = {
+    const home = {
       id: 'home',
       name: 'Home',
       relayUrl: 'https://relay.example.test/path',
@@ -60,19 +60,40 @@ describe('SettingsScreen desktop connection details', () => {
       addedAt: 1,
       lastActiveAt: 1,
     }
+    const studio = {
+      ...home,
+      id: 'studio',
+      name: 'Studio',
+      relayUrl: 'https://unused.example.test/path',
+      connectCode: 'fixture-studio',
+    }
     const desktops: DesktopsValue = {
-      store: { pairings: [pairing], activeId: 'home' },
+      store: { pairings: [home, studio], activeId: 'home' },
       desktops: [
         {
-          pairing,
+          pairing: home,
           status: 'online',
           transport: 'relay',
           latency: { transport: 'relay', ms: 42, sampledAt: Date.now() },
           connection: {
-            pairing,
+            pairing: home,
             status: 'online',
             transport: 'relay',
             latency: { transport: 'relay', ms: 42, sampledAt: Date.now() },
+            tunnel: {} as never,
+            api: {} as never,
+          },
+        },
+        {
+          pairing: studio,
+          status: 'online',
+          transport: 'direct',
+          latency: { transport: 'direct', ms: 58, sampledAt: Date.now() },
+          connection: {
+            pairing: studio,
+            status: 'online',
+            transport: 'direct',
+            latency: { transport: 'direct', ms: 58, sampledAt: Date.now() },
             tunnel: {} as never,
             api: {} as never,
           },
@@ -94,10 +115,10 @@ describe('SettingsScreen desktop connection details', () => {
       </LanguageProvider>,
     )
 
-    expect(screen.getByText('Connection')).toBeTruthy()
-    expect(screen.getByText('Relay (relay.example.test)')).toBeTruthy()
-    expect(screen.getByText('Latency')).toBeTruthy()
-    expect(screen.getByText('42 ms')).toBeTruthy()
+    expect(screen.getByText('Relay relay.example.test · 42 ms')).toBeTruthy()
+    expect(screen.getByText('LAN direct · 58 ms')).toBeTruthy()
+    expect(screen.queryByText('Connection')).toBeNull()
+    expect(screen.queryByText('Latency')).toBeNull()
   })
 })
 

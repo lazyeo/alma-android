@@ -78,10 +78,6 @@ export const settings = {
   },
   desktops: {
     title: 'Desktops',
-    connection: 'Connection',
-    connectionLan: 'LAN direct',
-    connectionRelay: 'Relay ({host})',
-    latency: 'Latency',
     hiddenCount: 'Hidden ({count})',
     expandHidden: 'Expand hidden desktops',
     collapseHidden: 'Collapse hidden desktops',

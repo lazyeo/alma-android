@@ -1,5 +1,5 @@
 import { t } from './i18n/runtime'
-import type { DesktopStatus } from './relay'
+import type { ActiveTransport, DesktopStatus, TransportLatency } from './relay'
 import { relayFailureKindOf, relayFailureShort } from './relay/relayDiagnosis'
 
 // Matching runs on raw transport errors, which stay English; only the
@@ -25,13 +25,36 @@ export function humanConnectionError(error?: string) {
   return t('connection.status.offline')
 }
 
+interface DesktopTransportCopy {
+  transport: ActiveTransport
+  relayUrl: string
+  latency: TransportLatency
+}
+
+function relayHostname(relayUrl: string) {
+  try {
+    return new URL(relayUrl).hostname
+  } catch {
+    return relayUrl
+  }
+}
+
 export function desktopRowSecondary(
   status: DesktopStatus,
-  current: boolean,
   error?: string,
+  online?: DesktopTransportCopy,
 ) {
-  if (status === 'online')
-    return current ? t('connection.currentDesktop') : undefined
+  if (status === 'online' && online) {
+    const transport =
+      online.transport === 'direct'
+        ? t('connection.transport.desktopRowLan')
+        : t('connection.transport.desktopRowRelay', {
+            host: relayHostname(online.relayUrl),
+          })
+    return online.latency.ms === null
+      ? transport
+      : `${transport} \u00b7 ${Math.round(online.latency.ms)} ms`
+  }
   if (error) return humanConnectionError(error)
   if (status === 'connecting') return t('connection.status.connecting')
   return t('connection.status.offline')

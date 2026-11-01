@@ -12,6 +12,8 @@ export const connection = {
     lan: 'Connected over local network',
     relay: 'Connected over the internet relay',
     short: { lan: 'LAN', relay: 'Relay' },
+    desktopRowLan: 'LAN direct',
+    desktopRowRelay: 'Relay {host}',
   },
   relayUnreachable: "Can't reach the relay",
   desktopNotResponding: 'Desktop not responding',

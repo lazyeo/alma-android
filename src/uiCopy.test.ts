@@ -11,21 +11,46 @@ import {
 } from './uiCopy'
 
 describe('desktop row secondary copy', () => {
-  it('reports current and exceptional connection state only', () => {
-    expect(desktopRowSecondary('online', true)).toBe('Current desktop')
-    expect(desktopRowSecondary('online', false)).toBeUndefined()
-    expect(desktopRowSecondary('offline', false)).toBe('Offline')
+  it('shows direct transport and latency for an online desktop', () => {
     expect(
-      desktopRowSecondary('offline', false, 'Relay connection failed'),
-    ).toBe("Can't reach the relay")
+      desktopRowSecondary('online', undefined, {
+        transport: 'direct',
+        relayUrl: 'https://relay.example.test/path',
+        latency: { transport: 'direct', ms: 58, sampledAt: 1 },
+      }),
+    ).toBe('LAN direct · 58 ms')
+  })
+
+  it('shows relay hostname and latency for an online desktop', () => {
     expect(
-      desktopRowSecondary(
-        'offline',
-        false,
-        'Request timed out waiting for desktop',
-      ),
+      desktopRowSecondary('online', undefined, {
+        transport: 'relay',
+        relayUrl: 'https://relay.example.test/path',
+        latency: { transport: 'relay', ms: 150, sampledAt: 1 },
+      }),
+    ).toBe('Relay relay.example.test · 150 ms')
+  })
+
+  it('shows only the transport before the first latency sample', () => {
+    expect(
+      desktopRowSecondary('online', undefined, {
+        transport: 'direct',
+        relayUrl: 'https://relay.example.test/path',
+        latency: { transport: 'direct', ms: null, sampledAt: 0 },
+      }),
+    ).toBe('LAN direct')
+  })
+
+  it('keeps offline and error copy unchanged', () => {
+    expect(desktopRowSecondary('offline')).toBe('Offline')
+    expect(desktopRowSecondary('connecting')).toBe('Connecting')
+    expect(desktopRowSecondary('offline', 'Relay connection failed')).toBe(
+      "Can't reach the relay",
+    )
+    expect(
+      desktopRowSecondary('offline', 'Request timed out waiting for desktop'),
     ).toBe('Desktop not responding')
-    expect(desktopRowSecondary('offline', false, 'HTTP 502: bad gateway')).toBe(
+    expect(desktopRowSecondary('offline', 'HTTP 502: bad gateway')).toBe(
       'Offline',
     )
   })
@@ -91,7 +116,13 @@ describe('Chinese copy', () => {
 
   it('follows the runtime language', () => {
     setLanguage('zh')
-    expect(desktopRowSecondary('online', true)).toBe('当前桌面端')
+    expect(
+      desktopRowSecondary('online', undefined, {
+        transport: 'relay',
+        relayUrl: 'wss://relay.a-dobe.club/socket',
+        latency: { transport: 'relay', ms: 150, sampledAt: 1 },
+      }),
+    ).toBe('中继 relay.a-dobe.club · 150 ms')
     expect(humanConnectionError('Relay connection failed')).toBe('无法连接中继')
     expect(formatLoopSchedule('5m', 12)).toBe('每 5m，共 12 次')
     expect(formatDiffStats(12, 3, 4)).toBe('4 个文件 +12 −3')
