@@ -1698,6 +1698,18 @@ const updateShots = [
 ]
 
 const shots = [
+  {
+    file: 'project-card-412.png',
+    viewport: PHONE,
+    route: DESKTOP,
+    ready: '.project-group',
+    async act(page) {
+      await page.getByRole('tab', { name: 'Projects' }).click()
+      await page.getByRole('button', { name: /alma-mobile/ }).click()
+      await page.getByRole('button', { name: /Project card/ }).click()
+      await page.getByText('Proposed update').waitFor()
+    },
+  },
   ...['en', 'zh'].map((language) => ({
     file: `lan-switcher-${language}-412.png`,
     viewport: PHONE,

@@ -1520,6 +1520,31 @@ function route(method: string, path: string, body?: unknown): TunnelResponse {
       general: { defaultWorkspaceId: 'ws-app' },
     })
   if (pathname === '/api/workspaces') return json(200, workspaces)
+  if (pathname === '/api/workspaces/ws-app/project-card')
+    return json(200, {
+      card: {
+        brief:
+          'An unofficial Android client for Alma Desktop, built for reliable work away from the Mac.',
+        focus:
+          'Ship the project card MVP with a quiet mobile layout and verified desktop compatibility.',
+        resume: [
+          { uri: 'alma://thread/t-refs', label: 'Reference navigation' },
+        ],
+        proposal: {
+          focus:
+            'Polish the project card MVP, verify the proposal flow, and prepare one focused screenshot.',
+          resume: [
+            { uri: 'alma://thread/t-refs', label: 'Reference navigation' },
+            { uri: 'alma://thread/t-gen', label: 'Mobile polish' },
+          ],
+          reason:
+            'The implementation is ready for a focused verification pass.',
+          proposedAt: new Date(NOW - 38 * 60_000).toISOString(),
+          source: 'cli',
+        },
+      },
+      config: null,
+    })
   if (pathname === '/api/attachments/file' && method === 'POST')
     return json(200, {
       filePath: '/tmp/alma-fixture/release-notes.txt',
