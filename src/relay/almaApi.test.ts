@@ -353,6 +353,56 @@ describe('Alma API safety', () => {
     )
   })
 
+  it('reads, saves, and resolves a workspace project card', async () => {
+    const card = {
+      brief: 'Ship the Android client',
+      focus: 'Project card MVP',
+      resume: [{ uri: 'alma://thread/thread-1', label: 'Implementation' }],
+    }
+    const fetch = vi.fn().mockResolvedValue({
+      status: 200,
+      json: async () => ({ card, config: null }),
+      text: async () => '',
+      headers: {},
+    })
+    const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)
+
+    await expect(api.getProjectCard('ws 1')).resolves.toEqual({
+      card,
+      config: null,
+    })
+    await api.saveProjectCard('ws 1', card)
+    await api.resolveProjectCardProposal('ws 1', true)
+
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
+      '/api/workspaces/ws%201/project-card',
+      expect.objectContaining({ method: 'GET' }),
+    )
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      '/api/workspaces/ws%201/project-card',
+      expect.objectContaining({ method: 'PUT', body: JSON.stringify(card) }),
+    )
+    expect(fetch).toHaveBeenNthCalledWith(
+      3,
+      '/api/workspaces/ws%201/project-card/resolve-proposal',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ accept: true }),
+      }),
+    )
+    expect(() =>
+      assertSafePath('/api/workspaces/ws%201/project-card', 'PUT'),
+    ).not.toThrow()
+    expect(() =>
+      assertSafePath(
+        '/api/workspaces/ws%201/project-card/resolve-proposal',
+        'POST',
+      ),
+    ).not.toThrow()
+  })
+
   it('lists previewable HTML files of one workspace', async () => {
     const fetch = vi.fn().mockResolvedValue({
       status: 200,

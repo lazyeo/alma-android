@@ -59,6 +59,34 @@ export interface Workspace {
   [key: string]: unknown
 }
 
+export interface ProjectCardResumeLink {
+  uri: string
+  label: string
+}
+
+export interface ProjectCardProposal {
+  brief?: string
+  focus?: string
+  resume?: ProjectCardResumeLink[]
+  reason: string
+  proposedAt: string
+  source?: string
+}
+
+export interface ProjectCard {
+  brief: string
+  focus: string
+  resume: ProjectCardResumeLink[]
+  updatedAt?: string
+  confirmedAt?: string
+  proposal?: ProjectCardProposal
+}
+
+export interface ProjectCardResponse {
+  card: ProjectCard | null
+  config: unknown | null
+}
+
 export interface AlmaSettings {
   chat?: {
     defaultModel?: string
@@ -415,6 +443,26 @@ export class AlmaApi {
   }
   listWorkspaces() {
     return this.request<Workspace[]>('/api/workspaces')
+  }
+  getProjectCard(workspaceId: string) {
+    return this.request<ProjectCardResponse>(
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/project-card`,
+    )
+  }
+  saveProjectCard(
+    workspaceId: string,
+    card: Pick<ProjectCard, 'brief' | 'focus' | 'resume'>,
+  ) {
+    return this.request<{ card: ProjectCard }>(
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/project-card`,
+      { method: 'PUT', body: card },
+    )
+  }
+  resolveProjectCardProposal(workspaceId: string, accept: boolean) {
+    return this.request<{ card: ProjectCard }>(
+      `/api/workspaces/${encodeURIComponent(workspaceId)}/project-card/resolve-proposal`,
+      { method: 'POST', body: { accept } },
+    )
   }
   wakeDisplay(workspaceId: string) {
     return this.request<unknown>('/api/terminal/exec', {
