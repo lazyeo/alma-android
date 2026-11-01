@@ -1,11 +1,5 @@
 import { Check, ChevronRight, CircleAlert } from 'lucide-react'
-import {
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { BottomSheet } from '../components/BottomSheet'
 import { SettingsRow } from '../components/SettingsRow'
 import { useT } from '../i18n'
@@ -70,7 +64,9 @@ export function HerdrSubagentsSheet({
   return (
     <BottomSheet
       className="agent-subagents-sheet"
-      title={selected ? selected.type || t('agents.subagent') : t('agents.subagents')}
+      title={
+        selected ? selected.type || t('agents.subagent') : t('agents.subagents')
+      }
       onClose={onClose}
       onBack={selected ? () => setSelectedToolId(undefined) : undefined}
     >
@@ -116,7 +112,9 @@ function SubagentDetail({
   const [items, setItems] = useState<HerdrChatItem[]>([])
   const [description, setDescription] = useState(dispatch.title)
   const [finished, setFinished] = useState(!dispatch.running)
-  const [state, setState] = useState<'loading' | 'ready' | 'empty' | 'unsupported' | 'error'>('loading')
+  const [state, setState] = useState<
+    'loading' | 'ready' | 'empty' | 'unsupported' | 'error'
+  >('loading')
   const scrollerRef = useRef<HTMLDivElement>(null)
   const pinnedRef = useRef(true)
 
@@ -134,7 +132,10 @@ function SubagentDetail({
           return
         }
         if (response.status === 'error') {
-          if (response.error.code === 'subagent_not_found' && items.length === 0) {
+          if (
+            response.error.code === 'subagent_not_found' &&
+            items.length === 0
+          ) {
             setState('empty')
             timer = window.setTimeout(poll, 1_500)
           } else setState('error')
@@ -145,8 +146,7 @@ function SubagentDetail({
         setDescription(response.agent.description || dispatch.title)
         setFinished(response.agent.finished)
         setState('ready')
-        if (!response.agent.finished)
-          timer = window.setTimeout(poll, 1_500)
+        if (!response.agent.finished) timer = window.setTimeout(poll, 1_500)
       } catch {
         if (active) setState('error')
       }
@@ -160,7 +160,8 @@ function SubagentDetail({
 
   useLayoutEffect(() => {
     const scroller = scrollerRef.current
-    if (scroller && pinnedRef.current) scroller.scrollTop = scroller.scrollHeight
+    if (scroller && pinnedRef.current)
+      scroller.scrollTop = scroller.scrollHeight
   }, [items])
 
   const steps = useMemo(() => subagentStepRows(items), [items])
@@ -176,9 +177,7 @@ function SubagentDetail({
                 {
                   source: part.url,
                   name:
-                    typeof part.filename === 'string'
-                      ? part.filename
-                      : 'image',
+                    typeof part.filename === 'string' ? part.filename : 'image',
                 },
               ]
             : [],
@@ -203,13 +202,21 @@ function SubagentDetail({
           <span>{t('agents.subagentSteps', { count: steps.length })}</span>
         </div>
         {state === 'loading' ? (
-          <div className="agent-subagent-state"><LoadingOrb size={18} /></div>
+          <div className="agent-subagent-state">
+            <LoadingOrb size={18} />
+          </div>
         ) : state === 'empty' ? (
-          <p className="agent-subagent-state">{t('agents.subagentNoTranscript')}</p>
+          <p className="agent-subagent-state">
+            {t('agents.subagentNoTranscript')}
+          </p>
         ) : state === 'unsupported' ? (
-          <p className="agent-subagent-state">{t('agents.subagentUnsupported')}</p>
+          <p className="agent-subagent-state">
+            {t('agents.subagentUnsupported')}
+          </p>
         ) : state === 'error' ? (
-          <p className="settings-error agent-subagent-state">{t('agents.subagentReadFailed')}</p>
+          <p className="settings-error agent-subagent-state">
+            {t('agents.subagentReadFailed')}
+          </p>
         ) : null}
         {items.map((item) => {
           if (item.tool) {
@@ -238,10 +245,16 @@ function SubagentDetail({
   )
 }
 
-function SubagentStep({ step }: { step: ReturnType<typeof subagentStepRows>[number] }) {
+function SubagentStep({
+  step,
+}: {
+  step: ReturnType<typeof subagentStepRows>[number]
+}) {
   return (
     <div className={`agent-subagent-step ${step.state}`}>
-      <span className="agent-subagent-step-icon"><ToolIcon name={step.toolName} /></span>
+      <span className="agent-subagent-step-icon">
+        <ToolIcon name={step.toolName} />
+      </span>
       <strong>{step.toolName}</strong>
       {step.summary ? <span>{step.summary}</span> : null}
       <span className="agent-subagent-step-state" aria-hidden="true">

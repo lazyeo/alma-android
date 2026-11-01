@@ -33,8 +33,7 @@ export function listSubagents(
 ): HerdrSubagentDispatch[] {
   return items.flatMap((item) => {
     const tool = item.tool as
-      | (NonNullable<HerdrChatItem['tool']> & { id?: unknown })
-      | undefined
+      (NonNullable<HerdrChatItem['tool']> & { id?: unknown }) | undefined
     if (tool?.name !== 'Task') return []
     const input =
       tool.input && typeof tool.input === 'object'

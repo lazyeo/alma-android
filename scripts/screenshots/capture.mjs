@@ -5910,7 +5910,9 @@ const herdrShots = [
               safeInsets: true,
               async act(page) {
                 await page.getByRole('button', { name: 'Subagents' }).click()
-                await page.getByRole('button', { name: /Verify reconnect behavior/ }).click()
+                await page
+                  .getByRole('button', { name: /Verify reconnect behavior/ })
+                  .click()
                 await page.locator('.agent-subagent-step').nth(7).waitFor()
               },
             },

@@ -1174,8 +1174,7 @@ export class AlmaApi {
     options: { limit?: number; before?: number } = {},
   ): Promise<HerdrSubagentResponse> {
     const query = new URLSearchParams({ pane: paneId, tool: toolId })
-    if (options.limit !== undefined)
-      query.set('limit', String(options.limit))
+    if (options.limit !== undefined) query.set('limit', String(options.limit))
     if (options.before !== undefined)
       query.set('before', String(options.before))
     try {

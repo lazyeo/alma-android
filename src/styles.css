@@ -7183,7 +7183,8 @@ button:active:not(:disabled),
 .agent-subagent-step strong {
   font-weight: var(--weight-semibold);
 }
-.agent-subagent-step > span:not(.agent-subagent-step-icon):not(.agent-subagent-step-state) {
+.agent-subagent-step
+  > span:not(.agent-subagent-step-icon):not(.agent-subagent-step-state) {
   min-width: 0;
   overflow: hidden;
   color: var(--muted-foreground);
