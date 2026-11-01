@@ -42,7 +42,9 @@ describe('project card normalisation', () => {
   })
 
   it('returns null for a missing card', () => {
-    expect(normalizeProjectCardResponse({ card: null, config: null })).toBeNull()
+    expect(
+      normalizeProjectCardResponse({ card: null, config: null }),
+    ).toBeNull()
   })
 
   it('treats route and workspace 404s as hidden', () => {

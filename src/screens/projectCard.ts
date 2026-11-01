@@ -10,8 +10,7 @@ type UnknownRecord = Record<string, unknown>
 
 const record = (value: unknown): UnknownRecord =>
   value && typeof value === 'object' ? (value as UnknownRecord) : {}
-const text = (value: unknown) =>
-  typeof value === 'string' ? value.trim() : ''
+const text = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
 const optionalText = (value: unknown) => {
   const result = text(value)
   return result || undefined
