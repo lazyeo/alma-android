@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Nothing yet.
+
+## [0.1.5] - 2026-11-01
+
 ### Changed
 
 - Codex panes show the Codex cloud mark.
@@ -32,7 +38,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Image encoding (photo downscale and annotation export) uses the synchronous canvas data URL first; on Android WebView the async `toBlob` path took 6–13 s per image.
 - Annotation labels typed on a brand-new chat now reach the composer; a gallery markup with no labels and no note no longer inserts an empty request block.
 - Image annotator: the selected tool and colour are marked with a fill and a solid ring instead of hairline outlines, which Android rendered partially; number badges stay inside the image on every edge.
-
 ## [0.1.4] - 2026-10-30
 
 ### Added
@@ -113,9 +118,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Foldable layouts, a frosted screen transition, optional Shizuku live hinge-angle input, and an estimated fallback.
 - Foreground-lifetime local notifications for completed replies and pending approvals; no push service is used.
 
-[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.5...HEAD
 [0.1.0]: https://github.com/lazyeo/alma-android/releases/tag/v0.1.0
 [0.1.1]: https://github.com/lazyeo/alma-android/compare/v0.1.0...v0.1.1
 [0.1.2]: https://github.com/lazyeo/alma-android/compare/v0.1.1...v0.1.2
 [0.1.3]: https://github.com/lazyeo/alma-android/compare/v0.1.2...v0.1.3
 [0.1.4]: https://github.com/lazyeo/alma-android/compare/v0.1.3...v0.1.4
+[0.1.5]: https://github.com/lazyeo/alma-android/compare/v0.1.4...v0.1.5
