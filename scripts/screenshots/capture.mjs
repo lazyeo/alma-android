@@ -1702,12 +1702,13 @@ const shots = [
     file: 'project-card-412.png',
     viewport: PHONE,
     route: DESKTOP,
-    ready: '.project-group',
+    ready: '.thread-tabs',
     async act(page) {
       await page.getByRole('tab', { name: 'Projects' }).click()
+      await page.locator('.project-group').first().waitFor()
       await page.getByRole('button', { name: /alma-mobile/ }).click()
       await page.getByRole('button', { name: /Project card/ }).click()
-      await page.getByText('Proposed update').waitFor()
+      await page.getByText('Proposed update').first().waitFor()
     },
   },
   ...['en', 'zh'].map((language) => ({
