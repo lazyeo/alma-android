@@ -5887,6 +5887,35 @@ const herdrShots = [
           await assertAgentPaneGeometry(page)
         },
       },
+      ...(lang === 'en'
+        ? [
+            {
+              file: 'herdr-subagents-412.png',
+              viewport: PHONE,
+              route: '/d/fixture-desktop/agents/w1%3Ap1',
+              language: lang,
+              ready: '.agent-subagent-pill',
+              safeInsets: true,
+              async act(page) {
+                await page.getByRole('button', { name: 'Subagents' }).click()
+                await page.getByRole('dialog', { name: 'Subagents' }).waitFor()
+              },
+            },
+            {
+              file: 'herdr-subagent-steps-412.png',
+              viewport: PHONE,
+              route: '/d/fixture-desktop/agents/w1%3Ap1',
+              language: lang,
+              ready: '.agent-subagent-pill',
+              safeInsets: true,
+              async act(page) {
+                await page.getByRole('button', { name: 'Subagents' }).click()
+                await page.getByRole('button', { name: /Verify reconnect behavior/ }).click()
+                await page.locator('.agent-subagent-step').nth(7).waitFor()
+              },
+            },
+          ]
+        : []),
       {
         file: `herdr-chat-attachments-${lang}-412.png`,
         viewport: PHONE,

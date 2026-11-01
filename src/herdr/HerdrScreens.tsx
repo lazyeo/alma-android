@@ -61,6 +61,8 @@ import { toMessageRows, type HerdrChatItem } from './toMessageParts'
 import { nextTerminalScrollTop } from '../terminal/terminalScroll'
 import { agentStatusLine } from './statusLine'
 import { HerdrWorkingBar } from './HerdrWorkingBar'
+import { HerdrSubagentPill, HerdrSubagentsSheet } from './HerdrSubagents'
+import { listSubagents, runningCount } from './subagents'
 import { HerdrUploadUnsupportedError } from '../relay/almaApi'
 import {
   buildHerdrPrompt,
@@ -132,6 +134,7 @@ export function AgentPaneScreen() {
   const [composing, setComposing] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [subagentSheetOpen, setSubagentSheetOpen] = useState(false)
 
   const toggleTerminalDisplayMode = () => {
     setTerminalHistory('')
@@ -196,6 +199,7 @@ export function AgentPaneScreen() {
     setAttachments([])
     setSending(false)
     setError('')
+    setSubagentSheetOpen(false)
     scrollMemory.current = { chat: null, terminal: null }
     prependAnchor.current = null
     terminalScrollState.current = {
@@ -411,6 +415,11 @@ export function AgentPaneScreen() {
   }
   // Only the newest unanswered question offers its options as replies.
   const rows = useMemo(() => toMessageRows(items), [items])
+  const subagents = useMemo(() => listSubagents(items), [items])
+  const activeSubagentCount = useMemo(
+    () => runningCount(subagents),
+    [subagents],
+  )
   const answerableId = useMemo(() => {
     const last = rows.at(-1)
     return last?.questions ? last.id : undefined
@@ -791,15 +800,34 @@ export function AgentPaneScreen() {
           )}
           {error ? <p className="settings-error agent-error">{error}</p> : null}
         </div>
-        {view === 'chat' && pane?.agent_status === 'working' ? (
+        {view === 'chat' &&
+        (pane?.agent_status === 'working' || subagents.length > 0) ? (
           <HerdrWorkingBar
-            working
+            working={pane?.agent_status === 'working'}
             items={items}
             statusText={workingStatus.text}
             statusStartedAt={workingStatus.startedAt}
+            leading={
+              subagents.length > 0 ? (
+                <HerdrSubagentPill
+                  agent={pane?.agent}
+                  count={activeSubagentCount}
+                  onClick={() => setSubagentSheetOpen(true)}
+                />
+              ) : undefined
+            }
             onStop={() =>
               void api.sendHerdrPaneKeys(decodedPaneId, [HERDR_KEY_MAP.escape])
             }
+          />
+        ) : null}
+        {subagentSheetOpen ? (
+          <HerdrSubagentsSheet
+            api={api}
+            paneId={decodedPaneId}
+            parentAgent={pane?.agent}
+            subagents={subagents}
+            onClose={() => setSubagentSheetOpen(false)}
           />
         ) : null}
         {view === 'chat' && !chatUnsupported ? (

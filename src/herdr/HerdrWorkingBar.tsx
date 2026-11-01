@@ -40,26 +40,32 @@ export function HerdrWorkingBar({
   wasWorking.current = working
   const [visible] = useState(() => document.visibilityState === 'visible')
   const now = useSharedSecond(working && visible)
-  if (!working) return null
+  if (!working && !leading) return null
   const startedAt = statusStartedAt ?? observedStart.current
   const activity = statusText || unfinishedTool(items) || t('agents.working')
   return (
     <div className="activity-bar agent-working-bar" role="status">
       {leading}
-      <span className="activity-bar-phase agent-working-phase">{activity}</span>
-      <time className="activity-bar-elapsed">
-        {elapsedClock(now - startedAt)}
-      </time>
-      <span className="activity-bar-actions">
-        <button
-          className="agent-working-stop"
-          aria-label={t('agents.stop')}
-          onClick={onStop}
-        >
-          <Square size={10} fill="currentColor" />
-          <span>{t('agents.stop')}</span>
-        </button>
-      </span>
+      {working ? (
+        <>
+          <span className="activity-bar-phase agent-working-phase">
+            {activity}
+          </span>
+          <time className="activity-bar-elapsed">
+            {elapsedClock(now - startedAt)}
+          </time>
+          <span className="activity-bar-actions">
+            <button
+              className="agent-working-stop"
+              aria-label={t('agents.stop')}
+              onClick={onStop}
+            >
+              <Square size={10} fill="currentColor" />
+              <span>{t('agents.stop')}</span>
+            </button>
+          </span>
+        </>
+      ) : null}
     </div>
   )
 }

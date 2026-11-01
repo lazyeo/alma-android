@@ -1361,6 +1361,27 @@ function route(method: string, path: string, body?: unknown): TunnelResponse {
       queued: [],
     })
   }
+  if (pathname === '/api/herdr/subagent') {
+    const toolId = new URLSearchParams(query).get('tool')
+    const finished = toolId === 'task-finished'
+    const items = finished
+      ? herdrSubagentItems.map((item) =>
+          'tool' in item
+            ? { ...item, tool: { ...item.tool, done: true } }
+            : item,
+        )
+      : herdrSubagentItems
+    return json(200, {
+      agent: {
+        type: 'general-purpose',
+        description: finished
+          ? 'Review the captured layout'
+          : 'Verify reconnect behavior',
+        finished,
+      },
+      page: { items, start: 0, end: items.length },
+    })
+  }
   if (pathname.startsWith('/api/herdr/image/'))
     return binary(200, new TextEncoder().encode(herdrReplySvg), 'image/svg+xml')
   if (pathname === '/api/herdr/rpc') {
@@ -2023,6 +2044,38 @@ const herdrChatItems = [
     text: 'The reconnect tests and phone layout look good. Keep the notification boundary aligned with desktop behavior.',
   },
   {
+    id: 'agent-task-running',
+    kind: 'tool',
+    time: NOW - 83_000,
+    tool: {
+      id: 'task-running',
+      name: 'Task',
+      summary: 'Verify reconnect behavior',
+      input: {
+        description: 'Verify reconnect behavior',
+        subagent_type: 'general-purpose',
+        prompt: 'Inspect the reconnect path and report findings.',
+      },
+      done: false,
+    },
+  },
+  {
+    id: 'agent-task-finished',
+    kind: 'tool',
+    time: NOW - 6 * 60_000,
+    tool: {
+      id: 'task-finished',
+      name: 'Task',
+      summary: 'Review the captured layout',
+      input: {
+        description: 'Review the captured layout',
+        subagent_type: 'reviewer',
+        prompt: 'Review the narrow phone layout.',
+      },
+      done: true,
+    },
+  },
+  {
     id: 'agent-tool-3',
     kind: 'tool',
     tool: {
@@ -2039,6 +2092,31 @@ const herdrChatItems = [
       done: true,
     },
   },
+]
+const herdrSubagentItems = [
+  {
+    id: 'subagent-text-1',
+    kind: 'assistant',
+    text: 'I am tracing the reconnect path and checking the focused tests.',
+  },
+  ...[
+    'Inspect relay state',
+    'Read reconnect handler',
+    'Find websocket resume tests',
+    'Run focused unit tests',
+    'Check fixture state',
+    'Compare desktop behavior',
+    'Run typecheck',
+    'Prepare findings',
+  ].map((summary, index) => ({
+    id: `subagent-step-${index + 1}`,
+    kind: 'tool',
+    tool: {
+      name: 'Bash',
+      summary,
+      done: index < 7,
+    },
+  })),
 ]
 const herdrReplySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="420" viewBox="0 0 720 420"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#25354a"/><stop offset="1" stop-color="#72988b"/></linearGradient></defs><rect width="720" height="420" rx="32" fill="url(#bg)"/><rect x="72" y="70" width="576" height="280" rx="24" fill="#f6f2e9" opacity=".94"/><circle cx="170" cy="166" r="48" fill="#d6a85d"/><path d="M112 306l124-112 92 78 72-62 150 96z" fill="#5f806f"/><text x="360" y="116" text-anchor="middle" font-family="system-ui" font-size="28" fill="#25354a">Herdr image reply</text></svg>`
 const herdrImageReplyItems = [
