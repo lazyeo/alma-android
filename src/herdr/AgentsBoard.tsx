@@ -114,15 +114,13 @@ export function AgentPaneRow({
           {t(`agents.status.${agentStatusClass(pane.status)}`)}
         </span>
       </div>
-      {compact ? (
-        <button
-          className="agent-more-button"
-          aria-label={t('agents.tabActions')}
-          onClick={() => manage.openPane(pane)}
-        >
-          <MoreHorizontal size={18} />
-        </button>
-      ) : null}
+      <button
+        className="agent-more-button"
+        aria-label={t('agents.tabActions')}
+        onClick={() => manage.openPane(pane)}
+      >
+        <MoreHorizontal size={18} />
+      </button>
       {prompt ? (
         <aside className="agent-row-blocked-card">
           <strong>{prompt.question}</strong>

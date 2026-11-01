@@ -8686,7 +8686,7 @@ dialog:focus,
 .agent-pane-row.compact .agent-status-badge {
   display: none;
 }
-.agent-pane-row.compact {
+.agent-pane-row {
   padding-right: 46px;
 }
 .agent-more-button {

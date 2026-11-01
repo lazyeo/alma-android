@@ -10,6 +10,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { AgentPaneRow } from './AgentsBoard'
 
+const openPane = vi.fn()
+
 const api = {
   readHerdrPane: vi.fn(async () => ({
     read: {
@@ -21,6 +23,9 @@ const api = {
 
 vi.mock('./HerdrProvider', () => ({
   useHerdr: () => ({ apiFor: () => api }),
+}))
+vi.mock('./AgentsManage', () => ({
+  useAgentsManage: () => ({ openPane }),
 }))
 vi.mock('../i18n', () => ({ useT: () => (key: string) => key }))
 vi.mock('react-router-dom', async () => {
@@ -54,6 +59,30 @@ describe('AgentPaneRow blocked quick answer', () => {
 
     expect(container.querySelector('[data-agent-mark="claude"]')).toBeTruthy()
     expect(container.querySelector('.agent-mark.muted')).toBeTruthy()
+  })
+
+  it('keeps the trailing management affordance beside the agent mark', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <AgentPaneRow
+          desktopId="desktop"
+          pane={{
+            id: 'pane-1',
+            workspaceId: 'workspace-1',
+            agent: 'codex',
+            sessionAgent: 'claude',
+            status: 'idle',
+            title: 'Review changes',
+          }}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(container.querySelector('[data-agent-mark="claude"]')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'agents.tabActions' }))
+    expect(openPane).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'pane-1' }),
+    )
   })
 
   it('reads a blocked visible pane once and sends cursor-relative keys', async () => {
