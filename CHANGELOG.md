@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Herdr composer: the attach button matches the send button (40px, no border) instead of the taller bordered box from the thread composer.
 - Image annotator: a bare tap no longer adds an empty numbered region.
 - Image annotator: the region label row is vertically centred with equal 12px padding above and below, and the toolbar sits 12px under the divider.
 - Image encoding (photo downscale and annotation export) uses the synchronous canvas data URL first; on Android WebView the async `toBlob` path took 6–13 s per image.

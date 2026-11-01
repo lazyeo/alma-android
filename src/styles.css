@@ -9143,6 +9143,19 @@ dialog:focus,
 .agent-send {
   flex: 0 0 auto;
 }
+/* The attach button shares the composer's quiet 40px controls here; the
+   bordered 48px .attach box belongs to the thread composer's taller field. */
+.agent-composer .attach {
+  flex: 0 0 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--muted-foreground);
+}
+.agent-composer .attach:active {
+  background: var(--muted);
+}
 @media (max-width: 600px) {
   .agent-view-toggle button {
     width: 32px;
