@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - External links in rendered Markdown show the desktop-resolved site favicon when available.
 - Project groups can open a project card with the current brief, focus, resume references, editable text fields, and accept or reject controls for proposed updates.
 
+### Fixed
+
+- Project card brief and focus only offer "Show more" when the clamped text actually overflows.
+
 ## [0.1.5] - 2026-11-01
 
 ### Changed

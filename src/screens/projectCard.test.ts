@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { AlmaHttpError } from '../relay'
 import {
+  projectCardNeedsToggle,
   diffProjectCard,
   formatProjectCardRelativeTime,
   normalizeProjectCardResponse,
@@ -99,5 +100,18 @@ describe('project card relative time', () => {
 
   it('returns an empty string for invalid timestamps', () => {
     expect(formatProjectCardRelativeTime('invalid', Date.now(), 'en')).toBe('')
+  })
+})
+
+describe('project card expand toggle', () => {
+  it('hides the toggle when the clamped text fits', () => {
+    expect(projectCardNeedsToggle(false, 40, 40)).toBe(false)
+    expect(projectCardNeedsToggle(false, 41, 40)).toBe(false)
+  })
+  it('shows the toggle when the clamped text overflows', () => {
+    expect(projectCardNeedsToggle(false, 120, 60)).toBe(true)
+  })
+  it('keeps the toggle while expanded so it can collapse again', () => {
+    expect(projectCardNeedsToggle(true, 40, 40)).toBe(true)
   })
 })

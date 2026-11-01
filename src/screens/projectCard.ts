@@ -134,3 +134,18 @@ export function formatProjectCardRelativeTime(
 export function normalizeSavedProjectCard(value: ProjectCardResponse) {
   return normalizeProjectCardResponse(value)
 }
+
+/**
+ * Whether the expand/collapse toggle under a clamped card field should show.
+ * The toggle only makes sense when the clamped paragraph actually overflows
+ * (or is already expanded and can be collapsed again); a one-line brief must
+ * not offer a "Show more" that does nothing.
+ */
+export function projectCardNeedsToggle(
+  expanded: boolean,
+  scrollHeight: number,
+  clientHeight: number,
+) {
+  if (expanded) return true
+  return scrollHeight > clientHeight + 1
+}

@@ -1,5 +1,11 @@
 import { FileText, Pencil, Target } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { useDesktopThreadEvents } from '../desktops/ThreadActivityProvider'
 import { BottomSheet } from '../components/BottomSheet'
 import { Snackbar } from '../components/Snackbar'
@@ -17,6 +23,7 @@ import {
   formatProjectCardRelativeTime,
   normalizeProjectCardResponse,
   projectCardIsHidden,
+  projectCardNeedsToggle,
 } from './projectCard'
 
 interface ProjectCardSectionProps {
@@ -34,19 +41,38 @@ type CardState =
 function ExpandableText({ value }: { value: string }) {
   const t = useT()
   const [expanded, setExpanded] = useState(false)
+  const [showToggle, setShowToggle] = useState(false)
+  const paragraph = useRef<HTMLParagraphElement>(null)
+  useLayoutEffect(() => {
+    const node = paragraph.current
+    if (!node) return
+    const measure = () =>
+      setShowToggle(
+        projectCardNeedsToggle(expanded, node.scrollHeight, node.clientHeight),
+      )
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [expanded, value])
   return value ? (
     <div className="project-card-expandable">
-      <p className={expanded ? '' : 'clamped'}>{value}</p>
-      <button
-        className="quiet-text-button"
-        onClick={() => setExpanded((current) => !current)}
-      >
-        {t(
-          expanded
-            ? 'threads.projectCard.collapse'
-            : 'threads.projectCard.expand',
-        )}
-      </button>
+      <p ref={paragraph} className={expanded ? '' : 'clamped'}>
+        {value}
+      </p>
+      {showToggle && (
+        <button
+          className="quiet-text-button"
+          onClick={() => setExpanded((current) => !current)}
+        >
+          {t(
+            expanded
+              ? 'threads.projectCard.collapse'
+              : 'threads.projectCard.expand',
+          )}
+        </button>
+      )}
     </div>
   ) : (
     <p className="project-card-empty">{t('threads.projectCard.empty')}</p>
