@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { configure, preview, android } = vi.hoisted(() => ({
+const { capabilities, configure, preview, android } = vi.hoisted(() => ({
+  capabilities: vi.fn(),
   configure: vi.fn(),
   preview: vi.fn(),
   android: { value: true },
@@ -10,6 +11,7 @@ vi.mock('@capacitor/core', () => ({
     apply: vi.fn(),
     haptic: vi.fn(),
     setFullscreen: vi.fn(),
+    capabilities,
     configure,
     preview,
   }),
@@ -24,6 +26,7 @@ vi.mock('./nativeRuntime', () => ({
 
 import {
   configureNativeFoldTransition,
+  getNativeFoldCapabilities,
   previewNativeFoldTransition,
 } from './nativeBridge'
 import {
@@ -47,10 +50,28 @@ describe('native fold transition bridge', () => {
     expect(preview).toHaveBeenCalledWith({ direction: 'close' })
   })
 
-  it('is a no-op off Android', async () => {
+  it('caches native fold capabilities for the session', async () => {
+    capabilities.mockResolvedValue({ foldable: true, reason: 'hinge_sensor' })
+    await expect(getNativeFoldCapabilities()).resolves.toEqual({
+      foldable: true,
+      reason: 'hinge_sensor',
+    })
+    await expect(getNativeFoldCapabilities()).resolves.toEqual({
+      foldable: true,
+      reason: 'hinge_sensor',
+    })
+    expect(capabilities).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns the web fallback off Android', async () => {
     android.value = false
+    await expect(getNativeFoldCapabilities()).resolves.toEqual({
+      foldable: false,
+      reason: 'web',
+    })
     await expect(configureNativeFoldTransition(config)).resolves.toBe(false)
     await expect(previewNativeFoldTransition('open')).resolves.toBe(false)
+    expect(capabilities).not.toHaveBeenCalled()
     expect(configure).not.toHaveBeenCalled()
     expect(preview).not.toHaveBeenCalled()
   })

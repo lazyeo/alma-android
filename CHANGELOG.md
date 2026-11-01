@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - Claude panes show the Claude Code mark.
+- Fold transition settings only appear on devices that report a hinge or multiple device states.
 - Herdr mark is now the official vector logo (Apache-2.0) instead of a traced bitmap.
 
 ### Added

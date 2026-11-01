@@ -16,6 +16,11 @@ const ThemeChrome = registerPlugin<{
   setSelectionActions(options: { enabled: boolean }): Promise<void>
 }>('ThemeChrome')
 
+export type FoldCapabilities = {
+  foldable: boolean
+  reason: string
+}
+
 export type FoldAngleSourceState = {
   source: 'shizuku' | 'estimated'
   shizukuRunning: boolean
@@ -55,6 +60,7 @@ const FileHandoff = registerPlugin<{
 }>('FileHandoff')
 
 const FoldTransition = registerPlugin<{
+  capabilities(): Promise<FoldCapabilities>
   configure(options: FoldTransitionNativeConfig): Promise<void>
   preview(options: {
     direction: 'open' | 'close'
@@ -103,6 +109,21 @@ async function callFoldTransition(call: () => Promise<unknown>) {
     if (code && foldUnavailableCodes.has(code)) return false
     throw error
   }
+}
+
+let foldCapabilities: Promise<FoldCapabilities> | undefined
+
+export function getNativeFoldCapabilities() {
+  if (!isAndroidNative())
+    return Promise.resolve({ foldable: false, reason: 'web' })
+  if (!foldCapabilities) foldCapabilities = FoldTransition.capabilities()
+  return foldCapabilities
+}
+
+export function setNativeFoldCapabilitiesForFixture(
+  capabilities: FoldCapabilities,
+) {
+  foldCapabilities = Promise.resolve(capabilities)
 }
 
 /** Resolves false when there is no native fold plugin to configure. */

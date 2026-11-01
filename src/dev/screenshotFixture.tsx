@@ -28,6 +28,7 @@ import type { ComposerAttachment } from '../screens/attachmentUpload'
 import { saveDraft } from '../screens/threadDrafts'
 import { addQueuedMessage, saveThreadQueue } from '../screens/threadQueue'
 import { installNativeInsetsBridge } from '../nativeInsets'
+import { setNativeFoldCapabilitiesForFixture } from '../nativeBridge'
 import { setSharePayloadForFixture } from '../share/useSharePayload'
 import { closeTopOverlay } from '../overlayStack'
 import { Composer } from '../components/Composer'
@@ -36,6 +37,7 @@ import { ImageAnnotator } from '../components/ImageAnnotator'
 import '../styles.css'
 
 installNativeInsetsBridge()
+setNativeFoldCapabilitiesForFixture({ foldable: true, reason: 'fixture' })
 ;(
   window as typeof window & { __closeTopOverlay?: () => boolean }
 ).__closeTopOverlay = closeTopOverlay

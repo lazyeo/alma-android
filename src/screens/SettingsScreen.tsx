@@ -40,6 +40,7 @@ import {
 import {
   configureNativeFoldTransition,
   getNativeFoldAngleSource,
+  getNativeFoldCapabilities,
   previewNativeFoldTransition,
   requestNativeShizukuPermission,
   type FoldAngleSourceState,
@@ -525,6 +526,22 @@ function FoldTransitionSection() {
   )
 }
 
+export function FoldTransitionSettings() {
+  const [foldable, setFoldable] = useState(false)
+  useEffect(() => {
+    let current = true
+    getNativeFoldCapabilities()
+      .then((capabilities) => {
+        if (current) setFoldable(capabilities.foldable)
+      })
+      .catch(() => undefined)
+    return () => {
+      current = false
+    }
+  }, [])
+  return foldable ? <FoldTransitionSection /> : null
+}
+
 export function SettingsScreen() {
   const t = useT()
   const navigate = useNavigate()
@@ -622,7 +639,7 @@ export function SettingsScreen() {
             ) : null}
           </section>
 
-          <FoldTransitionSection />
+          <FoldTransitionSettings />
 
           <section
             className="settings-section"
