@@ -3,9 +3,13 @@ import { AlmaHttpError } from '../relay'
 import {
   projectCardNeedsToggle,
   diffProjectCard,
+  extractProjectCardError,
   formatProjectCardRelativeTime,
+  normalizeProjectCardConsult,
   normalizeProjectCardResponse,
+  projectCardHeaderSummary,
   projectCardIsHidden,
+  projectCardStatus,
 } from './projectCard'
 
 describe('project card normalisation', () => {
@@ -51,6 +55,126 @@ describe('project card normalisation', () => {
   it('treats route and workspace 404s as hidden', () => {
     expect(projectCardIsHidden(new AlmaHttpError('missing', 404))).toBe(true)
     expect(projectCardIsHidden(new AlmaHttpError('broken', 500))).toBe(false)
+  })
+})
+
+describe('project header model', () => {
+  it('selects the brief, focus, and empty summary text independently', () => {
+    expect(
+      projectCardHeaderSummary(
+        { brief: 'A concise brief', focus: 'Current focus' },
+        'No project card yet',
+      ),
+    ).toEqual({ primary: 'A concise brief', secondary: 'Current focus' })
+    expect(
+      projectCardHeaderSummary(
+        { brief: '', focus: 'Only focus' },
+        'No project card yet',
+      ),
+    ).toEqual({ primary: 'Only focus' })
+    expect(projectCardHeaderSummary(null, 'No project card yet')).toEqual({
+      primary: 'No project card yet',
+    })
+  })
+
+  it('derives the proposal status chip only when a proposal is pending', () => {
+    expect(
+      projectCardStatus({
+        brief: '',
+        focus: '',
+        resume: [],
+        proposal: {
+          reason: 'Drafted',
+          proposedAt: '2026-11-01T10:00:00.000Z',
+        },
+      }),
+    ).toBe('proposal')
+    expect(projectCardStatus(null)).toBeUndefined()
+  })
+})
+
+describe('project card consultation normalisation', () => {
+  it('keeps valid user and assistant messages and a valid summary', () => {
+    expect(
+      normalizeProjectCardConsult({
+        transcript: {
+          version: 1,
+          messages: [
+            {
+              id: ' user-1 ',
+              role: 'user',
+              content: ' What should this project do? ',
+              at: ' 2026-11-01T10:00:00.000Z ',
+            },
+            {
+              id: 'assistant-1',
+              role: 'assistant',
+              content: 'Build a focused Android client.',
+              at: '2026-11-01T10:00:01.000Z',
+              model: ' openai:gpt-5 ',
+            },
+            { id: 'bad', role: 'tool', content: 'ignore', at: 'now' },
+          ],
+          summary: {
+            text: ' Earlier direction ',
+            throughId: 'assistant-0',
+            count: 4,
+            at: '2026-11-01T09:00:00.000Z',
+          },
+        },
+      }),
+    ).toEqual({
+      version: 1,
+      messages: [
+        {
+          id: 'user-1',
+          role: 'user',
+          content: 'What should this project do?',
+          at: '2026-11-01T10:00:00.000Z',
+        },
+        {
+          id: 'assistant-1',
+          role: 'assistant',
+          content: 'Build a focused Android client.',
+          at: '2026-11-01T10:00:01.000Z',
+          model: 'openai:gpt-5',
+        },
+      ],
+      summary: {
+        text: 'Earlier direction',
+        throughId: 'assistant-0',
+        count: 4,
+        at: '2026-11-01T09:00:00.000Z',
+      },
+    })
+  })
+
+  it('returns an empty transcript for malformed input', () => {
+    expect(normalizeProjectCardConsult(null)).toEqual({
+      version: 1,
+      messages: [],
+    })
+  })
+})
+
+describe('project card errors', () => {
+  it('extracts the server error payload from an HTTP failure', () => {
+    expect(
+      extractProjectCardError(
+        new AlmaHttpError(
+          'POST /project-card/draft failed (503): {"error":"No model available to draft — configure one"}',
+          503,
+        ),
+        'Fallback',
+      ),
+    ).toBe('No model available to draft — configure one')
+  })
+
+  it('uses ordinary error messages and the fallback when needed', () => {
+    expect(extractProjectCardError(new Error('Network offline'), 'Fallback')).toBe(
+      'Network offline',
+    )
+    expect(extractProjectCardError({}, 'Fallback')).toBe('Fallback')
   })
 })
 

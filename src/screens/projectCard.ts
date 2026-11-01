@@ -1,6 +1,7 @@
 import {
   AlmaHttpError,
   type ProjectCard,
+  type ProjectCardConsultTranscript,
   type ProjectCardProposal,
   type ProjectCardResponse,
   type ProjectCardResumeLink,
@@ -74,6 +75,88 @@ export function normalizeProjectCardResponse(
 
 export function projectCardIsHidden(error: unknown) {
   return error instanceof AlmaHttpError && error.status === 404
+}
+
+export function projectCardHeaderSummary(
+  card: Pick<ProjectCard, 'brief' | 'focus'> | null,
+  emptyText: string,
+): { primary: string; secondary?: string } {
+  if (!card) return { primary: emptyText }
+  if (card.brief)
+    return {
+      primary: card.brief,
+      ...(card.focus ? { secondary: card.focus } : {}),
+    }
+  if (card.focus) return { primary: card.focus }
+  return { primary: emptyText }
+}
+
+export function projectCardStatus(card: ProjectCard | null) {
+  return card?.proposal ? ('proposal' as const) : undefined
+}
+
+export function normalizeProjectCardConsult(
+  value: unknown,
+): ProjectCardConsultTranscript {
+  const transcript = record(record(value).transcript)
+  const messages = Array.isArray(transcript.messages)
+    ? transcript.messages.flatMap((value) => {
+        const message = record(value)
+        const id = text(message.id)
+        const content = text(message.content)
+        const at = text(message.at)
+        if (
+          !id ||
+          !content ||
+          !at ||
+          (message.role !== 'user' && message.role !== 'assistant')
+        )
+          return []
+        const role: 'user' | 'assistant' = message.role
+        return [
+          {
+            id,
+            role,
+            content,
+            at,
+            ...(optionalText(message.model)
+              ? { model: optionalText(message.model) }
+              : {}),
+          },
+        ]
+      })
+    : []
+  const summaryValue = record(transcript.summary)
+  const summaryText = text(summaryValue.text)
+  const throughId = text(summaryValue.throughId)
+  const at = text(summaryValue.at)
+  const count = summaryValue.count
+  return {
+    version: 1,
+    messages,
+    ...(summaryText &&
+    throughId &&
+    at &&
+    typeof count === 'number' &&
+    Number.isFinite(count)
+      ? { summary: { text: summaryText, throughId, count, at } }
+      : {}),
+  }
+}
+
+export function extractProjectCardError(error: unknown, fallback: string) {
+  if (!(error instanceof Error)) return fallback
+  const json = error.message.match(/:\s*(\{[\s\S]*\})\s*$/)?.[1]
+  if (json) {
+    try {
+      const serverError = record(JSON.parse(json)).error
+      if (typeof serverError === 'string' && serverError.trim())
+        return serverError.trim()
+    } catch {
+      // Fall back to the ordinary error message below.
+    }
+  }
+  return error.message || fallback
 }
 
 export interface ProjectCardDiff {
