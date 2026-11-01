@@ -153,16 +153,24 @@ Thread detail includes message rows. A row contains its own database id plus a n
 **Verified.** A workspace can expose a project card through:
 
 ```text
-GET  /api/workspaces/:id/project-card
-PUT  /api/workspaces/:id/project-card
-POST /api/workspaces/:id/project-card/resolve-proposal
+GET    /api/workspaces/:id/project-card
+PUT    /api/workspaces/:id/project-card
+POST   /api/workspaces/:id/project-card/resolve-proposal
+POST   /api/workspaces/:id/project-card/draft
+GET    /api/workspaces/:id/project-card/consult
+POST   /api/workspaces/:id/project-card/consult
+DELETE /api/workspaces/:id/project-card/consult
 ```
 
 `GET` returns `{ card, config }`. `card` is null or contains `brief`, `focus`, `resume: [{ uri, label }]`, optional confirmation timestamps, and an optional proposal. A proposal can replace any subset of the card fields and also contains `reason`, `proposedAt`, and optional `source`.
 
 `PUT` accepts `{ brief, focus, resume }`, confirms the card, and clears a pending proposal. The Android MVP edits brief and focus while preserving the existing resume array. Resolving a proposal accepts `{ accept: boolean }`; accepting merges only the proposal fields that are present, while rejecting drops the proposal.
 
-A missing workspace or an older desktop can return `404`; the client hides the project-card entry. Successful writes broadcast a `workspace_updated` event on `/ws/threads`, and the open project card is refetched for that workspace.
+`POST .../draft` accepts `{ hint?: string, fromConsult?: boolean }`. The optional hint is limited to 500 characters. The desktop runs the project's configured model, calls the proposal path internally, and returns `{ card }` with a proposal whose source is `draft`; a consultation-backed draft sets `fromConsult: true`. Drafting can take up to the desktop's 120-second timeout. Verified errors include `503` when no model is available, `502` when the model result is empty or cannot be parsed, and `404` for a missing workspace.
+
+The consultation is stored as `<workspace>/.alma/project-card-consult.json`, is not a thread, and never appears in the thread list. `GET .../consult` returns `{ transcript, file }`. The version-1 transcript contains ordered user and assistant messages and may include a summary of earlier messages. `POST .../consult` accepts `{ question, draft?, options?, model? }`; the question is required and limited to 8,000 characters, and the response includes both the new assistant answer and the updated transcript. `DELETE .../consult` resets the transcript to an empty version-1 value. Consultation responses can take up to the desktop's 60-second timeout and return `503` when no model is available or `400` for an empty question.
+
+A missing workspace or an older desktop can return `404`; the client falls back to the existing new-thread-only project action. A supported endpoint returning `card: null` still renders the project header with its empty state. Successful card writes and drafts broadcast a `workspace_updated` event on `/ws/threads`, and the open project card is refetched for that workspace.
 
 **Verified.** The client uses these optional goal routes:
 

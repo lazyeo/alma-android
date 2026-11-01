@@ -10,7 +10,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Herdr chat shows messages from teammate sessions as distinct compact cards with localized labels and collapsible Markdown details.
 - External links in rendered Markdown show the desktop-resolved site favicon when available.
-- Project groups can open a project card with the current brief, focus, resume references, editable text fields, and accept or reject controls for proposed updates.
+- Project groups use one compact project header for the card summary, new-thread action, AI drafting, and temporary card consultation.
+- Project cards can be drafted from an optional hint or from the consultation transcript, then reviewed through the existing proposal diff and accept or reject controls.
+- Card consultation provides a non-thread chat stored in the project folder, with Markdown replies, transcript clearing, and draft-from-consultation.
 
 ### Fixed
 
