@@ -109,7 +109,8 @@ export class RelayTunnel {
     const isVisible =
       dependencies.isVisible ??
       (() =>
-        typeof document === 'undefined' || document.visibilityState === 'visible')
+        typeof document === 'undefined' ||
+        document.visibilityState === 'visible')
     const reprobe = () => {
       if (!isVisible() || this.connectionState !== 'connected') return
       if (
@@ -200,7 +201,10 @@ export class RelayTunnel {
   }
 
   private recordLatency(session: TunnelSession, sentAt: number) {
-    const ms = Math.max(0, (this.dependencies.now ?? performance.now.bind(performance))() - sentAt)
+    const ms = Math.max(
+      0,
+      (this.dependencies.now ?? performance.now.bind(performance))() - sentAt,
+    )
     this.latency = this.latencyTracker.record(
       this.transportForSession(session),
       ms,
@@ -403,8 +407,9 @@ export class RelayTunnel {
         typeof init.body === 'string'
           ? new TextEncoder().encode(init.body)
           : init.body
-      pending.sentAt = (this.dependencies.now ??
-        performance.now.bind(performance))()
+      pending.sentAt = (
+        this.dependencies.now ?? performance.now.bind(performance)
+      )()
       session
         ?.send({
           t: 'hreq',

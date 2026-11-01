@@ -5735,7 +5735,7 @@ button:focus-visible,
   content: '·';
   margin-right: 4px;
 }
-.desktop-transport-indicator.stale {
+.desktop-transport-indicator .stale {
   color: var(--muted-foreground);
 }
 .desktop-status-marker {

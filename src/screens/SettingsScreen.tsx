@@ -574,9 +574,7 @@ export function SettingsScreen() {
   const selectedDesktop = desktops.find(
     ({ pairing }) => pairing.id === desktopDetail,
   )
-  const currentDesktop = desktops.find(
-    ({ pairing }) => pairing.id === activeId,
-  )
+  const currentDesktop = desktops.find(({ pairing }) => pairing.id === activeId)
   // Re-read whenever the detail sheet opens; the screen page updates it.
   const detailPlatform = useDesktopPlatform(
     desktopDetail ?? '',

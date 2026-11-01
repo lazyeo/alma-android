@@ -82,9 +82,7 @@ export function DesktopSwitcher({ className = '' }: { className?: string }) {
               <span className="desktop-switcher-name">{pairing.name}</span>
               {/* Like iOS: Wi-Fi glyph for LAN direct, globe for the relay. */}
               {status === 'online' ? (
-                <span
-                  className={`desktop-transport-indicator${isLatencyStale(latency) ? ' stale' : ''}`}
-                >
+                <span className="desktop-transport-indicator">
                   {transport === 'direct' ? (
                     <Wifi
                       className="desktop-transport-icon"
@@ -106,7 +104,11 @@ export function DesktopSwitcher({ className = '' }: { className?: string }) {
                     )}
                   </span>
                   {latency.ms !== null ? (
-                    <span>{`${Math.round(latency.ms)} ms`}</span>
+                    <span
+                      className={isLatencyStale(latency) ? 'stale' : undefined}
+                    >
+                      {`${Math.round(latency.ms)} ms`}
+                    </span>
                   ) : null}
                 </span>
               ) : null}

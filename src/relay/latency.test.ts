@@ -58,10 +58,7 @@ describe('isLatencyStale', () => {
       ),
     ).toBe(true)
     expect(
-      isLatencyStale(
-        { transport: 'relay', ms: null, sampledAt: 0 },
-        999_999,
-      ),
+      isLatencyStale({ transport: 'relay', ms: null, sampledAt: 0 }, 999_999),
     ).toBe(false)
   })
 })

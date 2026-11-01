@@ -318,9 +318,12 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
             fixture?.transportByDesktop?.[pairing.id] ??
             connection?.transport ??
             'relay',
-          latency:
-            fixture?.latencyByDesktop?.[pairing.id] ??
-            connection?.latency ?? { transport: 'relay', ms: null, sampledAt: 0 },
+          latency: fixture?.latencyByDesktop?.[pairing.id] ??
+            connection?.latency ?? {
+              transport: 'relay',
+              ms: null,
+              sampledAt: 0,
+            },
           connection: connection && {
             pairing,
             tunnel: connection.tunnel,

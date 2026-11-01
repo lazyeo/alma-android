@@ -110,6 +110,8 @@ client  → { t: "hcancel", id }
 
 Request bodies are carried in one frame; response bodies may be chunked. The client caps uploads below the relay's practical frame limit.
 
+**Verified.** The Android client derives connection latency from each tunneled HTTP exchange: it records a monotonic timestamp when `hreq` is sent and samples the round-trip time when the matching `hres` arrives. Samples are kept separately for relay and direct sessions, and the displayed value is the median of the latest eight samples for the active transport. While the app is visible and connected, a lightweight `GET /__alma_lan__` request keeps the measurement fresh every 30 seconds; no new desktop endpoint is required. The direct LAN socket is native, so the tunnel request/response boundary is the only common layer where both relay and LAN round trips can be measured.
+
 ### WebSocket
 
 **Verified.** Logical sockets share the same encrypted relay socket:

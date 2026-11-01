@@ -122,7 +122,7 @@ describe('StartScreen references', () => {
             api: client,
             status: 'online',
             transport: 'relay',
-          latency: { transport: 'relay', ms: null, sampledAt: 0 },
+            latency: { transport: 'relay', ms: null, sampledAt: 0 },
             tunnel: {} as never,
           }}
         >

@@ -110,7 +110,7 @@ describe('AgentsSidebar project selection', () => {
               tunnel: {} as never,
               status: 'online',
               transport: 'relay',
-            latency: { transport: 'relay', ms: null, sampledAt: 0 },
+              latency: { transport: 'relay', ms: null, sampledAt: 0 },
             }}
           >
             <HerdrProvider
@@ -196,7 +196,7 @@ describe('AgentsSidebar project selection', () => {
               tunnel: {} as never,
               status: 'online',
               transport: 'relay',
-            latency: { transport: 'relay', ms: null, sampledAt: 0 },
+              latency: { transport: 'relay', ms: null, sampledAt: 0 },
             }}
           >
             <HerdrProvider
