@@ -139,6 +139,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   cleanup()
   vi.unstubAllGlobals()
   vi.clearAllMocks()
@@ -225,7 +226,6 @@ describe('AgentPaneScreen pane navigation', () => {
     await vi.waitFor(() => expect(api.readHerdrPane).toHaveBeenCalledTimes(2))
     await vi.advanceTimersByTimeAsync(2_000)
     expect(api.readHerdrPane).toHaveBeenCalledTimes(3)
-    vi.useRealTimers()
   })
 
   it('stops a working pane with escape from the chat activity bar', async () => {
