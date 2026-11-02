@@ -48,14 +48,16 @@ An unknown id normally returns HTTP 502 with a desktop-offline/invalid-code erro
 
 ## E2E handshake
 
-**Verified.** The phone is the initiator. Handshake frames are JSON text; encrypted traffic is binary.
+**Verified** against desktop 0.4.363. The phone is the initiator. Handshake frames are JSON text; encrypted traffic is binary.
 
 ```text
-phone   → { t: "hi", epk: <P-256 raw public key>, n: <16-byte nonce> }
-desktop → { t: "hi", epk: <public key>, n: <nonce>, cr: <responder confirmation> }
+phone   → { t: "hi", epk: <P-256 raw public key>, n: <16-byte nonce>, bin: 1 }
+desktop → { t: "hi", epk: <public key>, n: <nonce>, cr: <responder confirmation>, bin?: 1 }
 phone   → { t: "ok", ci: <initiator confirmation> }
 either  → { t: "err", message: "auth-failed" | ... }
 ```
+
+`bin: 1` offers binary inner frames. The session uses them only when both `hi` frames contain `bin: 1`. Older desktops ignore the phone's offer and omit `bin`, so the session falls back to the previous JSON and base64url format. The `ok` and `err` frames are unchanged.
 
 Using label `alma-relay-e2e/v1`:
 
@@ -83,15 +85,25 @@ Compare confirmations in constant time. Abort the tunnel on mismatch.
 
 ## Encrypted frames
 
-**Verified.** Each direction has an independent unsigned 64-bit counter beginning at zero.
+**Verified** against desktop 0.4.363. Each direction has an independent unsigned 64-bit counter beginning at zero. The outer sealed layout is unchanged:
 
 ```text
 iv = 4 zero bytes || uint64be(counter)
-ciphertext = AES-256-GCM(key, iv, utf8(JSON.stringify(frame)))
+ciphertext = AES-256-GCM(key, iv, encoded-inner-frame)
 wire = iv || ciphertext-and-tag
 ```
 
-Counters must never repeat for a key.
+Counters must never repeat for a key. Receivers decode both inner formats regardless of negotiation.
+
+The previous inner format is UTF-8 JSON. Byte field `b` is encoded as a base64url string before serialization. This remains the fallback for older desktops.
+
+Negotiated binary inner frames keep payload bytes out of JSON:
+
+```text
+0x00 || uint32be(headerLength) || utf8(JSON.stringify(header)) || payload
+```
+
+For a byte field `b`, the header copies the frame, removes `b`, and adds `"$":"b"`; the payload is the raw bytes. For a text WebSocket `wmsg`, the header removes `s`, adds `"$":"s"`, and the payload is the UTF-8 text. Frames without either payload, including bodyless `hreq`, `hres`, `hend`, and `wopen`, remain plain UTF-8 JSON even in a binary session. A marked frame shorter than five bytes, or whose declared header extends past the plaintext, is invalid with `E2E frame header truncated`.
 
 ## Multiplexed tunnel frames
 
@@ -100,15 +112,15 @@ Counters must never repeat for a key.
 **Verified.** Requests and streamed responses use:
 
 ```text
-client  → { t: "hreq", id, method, path, headers, b?: <base64url body> }
+client  → { t: "hreq", id, method, path, headers, b?: <body bytes> }
 desktop → { t: "hres", id, status, headers }
-desktop → { t: "hchunk", id, b: <base64url bytes> }  // zero or more
+desktop → { t: "hchunk", id, b: <chunk bytes> }  // zero or more
 desktop → { t: "hend", id }
 desktop → { t: "herr", id, message }
 client  → { t: "hcancel", id }
 ```
 
-Request bodies are carried in one frame; response bodies may be chunked. The client caps uploads below the relay's practical frame limit.
+Request bodies are carried in one frame; response bodies may be chunked. In negotiated binary sessions these are raw inner-frame payloads; the v1 fallback serializes them as base64url strings. The client keeps its 6 MiB upload cap below the relay's practical frame limit.
 
 **Verified.** The Android client derives connection latency from each tunneled HTTP exchange: it records a monotonic timestamp when `hreq` is sent and samples the round-trip time when the matching `hres` arrives. Samples are kept separately for relay and direct sessions. Each online desktop row in Settings shows that desktop's active transport and the median of its latest eight samples; before the first sample it shows only the transport. While the app is visible and connected, a lightweight `GET /__alma_lan__` request keeps the measurement fresh every 30 seconds; no new desktop endpoint is required. The direct LAN socket is native, so the tunnel request/response boundary is the only common layer where both relay and LAN round trips can be measured.
 
@@ -119,9 +131,11 @@ Request bodies are carried in one frame; response bodies may be chunked. The cli
 ```text
 client  → { t: "wopen", id, path }
 desktop → { t: "wopened", id } | { t: "werr", id, message }
-either  → { t: "wmsg", id, s: <text> } | { t: "wmsg", id, b: <base64url bytes> }
+either  → { t: "wmsg", id, s: <text> } | { t: "wmsg", id, b: <bytes> }
 either  → { t: "wclose", id }
 ```
+
+In negotiated binary sessions, both text `s` and binary `b` use the binary inner-frame payload. The v1 fallback keeps text in JSON and serializes `b` as base64url.
 
 ## HTTP APIs used by the client
 

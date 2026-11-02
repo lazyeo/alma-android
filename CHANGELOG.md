@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - Herdr built-in slash commands match the desktop 0.4.363 command tables, including picker hints and interactive command metadata.
+- Relay sessions negotiate binary inner frames to avoid base64 overhead for HTTP bodies and socket payloads, while older desktops keep the previous format.
 
 ### Added
 
