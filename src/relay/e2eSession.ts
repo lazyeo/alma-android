@@ -2,11 +2,13 @@ import {
   base64url,
   constantTimeEqual,
   createKeyPair,
+  decodeInnerFrame,
   deriveSessionKeys,
+  encodeInnerFrame,
   fromBase64url,
-  openFrame,
+  openBytes,
   routingId,
-  sealFrame,
+  sealBytes,
 } from './crypto'
 import { diagnoseRelayFailure } from './relayDiagnosis'
 
@@ -31,6 +33,9 @@ export interface SessionEndpoint {
   url: string
   handshakeTimeoutMs?: number
 }
+export interface E2ESessionOptions {
+  binaryFrames?: boolean
+}
 export interface PairingConfig {
   relayUrl: string
   connectCode: string
@@ -54,6 +59,7 @@ export class E2ESession {
   private socket?: RelayWebSocket
   private keys?: Awaited<ReturnType<typeof deriveSessionKeys>>
   private sendCounter = 0n
+  private binary = false
   private receiveChain = Promise.resolve()
   private sendChain = Promise.resolve()
   private outbox: unknown[] = []
@@ -65,7 +71,12 @@ export class E2ESession {
     private diagnose: (probeUrl: string) => Promise<Error> = (url) =>
       diagnoseRelayFailure(url),
     private endpoint?: SessionEndpoint,
+    private options: E2ESessionOptions = {},
   ) {}
+
+  get binaryFrames(): boolean {
+    return this.binary
+  }
 
   private setState(state: SessionState) {
     this.state = state
@@ -128,6 +139,7 @@ export class E2ESession {
               t: 'hi',
               epk: base64url(pair.publicKey),
               n: base64url(nonce),
+              ...(this.options.binaryFrames === false ? {} : { bin: 1 }),
             }),
           )
         },
@@ -165,6 +177,8 @@ export class E2ESession {
                 throw new Error(frame.message || 'Relay authentication failed')
               if (frame.t !== 'hi')
                 throw new Error('Unexpected handshake frame')
+              this.binary =
+                this.options.binaryFrames !== false && frame.bin === 1
               const responderPublic = fromBase64url(frame.epk)
               const responderNonce = fromBase64url(frame.n)
               this.keys = await deriveSessionKeys({
@@ -203,7 +217,9 @@ export class E2ESession {
             }
             if (this.state === 'ready' && this.keys)
               this.onFrame?.(
-                await openFrame(this.keys.s2c, await asBytes(event.data)),
+                decodeInnerFrame(
+                  await openBytes(this.keys.s2c, await asBytes(event.data)),
+                ),
               )
           })
           .catch(fail)
@@ -218,7 +234,11 @@ export class E2ESession {
     }
     this.sendChain = this.sendChain.then(async () => {
       if (!this.keys || !this.socket) throw new Error('Session unavailable')
-      const wire = await sealFrame(this.keys.c2s, this.sendCounter++, frame)
+      const wire = await sealBytes(
+        this.keys.c2s,
+        this.sendCounter++,
+        encodeInnerFrame(frame as Record<string, unknown>, this.binary),
+      )
       this.socket.send(wire)
     })
     return this.sendChain
