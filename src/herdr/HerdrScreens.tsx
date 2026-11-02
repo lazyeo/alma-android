@@ -585,7 +585,23 @@ export function AgentPaneScreen() {
         const herdrPrompt = buildHerdrPrompt(paths, prompt)
         if (pane?.agent_status === 'blocked')
           await api.sendHerdrBlockedText(decodedPaneId, herdrPrompt)
-        else await api.promptHerdrAgent(decodedPaneId, herdrPrompt)
+        else {
+          await api.promptHerdrAgent(decodedPaneId, herdrPrompt)
+          const commandName = /^\/(\S+)/.exec(prompt)?.[1]?.toLowerCase()
+          const availableCommands =
+            commands.length > 0
+              ? commands
+              : commandAgent
+                ? BUILTIN_HERDR_COMMANDS[commandAgent]
+                : []
+          if (
+            commandName &&
+            availableCommands.find(
+              (command) => command.name.toLowerCase() === commandName,
+            )?.interactive
+          )
+            setView('terminal')
+        }
       }
       if (text === draft) {
         setDraft('')

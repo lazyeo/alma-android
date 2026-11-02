@@ -82,6 +82,11 @@ vi.mock('./HerdrProvider', () => ({
               agent_status: agentStatus,
               turn_title: 'Ship safer command approvals',
             },
+            {
+              pane_id: 'pane-c',
+              agent: 'codex',
+              agent_status: 'idle',
+            },
           ],
         },
       },
@@ -462,6 +467,48 @@ describe('AgentPaneScreen pane navigation', () => {
     await screen.findByRole('listbox')
     fireEvent.blur(composer)
     expect(screen.queryByRole('listbox')).toBeNull()
+  })
+
+  it('switches to the terminal after sending an interactive built-in command', async () => {
+    paneId = 'pane-c'
+    render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('Pane B transcript')).toBeTruthy(),
+    )
+
+    const composer = screen.getByRole('textbox', { name: 'agents.message' })
+    fireEvent.change(composer, { target: { value: '/model' } })
+    fireEvent.click(screen.getByRole('button', { name: 'agents.send' }))
+
+    await waitFor(() =>
+      expect(api.promptHerdrAgent).toHaveBeenCalledWith('pane-c', '/model'),
+    )
+    expect(
+      screen
+        .getByRole('button', { name: 'agents.terminal' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true')
+  })
+
+  it('keeps chat open after sending a non-interactive built-in command', async () => {
+    paneId = 'pane-c'
+    render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('Pane B transcript')).toBeTruthy(),
+    )
+
+    const composer = screen.getByRole('textbox', { name: 'agents.message' })
+    fireEvent.change(composer, { target: { value: '/compact' } })
+    fireEvent.click(screen.getByRole('button', { name: 'agents.send' }))
+
+    await waitFor(() =>
+      expect(api.promptHerdrAgent).toHaveBeenCalledWith('pane-c', '/compact'),
+    )
+    expect(
+      screen
+        .getByRole('button', { name: 'agents.chat' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true')
   })
 
   it('sends chat drafts as prompts and terminal drafts as text followed by Enter', async () => {
