@@ -2,10 +2,12 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ComponentProps,
   type ReactNode,
 } from 'react'
+import type { Components } from 'react-markdown'
 import { MermaidPreview } from './MermaidPreview'
 import { closedFence, guardCurrency } from './richMarkdown'
 import Markdown, { defaultUrlTransform, type ExtraProps } from 'react-markdown'
@@ -110,6 +112,36 @@ function MarkdownPre({
   )
 }
 
+function MarkdownCode({
+  className: codeClassName,
+  children,
+  node: _node,
+  ...props
+}: ComponentProps<'code'> & { node?: unknown }) {
+  const match = /language-(\w+)/.exec(codeClassName ?? '')
+  return match ? (
+    <SyntaxHighlighter useInlineStyles={false} language={match[1]} PreTag="div">
+      {String(children).replace(/\n$/, '')}
+    </SyntaxHighlighter>
+  ) : (
+    <code className={codeClassName} {...props}>
+      {children}
+    </code>
+  )
+}
+
+function MarkdownTable({
+  children,
+  node: _node,
+  ...props
+}: ComponentProps<'table'> & { node?: unknown }) {
+  return (
+    <div className="markdown-table-wrap">
+      <table {...props}>{children}</table>
+    </div>
+  )
+}
+
 export function MarkdownContent({
   text,
   linkUserFilePaths = false,
@@ -137,6 +169,39 @@ export function MarkdownContent({
     if (needsMath) void import('./richMath').then(setMath)
   }, [needsMath])
   const guarded = guardCurrency(text)
+  const markdownComponents = useMemo(
+    (): Components => ({
+      ...components,
+
+      a({ href, children, node, ...props }) {
+        if (href && isReferenceUri(href) && renderReference)
+          return renderReference(href, children)
+        return (
+          <MarkdownLink
+            href={href}
+            renderLink={renderLink}
+            getSiteIcon={getSiteIcon}
+            {...props}
+          >
+            {children}
+          </MarkdownLink>
+        )
+      },
+      img({ node, ...props }) {
+        return renderImage ? (
+          renderImage({ node, ...props })
+        ) : (
+          <img {...props} />
+        )
+      },
+      code: MarkdownCode,
+      pre: MarkdownPre,
+      // Stable identities: an inline component would be a new type on every
+      // render, remounting the scroller and resetting horizontal scroll.
+      table: MarkdownTable,
+    }),
+    [components, renderReference, renderLink, renderImage, getSiteIcon],
+  )
   return (
     <MarkdownSourceContext.Provider value={guarded}>
       <div className={`markdown-content${className ? ` ${className}` : ''}`}>
@@ -151,54 +216,7 @@ export function MarkdownContent({
             math ? [[math.rehypeKatex, { trust: false, strict: 'warn' }]] : []
           }
           urlTransform={keepReferenceUrls}
-          components={{
-            ...components,
-            a({ href, children, node, ...props }) {
-              if (href && isReferenceUri(href) && renderReference)
-                return renderReference(href, children)
-              return (
-                <MarkdownLink
-                  href={href}
-                  renderLink={renderLink}
-                  getSiteIcon={getSiteIcon}
-                  {...props}
-                >
-                  {children}
-                </MarkdownLink>
-              )
-            },
-            img({ node, ...props }) {
-              return renderImage ? (
-                renderImage({ node, ...props })
-              ) : (
-                <img {...props} />
-              )
-            },
-            code({ className: codeClassName, children, ...props }) {
-              const match = /language-(\w+)/.exec(codeClassName ?? '')
-              return match ? (
-                <SyntaxHighlighter
-                  useInlineStyles={false}
-                  language={match[1]}
-                  PreTag="div"
-                >
-                  {String(children).replace(/\n$/, '')}
-                </SyntaxHighlighter>
-              ) : (
-                <code className={codeClassName} {...props}>
-                  {children}
-                </code>
-              )
-            },
-            pre: MarkdownPre,
-            table({ children, ...props }) {
-              return (
-                <div className="markdown-table-wrap">
-                  <table {...props}>{children}</table>
-                </div>
-              )
-            },
-          }}
+          components={markdownComponents}
         >
           {guarded}
         </Markdown>

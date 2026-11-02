@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Wide tables in messages no longer jump back to the start after you scroll them sideways. The table renderer had a new identity on every render, so any re-render (such as a latency update) rebuilt the scroller.
 - Sheet footer primary buttons for project card drafting and editing now fill the footer and use the standard 48px action height.
 - Solid accent buttons use perceptual seed lightness for readable black or white text, keeping blue and similarly dark accents white-on-color.
 - Project card brief and focus only offer "Show more" when the clamped text actually overflows.

@@ -141,3 +141,17 @@ it('preserves a completed Mermaid preview lifecycle when streaming appends text'
     'blob:stable-diagram',
   )
 })
+
+it('keeps the same table scroller across re-renders so horizontal scroll survives', () => {
+  const text = '| a | b |\n| - | - |\n| 1 | 2 |'
+  const renderLink = () => null
+  const { container, rerender } = render(
+    <MarkdownContent text={text} renderLink={renderLink} />,
+  )
+  const wrap = container.querySelector('.markdown-table-wrap')
+  expect(wrap).not.toBeNull()
+  ;(wrap as HTMLElement).scrollLeft = 120
+  // A parent re-render (e.g. a connection latency update) passes fresh callbacks.
+  rerender(<MarkdownContent text={text} renderLink={() => null} />)
+  expect(container.querySelector('.markdown-table-wrap')).toBe(wrap)
+})
