@@ -214,6 +214,8 @@ A `404`, `405`, or `501` means the connected desktop does not support the handof
 
 ### Herdr sessions and subagents
 
+**Verified.** Herdr snapshots from `/ws/herdr` and the snapshot RPC can decorate each pane with an optional `turn_title` string: a short model-written summary of the user's latest ask in that pane. The field is absent on older desktops, when no model is configured, and before a pane has been named; clients must ignore non-string or empty values.
+
 **Verified.** Herdr chat history and its live stream use:
 
 ```text

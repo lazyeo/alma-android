@@ -48,7 +48,12 @@ import {
 } from '../terminal/terminal'
 import { useHerdr } from './HerdrProvider'
 import { AgentMark } from './AgentMark'
-import { mergeChatItems, parseBlockedPrompt, type HerdrPane } from './model'
+import {
+  mergeChatItems,
+  paneTurnTitle,
+  parseBlockedPrompt,
+  type HerdrPane,
+} from './model'
 import {
   parseAnsi,
   stripAnsi,
@@ -267,6 +272,7 @@ export function AgentPaneScreen() {
         : null,
     [pane?.agent_status, terminal],
   )
+  const turnTitle = pane ? paneTurnTitle(pane) : undefined
   useEffect(() => {
     if (pane?.agent_status !== 'blocked' || terminal) return
     void api
@@ -625,6 +631,9 @@ export function AgentPaneScreen() {
           {view === 'chat' && blockedPrompt ? (
             <aside className="agent-blocked-card">
               <span>{t('agents.needsYou')}</span>
+              {turnTitle ? (
+                <small className="agent-blocked-context">{turnTitle}</small>
+              ) : null}
               <strong>{blockedPrompt.question}</strong>
               <div className="agent-menu-options">
                 {blockedPrompt.options.map((option, index) => (

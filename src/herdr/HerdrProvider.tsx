@@ -20,6 +20,7 @@ import { stripAnsi } from './transcript'
 import { lastAssistantText, notificationMessage } from './lastAssistantText'
 import {
   agentListFromSnapshot,
+  paneTurnTitle,
   parseBlockedPrompt,
   shouldNotifyAgentStatus,
   type AgentWorkspaceModel,
@@ -119,15 +120,20 @@ export function useHerdrNotificationEvents({
             // Message enrichment is best effort; never suppress notification.
           }
         }
+        const paneTitle =
+          pane.terminal_title_stripped?.trim() ||
+          pane.title?.trim() ||
+          pane.agent?.trim() ||
+          undefined
+        const turnTitle = paneTurnTitle(pane)
         await notify({
           type: 'agent-needs-you',
           tag: scopedNotificationTag(desktopId, `agent:${pane.pane_id}:${to}`),
           url: desktopAgentPanePath(desktopId, pane.pane_id),
           threadTitle:
-            pane.terminal_title_stripped ||
-            pane.title ||
-            pane.agent ||
-            undefined,
+            turnTitle && turnTitle !== paneTitle
+              ? [paneTitle, turnTitle].filter(Boolean).join(' — ')
+              : paneTitle,
           desktopName,
           ...(message ? { message } : {}),
         })

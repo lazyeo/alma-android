@@ -1949,6 +1949,7 @@ const herdrSnapshot = {
           : 'working',
       terminal_title_stripped:
         '修复 Herdr 终端布局并验证 extremely long Fold7 responsive terminal title',
+      turn_title: 'Show the latest task title',
       last_changed_at: NOW - 90_000,
     },
     {

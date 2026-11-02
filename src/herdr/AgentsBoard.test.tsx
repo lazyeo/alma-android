@@ -61,6 +61,53 @@ describe('AgentPaneRow blocked quick answer', () => {
     expect(container.querySelector('.agent-mark.muted')).toBeTruthy()
   })
 
+  it('shows a distinct task title as a secondary line', () => {
+    const { container } = render(
+      <MemoryRouter>
+        <AgentPaneRow
+          desktopId="desktop"
+          pane={{
+            id: 'pane-1',
+            workspaceId: 'workspace-1',
+            agent: 'codex',
+            status: 'idle',
+            title: 'Implementation',
+            turnTitle: 'Add latest task titles',
+          }}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Add latest task titles')).toBeTruthy()
+    expect(container.querySelector('.agent-pane-turn-title')).toBeTruthy()
+  })
+
+  it.each([
+    ['absent', undefined],
+    ['equal to the title', 'Implementation'],
+  ])(
+    'does not add a secondary line when the task title is %s',
+    (_, turnTitle) => {
+      const { container } = render(
+        <MemoryRouter>
+          <AgentPaneRow
+            desktopId="desktop"
+            pane={{
+              id: 'pane-1',
+              workspaceId: 'workspace-1',
+              agent: 'codex',
+              status: 'idle',
+              title: 'Implementation',
+              turnTitle,
+            }}
+          />
+        </MemoryRouter>,
+      )
+
+      expect(container.querySelector('.agent-pane-turn-title')).toBeNull()
+    },
+  )
+
   it('keeps the trailing management affordance beside the agent mark', () => {
     const { container } = render(
       <MemoryRouter>
@@ -96,6 +143,7 @@ describe('AgentPaneRow blocked quick answer', () => {
             agent: 'agy',
             status: 'blocked',
             title: 'Run command',
+            turnTitle: 'Ship safer command approvals',
           }}
         />
       </MemoryRouter>,
@@ -104,6 +152,7 @@ describe('AgentPaneRow blocked quick answer', () => {
     await waitFor(() =>
       expect(screen.getByText('Run this command?')).toBeTruthy(),
     )
+    expect(screen.getAllByText('Ship safer command approvals')).toHaveLength(2)
     expect(api.readHerdrPane).toHaveBeenCalledWith('pane-1', 'text', {
       source: 'visible',
     })

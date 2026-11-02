@@ -62,7 +62,12 @@ vi.mock('./HerdrProvider', () => ({
         snapshot: {
           panes: [
             { pane_id: 'pane-a', agent: 'agy', agent_status: 'idle' },
-            { pane_id: 'pane-b', agent: 'claude', agent_status: agentStatus },
+            {
+              pane_id: 'pane-b',
+              agent: 'claude',
+              agent_status: agentStatus,
+              turn_title: 'Ship safer command approvals',
+            },
           ],
         },
       },
@@ -241,6 +246,7 @@ describe('AgentPaneScreen pane navigation', () => {
     await waitFor(() =>
       expect(screen.getByText('Run this command?')).toBeTruthy(),
     )
+    expect(screen.getByText('Ship safer command approvals')).toBeTruthy()
     const selected = screen.getByRole('button', { name: '1. Yes, run command' })
     expect(selected.className).toContain('active')
     expect(

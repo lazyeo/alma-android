@@ -2,6 +2,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { useHerdrNotificationEvents } from './HerdrProvider'
+import type { HerdrPane } from './model'
 
 describe('useHerdrNotificationEvents', () => {
   it('includes blocked questions and completed assistant messages', async () => {
@@ -21,7 +22,7 @@ describe('useHerdrNotificationEvents', () => {
       }),
     }
     const { result, rerender } = renderHook(
-      ({ panes }) =>
+      ({ panes }: { panes: HerdrPane[] }) =>
         useHerdrNotificationEvents({
           desktopId: 'desktop',
           desktopName: 'Mac',
@@ -35,8 +36,12 @@ describe('useHerdrNotificationEvents', () => {
       {
         initialProps: {
           panes: [
-            { pane_id: 'p1', workspace_id: 'w1', agent_status: 'working' },
-          ],
+            {
+              pane_id: 'p1',
+              workspace_id: 'w1',
+              agent_status: 'working',
+            },
+          ] as HerdrPane[],
         },
       },
     )
@@ -44,12 +49,23 @@ describe('useHerdrNotificationEvents', () => {
     expect(notify).not.toHaveBeenCalled()
 
     rerender({
-      panes: [{ pane_id: 'p1', workspace_id: 'w1', agent_status: 'blocked' }],
+      panes: [
+        {
+          pane_id: 'p1',
+          workspace_id: 'w1',
+          agent_status: 'blocked',
+          terminal_title_stripped: 'Release checks',
+          turn_title: 'Run the release build',
+        },
+      ],
     })
     act(() => result.current())
     await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1))
-    expect(notify.mock.calls[0][0].message).toBe(
-      'Should I run the release build?',
+    expect(notify.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        threadTitle: 'Release checks — Run the release build',
+        message: 'Should I run the release build?',
+      }),
     )
 
     rerender({
@@ -81,7 +97,7 @@ describe('useHerdrNotificationEvents', () => {
       }),
     }
     const { result, rerender } = renderHook(
-      ({ panes }) =>
+      ({ panes }: { panes: HerdrPane[] }) =>
         useHerdrNotificationEvents({
           desktopId: 'desktop',
           desktopName: 'Mac',
@@ -95,8 +111,12 @@ describe('useHerdrNotificationEvents', () => {
       {
         initialProps: {
           panes: [
-            { pane_id: 'p1', workspace_id: 'w1', agent_status: 'working' },
-          ],
+            {
+              pane_id: 'p1',
+              workspace_id: 'w1',
+              agent_status: 'working',
+            },
+          ] as HerdrPane[],
         },
       },
     )
@@ -116,7 +136,7 @@ describe('useHerdrNotificationEvents', () => {
       getHerdrChat: vi.fn().mockRejectedValue(new Error('offline')),
     }
     const { result, rerender } = renderHook(
-      ({ panes }) =>
+      ({ panes }: { panes: HerdrPane[] }) =>
         useHerdrNotificationEvents({
           desktopId: 'desktop',
           desktopName: 'Mac',
@@ -130,17 +150,29 @@ describe('useHerdrNotificationEvents', () => {
       {
         initialProps: {
           panes: [
-            { pane_id: 'p1', workspace_id: 'w1', agent_status: 'working' },
-          ],
+            {
+              pane_id: 'p1',
+              workspace_id: 'w1',
+              agent_status: 'working',
+            },
+          ] as HerdrPane[],
         },
       },
     )
     act(() => result.current())
     rerender({
-      panes: [{ pane_id: 'p1', workspace_id: 'w1', agent_status: 'blocked' }],
+      panes: [
+        {
+          pane_id: 'p1',
+          workspace_id: 'w1',
+          agent_status: 'blocked',
+          terminal_title_stripped: 'Release checks',
+        },
+      ],
     })
     act(() => result.current())
     await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1))
+    expect(notify.mock.calls[0][0].threadTitle).toBe('Release checks')
     expect(notify.mock.calls[0][0].message).toBeUndefined()
   })
 })

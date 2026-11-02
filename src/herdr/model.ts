@@ -23,6 +23,7 @@ export interface HerdrPane {
   agent_session?: unknown
   terminal_title_stripped?: string
   title?: string
+  turn_title?: unknown
   cwd?: string
   [key: string]: unknown
 }
@@ -44,6 +45,7 @@ export interface AgentPaneModel {
   sessionAgent?: string
   status: HerdrAgentStatus
   title: string
+  turnTitle?: string
   cwd?: string
   lastChangedAt?: number
 }
@@ -70,6 +72,12 @@ const paneLastChangedAt = (pane: HerdrPane) => {
     }
   }
   return undefined
+}
+
+export const paneTurnTitle = (pane: Pick<HerdrPane, 'turn_title'>) => {
+  if (typeof pane.turn_title !== 'string') return undefined
+  const title = pane.turn_title.trim()
+  return title ? title.slice(0, 120) : undefined
 }
 
 const statusRank = (status: HerdrAgentStatus) => {
@@ -115,6 +123,7 @@ export function agentListFromSnapshot(
         pane.title?.trim() ||
         (pane.tab_id ? tabs.get(pane.tab_id) : '') ||
         pane.agent,
+      turnTitle: paneTurnTitle(pane),
       lastChangedAt: paneLastChangedAt(pane),
     })
     grouped.set(pane.workspace_id, panes)

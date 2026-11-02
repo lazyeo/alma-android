@@ -9041,6 +9041,19 @@ dialog:focus,
   padding-top: 10px;
   font-size: var(--text-xs);
 }
+.agent-row-blocked-card > .agent-blocked-context {
+  padding-top: 10px;
+}
+.agent-row-blocked-card > .agent-blocked-context + strong {
+  padding-top: 0;
+}
+.agent-blocked-context {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .agent-row-blocked-card > div {
   display: flex;
   flex-wrap: wrap;
@@ -9091,7 +9104,8 @@ dialog:focus,
   justify-content: space-between;
 }
 .agent-pane-copy strong,
-.agent-pane-title {
+.agent-pane-title,
+.agent-pane-turn-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -9102,9 +9116,13 @@ dialog:focus,
   text-transform: capitalize;
 }
 .agent-pane-copy small,
-.agent-pane-title {
+.agent-pane-title,
+.agent-pane-turn-title {
   color: var(--text-secondary);
   font-size: var(--text-xs);
+}
+.agent-pane-turn-title {
+  color: var(--text-tertiary);
 }
 .agent-pane-copy small {
   flex: 0 0 auto;

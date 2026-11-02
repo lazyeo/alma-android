@@ -26,6 +26,7 @@ const snapshot: HerdrSnapshot = {
       agent_session: { agent: 'claude', kind: 'id', value: 'session-1' },
       agent_status: 'working',
       terminal_title_stripped: 'Implement transport',
+      turn_title: '  Add latest task titles  ',
     },
     {
       pane_id: 'p2',
@@ -61,10 +62,42 @@ describe('agentListFromSnapshot', () => {
             agent: 'codex',
             sessionAgent: 'claude',
             status: 'working',
+            turnTitle: 'Add latest task titles',
           }),
         ],
       },
     ])
+  })
+
+  it('ignores invalid task titles and caps long ones', () => {
+    const longTitle = `  ${'x'.repeat(140)}  `
+    const panes = agentListFromSnapshot({
+      workspaces: [{ workspace_id: 'w1', label: 'App' }],
+      panes: [
+        {
+          pane_id: 'long',
+          workspace_id: 'w1',
+          agent: 'claude',
+          turn_title: longTitle,
+        },
+        {
+          pane_id: 'empty',
+          workspace_id: 'w1',
+          agent: 'claude',
+          turn_title: '   ',
+        },
+        {
+          pane_id: 'invalid',
+          workspace_id: 'w1',
+          agent: 'claude',
+          turn_title: 42,
+        },
+      ],
+    })[0].panes
+
+    expect(panes[0].turnTitle).toBe('x'.repeat(120))
+    expect(panes[1].turnTitle).toBeUndefined()
+    expect(panes[2].turnTitle).toBeUndefined()
   })
 })
 

@@ -76,6 +76,8 @@ export function AgentPaneRow({
   // entry so Back leaves Agents instead of stepping through every session.
   const { paneId: openPaneId } = useParams()
   const changed = pane.lastChangedAt ? relative(pane.lastChangedAt) : ''
+  const turnTitle =
+    pane.turnTitle && pane.turnTitle !== pane.title ? pane.turnTitle : undefined
   return (
     <div className="agent-pane-row-wrap" {...longPress}>
       <div
@@ -109,6 +111,9 @@ export function AgentPaneRow({
             {changed ? <small>{changed}</small> : null}
           </span>
           <span className="agent-pane-title">{pane.title}</span>
+          {turnTitle ? (
+            <span className="agent-pane-turn-title">{turnTitle}</span>
+          ) : null}
         </span>
         <span className={`agent-status-badge ${agentStatusClass(pane.status)}`}>
           {t(`agents.status.${agentStatusClass(pane.status)}`)}
@@ -123,6 +128,9 @@ export function AgentPaneRow({
       </button>
       {prompt ? (
         <aside className="agent-row-blocked-card">
+          {turnTitle ? (
+            <span className="agent-blocked-context">{turnTitle}</span>
+          ) : null}
           <strong>{prompt.question}</strong>
           <div className="agent-menu-options">
             {prompt.options.map((option, index) => (
