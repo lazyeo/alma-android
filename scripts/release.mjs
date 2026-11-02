@@ -15,7 +15,12 @@ import process from 'node:process'
 
 const args = process.argv.slice(2)
 const dryRun = args.includes('--dry-run')
-const commandArgs = args.filter((arg) => arg !== '--dry-run')
+// --prebuilt: the release APK was already checked and built elsewhere (e.g. on
+// the build machine) and copied to android/app/build/outputs/apk/release/.
+const prebuilt = args.includes('--prebuilt')
+const commandArgs = args.filter(
+  (arg) => arg !== '--dry-run' && arg !== '--prebuilt',
+)
 const command = commandArgs[0]
 const root = process.cwd()
 
@@ -257,8 +262,11 @@ function publish() {
     fail(`missing signing environment variables: ${missing.join(', ')}`)
 
   if (dryRun) {
-    console.log('[dry-run] npm run check')
-    console.log('[dry-run] npm run android:release')
+    if (prebuilt) console.log('[dry-run] use prebuilt release APK')
+    else {
+      console.log('[dry-run] npm run check')
+      console.log('[dry-run] npm run android:release')
+    }
     console.log(
       `[dry-run] apksigner verify --verbose --print-certs <release APK>`,
     )
@@ -268,8 +276,10 @@ function publish() {
     return
   }
 
-  run('npm', ['run', 'check'])
-  run('npm', ['run', 'android:release'])
+  if (!prebuilt) {
+    run('npm', ['run', 'check'])
+    run('npm', ['run', 'android:release'])
+  }
 
   const sourceApk = findReleaseApk()
   const apksigner = findApksigner()
@@ -312,6 +322,8 @@ if (command === 'publish' && commandArgs.length === 1) publish()
 else if (command && commandArgs.length === 1) prepare(command)
 else {
   console.error('Usage: node scripts/release.mjs <version> [--dry-run]')
-  console.error('       node scripts/release.mjs publish [--dry-run]')
+  console.error(
+    '       node scripts/release.mjs publish [--dry-run] [--prebuilt]',
+  )
   process.exit(1)
 }

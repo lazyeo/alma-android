@@ -82,6 +82,8 @@ Publishing performs the following locally:
 7. extracts the matching changelog section as release notes;
 8. creates a **draft** GitHub release with the APK and checksum attached.
 
+With `--prebuilt`, steps 2 and 3 are skipped: run `npm run check` and `npm run android:release` on another machine from the same tagged commit, copy the resulting `app-release.apk` into `android/app/build/outputs/apk/release/`, then publish. The signature check and packaging still happen locally.
+
 Review the draft on GitHub before publishing it.
 
 ## Release checklist
