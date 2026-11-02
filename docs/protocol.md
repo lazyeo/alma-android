@@ -240,7 +240,7 @@ GET /api/herdr/subagent?pane=<pane_id>&tool=<tool.id>&limit=400
 GET /api/herdr/subagent?pane=<pane_id>&tool=<tool.id>&limit=400&before=<seq>
 ```
 
-A successful response is `{ agent: { type?, description?, finished }, page }`, where `page` has the same pagination and regular chat-item shape as `/api/herdr/chat`. The client can therefore render assistant text and tool calls with the shared Herdr message conversion. While `agent.finished` is false, the client polls about every 1.5 seconds and stops when the detail closes or the agent finishes.
+A successful response is `{ agent: { type?, description?, finished }, page }`, where `page` has the same pagination and regular chat-item shape as `/api/herdr/chat`. The client can therefore render assistant text and tool calls with the shared Herdr message conversion. While `agent.finished` is false, the client polls about every 1.5 seconds and stops when the detail closes or the agent finishes. The poll pauses while the page is hidden and resumes immediately when it becomes visible.
 
 Protocol failures are returned with HTTP 200 as `{ error: { code, message } }`. Verified codes are `pane_not_found`, `subagent_not_found`, and `read_failed`. `subagent_not_found` can be transient immediately after a Task starts because its transcript file has not appeared yet; clients should show a quiet no-transcript state and keep polling. HTTP 404 means the connected desktop predates this route and should be presented as an update-required compatibility state.
 

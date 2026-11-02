@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Herdr pane and subagent polling pauses while the app is hidden, avoiding unnecessary relay traffic in the background.
 - The desktop switcher shows only the Wi-Fi or globe icon for the connection path, without a duplicate "LAN"/"Relay" label.
 - Wide tables in messages no longer jump back to the start after you scroll them sideways. The table renderer had a new identity on every render, so any re-render (such as a latency update) rebuilt the scroller.
 - Sheet footer primary buttons for project card drafting and editing now fill the footer and use the standard 48px action height.
