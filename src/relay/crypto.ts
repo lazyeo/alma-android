@@ -180,13 +180,80 @@ export function makeCounterIv(counter: bigint): Uint8Array {
   return iv
 }
 
-export async function sealFrame(
+type InnerFrame = Record<string, unknown>
+
+const frameBytes = (value: unknown): Uint8Array | null => {
+  if (value instanceof Uint8Array) return value
+  if (value instanceof ArrayBuffer) return new Uint8Array(value)
+  if (ArrayBuffer.isView(value))
+    return new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+  return null
+}
+
+export function encodeInnerFrame(
+  frame: InnerFrame,
+  binary: boolean,
+): Uint8Array {
+  const bytes = frameBytes(frame.b)
+  if (binary) {
+    const field = bytes
+      ? 'b'
+      : frame.t === 'wmsg' && typeof frame.s === 'string'
+        ? 's'
+        : undefined
+    const payload =
+      field === 'b'
+        ? bytes
+        : field === 's'
+          ? encoder.encode(frame.s as string)
+          : null
+    if (field && payload) {
+      const header: InnerFrame = { ...frame, $: field }
+      delete header[field]
+      const head = encoder.encode(JSON.stringify(header))
+      const output = new Uint8Array(5 + head.length + payload.length)
+      new DataView(output.buffer).setUint32(1, head.length, false)
+      output.set(head, 5)
+      output.set(payload, 5 + head.length)
+      return output
+    }
+  }
+  if (bytes)
+    return encoder.encode(JSON.stringify({ ...frame, b: base64url(bytes) }))
+  return encoder.encode(JSON.stringify(frame))
+}
+
+export function decodeInnerFrame(plaintext: Uint8Array): InnerFrame {
+  if (plaintext.length > 0 && plaintext[0] === 0) {
+    if (plaintext.length < 5) throw new Error('E2E frame header truncated')
+    const headLength = new DataView(
+      plaintext.buffer,
+      plaintext.byteOffset,
+      plaintext.byteLength,
+    ).getUint32(1, false)
+    if (5 + headLength > plaintext.length)
+      throw new Error('E2E frame header truncated')
+    const frame = JSON.parse(
+      decoder.decode(plaintext.subarray(5, 5 + headLength)),
+    ) as InnerFrame
+    const field = frame.$
+    delete frame.$
+    const payload = plaintext.slice(5 + headLength)
+    if (field === 's') frame.s = decoder.decode(payload)
+    else frame.b = payload
+    return frame
+  }
+  const frame = JSON.parse(decoder.decode(plaintext)) as InnerFrame
+  if (typeof frame.b === 'string') frame.b = fromBase64url(frame.b)
+  return frame
+}
+
+export async function sealBytes(
   key: CryptoKey,
   counter: bigint,
-  frame: unknown,
+  plaintext: Uint8Array,
 ): Promise<Uint8Array> {
   const iv = makeCounterIv(counter)
-  const plaintext = encoder.encode(JSON.stringify(frame))
   const encrypted = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv: source(iv) },
     key,
@@ -195,18 +262,34 @@ export async function sealFrame(
   return concatBytes(iv, new Uint8Array(encrypted))
 }
 
+export async function openBytes(
+  key: CryptoKey,
+  wire: Uint8Array,
+): Promise<Uint8Array> {
+  if (wire.length < 29) throw new Error('Encrypted relay frame is too short')
+  const iv = wire.slice(0, 12)
+  return new Uint8Array(
+    await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: source(iv) },
+      key,
+      source(wire.slice(12)),
+    ),
+  )
+}
+
+export function sealFrame(
+  key: CryptoKey,
+  counter: bigint,
+  frame: unknown,
+): Promise<Uint8Array> {
+  return sealBytes(key, counter, encoder.encode(JSON.stringify(frame)))
+}
+
 export async function openFrame<T = unknown>(
   key: CryptoKey,
   wire: Uint8Array,
 ): Promise<T> {
-  if (wire.length < 29) throw new Error('Encrypted relay frame is too short')
-  const iv = wire.slice(0, 12)
-  const plaintext = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: source(iv) },
-    key,
-    source(wire.slice(12)),
-  )
-  return JSON.parse(decoder.decode(plaintext)) as T
+  return JSON.parse(decoder.decode(await openBytes(key, wire))) as T
 }
 
 export const utf8 = encoder

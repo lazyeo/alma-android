@@ -1,12 +1,98 @@
 import { describe, expect, it } from 'vitest'
 import {
   createKeyPair,
+  decodeInnerFrame,
   deriveSessionKeys,
+  encodeInnerFrame,
   makeCounterIv,
   openFrame,
   routingId,
   sealFrame,
 } from './crypto'
+
+describe('relay inner frames', () => {
+  it('encodes byte payloads with a marker, big-endian header length, and $ field', () => {
+    const encoded = encodeInnerFrame(
+      { t: 'hreq', id: 'request', b: new Uint8Array([1, 2, 255]) },
+      true,
+    )
+    const headerLength = new DataView(
+      encoded.buffer,
+      encoded.byteOffset,
+      encoded.byteLength,
+    ).getUint32(1, false)
+    const header = JSON.parse(
+      new TextDecoder().decode(encoded.subarray(5, 5 + headerLength)),
+    )
+
+    expect(encoded[0]).toBe(0)
+    expect(header).toEqual({ t: 'hreq', id: 'request', $: 'b' })
+    expect(Array.from(encoded.subarray(5 + headerLength))).toEqual([1, 2, 255])
+    expect(decodeInnerFrame(encoded)).toEqual({
+      t: 'hreq',
+      id: 'request',
+      b: new Uint8Array([1, 2, 255]),
+    })
+  })
+
+  it('encodes wmsg text as a UTF-8 binary payload', () => {
+    const encoded = encodeInnerFrame(
+      { t: 'wmsg', id: 'socket', s: 'héllo' },
+      true,
+    )
+    const decoded = decodeInnerFrame(encoded)
+
+    expect(encoded[0]).toBe(0)
+    expect(decoded).toEqual({ t: 'wmsg', id: 'socket', s: 'héllo' })
+  })
+
+  it('keeps payload-free frames as plain JSON in binary mode', () => {
+    const encoded = encodeInnerFrame({ t: 'wopen', id: 'socket' }, true)
+
+    expect(encoded[0]).toBe('{'.charCodeAt(0))
+    expect(JSON.parse(new TextDecoder().decode(encoded))).toEqual({
+      t: 'wopen',
+      id: 'socket',
+    })
+  })
+
+  it('uses base64url JSON in v1 mode and decodes b to bytes', () => {
+    const encoded = encodeInnerFrame(
+      { t: 'wmsg', id: 'socket', b: new Uint8Array([251, 255]) },
+      false,
+    )
+
+    expect(JSON.parse(new TextDecoder().decode(encoded))).toEqual({
+      t: 'wmsg',
+      id: 'socket',
+      b: '-_8',
+    })
+    expect(decodeInnerFrame(encoded)).toEqual({
+      t: 'wmsg',
+      id: 'socket',
+      b: new Uint8Array([251, 255]),
+    })
+  })
+
+  it('accepts ArrayBuffer views as byte payloads', () => {
+    const source = new Uint16Array([0x0201, 0x0403])
+    const encoded = encodeInnerFrame({ t: 'hreq', b: source }, true)
+    const decoded = decodeInnerFrame(encoded) as { b: Uint8Array }
+
+    expect(Array.from(decoded.b)).toEqual(
+      Array.from(new Uint8Array(source.buffer)),
+    )
+  })
+
+  it('rejects truncated binary headers', () => {
+    expect(() => decodeInnerFrame(new Uint8Array([0, 0, 0, 0]))).toThrow(
+      'E2E frame header truncated',
+    )
+    expect(() =>
+      decodeInnerFrame(new Uint8Array([0, 0, 0, 0, 2, 123])),
+    ).toThrow('E2E frame header truncated')
+  })
+})
 
 describe('relay crypto', () => {
   it('derives the documented routing id deterministically', async () => {
