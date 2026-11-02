@@ -34,6 +34,7 @@ export const composer: CatalogShape<typeof source> = {
     file: '文件',
     annotate: '标注 {name}',
     remove: '移除 {name}',
+    imageOrdinal: '第 {ordinal} 张图',
     noVision: '所选模型未声明支持图像识别。',
     uploadFailed: '上传失败',
     tooMany: '附件过多（最多 {count} 个）',

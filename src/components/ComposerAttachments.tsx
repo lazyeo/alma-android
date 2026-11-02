@@ -150,7 +150,16 @@ export function ComposerAttachmentTray({
             if (current.previewUrl) URL.revokeObjectURL(current.previewUrl)
             setEditing(undefined)
             onChange(next)
-            const annotationText = buildMarkupNotes(regions)
+            const images = attachments.filter(
+              (attachment) => attachment.kind === 'image',
+            )
+            const annotationText = buildMarkupNotes(regions, {
+              ordinal:
+                images.findIndex(
+                  (attachment) => attachment === editing.attachment,
+                ) + 1,
+              total: images.length,
+            })
             if (annotationText) onAnnotationText?.(annotationText)
           }}
         />

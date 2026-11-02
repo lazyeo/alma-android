@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { setLanguage } from '../i18n/runtime'
 import {
   arrowHead,
   buildAlmaImageEdit,
@@ -125,6 +126,21 @@ describe('image edit request text', () => {
       ]),
     ).toBe('① Move this button\n③ Tighten spacing')
     expect(buildMarkupNotes([{ ...rect, label: undefined }])).toBe('')
+  })
+
+  it('prefixes markup notes with the image position when multiple images exist', () => {
+    setLanguage('en')
+    expect(buildMarkupNotes([rect], { ordinal: 2, total: 2 })).toBe(
+      'Image 2\n① Move this button',
+    )
+  })
+
+  it('localizes the image position prefix', () => {
+    setLanguage('zh')
+    expect(buildMarkupNotes([rect], { ordinal: 2, total: 2 })).toBe(
+      '第 2 张图\n① Move this button',
+    )
+    setLanguage('en')
   })
 
   it('builds visible markdown and the machine-readable reminder', () => {

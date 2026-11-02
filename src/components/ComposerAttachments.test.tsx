@@ -160,6 +160,32 @@ describe('ComposerAttachmentTray image markup', () => {
     expect(onAnnotationText).toHaveBeenCalledWith('① label')
   })
 
+  it('identifies the annotated image among multiple image attachments', () => {
+    const first = pendingImage()
+    const second = {
+      ...pendingImage(),
+      id: 'attachment-2',
+      name: 'second.jpg',
+    }
+    const onAnnotationText = vi.fn()
+
+    render(
+      <ComposerAttachmentTray
+        api={api}
+        attachments={[first, second]}
+        onChange={vi.fn()}
+        onAnnotationText={onAnnotationText}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Annotate second.jpg' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Region label' }), {
+      target: { value: 'label' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+
+    expect(onAnnotationText).toHaveBeenCalledWith('Image 2\n① label')
+  })
+
   it('keeps the attachment unchanged on Cancel', () => {
     const attachment = pendingImage()
     const onChange = vi.fn()

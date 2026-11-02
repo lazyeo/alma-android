@@ -31,6 +31,7 @@ export const composer = {
     file: 'File',
     annotate: 'Annotate {name}',
     remove: 'Remove {name}',
+    imageOrdinal: 'Image {ordinal}',
     noVision: 'The selected model does not advertise vision support.',
     uploadFailed: 'Upload failed',
     tooMany: 'Too many attachments (max {count})',

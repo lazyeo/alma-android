@@ -1,3 +1,5 @@
+import { t } from '../i18n'
+
 export const ANNOTATION_COLORS = [
   '#ef4444',
   '#f59e0b',
@@ -163,13 +165,18 @@ export function displayNumber(index: number) {
   return String(index)
 }
 
-export function buildMarkupNotes(regions: readonly AnnotationRegion[]) {
-  return regions
+export function buildMarkupNotes(
+  regions: readonly AnnotationRegion[],
+  image?: { ordinal: number; total: number },
+) {
+  const notes = regions
     .flatMap((region) => {
       const label = region.label?.trim()
       return label ? [`${displayNumber(region.index)} ${label}`] : []
     })
     .join('\n')
+  if (!notes || !image || image.total <= 1) return notes
+  return `${t('composer.attachments.imageOrdinal', { ordinal: image.ordinal })}\n${notes}`
 }
 
 export function drawRegion(
