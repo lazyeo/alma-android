@@ -1,4 +1,10 @@
-import { BellOff, BellRing, LoaderCircle, MoreHorizontal } from 'lucide-react'
+import {
+  BellOff,
+  BellRing,
+  LoaderCircle,
+  MoreHorizontal,
+  Plus,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { desktopAgentPanePath } from '../desktopRoutes'
@@ -218,12 +224,16 @@ export function AgentsBoard({
       {selected ? (
         <section className="agent-board-project">
           <header>
-            <div>
+            <button
+              className="agent-workspace-title"
+              aria-label={t('agents.workspaceActions')}
+              onClick={() => manage.openWorkspace(selected)}
+            >
               <h2>{selected.label}</h2>
               <span>
                 {t('agents.sessionCount', { count: selected.panes.length })}
               </span>
-            </div>
+            </button>
             <div className="agent-header-actions">
               <button
                 className="quiet-icon-button"
@@ -232,15 +242,20 @@ export function AgentsBoard({
               >
                 {muted ? <BellOff size={17} /> : <BellRing size={17} />}
               </button>
-              {compact ? (
-                <button
-                  className="quiet-icon-button"
-                  aria-label={t('agents.workspaceActions')}
-                  onClick={() => manage.openWorkspace(selected)}
-                >
-                  <MoreHorizontal size={18} />
-                </button>
-              ) : null}
+              <button
+                className="quiet-icon-button"
+                aria-label={t('agents.newAgentTab')}
+                onClick={() => manage.openNewAgentTab(selected)}
+              >
+                <Plus size={18} />
+              </button>
+              <button
+                className="quiet-icon-button"
+                aria-label={t('agents.workspaceActions')}
+                onClick={() => manage.openWorkspace(selected)}
+              >
+                <MoreHorizontal size={18} />
+              </button>
             </div>
           </header>
           <div className="agent-pane-list">
@@ -296,7 +311,16 @@ export function AgentsList({
         return (
           <section className="agent-workspace" key={workspace.id}>
             <header>
-              <h2>{workspace.label}</h2>
+              <button
+                className="agent-workspace-title"
+                aria-label={t('agents.workspaceActions')}
+                onClick={() => manage.openWorkspace(workspace)}
+              >
+                <h2>{workspace.label}</h2>
+                <span>
+                  {t('agents.sessionCount', { count: workspace.panes.length })}
+                </span>
+              </button>
               <div className="agent-header-actions">
                 <button
                   className="quiet-icon-button"
@@ -305,15 +329,20 @@ export function AgentsList({
                 >
                   {muted ? <BellOff size={17} /> : <BellRing size={17} />}
                 </button>
-                {compact ? (
-                  <button
-                    className="quiet-icon-button"
-                    aria-label={t('agents.workspaceActions')}
-                    onClick={() => manage.openWorkspace(workspace)}
-                  >
-                    <MoreHorizontal size={18} />
-                  </button>
-                ) : null}
+                <button
+                  className="quiet-icon-button"
+                  aria-label={t('agents.newAgentTab')}
+                  onClick={() => manage.openNewAgentTab(workspace)}
+                >
+                  <Plus size={18} />
+                </button>
+                <button
+                  className="quiet-icon-button"
+                  aria-label={t('agents.workspaceActions')}
+                  onClick={() => manage.openWorkspace(workspace)}
+                >
+                  <MoreHorizontal size={18} />
+                </button>
               </div>
             </header>
             <div className="agent-pane-list">

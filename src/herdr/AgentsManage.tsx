@@ -19,6 +19,7 @@ type EditTarget =
 interface AgentsManageValue {
   openPane(pane: AgentPaneModel): void
   openWorkspace(workspace: AgentWorkspaceModel): void
+  openNewAgentTab(workspace: AgentWorkspaceModel): void
   openNewWorkspace(): void
   startingWorkspaceId?: string
 }
@@ -28,6 +29,7 @@ const Context = createContext<AgentsManageValue | null>(null)
 const unavailableManage: AgentsManageValue = {
   openPane: () => undefined,
   openWorkspace: () => undefined,
+  openNewAgentTab: () => undefined,
   openNewWorkspace: () => undefined,
 }
 
@@ -156,6 +158,7 @@ export function AgentsManageProvider({
         openPane: (pane) => setTarget({ kind: 'pane', pane }),
         openWorkspace: (workspace) =>
           setTarget({ kind: 'workspace', workspace }),
+        openNewAgentTab: (workspace) => setAgentWorkspace(workspace),
         openNewWorkspace: () => setCreatingWorkspace(true),
         startingWorkspaceId,
       }}

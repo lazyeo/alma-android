@@ -8,9 +8,11 @@ import {
 } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
-import { AgentPaneRow } from './AgentsBoard'
+import { AgentPaneRow, AgentsBoard, AgentsList } from './AgentsBoard'
 
 const openPane = vi.fn()
+const openWorkspace = vi.fn()
+const openNewAgentTab = vi.fn()
 
 const api = {
   readHerdrPane: vi.fn(async () => ({
@@ -25,7 +27,7 @@ vi.mock('./HerdrProvider', () => ({
   useHerdr: () => ({ apiFor: () => api }),
 }))
 vi.mock('./AgentsManage', () => ({
-  useAgentsManage: () => ({ openPane }),
+  useAgentsManage: () => ({ openPane, openWorkspace, openNewAgentTab }),
 }))
 vi.mock('../i18n', () => ({ useT: () => (key: string) => key }))
 vi.mock('react-router-dom', async () => {
@@ -34,9 +36,84 @@ vi.mock('react-router-dom', async () => {
   return { ...actual, useParams: () => ({}) }
 })
 
+HTMLElement.prototype.scrollIntoView = vi.fn()
+
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+})
+
+const workspace = {
+  id: 'workspace-1',
+  label: 'Mobile',
+  panes: [],
+  blocked: 0,
+  working: 0,
+}
+
+describe('workspace header actions', () => {
+  it('opens board workspace management from the title and always shows actions', () => {
+    render(
+      <MemoryRouter>
+        <AgentsBoard
+          desktopId="desktop"
+          workspaces={[workspace]}
+          selectedWorkspaceId="workspace-1"
+          mutedWorkspaces={[]}
+          onSelectWorkspace={() => undefined}
+          onSetWorkspaceMuted={() => undefined}
+        />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'agents.workspaceActions' })[0],
+    )
+    expect(openWorkspace).toHaveBeenCalledWith(workspace)
+    expect(
+      screen.getAllByRole('button', { name: 'agents.workspaceActions' }),
+    ).toHaveLength(2)
+  })
+
+  it('opens the new-agent kind picker directly from the board header', () => {
+    render(
+      <MemoryRouter>
+        <AgentsBoard
+          desktopId="desktop"
+          workspaces={[workspace]}
+          selectedWorkspaceId="workspace-1"
+          mutedWorkspaces={[]}
+          onSelectWorkspace={() => undefined}
+          onSetWorkspaceMuted={() => undefined}
+        />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'agents.newAgentTab' }))
+    expect(openNewAgentTab).toHaveBeenCalledWith(workspace)
+  })
+
+  it('opens list workspace management from the title and new-agent action', () => {
+    render(
+      <MemoryRouter>
+        <AgentsList
+          desktopId="desktop"
+          workspaces={[workspace]}
+          mutedWorkspaces={[]}
+          onSetWorkspaceMuted={() => undefined}
+        />
+      </MemoryRouter>,
+    )
+
+    const actions = screen.getAllByRole('button', {
+      name: 'agents.workspaceActions',
+    })
+    fireEvent.click(actions[0])
+    expect(openWorkspace).toHaveBeenCalledWith(workspace)
+    expect(actions).toHaveLength(2)
+    fireEvent.click(screen.getByRole('button', { name: 'agents.newAgentTab' }))
+    expect(openNewAgentTab).toHaveBeenCalledWith(workspace)
+  })
 })
 
 describe('AgentPaneRow blocked quick answer', () => {

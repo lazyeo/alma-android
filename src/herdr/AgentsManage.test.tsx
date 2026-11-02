@@ -29,22 +29,25 @@ const workspace: AgentWorkspaceModel = {
   panes: [pane],
 }
 
-function Harness({ action }: { action: 'pane' | 'workspace' }) {
+function Harness({ action }: { action: 'pane' | 'workspace' | 'new-agent' }) {
   const manage = useAgentsManage()
   return (
     <button
-      onClick={() =>
-        action === 'pane'
-          ? manage.openPane(pane)
-          : manage.openWorkspace(workspace)
-      }
+      onClick={() => {
+        if (action === 'pane') manage.openPane(pane)
+        else if (action === 'workspace') manage.openWorkspace(workspace)
+        else manage.openNewAgentTab(workspace)
+      }}
     >
       Open actions
     </button>
   )
 }
 
-function renderManage(api: Partial<AlmaApi>, action: 'pane' | 'workspace') {
+function renderManage(
+  api: Partial<AlmaApi>,
+  action: 'pane' | 'workspace' | 'new-agent',
+) {
   const fullApi = {
     getHerdrInfo: vi.fn(async () => ({ online: true })),
     getHerdrMutes: vi.fn(async () => ({ workspaces: [] })),
@@ -108,6 +111,15 @@ describe('Herdr management sheets', () => {
     await waitFor(() =>
       expect(api.herdrCloseWorkspace).toHaveBeenCalledWith('workspace-1'),
     )
+  })
+
+  it('opens the agent kind picker directly for a workspace', () => {
+    renderManage({}, 'new-agent')
+    fireEvent.click(screen.getByRole('button', { name: 'Open actions' }))
+    expect(screen.getByRole('heading', { name: 'New agent tab' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Claude' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Codex' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Pi' })).toBeTruthy()
   })
 
   it('creates a tab before starting the selected agent', async () => {
