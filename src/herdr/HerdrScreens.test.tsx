@@ -532,6 +532,80 @@ describe('AgentPaneScreen pane navigation', () => {
     ).toBeNull()
   })
 
+  it('forwards Backspace from an empty terminal composer', async () => {
+    paneId = 'pane-a'
+    render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('agents.chatUnsupported')).toBeTruthy(),
+    )
+
+    const composer = screen.getByRole('textbox', {
+      name: 'agents.terminalText',
+    })
+    const event = new KeyboardEvent('keydown', {
+      key: 'Backspace',
+      bubbles: true,
+      cancelable: true,
+    })
+    composer.dispatchEvent(event)
+
+    await waitFor(() =>
+      expect(api.sendHerdrPaneKeys).toHaveBeenCalledWith('pane-a', [
+        'backspace',
+      ]),
+    )
+    expect(event.defaultPrevented).toBe(true)
+  })
+
+  it('lets Backspace edit a non-empty terminal composer', async () => {
+    paneId = 'pane-a'
+    render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('agents.chatUnsupported')).toBeTruthy(),
+    )
+
+    const composer = screen.getByRole('textbox', {
+      name: 'agents.terminalText',
+    })
+    fireEvent.change(composer, { target: { value: 'ls' } })
+    const event = new KeyboardEvent('keydown', {
+      key: 'Backspace',
+      bubbles: true,
+      cancelable: true,
+    })
+    composer.dispatchEvent(event)
+
+    expect(api.sendHerdrPaneKeys).not.toHaveBeenCalled()
+    expect(event.defaultPrevented).toBe(false)
+  })
+
+  it('puts Backspace before Tab in the terminal key row', async () => {
+    paneId = 'pane-a'
+    render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('agents.chatUnsupported')).toBeTruthy(),
+    )
+
+    const labels = Array.from(
+      screen
+        .getByRole('toolbar', { name: 'agents.terminalKeys' })
+        .querySelectorAll('button'),
+      (button) => button.getAttribute('aria-label'),
+    )
+    expect(labels).toEqual([
+      'agents.terminalKeyEscape',
+      'agents.terminalKeyInterrupt',
+      'agents.terminalKeyEnter',
+      'agents.terminalKeyBackspace',
+      'agents.terminalKeyTab',
+      'agents.terminalKeyBacktab',
+      'agents.terminalKeyUp',
+      'agents.terminalKeyDown',
+      'agents.terminalKeyLeft',
+      'agents.terminalKeyRight',
+    ])
+  })
+
   it('sends a bare Enter from an empty terminal composer', async () => {
     paneId = 'pane-a'
     render(<AgentPaneScreen />)

@@ -1044,7 +1044,14 @@ export function AgentPaneScreen() {
               }
               if (view === 'terminal') {
                 const key = keyboardTerminalKey(event)
-                if (key) {
+                const editsComposer =
+                  draft.length > 0 &&
+                  (key === 'backspace' ||
+                    key === 'left' ||
+                    key === 'right' ||
+                    key === 'up' ||
+                    key === 'down')
+                if (key && !editsComposer) {
                   event.preventDefault()
                   void sendTerminalKey(key)
                   return
@@ -1174,13 +1181,13 @@ const TERMINAL_KEYS: Array<{
   { key: 'escape', label: 'esc', aria: 'terminalKeyEscape' },
   { key: 'interrupt', label: '⌃C', aria: 'terminalKeyInterrupt' },
   { key: 'enter', label: '⏎', aria: 'terminalKeyEnter' },
+  { key: 'backspace', label: '⌫', aria: 'terminalKeyBackspace' },
   { key: 'tab', label: 'tab', aria: 'terminalKeyTab' },
   { key: 'backtab', label: '⇧tab', aria: 'terminalKeyBacktab' },
   { key: 'up', label: '↑', aria: 'terminalKeyUp' },
   { key: 'down', label: '↓', aria: 'terminalKeyDown' },
   { key: 'left', label: '←', aria: 'terminalKeyLeft' },
   { key: 'right', label: '→', aria: 'terminalKeyRight' },
-  { key: 'backspace', label: '⌫', aria: 'terminalKeyBackspace' },
 ]
 
 function TerminalKeyRow({
