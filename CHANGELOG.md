@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Video file previews show their first frame instead of the WebView's default play poster.
 - Herdr pane and subagent polling pauses while the app is hidden, avoiding unnecessary relay traffic in the background.
 - The desktop switcher shows only the Wi-Fi or globe icon for the connection path, without a duplicate "LAN"/"Relay" label.
 - Wide tables in messages no longer jump back to the start after you scroll them sideways. The table renderer had a new identity on every render, so any re-render (such as a latency update) rebuilt the scroller.

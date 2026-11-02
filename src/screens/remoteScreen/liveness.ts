@@ -19,6 +19,4 @@ export function isDarkSample(rgba: ArrayLike<number>, threshold = 12) {
   return rgba.length >= 4
 }
 
-/** Transparent 1×1 GIF: hides the WebView's default play-button poster. */
-export const BLANK_POSTER =
-  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+export { BLANK_POSTER } from '../../media'

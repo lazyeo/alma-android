@@ -9,9 +9,7 @@ import {
   type StoredPairing,
 } from '../relay'
 import { useT } from '../i18n'
-
-const BLANK_POSTER =
-  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+import { BLANK_POSTER } from '../media'
 export function PairScreen({
   onPaired,
   onCancel,

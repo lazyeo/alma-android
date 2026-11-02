@@ -117,10 +117,15 @@ it.each([
   )
   fireEvent.click(screen.getByRole('button', { name: 'Open' }))
   await screen.findByRole('button', { name: /Open with/ })
-  const element = document.querySelector(`${tag}[src="blob:file"]`)
+  const expectedSrc = tag === 'video' ? 'blob:file#t=0.001' : 'blob:file'
+  const element = document.querySelector(`${tag}[src="${expectedSrc}"]`)
   expect(element).toBeTruthy()
   if (tag !== 'img') expect(element?.hasAttribute('controls')).toBe(true)
-  if (tag === 'video') expect(element?.hasAttribute('playsinline')).toBe(true)
+  if (tag === 'video') {
+    expect(element?.hasAttribute('playsinline')).toBe(true)
+    expect(element?.getAttribute('preload')).toBe('auto')
+    expect(element?.getAttribute('poster')).toMatch(/^data:image\/gif;base64,/)
+  }
   expect(document.querySelector('svg[onload]')).toBeNull()
 })
 

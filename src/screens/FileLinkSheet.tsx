@@ -27,6 +27,7 @@ import {
   shareNativeFile,
 } from '../nativeBridge'
 import { isNativePlatform } from '../nativeRuntime'
+import { BLANK_POSTER } from '../media'
 import type { AlmaApi } from '../relay/almaApi'
 import { HtmlFilePreview } from './HtmlFilePreview'
 import { MarkdownFilePreview } from './MarkdownFilePreview'
@@ -400,8 +401,9 @@ function FileSheetBody({
         className="file-link-media"
         controls
         playsInline
-        preload="metadata"
-        src={url}
+        preload="auto"
+        poster={BLANK_POSTER}
+        src={`${url}#t=0.001`}
         aria-label={state.file.name}
       />
     )
