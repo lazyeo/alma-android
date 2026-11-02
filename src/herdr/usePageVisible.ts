@@ -7,7 +7,9 @@ function subscribe(listener: () => void) {
 }
 
 function getSnapshot() {
-  return typeof document === 'undefined' || document.visibilityState === 'visible'
+  return (
+    typeof document === 'undefined' || document.visibilityState === 'visible'
+  )
 }
 
 export function usePageVisible() {

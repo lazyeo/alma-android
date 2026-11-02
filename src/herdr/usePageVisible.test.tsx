@@ -19,7 +19,9 @@ function setVisibility(state: DocumentVisibilityState) {
 afterEach(() => {
   if (originalVisibility)
     Object.defineProperty(document, 'visibilityState', originalVisibility)
-  else delete (document as { visibilityState?: DocumentVisibilityState }).visibilityState
+  else
+    delete (document as { visibilityState?: DocumentVisibilityState })
+      .visibilityState
 })
 
 it('tracks whether the page is visible', () => {

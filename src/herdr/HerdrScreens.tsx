@@ -352,13 +352,7 @@ export function AgentPaneScreen() {
       current = false
       window.clearTimeout(timeout)
     }
-  }, [
-    api,
-    decodedPaneId,
-    pageVisible,
-    pane?.agent,
-    pane?.agent_status,
-  ])
+  }, [api, decodedPaneId, pageVisible, pane?.agent, pane?.agent_status])
 
   // Each view keeps its own scroll offset; null means "pinned to the bottom",
   // which is also where a view starts and what keeps it following new output.
