@@ -187,6 +187,38 @@ describe('Alma API safety', () => {
     )
   })
 
+  it('requests Herdr commands and treats a missing route as empty', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: 200,
+        json: async () => ({
+          commands: [{ name: 'review', source: 'command' }],
+        }),
+        text: async () => '',
+        headers: {},
+      })
+      .mockResolvedValueOnce({
+        status: 404,
+        json: async () => ({ error: 'Not found' }),
+        text: async () => 'Not found',
+        headers: {},
+      })
+    const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)
+
+    await expect(api.getHerdrCommands('codex', 'w1:p1')).resolves.toEqual({
+      commands: [{ name: 'review', source: 'command' }],
+    })
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
+      '/api/herdr/commands?agent=codex&pane=w1%3Ap1',
+      expect.objectContaining({ method: 'GET' }),
+    )
+    await expect(api.getHerdrCommands('codex', 'w1:p1')).resolves.toEqual({
+      commands: [],
+    })
+  })
+
   it('maps Herdr subagent protocol errors and unsupported desktops', async () => {
     const fetch = vi
       .fn()

@@ -70,6 +70,12 @@ import { HerdrSubagentPill, HerdrSubagentsSheet } from './HerdrSubagents'
 import { listSubagents, runningCount } from './subagents'
 import { HerdrUploadUnsupportedError } from '../relay/almaApi'
 import {
+  commandInsertion,
+  filterHerdrCommands,
+  normalizeHerdrCommands,
+  type HerdrCommand,
+} from './commands'
+import {
   buildHerdrPrompt,
   HERDR_CHUNK_BYTES,
   HERDR_MAX_UPLOAD_BYTES,
@@ -132,6 +138,13 @@ export function AgentPaneScreen() {
   const [loadingTerminalHistory, setLoadingTerminalHistory] = useState(false)
   const [terminalSize, setTerminalSize] = useState({ cols: 80, rows: 24 })
   const [draft, setDraft] = useState('')
+  const composerRef = useRef<HTMLTextAreaElement>(null)
+  const commandCache = useRef(new Map<string, HerdrCommand[]>())
+  const [commands, setCommands] = useState<HerdrCommand[]>([])
+  const [commandsLoading, setCommandsLoading] = useState(false)
+  const [commandsFailed, setCommandsFailed] = useState(false)
+  const [composerFocused, setComposerFocused] = useState(false)
+  const [commandsDismissed, setCommandsDismissed] = useState(false)
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([])
   const attachmentsRef = useRef(attachments)
   attachmentsRef.current = attachments
@@ -200,6 +213,12 @@ export function AgentPaneScreen() {
     setLoadingTerminalHistory(false)
     setTerminalSize({ cols: 80, rows: 24 })
     setDraft('')
+    commandCache.current.clear()
+    setCommands([])
+    setCommandsLoading(false)
+    setCommandsFailed(false)
+    setComposerFocused(false)
+    setCommandsDismissed(false)
     revokeAttachmentPreviews(attachmentsRef.current)
     setAttachments([])
     setSending(false)
@@ -430,6 +449,61 @@ export function AgentPaneScreen() {
     const last = rows.at(-1)
     return last?.questions ? last.id : undefined
   }, [rows])
+  const commandAgent = (() => {
+    const agent = pane?.agent?.toLowerCase()
+    return agent === 'claude' || agent === 'codex' || agent === 'pi'
+      ? agent
+      : undefined
+  })()
+  const commandMatch = /^\/(\S*)$/.exec(draft)
+  const commandQuery = commandMatch?.[1] ?? ''
+  const commandResults = useMemo(
+    () => filterHerdrCommands(commands, commandQuery),
+    [commandQuery, commands],
+  )
+  const commandsOpen =
+    view === 'chat' &&
+    !chatUnsupported &&
+    !!commandAgent &&
+    !!commandMatch &&
+    composerFocused &&
+    !commandsDismissed &&
+    !commandsFailed
+
+  useEffect(() => {
+    if (!commandsOpen || !commandAgent) return
+    const key = `${decodedPaneId}\u0000${commandAgent}`
+    const cached = commandCache.current.get(key)
+    if (cached) {
+      setCommands(cached)
+      return
+    }
+    let current = true
+    setCommandsLoading(true)
+    void api
+      .getHerdrCommands(commandAgent, decodedPaneId)
+      .then((response) => {
+        if (!current) return
+        const normalized = normalizeHerdrCommands(response)
+        commandCache.current.set(key, normalized)
+        setCommands(normalized)
+      })
+      .catch(() => {
+        if (current) setCommandsFailed(true)
+      })
+      .finally(() => {
+        if (current) setCommandsLoading(false)
+      })
+    return () => {
+      current = false
+    }
+  }, [api, commandAgent, commandsOpen, decodedPaneId])
+
+  const selectCommand = (command: HerdrCommand) => {
+    setDraft(commandInsertion(command))
+    setCommandsDismissed(true)
+    composerRef.current?.focus()
+  }
 
   const send = async (text = draft) => {
     const prompt = text.trim()
@@ -852,6 +926,47 @@ export function AgentPaneScreen() {
           />
         ) : null}
         <footer className="agent-composer">
+          {commandsOpen ? (
+            <div
+              className="agent-command-popover"
+              role="listbox"
+              aria-label={t('agents.commands')}
+            >
+              {commandsLoading && commands.length === 0 ? (
+                <p className="agent-command-state">
+                  {t('agents.commandsLoading')}
+                </p>
+              ) : commandResults.length === 0 ? (
+                <p className="agent-command-state">
+                  {t('agents.commandsEmpty')}
+                </p>
+              ) : (
+                commandResults.map((command) => (
+                  <button
+                    className="agent-command-option"
+                    key={`${command.source}:${command.name}`}
+                    role="option"
+                    aria-selected="false"
+                    aria-label={`/${command.name}${command.description ? `: ${command.description}` : ''}`}
+                    onMouseDown={(event) => {
+                      event.preventDefault()
+                      selectCommand(command)
+                    }}
+                  >
+                    <span className="agent-command-copy">
+                      <strong>/{command.name}</strong>
+                      {command.description || command.hint ? (
+                        <span>{command.description || command.hint}</span>
+                      ) : null}
+                    </span>
+                    <span className="agent-command-source">
+                      {t(`agents.commandSource.${command.source}`)}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          ) : null}
           {view === 'chat' && !chatUnsupported ? (
             <ComposerAttachments
               attachments={attachments}
@@ -880,6 +995,7 @@ export function AgentPaneScreen() {
             </button>
           ) : null}
           <textarea
+            ref={composerRef}
             value={draft}
             aria-label={
               view === 'terminal'
@@ -892,11 +1008,22 @@ export function AgentPaneScreen() {
                 : t('agents.messagePlaceholder')
             }
             rows={1}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              setDraft(event.target.value)
+              setCommandsDismissed(false)
+              setCommandsFailed(false)
+            }}
+            onFocus={() => setComposerFocused(true)}
+            onBlur={() => setComposerFocused(false)}
             onCompositionStart={() => setComposing(true)}
             onCompositionEnd={() => setComposing(false)}
             onKeyDown={(event) => {
               if (composing) return
+              if (commandsOpen && event.key === 'Escape') {
+                event.preventDefault()
+                setCommandsDismissed(true)
+                return
+              }
               if (view === 'terminal') {
                 const key = keyboardTerminalKey(event)
                 if (key) {

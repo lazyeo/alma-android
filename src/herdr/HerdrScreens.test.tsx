@@ -24,6 +24,20 @@ const api = {
     path: `/desktop/uploads/${name}`,
   })),
   getImage: vi.fn(async () => new Blob(['image'], { type: 'image/png' })),
+  getHerdrCommands: vi.fn(async () => ({
+    commands: [
+      {
+        name: 'review',
+        description: 'Review the current changes',
+        source: 'command',
+      },
+      {
+        name: 'prompts:release',
+        description: 'Prepare a release',
+        source: 'prompt',
+      },
+    ],
+  })),
   sendHerdrBlockedText: vi.fn(async () => undefined),
   sendHerdrPaneText: vi.fn(async () => undefined),
   sendHerdrPaneKeys: vi.fn(async () => undefined),
@@ -323,6 +337,65 @@ describe('AgentPaneScreen pane navigation', () => {
       screen.queryByRole('toolbar', { name: 'agents.terminalKeys' }),
     ).toBeNull()
     expect(screen.getByRole('button', { name: 'agents.showKeys' })).toBeTruthy()
+  })
+
+  it('opens, closes, and selects slash commands without sending', async () => {
+    paneId = 'pane-b'
+    render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('Pane B transcript')).toBeTruthy(),
+    )
+
+    const composer = screen.getByRole('textbox', { name: 'agents.message' })
+    fireEvent.focus(composer)
+    fireEvent.change(composer, { target: { value: '/' } })
+
+    const list = await screen.findByRole('listbox', {
+      name: 'agents.commands',
+    })
+    expect(list).toBeTruthy()
+    expect(api.getHerdrCommands).toHaveBeenCalledWith('claude', 'pane-b')
+    expect(screen.getByText('/review')).toBeTruthy()
+
+    fireEvent.change(composer, { target: { value: '/rev' } })
+    expect(screen.getByText('/review')).toBeTruthy()
+    expect(screen.queryByText('/prompts:release')).toBeNull()
+
+    fireEvent.keyDown(composer, { key: 'Escape' })
+    expect(screen.queryByRole('listbox')).toBeNull()
+
+    fireEvent.change(composer, { target: { value: '/' } })
+    const option = await screen.findByRole('option', { name: /\/review/ })
+    fireEvent.mouseDown(option)
+
+    expect((composer as HTMLTextAreaElement).value).toBe('/review ')
+    expect(document.activeElement).toBe(composer)
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect(api.promptHerdrAgent).not.toHaveBeenCalled()
+
+    fireEvent.change(composer, { target: { value: '/' } })
+    await screen.findByRole('listbox')
+    expect(api.getHerdrCommands).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes slash commands on space and blur', async () => {
+    paneId = 'pane-b'
+    render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('Pane B transcript')).toBeTruthy(),
+    )
+
+    const composer = screen.getByRole('textbox', { name: 'agents.message' })
+    fireEvent.focus(composer)
+    fireEvent.change(composer, { target: { value: '/' } })
+    await screen.findByRole('listbox')
+    fireEvent.change(composer, { target: { value: '/review ' } })
+    expect(screen.queryByRole('listbox')).toBeNull()
+
+    fireEvent.change(composer, { target: { value: '/' } })
+    await screen.findByRole('listbox')
+    fireEvent.blur(composer)
+    expect(screen.queryByRole('listbox')).toBeNull()
   })
 
   it('sends chat drafts as prompts and terminal drafts as text followed by Enter', async () => {

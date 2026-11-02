@@ -225,6 +225,14 @@ WS  /ws/herdr/chat?pane=<pane_id>&from=<seq>
 
 Chat items include tool rows shaped as `{ id, kind: "tool", time, tool }`. A dispatched Claude subagent is a tool whose `name` is `Task`; `tool.id` is the Claude tool-use id, `tool.input.description` is its short title, and `tool.input.subagent_type` identifies its type. A Task is running until `tool.done === true`.
 
+**Verified.** The active pane's slash commands, skills, and prompts are read through:
+
+```text
+GET /api/herdr/commands?agent=<claude|codex|pi>&pane=<pane_id>
+```
+
+The response is `{ commands: [{ name, description?, hint?, source }] }`, where `source` is `command`, `skill`, or `prompt`. The desktop returns at most 400 entries and de-duplicates them by name. Codex prompt names retain their `prompts:` prefix and Pi skill names retain `skill:`; the client inserts the returned name verbatim after `/`. Unknown agent values return an empty list. HTTP 404 means the connected desktop predates this route and is treated as an empty list without showing an error.
+
 **Verified.** A dispatched subagent's own transcript is read through:
 
 ```text

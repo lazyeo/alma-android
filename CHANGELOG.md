@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Herdr session rows, blocked prompts, and agent notifications show the desktop-generated title for the latest task when available.
+- The Herdr agent composer suggests the active agent's slash commands, skills, and prompts when a message starts with `/`.
 - Each online desktop row in Settings shows its LAN or relay transport and live median round-trip latency.
 - Herdr chat shows dispatched subagents, their running count, and a live transcript sheet with assistant text and compact tool steps.
 - Herdr chat shows messages from teammate sessions as distinct compact cards with localized labels and collapsible Markdown details.

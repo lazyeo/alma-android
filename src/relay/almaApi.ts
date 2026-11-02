@@ -350,6 +350,16 @@ export interface DesktopHealth {
   timestamp?: string | number
 }
 
+export interface HerdrCommandsResponse {
+  commands: Array<{
+    name?: unknown
+    description?: unknown
+    hint?: unknown
+    source?: unknown
+    [key: string]: unknown
+  }>
+}
+
 export interface HerdrSubagentPage {
   items?: Array<Record<string, unknown>>
   start?: number
@@ -1159,6 +1169,21 @@ export class AlmaApi {
         format,
       },
     )
+  }
+  async getHerdrCommands(
+    agent: 'claude' | 'codex' | 'pi',
+    paneId: string,
+  ): Promise<HerdrCommandsResponse> {
+    const query = new URLSearchParams({ agent, pane: paneId })
+    try {
+      return await this.request<HerdrCommandsResponse>(
+        `/api/herdr/commands?${query}`,
+      )
+    } catch (error) {
+      if (error instanceof AlmaHttpError && error.status === 404)
+        return { commands: [] }
+      throw error
+    }
   }
   getHerdrChat(paneId: string, before = -1, limit = 60) {
     const query = new URLSearchParams({

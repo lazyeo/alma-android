@@ -5870,6 +5870,28 @@ const herdrShots = [
           await assertAgentPaneGeometry(page)
         },
       },
+      ...(lang === 'en'
+        ? [
+            {
+              file: 'herdr-command-list-en-412.png',
+              viewport: PHONE,
+              route: '/d/fixture-desktop/agents/w1%3Ap1',
+              language: lang,
+              ready: '.agent-chat .message',
+              safeInsets: true,
+              async act(page) {
+                const composer = page.getByRole('textbox', {
+                  name: 'Message agent',
+                })
+                await composer.fill('/')
+                await page
+                  .getByRole('listbox', { name: 'Agent commands' })
+                  .waitFor()
+                await assertNoHorizontalOverflow(page, '.agent-pane-page')
+              },
+            },
+          ]
+        : []),
       {
         file: `herdr-working-bar-${lang}-412.png`,
         viewport: PHONE,

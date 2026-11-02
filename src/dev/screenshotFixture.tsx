@@ -1351,6 +1351,31 @@ function route(method: string, path: string, body?: unknown): TunnelResponse {
     })
   }
   if (pathname === '/api/herdr/mutes') return json(200, { workspaces: [] })
+  if (pathname === '/api/herdr/commands')
+    return json(200, {
+      commands: [
+        {
+          name: 'review',
+          description: 'Review the current changes and report findings',
+          source: 'command',
+        },
+        {
+          name: 'test',
+          description: 'Run the focused test suite',
+          source: 'command',
+        },
+        {
+          name: 'skill:systematic-debugging',
+          description: 'Diagnose a failure before changing code',
+          source: 'skill',
+        },
+        {
+          name: 'prompts:release-notes',
+          description: 'Draft concise release notes',
+          source: 'prompt',
+        },
+      ],
+    })
   if (pathname === '/api/herdr/chat') {
     const items = screenshotParams.has('herdrImageReply')
       ? herdrImageReplyItems
