@@ -65,7 +65,7 @@ const respond = (session: FakeSession, request: any, body: unknown) => {
   session.emit({
     t: 'hchunk',
     id: request.id,
-    b: Buffer.from(JSON.stringify(body)).toString('base64url'),
+    b: new TextEncoder().encode(JSON.stringify(body)),
   })
   session.emit({ t: 'hend', id: request.id })
 }
@@ -264,6 +264,61 @@ describe('RelayTunnel LAN routing', () => {
     )
     tunnel.close()
     vi.useRealTimers()
+  })
+})
+
+describe('RelayTunnel binary payloads', () => {
+  it('sends HTTP request bodies as bytes and joins byte response chunks', async () => {
+    const relay = new FakeSession((frame, session) => {
+      if (frame.path === '/upload') {
+        expect(frame.b).toEqual(new Uint8Array([1, 2, 3]))
+        session.emit({ t: 'hres', id: frame.id, status: 200, headers: {} })
+        session.emit({ t: 'hchunk', id: frame.id, b: new Uint8Array([4, 5]) })
+        session.emit({ t: 'hchunk', id: frame.id, b: new Uint8Array([6]) })
+        session.emit({ t: 'hend', id: frame.id })
+      }
+    })
+    const tunnel = new RelayTunnel(pairing, undefined, {
+      isNative: () => false,
+      createRelaySession: () => relay,
+    })
+
+    const response = await tunnel.fetch('/upload', {
+      method: 'POST',
+      body: new Uint8Array([1, 2, 3]),
+    })
+
+    await expect(response.bytes()).resolves.toEqual(new Uint8Array([4, 5, 6]))
+    tunnel.close()
+  })
+
+  it('sends and receives WebSocket text and binary payloads unchanged', async () => {
+    const relay = new FakeSession()
+    const tunnel = new RelayTunnel(pairing, undefined, {
+      isNative: () => false,
+      createRelaySession: () => relay,
+    })
+    const socket = tunnel.openWebSocket('/ws/test')
+    await vi.waitFor(() =>
+      expect(relay.sent.some((frame) => frame.t === 'wopen')).toBe(true),
+    )
+    const open = relay.sent.find((frame) => frame.t === 'wopen')
+    relay.emit({ t: 'wopened', id: open.id })
+    await socket.opened
+    const messages: Array<string | Uint8Array> = []
+    socket.onMessage((message) => messages.push(message))
+
+    socket.send('hello')
+    socket.send(new Uint8Array([7, 8]))
+    expect(relay.sent.slice(-2)).toEqual([
+      { t: 'wmsg', id: open.id, s: 'hello' },
+      { t: 'wmsg', id: open.id, b: new Uint8Array([7, 8]) },
+    ])
+
+    relay.emit({ t: 'wmsg', id: open.id, s: 'world' })
+    relay.emit({ t: 'wmsg', id: open.id, b: new Uint8Array([9, 10]) })
+    expect(messages).toEqual(['world', new Uint8Array([9, 10])])
+    tunnel.close()
   })
 })
 

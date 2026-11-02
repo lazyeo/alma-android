@@ -1,4 +1,3 @@
-import { base64url, fromBase64url } from './crypto'
 import { isAndroidNative } from '../nativeRuntime'
 import { lanCandidateUrls, raceLanProbes } from './lanDirect'
 import { nativeLanWebSocketFactory } from './nativeLanSocket'
@@ -335,7 +334,7 @@ export class RelayTunnel {
         pending.status = frame.status
         pending.headers = frame.headers ?? {}
       }
-      if (frame.t === 'hchunk') pending.chunks.push(fromBase64url(frame.b))
+      if (frame.t === 'hchunk') pending.chunks.push(frame.b)
       if (frame.t === 'herr') {
         this.http.delete(frame.id)
         pending.reject(new Error(frame.message || 'Tunnel request failed'))
@@ -362,8 +361,7 @@ export class RelayTunnel {
       this.sockets.delete(frame.id)
     }
     if (frame.t === 'wmsg')
-      for (const listener of socket.listeners)
-        listener(frame.s ?? fromBase64url(frame.b))
+      for (const listener of socket.listeners) listener(frame.s ?? frame.b)
     if (frame.t === 'wclose') {
       for (const listener of socket.closeListeners) listener()
       this.sockets.delete(frame.id)
@@ -417,7 +415,7 @@ export class RelayTunnel {
           method: init.method ?? 'GET',
           path,
           headers: init.headers ?? {},
-          ...(body ? { b: base64url(body) } : {}),
+          ...(body ? { b: body } : {}),
         })
         .catch(reject)
     })
@@ -461,7 +459,7 @@ export class RelayTunnel {
         sendReady(
           typeof data === 'string'
             ? { t: 'wmsg', id, s: data }
-            : { t: 'wmsg', id, b: base64url(data) },
+            : { t: 'wmsg', id, b: data },
         ),
       onMessage: (listener) => {
         pending.listeners.add(listener)
