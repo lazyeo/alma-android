@@ -51,6 +51,7 @@ it('pauses subagent polling while hidden and resumes immediately when visible', 
           title: 'Researching',
           type: 'Explore',
           running: true,
+          error: false,
           startedAt: Date.now(),
         },
       ]}
