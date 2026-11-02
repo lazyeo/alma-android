@@ -1,8 +1,9 @@
 import { Square } from 'lucide-react'
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { useT } from '../i18n'
 import { useSharedSecond } from '../screens/useSharedSecond'
 import type { HerdrChatItem } from './toMessageParts'
+import { usePageVisible } from './usePageVisible'
 
 const elapsedClock = (ms: number) => {
   const total = Math.max(0, Math.floor(ms / 1_000))
@@ -38,8 +39,8 @@ export function HerdrWorkingBar({
   const wasWorking = useRef(false)
   if (working && !wasWorking.current) observedStart.current = Date.now()
   wasWorking.current = working
-  const [visible] = useState(() => document.visibilityState === 'visible')
-  const now = useSharedSecond(working && visible)
+  const pageVisible = usePageVisible()
+  const now = useSharedSecond(working && pageVisible)
   if (!working && !leading) return null
   const startedAt = statusStartedAt ?? observedStart.current
   const activity = statusText || unfinishedTool(items) || t('agents.working')
