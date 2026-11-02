@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Nothing yet.
+
+## [0.1.6] - 2026-11-02
+
 ### Changed
 
 - Herdr built-in slash commands match the desktop 0.4.363 command tables, including picker hints and interactive command metadata.
@@ -38,7 +44,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Sheet footer primary buttons for project card drafting and editing now fill the footer and use the standard 48px action height.
 - Solid accent buttons use perceptual seed lightness for readable black or white text, keeping blue and similarly dark accents white-on-color.
 - Project card brief and focus only offer "Show more" when the clamped text actually overflows.
-
 ## [0.1.5] - 2026-11-01
 
 ### Changed
@@ -148,10 +153,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Foldable layouts, a frosted screen transition, optional Shizuku live hinge-angle input, and an estimated fallback.
 - Foreground-lifetime local notifications for completed replies and pending approvals; no push service is used.
 
-[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.6...HEAD
 [0.1.0]: https://github.com/lazyeo/alma-android/releases/tag/v0.1.0
 [0.1.1]: https://github.com/lazyeo/alma-android/compare/v0.1.0...v0.1.1
 [0.1.2]: https://github.com/lazyeo/alma-android/compare/v0.1.1...v0.1.2
 [0.1.3]: https://github.com/lazyeo/alma-android/compare/v0.1.2...v0.1.3
 [0.1.4]: https://github.com/lazyeo/alma-android/compare/v0.1.3...v0.1.4
 [0.1.5]: https://github.com/lazyeo/alma-android/compare/v0.1.4...v0.1.5
+[0.1.6]: https://github.com/lazyeo/alma-android/compare/v0.1.5...v0.1.6
