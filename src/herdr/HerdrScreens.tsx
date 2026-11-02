@@ -68,6 +68,7 @@ import { agentStatusLine } from './statusLine'
 import { HerdrWorkingBar } from './HerdrWorkingBar'
 import { HerdrSubagentPill, HerdrSubagentsSheet } from './HerdrSubagents'
 import { listSubagents, runningCount } from './subagents'
+import { usePageVisible } from './usePageVisible'
 import { HerdrUploadUnsupportedError } from '../relay/almaApi'
 import {
   commandInsertion,
@@ -111,6 +112,7 @@ export { AgentsScreen } from './AgentsScreen'
 
 export function AgentPaneScreen() {
   const t = useT()
+  const pageVisible = usePageVisible()
   const { desktopId = '', paneId = '' } = useParams()
   const decodedDesktopId = decodeURIComponent(desktopId)
   const decodedPaneId = decodeURIComponent(paneId)
@@ -133,6 +135,16 @@ export function AgentPaneScreen() {
     text: string
     startedAt?: number
   }>({ text: '' })
+  const workingPollState = useRef<{
+    working: boolean
+    stoppedAt?: number
+    statusLive: boolean
+  }>({ working: false, statusLive: false })
+  const paneWorking = pane?.agent_status === 'working'
+  if (paneWorking) workingPollState.current.stoppedAt = undefined
+  else if (workingPollState.current.working)
+    workingPollState.current.stoppedAt = Date.now()
+  workingPollState.current.working = paneWorking
   const [terminalHistory, setTerminalHistory] = useState('')
   const [terminalHistoryEmpty, setTerminalHistoryEmpty] = useState(false)
   const [loadingTerminalHistory, setLoadingTerminalHistory] = useState(false)
@@ -304,12 +316,12 @@ export function AgentPaneScreen() {
     const working = pane.agent_status === 'working'
     let current = true
     let timeout = 0
-    const stoppedAt = working ? undefined : Date.now()
     const poll = async () => {
       try {
         const result = await api.readHerdrPane(decodedPaneId)
         if (!current) return
         const status = agentStatusLine(result?.read?.text ?? '')
+        workingPollState.current.statusLive = status.live
         if (status.live) {
           setWorkingStatus((previous) => ({
             text: status.text,
@@ -319,6 +331,7 @@ export function AgentPaneScreen() {
                 : Date.now() - status.elapsedMs,
           }))
         }
+        const stoppedAt = workingPollState.current.stoppedAt
         if (
           working ||
           (stoppedAt !== undefined &&
@@ -329,12 +342,23 @@ export function AgentPaneScreen() {
         if (current && working) timeout = window.setTimeout(poll, 2_000)
       }
     }
-    if (working || workingStatus.text) void poll()
+    const stoppedAt = workingPollState.current.stoppedAt
+    const tailActive =
+      stoppedAt !== undefined &&
+      Date.now() - stoppedAt <
+        (workingPollState.current.statusLive ? 60_000 : 4_000)
+    if (pageVisible && (working || tailActive)) void poll()
     return () => {
       current = false
       window.clearTimeout(timeout)
     }
-  }, [api, decodedPaneId, pane?.agent, pane?.agent_status])
+  }, [
+    api,
+    decodedPaneId,
+    pageVisible,
+    pane?.agent,
+    pane?.agent_status,
+  ])
 
   // Each view keeps its own scroll offset; null means "pinned to the bottom",
   // which is also where a view starts and what keeps it following new output.

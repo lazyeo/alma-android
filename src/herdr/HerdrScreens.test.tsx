@@ -114,7 +114,16 @@ vi.mock('../terminal/TerminalView', () => ({
 
 const storage = new Map<string, string>()
 
+function setVisibility(state: DocumentVisibilityState) {
+  Object.defineProperty(document, 'visibilityState', {
+    configurable: true,
+    value: state,
+  })
+  fireEvent(document, new Event('visibilitychange'))
+}
+
 beforeEach(() => {
+  setVisibility('visible')
   storage.clear()
   vi.stubGlobal('URL', {
     ...URL,
@@ -195,6 +204,28 @@ describe('AgentPaneScreen pane navigation', () => {
     expect(view.container.querySelector('.message-actions-button')).toBeNull()
     expect(view.container.querySelector('.version-switcher')).toBeNull()
     expect(view.container.querySelector('.usage')).toBeNull()
+  })
+
+  it('pauses working pane reads while hidden and resumes immediately when visible', async () => {
+    vi.useFakeTimers()
+    paneId = 'pane-b'
+    agentStatus = 'working'
+    api.readHerdrPane.mockResolvedValue({
+      read: { text: '✻ Reading files… (42s · esc to interrupt)' },
+    })
+
+    render(<AgentPaneScreen />)
+    await vi.waitFor(() => expect(api.readHerdrPane).toHaveBeenCalledTimes(1))
+
+    setVisibility('hidden')
+    await vi.advanceTimersByTimeAsync(6_000)
+    expect(api.readHerdrPane).toHaveBeenCalledTimes(1)
+
+    setVisibility('visible')
+    await vi.waitFor(() => expect(api.readHerdrPane).toHaveBeenCalledTimes(2))
+    await vi.advanceTimersByTimeAsync(2_000)
+    expect(api.readHerdrPane).toHaveBeenCalledTimes(3)
+    vi.useRealTimers()
   })
 
   it('stops a working pane with escape from the chat activity bar', async () => {
