@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Herdr slash-command suggestions merge built-in Claude Code and Codex commands with desktop-provided commands, including on older desktops.
 - Herdr session rows, blocked prompts, and agent notifications show the desktop-generated title for the latest task when available.
 - The Herdr agent composer suggests the active agent's slash commands, skills, and prompts when a message starts with `/`.
 - Each online desktop row in Settings shows its LAN or relay transport and live median round-trip latency.
@@ -20,6 +21,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Herdr workspace headers make the title actionable and keep direct new-tab and management controls visible.
+- Herdr terminal composers keep Backspace and arrow keys for text editing when the draft is non-empty, and surface Backspace earlier in the terminal key row.
 - Video file previews show their first frame instead of the WebView's default play poster.
 - Annotation notes identify their image when a composer contains multiple image attachments.
 - Herdr pane and subagent polling pauses while the app is hidden, avoiding unnecessary relay traffic in the background.

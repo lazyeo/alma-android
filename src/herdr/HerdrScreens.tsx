@@ -73,9 +73,11 @@ import { HerdrUploadUnsupportedError } from '../relay/almaApi'
 import {
   commandInsertion,
   filterHerdrCommands,
+  mergeHerdrCommands,
   normalizeHerdrCommands,
   type HerdrCommand,
 } from './commands'
+import { BUILTIN_HERDR_COMMANDS } from './builtinCommands'
 import {
   buildHerdrPrompt,
   HERDR_CHUNK_BYTES,
@@ -154,7 +156,6 @@ export function AgentPaneScreen() {
   const commandCache = useRef(new Map<string, HerdrCommand[]>())
   const [commands, setCommands] = useState<HerdrCommand[]>([])
   const [commandsLoading, setCommandsLoading] = useState(false)
-  const [commandsFailed, setCommandsFailed] = useState(false)
   const [composerFocused, setComposerFocused] = useState(false)
   const [commandsDismissed, setCommandsDismissed] = useState(false)
   const [attachments, setAttachments] = useState<ComposerAttachment[]>([])
@@ -228,7 +229,6 @@ export function AgentPaneScreen() {
     commandCache.current.clear()
     setCommands([])
     setCommandsLoading(false)
-    setCommandsFailed(false)
     setComposerFocused(false)
     setCommandsDismissed(false)
     revokeAttachmentPreviews(attachmentsRef.current)
@@ -485,8 +485,7 @@ export function AgentPaneScreen() {
     !!commandAgent &&
     !!commandMatch &&
     composerFocused &&
-    !commandsDismissed &&
-    !commandsFailed
+    !commandsDismissed
 
   useEffect(() => {
     if (!commandsOpen || !commandAgent) return
@@ -502,12 +501,18 @@ export function AgentPaneScreen() {
       .getHerdrCommands(commandAgent, decodedPaneId)
       .then((response) => {
         if (!current) return
-        const normalized = normalizeHerdrCommands(response)
-        commandCache.current.set(key, normalized)
-        setCommands(normalized)
+        const merged = mergeHerdrCommands(
+          normalizeHerdrCommands(response),
+          BUILTIN_HERDR_COMMANDS[commandAgent],
+        )
+        commandCache.current.set(key, merged)
+        setCommands(merged)
       })
       .catch(() => {
-        if (current) setCommandsFailed(true)
+        if (!current) return
+        const builtins = BUILTIN_HERDR_COMMANDS[commandAgent]
+        commandCache.current.set(key, builtins)
+        setCommands(builtins)
       })
       .finally(() => {
         if (current) setCommandsLoading(false)
@@ -1029,7 +1034,6 @@ export function AgentPaneScreen() {
             onChange={(event) => {
               setDraft(event.target.value)
               setCommandsDismissed(false)
-              setCommandsFailed(false)
             }}
             onFocus={() => setComposerFocused(true)}
             onBlur={() => setComposerFocused(false)}

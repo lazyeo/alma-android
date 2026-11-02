@@ -1,4 +1,4 @@
-export type HerdrCommandSource = 'command' | 'skill' | 'prompt'
+export type HerdrCommandSource = 'command' | 'skill' | 'prompt' | 'builtin'
 
 export interface HerdrCommand {
   name: string
@@ -7,7 +7,12 @@ export interface HerdrCommand {
   source: HerdrCommandSource
 }
 
-const sources = new Set<HerdrCommandSource>(['command', 'skill', 'prompt'])
+const sources = new Set<HerdrCommandSource>([
+  'command',
+  'skill',
+  'prompt',
+  'builtin',
+])
 
 export function normalizeHerdrCommands(value: unknown): HerdrCommand[] {
   if (!value || typeof value !== 'object' || !('commands' in value)) return []
@@ -38,6 +43,22 @@ export function normalizeHerdrCommands(value: unknown): HerdrCommand[] {
     })
   }
   return commands
+}
+
+export function mergeHerdrCommands(
+  desktop: readonly HerdrCommand[],
+  builtins: readonly HerdrCommand[],
+): HerdrCommand[] {
+  const seen = new Set(desktop.map((command) => command.name.toLowerCase()))
+  return [
+    ...desktop,
+    ...builtins.filter((command) => {
+      const name = command.name.toLowerCase()
+      if (seen.has(name)) return false
+      seen.add(name)
+      return true
+    }),
+  ]
 }
 
 export function filterHerdrCommands(

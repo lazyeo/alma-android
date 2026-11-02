@@ -96,6 +96,7 @@ export const agents = {
     command: '命令',
     skill: '技能',
     prompt: '提示词',
+    builtin: '内置',
   },
   send: '发送',
   sendFailed: '无法发送给 Agent',

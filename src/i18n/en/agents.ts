@@ -97,6 +97,7 @@ export const agents = {
     command: 'Command',
     skill: 'Skill',
     prompt: 'Prompt',
+    builtin: 'Built-in',
   },
   send: 'Send',
   sendFailed: 'Could not send to the agent',

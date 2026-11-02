@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   commandInsertion,
   filterHerdrCommands,
+  mergeHerdrCommands,
   normalizeHerdrCommands,
 } from './commands'
+import { BUILTIN_HERDR_COMMANDS } from './builtinCommands'
 
 describe('normalizeHerdrCommands', () => {
   it('keeps valid commands, trims fields, and de-duplicates names', () => {
@@ -43,6 +45,39 @@ describe('normalizeHerdrCommands', () => {
       '/prompts:review ',
       '/skill:research ',
     ])
+  })
+})
+
+describe('mergeHerdrCommands', () => {
+  it('adds built-ins when the desktop list is empty', () => {
+    const merged = mergeHerdrCommands([], BUILTIN_HERDR_COMMANDS.codex)
+
+    expect(merged.some((command) => command.name === 'models')).toBe(true)
+    expect(merged.every((command) => command.source === 'builtin')).toBe(true)
+  })
+
+  it('keeps the desktop entry when a built-in name collides case-insensitively', () => {
+    const desktop = [
+      {
+        name: 'Models',
+        description: 'Custom model picker',
+        source: 'prompt' as const,
+      },
+    ]
+
+    const merged = mergeHerdrCommands(desktop, BUILTIN_HERDR_COMMANDS.codex)
+
+    expect(
+      merged.filter((command) => command.name.toLowerCase() === 'models'),
+    ).toEqual(desktop)
+  })
+
+  it('filters /mod to the Codex models built-in', () => {
+    const merged = mergeHerdrCommands([], BUILTIN_HERDR_COMMANDS.codex)
+
+    expect(filterHerdrCommands(merged, 'mod').map((item) => item.name)).toEqual(
+      ['models'],
+    )
   })
 })
 

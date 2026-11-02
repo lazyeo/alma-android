@@ -409,6 +409,40 @@ describe('AgentPaneScreen pane navigation', () => {
     expect(api.getHerdrCommands).toHaveBeenCalledTimes(1)
   })
 
+  it('shows built-in commands when the desktop returns none', async () => {
+    paneId = 'pane-b'
+    api.getHerdrCommands.mockResolvedValueOnce({ commands: [] })
+    render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('Pane B transcript')).toBeTruthy(),
+    )
+
+    const composer = screen.getByRole('textbox', { name: 'agents.message' })
+    fireEvent.focus(composer)
+    fireEvent.change(composer, { target: { value: '/mod' } })
+
+    expect(await screen.findByText('/model')).toBeTruthy()
+    expect(
+      screen.getAllByText('agents.commandSource.builtin').length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('shows built-in commands when the desktop command request fails', async () => {
+    paneId = 'pane-b'
+    api.getHerdrCommands.mockRejectedValueOnce(new Error('404'))
+    render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('Pane B transcript')).toBeTruthy(),
+    )
+
+    const composer = screen.getByRole('textbox', { name: 'agents.message' })
+    fireEvent.focus(composer)
+    fireEvent.change(composer, { target: { value: '/mod' } })
+
+    expect(await screen.findByText('/model')).toBeTruthy()
+    expect(screen.queryByText('agents.commandsEmpty')).toBeNull()
+  })
+
   it('closes slash commands on space and blur', async () => {
     paneId = 'pane-b'
     render(<AgentPaneScreen />)

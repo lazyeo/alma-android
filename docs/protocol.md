@@ -231,7 +231,7 @@ Chat items include tool rows shaped as `{ id, kind: "tool", time, tool }`. A dis
 GET /api/herdr/commands?agent=<claude|codex|pi>&pane=<pane_id>
 ```
 
-The response is `{ commands: [{ name, description?, hint?, source }] }`, where `source` is `command`, `skill`, or `prompt`. The desktop returns at most 400 entries and de-duplicates them by name. Codex prompt names retain their `prompts:` prefix and Pi skill names retain `skill:`; the client inserts the returned name verbatim after `/`. Unknown agent values return an empty list. HTTP 404 means the connected desktop predates this route and is treated as an empty list without showing an error.
+The response is `{ commands: [{ name, description?, hint?, source }] }`, where `source` is `command`, `skill`, or `prompt`. The desktop returns at most 400 entries and de-duplicates them by name. Codex prompt names retain their `prompts:` prefix and Pi skill names retain `skill:`; the client inserts the returned name verbatim after `/`. The phone appends its built-in command list after the desktop results, de-duplicating names case-insensitively while preserving the desktop entry. Unknown agent values return an empty list. HTTP 404 means the connected desktop predates this route; the phone still shows its built-in commands without an error.
 
 **Verified.** A dispatched subagent's own transcript is read through:
 
