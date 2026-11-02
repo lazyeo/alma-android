@@ -18,6 +18,7 @@ import {
   type HerdrSubagentDispatch,
 } from './subagents'
 import { toMessageRows, type HerdrChatItem } from './toMessageParts'
+import { usePageVisible } from './usePageVisible'
 
 export function HerdrSubagentPill({
   agent,
@@ -109,6 +110,7 @@ function SubagentDetail({
   dispatch: HerdrSubagentDispatch
 }) {
   const t = useT()
+  const pageVisible = usePageVisible()
   const [items, setItems] = useState<HerdrChatItem[]>([])
   const [description, setDescription] = useState(dispatch.title)
   const [finished, setFinished] = useState(!dispatch.running)
@@ -117,6 +119,7 @@ function SubagentDetail({
   >('loading')
   const scrollerRef = useRef<HTMLDivElement>(null)
   const pinnedRef = useRef(true)
+  const loadedRef = useRef(false)
 
   useEffect(() => {
     let active = true
@@ -127,6 +130,7 @@ function SubagentDetail({
           limit: 400,
         })
         if (!active) return
+        loadedRef.current = true
         if (response.status === 'unsupported') {
           setState('unsupported')
           return
@@ -151,12 +155,12 @@ function SubagentDetail({
         if (active) setState('error')
       }
     }
-    void poll()
+    if (pageVisible && (!finished || !loadedRef.current)) void poll()
     return () => {
       active = false
       window.clearTimeout(timer)
     }
-  }, [api, dispatch.title, dispatch.toolId, paneId])
+  }, [api, dispatch.title, dispatch.toolId, finished, pageVisible, paneId])
 
   useLayoutEffect(() => {
     const scroller = scrollerRef.current
