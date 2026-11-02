@@ -15,6 +15,7 @@ describe('DesktopSwitcher transport indicator', () => {
     expect(source).toContain('connection.transport.relay')
     expect(source).toContain('latency.ms !== null')
     expect(source).toContain('isLatencyStale(latency)')
-    expect(source).toContain('connection.transport.short')
+    // The icon alone names the transport; no duplicate text label.
+    expect(source).not.toContain('connection.transport.short')
   })
 })

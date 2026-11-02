@@ -80,7 +80,8 @@ export function DesktopSwitcher({ className = '' }: { className?: string }) {
                 aria-label={t(STATUS_LABELS[status])}
               />
               <span className="desktop-switcher-name">{pairing.name}</span>
-              {/* Like iOS: Wi-Fi glyph for LAN direct, globe for the relay. */}
+              {/* Like iOS: Wi-Fi glyph for LAN direct, globe for the relay. The icon
+                  carries the transport (aria-label); no text label beside it. */}
               {status === 'online' ? (
                 <span className="desktop-transport-indicator">
                   {transport === 'direct' ? (
@@ -96,13 +97,6 @@ export function DesktopSwitcher({ className = '' }: { className?: string }) {
                       aria-label={t('connection.transport.relay')}
                     />
                   )}
-                  <span>
-                    {t(
-                      transport === 'direct'
-                        ? 'connection.transport.short.lan'
-                        : 'connection.transport.short.relay',
-                    )}
-                  </span>
                   {latency.ms !== null ? (
                     <span
                       className={isLatencyStale(latency) ? 'stale' : undefined}

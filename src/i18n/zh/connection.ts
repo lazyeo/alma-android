@@ -14,7 +14,6 @@ export const connection: CatalogShape<typeof source> = {
   transport: {
     lan: '已通过局域网连接',
     relay: '已通过互联网中继连接',
-    short: { lan: '局域网', relay: '中继' },
     desktopRowLan: '局域网直连',
     desktopRowRelay: '中继 {host}',
   },

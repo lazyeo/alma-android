@@ -11,7 +11,6 @@ export const connection = {
   transport: {
     lan: 'Connected over local network',
     relay: 'Connected over the internet relay',
-    short: { lan: 'LAN', relay: 'Relay' },
     desktopRowLan: 'LAN direct',
     desktopRowRelay: 'Relay {host}',
   },
