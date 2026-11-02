@@ -387,6 +387,7 @@ describe('AgentPaneScreen pane navigation', () => {
     expect(list).toBeTruthy()
     expect(api.getHerdrCommands).toHaveBeenCalledWith('claude', 'pane-b')
     expect(screen.getByText('/review')).toBeTruthy()
+    expect(screen.getByText('<model>')).toBeTruthy()
 
     fireEvent.change(composer, { target: { value: '/rev' } })
     expect(screen.getByText('/review')).toBeTruthy()

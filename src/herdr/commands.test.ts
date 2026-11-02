@@ -49,17 +49,31 @@ describe('normalizeHerdrCommands', () => {
 })
 
 describe('mergeHerdrCommands', () => {
-  it('adds built-ins when the desktop list is empty', () => {
+  it('adds the desktop 0.4.363 built-ins when the desktop list is empty', () => {
     const merged = mergeHerdrCommands([], BUILTIN_HERDR_COMMANDS.codex)
 
-    expect(merged.some((command) => command.name === 'models')).toBe(true)
+    expect(merged.map((command) => command.name)).toEqual([
+      'model',
+      'permissions',
+      'review',
+      'new',
+      'resume',
+      'fork',
+      'init',
+      'compact',
+      'diff',
+      'mention',
+      'status',
+      'mcp',
+      'quit',
+    ])
     expect(merged.every((command) => command.source === 'builtin')).toBe(true)
   })
 
   it('keeps the desktop entry when a built-in name collides case-insensitively', () => {
     const desktop = [
       {
-        name: 'Models',
+        name: 'Model',
         description: 'Custom model picker',
         source: 'prompt' as const,
       },
@@ -68,15 +82,38 @@ describe('mergeHerdrCommands', () => {
     const merged = mergeHerdrCommands(desktop, BUILTIN_HERDR_COMMANDS.codex)
 
     expect(
-      merged.filter((command) => command.name.toLowerCase() === 'models'),
+      merged.filter((command) => command.name.toLowerCase() === 'model'),
     ).toEqual(desktop)
   })
 
-  it('filters /mod to the Codex models built-in', () => {
+  it('marks only picker commands interactive and includes desktop hints', () => {
+    expect(
+      BUILTIN_HERDR_COMMANDS.claude.find(({ name }) => name === 'model'),
+    ).toMatchObject({
+      hint: '<model>',
+      interactive: true,
+    })
+    expect(
+      BUILTIN_HERDR_COMMANDS.claude.find(({ name }) => name === 'review')
+        ?.interactive,
+    ).toBeFalsy()
+    expect(
+      BUILTIN_HERDR_COMMANDS.codex.find(({ name }) => name === 'mention')
+        ?.interactive,
+    ).toBe(true)
+    expect(
+      BUILTIN_HERDR_COMMANDS.pi.find(({ name }) => name === 'thinking'),
+    ).toMatchObject({
+      hint: '<level>',
+      interactive: true,
+    })
+  })
+
+  it('filters /mod to the Codex model built-in', () => {
     const merged = mergeHerdrCommands([], BUILTIN_HERDR_COMMANDS.codex)
 
     expect(filterHerdrCommands(merged, 'mod').map((item) => item.name)).toEqual(
-      ['models'],
+      ['model'],
     )
   })
 })

@@ -970,16 +970,24 @@ export function AgentPaneScreen() {
                     key={`${command.source}:${command.name}`}
                     role="option"
                     aria-selected="false"
-                    aria-label={`/${command.name}${command.description ? `: ${command.description}` : ''}`}
+                    aria-label={`/${command.name}${command.hint ? ` ${command.hint}` : ''}${command.description ? `: ${command.description}` : ''}`}
                     onMouseDown={(event) => {
                       event.preventDefault()
                       selectCommand(command)
                     }}
                   >
                     <span className="agent-command-copy">
-                      <strong>/{command.name}</strong>
-                      {command.description || command.hint ? (
-                        <span>{command.description || command.hint}</span>
+                      <strong>
+                        /{command.name}
+                        {command.hint ? (
+                          <span className="agent-command-hint">
+                            {' '}
+                            {command.hint}
+                          </span>
+                        ) : null}
+                      </strong>
+                      {command.description ? (
+                        <span>{command.description}</span>
                       ) : null}
                     </span>
                     <span className="agent-command-source">

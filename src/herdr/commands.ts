@@ -4,6 +4,7 @@ export interface HerdrCommand {
   name: string
   description?: string
   hint?: string
+  interactive?: boolean
   source: HerdrCommandSource
 }
 

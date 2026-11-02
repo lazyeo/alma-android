@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- Herdr built-in slash commands match the desktop 0.4.363 command tables, including picker hints and interactive command metadata.
+
 ### Added
 
 - Herdr slash-command suggestions merge built-in Claude Code and Codex commands with desktop-provided commands, including on older desktops.

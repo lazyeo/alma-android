@@ -233,6 +233,8 @@ GET /api/herdr/commands?agent=<claude|codex|pi>&pane=<pane_id>
 
 The response is `{ commands: [{ name, description?, hint?, source }] }`, where `source` is `command`, `skill`, or `prompt`. The desktop returns at most 400 entries and de-duplicates them by name. Codex prompt names retain their `prompts:` prefix and Pi skill names retain `skill:`; the client inserts the returned name verbatim after `/`. The phone appends its built-in command list after the desktop results, de-duplicating names case-insensitively while preserving the desktop entry. Unknown agent values return an empty list. HTTP 404 means the connected desktop predates this route; the phone still shows its built-in commands without an error.
 
+**Inferred from the desktop 0.4.363 renderer.** The built-in tables also mark commands that open an interactive terminal picker. This `interactive` flag is mobile-only metadata: desktop/server entries never set it, while matching built-ins retain it after the desktop-first merge so chat sends can switch to the terminal after dispatch.
+
 **Verified.** A dispatched subagent's own transcript is read through:
 
 ```text
