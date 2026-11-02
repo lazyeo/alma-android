@@ -235,6 +235,8 @@ The response is `{ commands: [{ name, description?, hint?, source }] }`, where `
 
 **Inferred from the desktop 0.4.363 renderer.** The built-in tables also mark commands that open an interactive terminal picker. This `interactive` flag is mobile-only metadata: desktop/server entries never set it, while matching built-ins retain it after the desktop-first merge so chat sends can switch to the terminal after dispatch.
 
+Before a chat-view `agent.prompt`, the phone best-effort reads the pane tail and looks for visible cursor-list menus. Numbered blocked prompts continue through the existing permission-card path. A cursor-list blocks the prompt and offers to open the terminal or send Escape, wait for the pane to redraw, confirm the menu closed, and then submit the preserved draft. Read failures fall through to the prompt; terminal-view sends are not guarded.
+
 **Verified.** A dispatched subagent's own transcript is read through:
 
 ```text

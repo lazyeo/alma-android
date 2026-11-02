@@ -469,6 +469,81 @@ describe('AgentPaneScreen pane navigation', () => {
     expect(screen.queryByRole('listbox')).toBeNull()
   })
 
+  it('blocks chat send while a cursor menu is open and keeps the draft', async () => {
+    paneId = 'pane-c'
+    api.readHerdrPane.mockResolvedValueOnce({
+      read: {
+        text: 'Choose a model\n  gpt-5.4\n› gpt-5.3-codex\n  gpt-5.2\nenter select · esc close',
+      },
+    })
+    render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('Pane B transcript')).toBeTruthy(),
+    )
+
+    const composer = screen.getByRole('textbox', { name: 'agents.message' })
+    fireEvent.change(composer, { target: { value: 'hello menu' } })
+    fireEvent.click(screen.getByRole('button', { name: 'agents.send' }))
+
+    expect(
+      await screen.findByRole('dialog', { name: 'agents.menuOpenTitle' }),
+    ).toBeTruthy()
+    expect(api.promptHerdrAgent).not.toHaveBeenCalled()
+    expect((composer as HTMLTextAreaElement).value).toBe('hello menu')
+  })
+
+  it('closes an open cursor menu before sending the original draft', async () => {
+    paneId = 'pane-c'
+    api.readHerdrPane
+      .mockResolvedValueOnce({
+        read: {
+          text: 'Choose a model\n  gpt-5.4\n› gpt-5.3-codex\n  gpt-5.2\nenter select · esc close',
+        },
+      })
+      .mockResolvedValueOnce({ read: { text: '» Ask Codex to do anything' } })
+    render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('Pane B transcript')).toBeTruthy(),
+    )
+
+    const composer = screen.getByRole('textbox', { name: 'agents.message' })
+    fireEvent.change(composer, { target: { value: 'send after close' } })
+    fireEvent.click(screen.getByRole('button', { name: 'agents.send' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'agents.menuCloseAndSend' }),
+    )
+
+    await waitFor(() =>
+      expect(api.sendHerdrPaneKeys).toHaveBeenCalledWith('pane-c', ['esc']),
+    )
+    await waitFor(() =>
+      expect(api.promptHerdrAgent).toHaveBeenCalledWith(
+        'pane-c',
+        'send after close',
+      ),
+    )
+  })
+
+  it('falls through to send when the best-effort pane read fails', async () => {
+    paneId = 'pane-c'
+    api.readHerdrPane.mockRejectedValueOnce(new Error('read failed'))
+    render(<AgentPaneScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('Pane B transcript')).toBeTruthy(),
+    )
+
+    const composer = screen.getByRole('textbox', { name: 'agents.message' })
+    fireEvent.change(composer, { target: { value: 'send anyway' } })
+    fireEvent.click(screen.getByRole('button', { name: 'agents.send' }))
+
+    await waitFor(() =>
+      expect(api.promptHerdrAgent).toHaveBeenCalledWith(
+        'pane-c',
+        'send anyway',
+      ),
+    )
+  })
+
   it('switches to the terminal after sending an interactive built-in command', async () => {
     paneId = 'pane-c'
     render(<AgentPaneScreen />)

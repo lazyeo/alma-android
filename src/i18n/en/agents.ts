@@ -101,6 +101,12 @@ export const agents = {
   },
   send: 'Send',
   sendFailed: 'Could not send to the agent',
+  menuOpenTitle: 'A menu is open in the terminal',
+  menuOpenDescription:
+    'Sending now would type into the menu and pick the highlighted item.',
+  menuOpenTerminal: 'Open terminal',
+  menuCloseAndSend: 'Close menu and send',
+  menuStillOpen: 'Menu still open, use the terminal',
   chatUnsupported: 'This agent has no chat transcript. Showing its terminal.',
   toolFailed: 'Failed',
   subagents: 'Subagents',

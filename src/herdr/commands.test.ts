@@ -83,7 +83,7 @@ describe('mergeHerdrCommands', () => {
 
     expect(
       merged.filter((command) => command.name.toLowerCase() === 'model'),
-    ).toEqual(desktop)
+    ).toEqual([{ ...desktop[0], interactive: true }])
   })
 
   it('marks only picker commands interactive and includes desktop hints', () => {

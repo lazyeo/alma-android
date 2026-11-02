@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Herdr chat detects open terminal pickers before sending and offers to open or safely close the menu without losing the draft.
 - Interactive Herdr slash commands switch from chat to the terminal after sending so their picker is immediately available.
 - Herdr slash-command suggestions merge built-in Claude Code and Codex commands with desktop-provided commands, including on older desktops.
 - Herdr session rows, blocked prompts, and agent notifications show the desktop-generated title for the latest task when available.

@@ -50,9 +50,18 @@ export function mergeHerdrCommands(
   desktop: readonly HerdrCommand[],
   builtins: readonly HerdrCommand[],
 ): HerdrCommand[] {
+  const builtinByName = new Map(
+    builtins.map((command) => [command.name.toLowerCase(), command]),
+  )
+  const mergedDesktop = desktop.map((command) => {
+    const interactive = builtinByName.get(
+      command.name.toLowerCase(),
+    )?.interactive
+    return interactive ? { ...command, interactive } : command
+  })
   const seen = new Set(desktop.map((command) => command.name.toLowerCase()))
   return [
-    ...desktop,
+    ...mergedDesktop,
     ...builtins.filter((command) => {
       const name = command.name.toLowerCase()
       if (seen.has(name)) return false

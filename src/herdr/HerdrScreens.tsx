@@ -20,6 +20,7 @@ import {
   type CSSProperties,
 } from 'react'
 import { useParams } from 'react-router-dom'
+import { BottomSheet } from '../components/BottomSheet'
 import {
   ComposerAttachments,
   ComposerAttachmentTray,
@@ -78,6 +79,7 @@ import {
   type HerdrCommand,
 } from './commands'
 import { BUILTIN_HERDR_COMMANDS } from './builtinCommands'
+import { detectOpenMenu } from './menuGuard'
 import {
   buildHerdrPrompt,
   HERDR_CHUNK_BYTES,
@@ -165,6 +167,7 @@ export function AgentPaneScreen() {
   const [composing, setComposing] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [pendingMenuSend, setPendingMenuSend] = useState<string | null>(null)
   const [subagentSheetOpen, setSubagentSheetOpen] = useState(false)
 
   const toggleTerminalDisplayMode = () => {
@@ -528,11 +531,11 @@ export function AgentPaneScreen() {
     composerRef.current?.focus()
   }
 
-  const send = async (text = draft) => {
+  const send = async (text = draft, skipMenuGuard = false) => {
     const prompt = text.trim()
     const pendingAttachments = view === 'chat' ? attachments : []
     if (
-      sending ||
+      (!skipMenuGuard && sending) ||
       composing ||
       (view === 'chat' && !prompt && pendingAttachments.length === 0)
     )
@@ -544,6 +547,19 @@ export function AgentPaneScreen() {
         if (text) await api.sendHerdrPaneText(decodedPaneId, text)
         await api.sendHerdrPaneKeys(decodedPaneId, [HERDR_KEY_MAP.enter])
       } else {
+        if (!skipMenuGuard && pane?.agent_status !== 'blocked') {
+          try {
+            const screen = await api.readHerdrPane(decodedPaneId)
+            if (
+              detectOpenMenu(screen?.read?.text ?? '')?.kind === 'cursor-list'
+            ) {
+              setPendingMenuSend(text)
+              return
+            }
+          } catch {
+            // Best effort only: a failed read must never block a chat send.
+          }
+        }
         const paths: string[] = []
         for (const attachment of pendingAttachments) {
           if (!isPendingAttachment(attachment)) continue
@@ -627,6 +643,30 @@ export function AgentPaneScreen() {
           : reason instanceof Error
             ? reason.message
             : t('agents.sendFailed'),
+      )
+    } finally {
+      setSending(false)
+    }
+  }
+  const closeMenuAndSend = async () => {
+    const text = pendingMenuSend
+    if (text === null) return
+    setSending(true)
+    setError('')
+    try {
+      await api.sendHerdrPaneKeys(decodedPaneId, [HERDR_KEY_MAP.escape])
+      await new Promise((resolve) => window.setTimeout(resolve, 350))
+      const screen = await api.readHerdrPane(decodedPaneId)
+      if (detectOpenMenu(screen?.read?.text ?? '')) {
+        setPendingMenuSend(null)
+        setError(t('agents.menuStillOpen'))
+        return
+      }
+      setPendingMenuSend(null)
+      await send(text, true)
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : t('agents.sendFailed'),
       )
     } finally {
       setSending(false)
@@ -942,6 +982,34 @@ export function AgentPaneScreen() {
               void api.sendHerdrPaneKeys(decodedPaneId, [HERDR_KEY_MAP.escape])
             }
           />
+        ) : null}
+        {pendingMenuSend !== null ? (
+          <BottomSheet
+            title={t('agents.menuOpenTitle')}
+            onClose={() => setPendingMenuSend(null)}
+            footer={
+              <div className="sheet-actions">
+                <button
+                  className="secondary"
+                  onClick={() => {
+                    setPendingMenuSend(null)
+                    setView('terminal')
+                  }}
+                >
+                  {t('agents.menuOpenTerminal')}
+                </button>
+                <button
+                  className="primary"
+                  disabled={sending}
+                  onClick={() => void closeMenuAndSend()}
+                >
+                  {t('agents.menuCloseAndSend')}
+                </button>
+              </div>
+            }
+          >
+            <p>{t('agents.menuOpenDescription')}</p>
+          </BottomSheet>
         ) : null}
         {subagentSheetOpen ? (
           <HerdrSubagentsSheet
