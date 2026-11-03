@@ -2,7 +2,9 @@ import { ListPlus, LoaderCircle, Pencil, Pin, Star } from 'lucide-react'
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -57,11 +59,29 @@ export const relative = (value: unknown) => {
   }).format(Math.round(seconds / divisor), unit)
 }
 
+/**
+ * Pin every spinner cell to the document timeline origin. Each spinner
+ * otherwise starts its 640 ms loop when it mounts, so N spinners step at N
+ * different moments and the WebView composites N times as many idle frames.
+ * With a shared origin all spinners step on the same frames.
+ */
+export function alignSpinnerAnimations(el: Element | null): number {
+  if (!el || typeof (el as HTMLElement).getAnimations !== 'function') return 0
+  const animations = (el as HTMLElement).getAnimations({ subtree: true })
+  for (const animation of animations) animation.startTime = 0
+  return animations.length
+}
+
 export function ThreadSpinner({ label }: { label?: string }) {
   const t = useT()
   const gaps = [0, 7, 1, 6, 2, 5, 3, 4]
+  const ref = useRef<HTMLSpanElement>(null)
+  useLayoutEffect(() => {
+    alignSpinnerAnimations(ref.current)
+  }, [])
   return (
     <span
+      ref={ref}
       className="thread-spinner"
       role="img"
       aria-label={label ?? t('thread.generating')}
