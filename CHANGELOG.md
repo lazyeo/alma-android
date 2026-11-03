@@ -6,9 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-### Added
+### Fixed
 
-- Nothing yet.
+- Thread list: generating spinners now share one animation clock, so several running threads no longer multiply idle redraws (2026-11-03).
 
 ## [0.1.6] - 2026-11-02
 
