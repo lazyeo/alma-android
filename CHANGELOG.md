@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- New launcher icon: the glasses character with sage-green lenses, so this unofficial client is easy to tell apart from the official Alma app (2026-11-04).
+
 ### Fixed
 
 - Reopening a thread reuses already-rendered Markdown (bounded cache), and the first frame of a thread renders only the bottom rows (2026-11-03).
