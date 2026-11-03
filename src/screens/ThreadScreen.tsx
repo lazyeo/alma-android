@@ -89,6 +89,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ComponentProps,
   type CSSProperties,
   type ErrorInfo,
   type ReactNode,
@@ -255,6 +256,18 @@ function MessageRenderError() {
   )
 }
 
+const renderMessageReference = (href: string, children: ReactNode) => (
+  <RefChip uri={href}>{children}</RefChip>
+)
+
+const renderMessageLink = ({
+  node: _node,
+  children,
+  ...props
+}: Parameters<
+  NonNullable<ComponentProps<typeof MarkdownContent>['renderLink']>
+>[0]) => <FileAwareLink {...props}>{children}</FileAwareLink>
+
 function MessageMarkdownContent({
   text,
   linkUserFilePaths = false,
@@ -263,17 +276,14 @@ function MessageMarkdownContent({
   linkUserFilePaths?: boolean
 }) {
   const { api } = useConnection()
+  const getSiteIcon = useCallback((url: string) => api.getSiteIcon(url), [api])
   return (
     <MarkdownContent
       text={text}
       linkUserFilePaths={linkUserFilePaths}
-      getSiteIcon={(url) => api.getSiteIcon(url)}
-      renderReference={(href, children) => (
-        <RefChip uri={href}>{children}</RefChip>
-      )}
-      renderLink={({ node: _node, children, ...props }) => (
-        <FileAwareLink {...props}>{children}</FileAwareLink>
-      )}
+      getSiteIcon={getSiteIcon}
+      renderReference={renderMessageReference}
+      renderLink={renderMessageLink}
     />
   )
 }
@@ -318,16 +328,7 @@ function NestedRuns({
   )
 }
 
-function ThreadMessageView({
-  row,
-  nestedByParent,
-  onActions,
-  onSwitchVersion,
-  onRetryFailed,
-  generating = false,
-  usage,
-  workspacePath,
-}: {
+type ThreadMessageViewProps = {
   row: MessageRow
   generating?: boolean
   usage?: GenerationUsage
@@ -336,7 +337,60 @@ function ThreadMessageView({
   onActions?: (row: MessageRow) => void
   onSwitchVersion?: (row: MessageRow, direction: 'prev' | 'next') => void
   onRetryFailed?: (row: MessageRow) => void
-}) {
+}
+
+function sameUsage(left?: GenerationUsage, right?: GenerationUsage) {
+  if (left === right) return true
+  if (!left || !right) return false
+  return (
+    left.inputTokens === right.inputTokens &&
+    left.outputTokens === right.outputTokens &&
+    left.totalTokens === right.totalTokens &&
+    left.reasoningTokens === right.reasoningTokens &&
+    left.cachedInputTokens === right.cachedInputTokens &&
+    left.cacheWriteInputTokens === right.cacheWriteInputTokens
+  )
+}
+
+function sameNestedRows(
+  row: MessageRow,
+  left?: ReadonlyMap<string, MessageRow[]>,
+  right?: ReadonlyMap<string, MessageRow[]>,
+) {
+  if (left === right) return true
+  return row.message.parts.every(
+    (part) =>
+      !part.toolCallId ||
+      left?.get(part.toolCallId) === right?.get(part.toolCallId),
+  )
+}
+
+function sameThreadMessageProps(
+  previous: ThreadMessageViewProps,
+  next: ThreadMessageViewProps,
+) {
+  return (
+    previous.row === next.row &&
+    previous.generating === next.generating &&
+    previous.workspacePath === next.workspacePath &&
+    previous.onActions === next.onActions &&
+    previous.onSwitchVersion === next.onSwitchVersion &&
+    previous.onRetryFailed === next.onRetryFailed &&
+    sameUsage(previous.usage, next.usage) &&
+    sameNestedRows(previous.row, previous.nestedByParent, next.nestedByParent)
+  )
+}
+
+export const ThreadMessageView = memo(function ThreadMessageView({
+  row,
+  nestedByParent,
+  onActions,
+  onSwitchVersion,
+  onRetryFailed,
+  generating = false,
+  usage,
+  workspacePath,
+}: ThreadMessageViewProps) {
   const press = useLongPress(() => onActions?.(row))
   const { openFile } = useFileLinks()
   return (
@@ -360,7 +414,7 @@ function ThreadMessageView({
       onOpenWebsite={(target) => void openExternalUrl(target)}
     />
   )
-}
+}, sameThreadMessageProps)
 
 function GeneratingElapsed({ startedAt }: { startedAt: number }) {
   const now = useSharedSecond()
@@ -1222,6 +1276,7 @@ function ThreadView({ threadId }: { threadId: string }) {
     count: roots.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 180,
+    initialOffset: searchTarget?.fromSearch ? 0 : roots.length * 180,
     overscan: 5,
   })
 
@@ -1460,18 +1515,21 @@ function ThreadView({ threadId }: { threadId: string }) {
     }
   }
 
-  const generationOptions = {
-    model: model || settings.chat?.defaultModel,
-    reasoningEffort,
-    fastMode,
-  }
+  const generationOptions = useMemo(
+    () => ({
+      model: model || settings.chat?.defaultModel,
+      reasoningEffort,
+      fastMode,
+    }),
+    [fastMode, model, reasoningEffort, settings.chat?.defaultModel],
+  )
 
   /** A run this client starts begins now, before its user row arrives. */
-  function startGenerating() {
+  const startGenerating = useCallback(() => {
     setGenerationStart((current) => current ?? Date.now())
     setIdleConfirmed(false)
     setGenerating(true)
-  }
+  }, [])
 
   const composerGoal = useComposerGoal({
     api,
@@ -2047,36 +2105,46 @@ function ThreadView({ threadId }: { threadId: string }) {
     if (staged.text) composerReferences.appendText(staged.text)
   }
 
-  function retryFailedUserMessage(row: MessageRow) {
-    const socket = socketRef.current
-    if (!socket) return
-    const sentAt = Date.now()
-    applyOptimistic({
-      type: 'sent',
-      threadId,
-      messageId: row.message.id,
-      parts: row.message.parts,
-      sentAt,
-    })
-    scrollToBottom()
-    try {
-      socket.generateResponse(
-        threadId,
-        row.message.parts,
-        generationOptions,
-        row.message.id,
-      )
-      startGenerating()
-    } catch (retryError) {
+  const retryFailedUserMessage = useCallback(
+    (row: MessageRow) => {
+      const socket = socketRef.current
+      if (!socket) return
+      const sentAt = Date.now()
       applyOptimistic({
-        type: 'generation_error',
-        error:
-          retryError instanceof Error
-            ? retryError.message
-            : t('thread.errors.retry'),
+        type: 'sent',
+        threadId,
+        messageId: row.message.id,
+        parts: row.message.parts,
+        sentAt,
       })
-    }
-  }
+      scrollToBottom()
+      try {
+        socket.generateResponse(
+          threadId,
+          row.message.parts,
+          generationOptions,
+          row.message.id,
+        )
+        startGenerating()
+      } catch (retryError) {
+        applyOptimistic({
+          type: 'generation_error',
+          error:
+            retryError instanceof Error
+              ? retryError.message
+              : t('thread.errors.retry'),
+        })
+      }
+    },
+    [
+      applyOptimistic,
+      generationOptions,
+      scrollToBottom,
+      startGenerating,
+      t,
+      threadId,
+    ],
+  )
 
   function retryMessage(row: MessageRow) {
     if (!socketRef.current) return
@@ -2085,18 +2153,21 @@ function ThreadView({ threadId }: { threadId: string }) {
     startGenerating()
   }
 
-  async function switchVersion(row: MessageRow, direction: 'prev' | 'next') {
-    try {
-      await api.switchMessageVersion(row.id, direction)
-      await load()
-    } catch (switchError) {
-      setError(
-        switchError instanceof Error
-          ? switchError.message
-          : t('thread.errors.switchVersion'),
-      )
-    }
-  }
+  const switchVersion = useCallback(
+    async (row: MessageRow, direction: 'prev' | 'next') => {
+      try {
+        await api.switchMessageVersion(row.id, direction)
+        await load()
+      } catch (switchError) {
+        setError(
+          switchError instanceof Error
+            ? switchError.message
+            : t('thread.errors.switchVersion'),
+        )
+      }
+    },
+    [api, load, t],
+  )
 
   const runCount = crewRunCount(crew)
   const activeRunCount = activeCrewRunCount(crew)
@@ -2489,9 +2560,7 @@ function ThreadView({ threadId }: { threadId: string }) {
                           )}
                           onActions={setActionRow}
                           onRetryFailed={retryFailedUserMessage}
-                          onSwitchVersion={(message, direction) =>
-                            void switchVersion(message, direction)
-                          }
+                          onSwitchVersion={switchVersion}
                           nestedByParent={nestedByParent}
                         />
                       </MessageBoundary>

@@ -1,5 +1,6 @@
 import {
   createContext,
+  memo,
   useContext,
   useEffect,
   useMemo,
@@ -142,7 +143,7 @@ function MarkdownTable({
   )
 }
 
-export function MarkdownContent({
+export const MarkdownContent = memo(function MarkdownContent({
   text,
   linkUserFilePaths = false,
   references = true,
@@ -169,6 +170,24 @@ export function MarkdownContent({
     if (needsMath) void import('./richMath').then(setMath)
   }, [needsMath])
   const guarded = guardCurrency(text)
+  const remarkPlugins = useMemo(
+    () => [
+      ...baseRemarkPlugins,
+      ...(math ? [math.remarkMath] : []),
+      ...(references ? [() => stripMessageReferenceAtSigns] : []),
+      ...(linkUserFilePaths ? [remarkUserFilePaths] : []),
+    ],
+    [math, references, linkUserFilePaths],
+  )
+  const rehypePlugins = useMemo<
+    ComponentProps<typeof Markdown>['rehypePlugins']
+  >(
+    () =>
+      math
+        ? [[math.rehypeKatex, { trust: false, strict: 'warn' }] as const]
+        : [],
+    [math],
+  )
   const markdownComponents = useMemo(
     (): Components => ({
       ...components,
@@ -206,15 +225,8 @@ export function MarkdownContent({
     <MarkdownSourceContext.Provider value={guarded}>
       <div className={`markdown-content${className ? ` ${className}` : ''}`}>
         <Markdown
-          remarkPlugins={[
-            ...baseRemarkPlugins,
-            ...(math ? [math.remarkMath] : []),
-            ...(references ? [() => stripMessageReferenceAtSigns] : []),
-            ...(linkUserFilePaths ? [remarkUserFilePaths] : []),
-          ]}
-          rehypePlugins={
-            math ? [[math.rehypeKatex, { trust: false, strict: 'warn' }]] : []
-          }
+          remarkPlugins={remarkPlugins}
+          rehypePlugins={rehypePlugins}
           urlTransform={keepReferenceUrls}
           components={markdownComponents}
         >
@@ -223,4 +235,4 @@ export function MarkdownContent({
       </div>
     </MarkdownSourceContext.Provider>
   )
-}
+})
