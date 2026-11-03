@@ -6,6 +6,7 @@ import {
   useMemo,
   useState,
   type ComponentProps,
+  type ReactElement,
   type ReactNode,
 } from 'react'
 import type { Components } from 'react-markdown'
@@ -27,6 +28,40 @@ type AnchorProps = ComponentProps<'a'> & { node?: unknown }
 type ImageProps = ComponentProps<'img'> & { node?: unknown }
 
 const MarkdownSourceContext = createContext('')
+
+const MAX_MARKDOWN_RENDER_CACHE_ENTRIES = 200
+const markdownRenderCache = new Map<string, ReactElement>()
+const callbackIdentities = new WeakMap<object, number>()
+let nextCallbackIdentity = 1
+
+function callbackIdentity(value: object | null | undefined) {
+  if (!value) return 0
+  let identity = callbackIdentities.get(value)
+  if (!identity) {
+    identity = nextCallbackIdentity++
+    callbackIdentities.set(value, identity)
+  }
+  return identity
+}
+
+function cachedMarkdownRender(key: string, render: () => ReactElement) {
+  const cached = markdownRenderCache.get(key)
+  if (cached) {
+    markdownRenderCache.delete(key)
+    markdownRenderCache.set(key, cached)
+    return cached
+  }
+  const rendered = render()
+  markdownRenderCache.set(key, rendered)
+  if (markdownRenderCache.size > MAX_MARKDOWN_RENDER_CACHE_ENTRIES) {
+    markdownRenderCache.delete(markdownRenderCache.keys().next().value!)
+  }
+  return rendered
+}
+
+export function clearMarkdownRenderCache() {
+  markdownRenderCache.clear()
+}
 
 function externalHttpUrl(href?: string) {
   if (!href) return null
@@ -221,17 +256,30 @@ export const MarkdownContent = memo(function MarkdownContent({
     }),
     [components, renderReference, renderLink, renderImage, getSiteIcon],
   )
+  const cacheKey = [
+    guarded,
+    math ? 'math' : 'plain',
+    references ? 'references' : 'no-references',
+    linkUserFilePaths ? 'file-paths' : 'no-file-paths',
+    callbackIdentity(components),
+    callbackIdentity(renderReference),
+    callbackIdentity(renderLink),
+    callbackIdentity(renderImage),
+    callbackIdentity(getSiteIcon),
+  ].join('\u0000')
+  const renderedMarkdown = cachedMarkdownRender(cacheKey, () =>
+    Markdown({
+      children: guarded,
+      remarkPlugins,
+      rehypePlugins,
+      urlTransform: keepReferenceUrls,
+      components: markdownComponents,
+    }),
+  )
   return (
     <MarkdownSourceContext.Provider value={guarded}>
       <div className={`markdown-content${className ? ` ${className}` : ''}`}>
-        <Markdown
-          remarkPlugins={remarkPlugins}
-          rehypePlugins={rehypePlugins}
-          urlTransform={keepReferenceUrls}
-          components={markdownComponents}
-        >
-          {guarded}
-        </Markdown>
+        {renderedMarkdown}
       </div>
     </MarkdownSourceContext.Provider>
   )

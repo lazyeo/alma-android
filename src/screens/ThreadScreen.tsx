@@ -97,6 +97,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { MarkdownContent } from './MarkdownContent'
+import { initialThreadOverscan, THREAD_OVERSCAN } from './threadVirtualizer'
 import { MessageView, PartView, type NestedMessageRow } from '../messages'
 
 import { useConnection } from '../desktops/DesktopContext'
@@ -1272,13 +1273,29 @@ function ThreadView({ threadId }: { threadId: string }) {
       [...roots].reverse().find((row) => row.message.role === 'assistant')
     )?.id
   }, [lastReply, roots])
+  const fromSearch = Boolean(searchTarget?.fromSearch)
+  const [expandedOverscanKey, setExpandedOverscanKey] = useState(() =>
+    fromSearch ? location.key : '',
+  )
+  const threadOverscan =
+    fromSearch || expandedOverscanKey === location.key
+      ? THREAD_OVERSCAN
+      : initialThreadOverscan(false)
   const virtualizer = useVirtualizer({
     count: roots.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 180,
-    initialOffset: searchTarget?.fromSearch ? 0 : roots.length * 180,
-    overscan: 5,
+    initialOffset: fromSearch ? 0 : roots.length * 180,
+    overscan: threadOverscan,
   })
+
+  useEffect(() => {
+    if (fromSearch) return
+    const frame = requestAnimationFrame(() =>
+      setExpandedOverscanKey(location.key),
+    )
+    return () => cancelAnimationFrame(frame)
+  }, [fromSearch, location.key])
 
   useEffect(() => {
     if (roots.length) {
