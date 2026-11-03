@@ -55,6 +55,7 @@ const api = {
   ),
   openJsonSocket: vi.fn(() => ({
     opened: new Promise<void>(() => undefined),
+    onClose: vi.fn(() => vi.fn()),
     close: vi.fn(),
   })),
   readHerdrPane: vi.fn(async () => ({ read: { text: '' } })),

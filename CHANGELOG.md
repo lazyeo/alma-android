@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Herdr chats resync after silent, closed, or stale relay sockets so new transcript items keep arriving without leaving and reopening the pane (2026-11-04).
 - Reopening a thread reuses already-rendered Markdown (bounded cache), and the first frame of a thread renders only the bottom rows (2026-11-03).
 - Opening a thread no longer re-parses every visible message on each re-render and starts at the bottom instead of rendering the top rows first; on a Redmi the main-thread work while opening dropped from 147–273 ms to about 90 ms (2026-11-03).
 - Thread list: generating spinners now share one animation clock, so several running threads no longer multiply idle redraws (2026-11-03).

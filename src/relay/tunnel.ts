@@ -358,6 +358,7 @@ export class RelayTunnel {
     if (frame.t === 'wopened') socket.resolve()
     if (frame.t === 'werr') {
       socket.reject(new Error(frame.message || 'Tunnel socket failed'))
+      for (const listener of socket.closeListeners) listener()
       this.sockets.delete(frame.id)
     }
     if (frame.t === 'wmsg')

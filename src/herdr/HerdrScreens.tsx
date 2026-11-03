@@ -48,6 +48,7 @@ import {
   type TerminalKey,
 } from '../terminal/terminal'
 import { useHerdr } from './HerdrProvider'
+import { createChatResync } from './chatResync'
 import { AgentMark } from './AgentMark'
 import {
   mergeChatItems,
@@ -271,13 +272,21 @@ export function AgentPaneScreen() {
     )
     return () => socket.close()
   }, [api, decodedPaneId, view])
-  // Opened once the first page is in, so `from` resumes after it; `end` lives
-  // in a ref so each batch doesn't tear the socket down and reopen it.
+  // Opened once the first page is in, so `from` resumes after it. The helper
+  // keeps one live socket and reopens from the latest byte offset after gaps.
   useEffect(() => {
     if (!chatReady) return
-    const socket = api.openJsonSocket(
-      `/ws/herdr/chat?pane=${encodeURIComponent(decodedPaneId)}&from=${endRef.current}`,
-      (event) => {
+    const resync = createChatResync({
+      getEnd: () => endRef.current,
+      open: (from, onMessage, onClose) => {
+        const socket = api.openJsonSocket(
+          `/ws/herdr/chat?pane=${encodeURIComponent(decodedPaneId)}&from=${from}`,
+          onMessage,
+        )
+        socket.onClose(onClose)
+        return socket
+      },
+      onEvent: (event) => {
         if (event.type === 'items' && Array.isArray(event.items)) {
           setItems((current) =>
             mergeChatItems(current, event.items as ChatItem[], 'append'),
@@ -294,9 +303,16 @@ export function AgentPaneScreen() {
           void loadChat().catch((reason) => setError(String(reason)))
         }
       },
-    )
-    socket.opened.catch(() => undefined)
-    return () => socket.close()
+    })
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') resync.visible()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    resync.start()
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      resync.stop()
+    }
   }, [api, chatReady, decodedPaneId, loadChat])
 
   const blockedPrompt = useMemo(

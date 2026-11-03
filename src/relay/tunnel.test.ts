@@ -320,6 +320,28 @@ describe('RelayTunnel binary payloads', () => {
     expect(messages).toEqual(['world', new Uint8Array([9, 10])])
     tunnel.close()
   })
+
+  it('notifies close listeners when an opened WebSocket errors', async () => {
+    const relay = new FakeSession()
+    const tunnel = new RelayTunnel(pairing, undefined, {
+      isNative: () => false,
+      createRelaySession: () => relay,
+    })
+    const socket = tunnel.openWebSocket('/ws/test')
+    await vi.waitFor(() =>
+      expect(relay.sent.some((frame) => frame.t === 'wopen')).toBe(true),
+    )
+    const open = relay.sent.find((frame) => frame.t === 'wopen')
+    relay.emit({ t: 'wopened', id: open.id })
+    await socket.opened
+    const onClose = vi.fn()
+    socket.onClose(onClose)
+
+    relay.emit({ t: 'werr', id: open.id, message: 'socket failed' })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+    tunnel.close()
+  })
 })
 
 describe('RelayTunnel sockets', () => {
