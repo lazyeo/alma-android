@@ -2,6 +2,7 @@ import { ExtensionSettings } from '../extensions'
 import { useEffect, useState } from 'react'
 import { BottomSheet } from '../components/BottomSheet'
 import { SettingsRow } from '../components/SettingsRow'
+import { useOfficialMascot } from '../alma/rig/officialMascot'
 import { presenceClass, usePresence } from '../components/usePresence'
 import { COLLAPSE_EXIT_MS } from '../motionTokens'
 import { haptic, hapticsEnabled } from '../haptics'
@@ -13,6 +14,7 @@ import {
   ChevronDown,
   ChevronRight,
   CircleHelp,
+  Copyright,
   DraftingCompass,
   FoldHorizontal,
   Gauge,
@@ -545,6 +547,7 @@ export function FoldTransitionSettings() {
 
 export function SettingsScreen() {
   const t = useT()
+  const officialMascot = useOfficialMascot()
   const navigate = useNavigate()
   const [desktopDetail, setDesktopDetail] = useState<string>()
   const [hiddenOpen, setHiddenOpen] = useState(false)
@@ -871,6 +874,13 @@ export function SettingsScreen() {
                   <span className="settings-value">alma-relay-e2e/v1</span>
                 }
               />
+              {officialMascot ? (
+                <SettingsRow
+                  icon={<Copyright size={17} />}
+                  title={t('settings.about.mascot')}
+                  secondary={t('settings.about.mascotCredit')}
+                />
+              ) : null}
             </div>
           </section>
         </div>

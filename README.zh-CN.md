@@ -111,11 +111,21 @@ npm run android:build
 
 发布构建使用 `npm run android:release`。只有同时设置 `ALMA_RELEASE_STORE_FILE`、`ALMA_RELEASE_STORE_PASSWORD`、`ALMA_RELEASE_KEY_ALIAS` 和 `ALMA_RELEASE_KEY_PASSWORD` 时才会签名。
 
+`npm run build`（以及 `android:build`、`android:release`）会先运行 `npm run mascot`：通过 HTTPS 下载官方 Alma Android 发布包，校验固定的 SHA-256，缓存在 `~/.cache/alma-mobile`，再把其中的 Alma 形象解包到 `public/alma-mascot/`（已加入 gitignore，从不提交）。需要 `unzip`，缩小图片需要 `sips`（macOS）或 ImageMagick；两者都没有时保持原尺寸。环境变量：
+
+- `ALMA_MASCOT=skip` 跳过下载，使用矢量脸构建（CI 调试构建这样做；`scripts/release.mjs` 会拒绝）。
+- `ALMA_MASCOT_MAX_SIDE` 设置打包图片的长边像素（默认 `512`，`0` 为原尺寸）。
+- `ALMA_MASCOT_CACHE` 修改已校验 APK 的缓存位置。
+
 生成页面的 `alma-build` 元数据格式为 `<version> <sha>`，「设置 › 关于」中会显示版本号。
 
 ## 参与贡献
 
 请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。参与本项目即表示你同意遵守仓库的贡献与安全说明。
+
+## 第三方素材
+
+Alma 形象 © yetone / Alma，不在本仓库 MIT 许可证范围内，构建时从官方 Alma Android 发布包下载。本应用为非官方客户端。详见 [NOTICE.md](NOTICE.md)。
 
 ## 许可证
 

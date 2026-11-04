@@ -38,6 +38,8 @@ vi.mock('../nativeBridge', () => ({
 import { SettingsScreen, FoldTransitionSettings } from './SettingsScreen'
 import { DesktopsContext, type DesktopsValue } from '../desktops/DesktopContext'
 import { MemoryRouter } from 'react-router-dom'
+import { registerMascotRig } from '../extensions/mascotRig'
+import { officialMascotAssets } from '../alma/rig/officialMascot'
 
 function renderFoldSettings() {
   return render(
@@ -121,6 +123,45 @@ describe('SettingsScreen desktop connection details', () => {
     expect(screen.getByText('LAN direct · 58 ms')).toBeTruthy()
     expect(screen.queryByText('Connection')).toBeNull()
     expect(screen.queryByText('Latency')).toBeNull()
+  })
+})
+
+describe('SettingsScreen about', () => {
+  afterEach(() => {
+    cleanup()
+    registerMascotRig(undefined)
+  })
+
+  const empty: DesktopsValue = {
+    store: { pairings: [], activeId: null },
+    desktops: [],
+    activate: vi.fn(),
+    rename: vi.fn(),
+    setHidden: vi.fn(),
+    remove: vi.fn(),
+  }
+  const renderSettings = () =>
+    render(
+      <LanguageProvider>
+        <MemoryRouter>
+          <DesktopsContext.Provider value={empty}>
+            <SettingsScreen />
+          </DesktopsContext.Provider>
+        </MemoryRouter>
+      </LanguageProvider>,
+    )
+
+  it('credits the official Alma art only when the build bundled it', () => {
+    capabilities.mockResolvedValue({ foldable: false, reason: 'none' })
+    const credit =
+      '© yetone / Alma, from the official Alma app. This is an unofficial client.'
+    renderSettings()
+    expect(screen.queryByText(credit)).toBeNull()
+    act(() =>
+      registerMascotRig(officialMascotAssets('/', { size: [1, 1] } as never)),
+    )
+    expect(screen.getByText('Alma artwork')).toBeTruthy()
+    expect(screen.getByText(credit)).toBeTruthy()
   })
 })
 

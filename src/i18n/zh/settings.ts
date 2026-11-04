@@ -158,5 +158,7 @@ export const settings: CatalogShape<typeof source> = {
     title: '关于',
     version: '应用版本',
     protocol: '协议',
+    mascot: 'Alma 形象',
+    mascotCredit: '© yetone / Alma，取自官方 Alma 应用。本应用为非官方客户端。',
   },
 }

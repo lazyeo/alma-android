@@ -111,6 +111,12 @@ The debug APK is written under `android/app/build/outputs/apk/debug/`.
 
 For a release build, run `npm run android:release`. It is signed only when all four variables are set: `ALMA_RELEASE_STORE_FILE`, `ALMA_RELEASE_STORE_PASSWORD`, `ALMA_RELEASE_KEY_ALIAS`, and `ALMA_RELEASE_KEY_PASSWORD`.
 
+`npm run build` (and so `android:build` and `android:release`) first runs `npm run mascot`, which downloads the official Alma Android release over HTTPS, checks its pinned SHA-256, caches it under `~/.cache/alma-mobile` and bundles the Alma artwork from it into `public/alma-mascot/` (gitignored, never committed). It needs `unzip`, and `sips` (macOS) or ImageMagick to downscale the art; without either the art stays full size. Environment variables:
+
+- `ALMA_MASCOT=skip` skips the download and builds with the vector face (CI debug builds do this; `scripts/release.mjs` refuses it).
+- `ALMA_MASCOT_MAX_SIDE` sets the longer side of the bundled art in pixels (default `512`, `0` keeps full size).
+- `ALMA_MASCOT_CACHE` changes where the verified APK is cached.
+
 The generated page metadata records `alma-build` as `<version> <sha>`, and Settings › About shows the version.
 
 ## Contributing
@@ -119,6 +125,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). By participating, you agree to follow th
 
 ## Third-party assets
 
+- The Alma mascot artwork is © yetone / Alma, is not covered by this repository's MIT licence, and is downloaded from the official Alma Android release at build time. This is an unofficial client. See [NOTICE.md](NOTICE.md).
 - The [Herdr](https://github.com/herdrdev/herdr) logo is from Herdr's `assets/logo.svg` and is used under the [Apache License 2.0](https://github.com/herdrdev/herdr/blob/main/LICENSE). The Herdr trademark belongs to the Herdr project.
 - The Claude Code mark is from [simple-icons 16.36.0](https://github.com/simple-icons/simple-icons/tree/16.36.0) and is used under [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/). Claude Code is a trademark of Anthropic.
 - The Codex mark is an original vector drawing of the Codex product icon. Codex is a trademark of OpenAI.

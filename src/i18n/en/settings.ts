@@ -156,5 +156,8 @@ export const settings = {
     title: 'About',
     version: 'App version',
     protocol: 'Protocol',
+    mascot: 'Alma artwork',
+    mascotCredit:
+      '© yetone / Alma, from the official Alma app. This is an unofficial client.',
   },
 } as const
