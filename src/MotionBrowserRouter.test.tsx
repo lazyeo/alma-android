@@ -60,4 +60,40 @@ describe('MotionBrowserRouter', () => {
     expect(mounts).toBe(1)
     expect(subscriptions).toBe(1)
   })
+
+  it('never wraps entering or leaving Alma in a View Transition', async () => {
+    window.history.replaceState(null, '', '/d/home/threads')
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn(() => ({ matches: false })),
+    })
+    const start = vi.fn((update: () => void) => {
+      update()
+      return { finished }
+    })
+    Object.defineProperty(document, 'startViewTransition', {
+      configurable: true,
+      value: start,
+    })
+    const { MotionBrowserRouter } = await import('./MotionBrowserRouter')
+    render(
+      <MotionBrowserRouter>
+        <Routes>
+          <Route
+            path="/d/home/threads"
+            element={<Link to="/d/home/alma">Open Alma</Link>}
+          />
+          <Route
+            path="/d/home/alma"
+            element={<Link to="/d/home/threads">Back</Link>}
+          />
+        </Routes>
+      </MotionBrowserRouter>,
+    )
+    screen.getByRole('link', { name: 'Open Alma' }).click()
+    expect(await screen.findByRole('link', { name: 'Back' })).toBeTruthy()
+    screen.getByRole('link', { name: 'Back' }).click()
+    expect(await screen.findByRole('link', { name: 'Open Alma' })).toBeTruthy()
+    expect(start).not.toHaveBeenCalled()
+  })
 })

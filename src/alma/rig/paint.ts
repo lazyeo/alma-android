@@ -58,47 +58,187 @@ function makeCanvas(width: number, height: number) {
   return canvas
 }
 
+/** Device pixels per rig pixel for an output of `pixels` square. */
+export function rigScale(rig: MascotRigGeometry, pixels: number) {
+  return pixels / portraitView(rig).side
+}
+
+/**
+ * One rig's layers pre-rendered at one output size, so a frame never
+ * resamples the full-resolution sources: every layer is drawn 1:1 (up to
+ * the head's tilt) onto the face canvas.
+ */
+export interface ScaledRigLayers {
+  /** The output size (device pixels) these were rendered for. */
+  pixels: number
+  /** Device pixels per rig pixel. */
+  k: number
+  base: CanvasImageSource
+  eyes: { L: RigEyeImages; R: RigEyeImages }
+}
+
+function sourceSize(
+  source: CanvasImageSource,
+  fallback: readonly [number, number],
+): [number, number] {
+  const { naturalWidth, naturalHeight, width, height } = source as {
+    naturalWidth?: number
+    naturalHeight?: number
+    width?: unknown
+    height?: unknown
+  }
+  const w = naturalWidth || (typeof width === 'number' ? width : 0)
+  const h = naturalHeight || (typeof height === 'number' ? height : 0)
+  return w && h ? [w, h] : [fallback[0], fallback[1]]
+}
+
+function scaleNow(source: CanvasImageSource, width: number, height: number) {
+  const canvas = makeCanvas(width, height)
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(source, 0, 0, canvas.width, canvas.height)
+  }
+  return canvas
+}
+
+/** Off the main thread where the WebView can (createImageBitmap resize). */
+async function scaleLayer(
+  source: CanvasImageSource,
+  size: readonly [number, number],
+  k: number,
+): Promise<CanvasImageSource> {
+  const width = Math.max(1, Math.ceil(size[0] * k))
+  const height = Math.max(1, Math.ceil(size[1] * k))
+  if (typeof createImageBitmap === 'function') {
+    try {
+      return await createImageBitmap(source as ImageBitmapSource, {
+        resizeWidth: width,
+        resizeHeight: height,
+        resizeQuality: 'high',
+      })
+    } catch {
+      // Fall through to a canvas resample.
+    }
+  }
+  return scaleNow(source, width, height)
+}
+
+// Scaled layers per decoded rig and output size. Faces of the same size
+// (every tab avatar, every header) share one set.
+const pendingLayers = new WeakMap<
+  RigImages,
+  Map<number, Promise<ScaledRigLayers>>
+>()
+const readyLayers = new WeakMap<RigImages, Map<number, ScaledRigLayers>>()
+
+/** Layers already rendered for this size, for a paint on the first commit. */
+export function readyRigLayers(images: RigImages, pixels: number) {
+  return readyLayers.get(images)?.get(pixels)
+}
+
+/** Renders (once per size) every layer at the output size it is drawn at. */
+export function prepareRigLayers(
+  images: RigImages,
+  rig: MascotRigGeometry,
+  pixels: number,
+): Promise<ScaledRigLayers> {
+  const bySize = pendingLayers.get(images) ?? new Map()
+  pendingLayers.set(images, bySize)
+  const pending = bySize.get(pixels)
+  if (pending) return pending
+  const k = rigScale(rig, pixels)
+  const eye = async (side: 'L' | 'R') => {
+    const { w, h } = rig.eyes[side]
+    const layers = images.eyes[side]
+    const [white, iris, lid] = await Promise.all(
+      [layers.white, layers.iris, layers.lid].map((layer) =>
+        scaleLayer(layer, sourceSize(layer, [w, h]), k),
+      ),
+    )
+    return { white, iris, lid }
+  }
+  const prepared = Promise.all([
+    scaleLayer(images.base, rig.size, k),
+    eye('L'),
+    eye('R'),
+  ]).then(([base, L, R]) => {
+    const layers: ScaledRigLayers = { pixels, k, base, eyes: { L, R } }
+    let ready = readyLayers.get(images)
+    if (!ready) readyLayers.set(images, (ready = new Map()))
+    ready.set(pixels, layers)
+    return layers
+  })
+  prepared.catch(() => bySize.delete(pixels))
+  bySize.set(pixels, prepared)
+  return prepared
+}
+
+// Settled frames of static copies (message avatars), per layer set.
+const stillFrames = new WeakMap<
+  ScaledRigLayers,
+  Map<string, HTMLCanvasElement>
+>()
+
+/**
+ * A static face (message avatars, many on screen at once) is composited
+ * once per expression and size; every further copy is one drawImage.
+ */
+export function paintStill(
+  ctx: Context2D,
+  painter: RigPainter,
+  layers: ScaledRigLayers,
+  key: string,
+  frame: () => RigFrame,
+) {
+  let frames = stillFrames.get(layers)
+  if (!frames) stillFrames.set(layers, (frames = new Map()))
+  let cached = frames.get(key)
+  if (!cached) {
+    cached = makeCanvas(layers.pixels, layers.pixels)
+    const offscreen = cached.getContext('2d')
+    if (!offscreen) return painter.paint(ctx, layers, frame())
+    painter.paint(offscreen, layers, frame())
+    frames.set(key, cached)
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
+  ctx.clearRect(0, 0, layers.pixels, layers.pixels)
+  ctx.drawImage(cached, 0, 0)
+}
+
 /**
  * Composites one face per frame: the eyeless base, each eye built from its
  * white, iris (masked to the white and moved by gaze, scaled for pupil size)
  * and lid layers then squashed toward a low lid pivot, a procedural mouth,
  * and a few manga marks for feelings. Everything sits inside one head
- * transform (tilt and bob around the neck).
+ * transform (tilt and bob around the neck). Layers come pre-scaled to the
+ * output size (`prepareRigLayers`), and eyes are composited in device
+ * pixels, so no frame resamples a full-resolution source.
  */
 export class RigPainter {
-  private scratch: Record<'L' | 'R', HTMLCanvasElement>
-  private base?: { canvas: HTMLCanvasElement; pixels: number }
+  private scratch: Partial<Record<'L' | 'R', HTMLCanvasElement>> = {}
 
   constructor(
-    private images: RigImages,
     private rig: MascotRigGeometry,
     private view: RigView = portraitView(rig),
-  ) {
-    this.scratch = {
-      L: makeCanvas(rig.eyes.L.w, rig.eyes.L.h),
-      R: makeCanvas(rig.eyes.R.w, rig.eyes.R.h),
-    }
-  }
+  ) {}
 
-  /** The base pre-scaled once to the output resolution of the view. */
-  private scaledBase(pixels: number) {
-    if (this.base?.pixels === pixels) return this.base.canvas
-    const [width, height] = this.rig.size
-    const k = pixels / this.view.side
-    const canvas = makeCanvas(width * k, height * k)
-    const ctx = canvas.getContext('2d')
-    if (ctx) {
-      ctx.imageSmoothingQuality = 'high'
-      ctx.drawImage(this.images.base, 0, 0, canvas.width, canvas.height)
+  private scratchFor(side: 'L' | 'R', width: number, height: number) {
+    const w = Math.max(1, Math.ceil(width))
+    const h = Math.max(1, Math.ceil(height))
+    let canvas = this.scratch[side]
+    if (!canvas) this.scratch[side] = canvas = makeCanvas(w, h)
+    else if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w
+      canvas.height = h
     }
-    this.base = { canvas, pixels }
     return canvas
   }
 
-  paint(ctx: Context2D, pixels: number, f: RigFrame) {
+  paint(ctx: Context2D, layers: ScaledRigLayers, f: RigFrame) {
     const { rig, view } = this
     const [width, height] = rig.size
-    const k = pixels / view.side
+    const { pixels, k } = layers
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, pixels, pixels)
     ctx.setTransform(k, 0, 0, k, -view.x * k, -view.y * k)
@@ -108,23 +248,31 @@ export class RigPainter {
     ctx.translate(neckX, neckY + f.bob * height)
     ctx.rotate(f.tilt)
     ctx.translate(-neckX, -neckY)
-    ctx.drawImage(this.scaledBase(pixels), 0, 0, width, height)
-    this.eye(ctx, 'L', f.openL, f)
-    this.eye(ctx, 'R', f.openR, f)
+    ctx.drawImage(layers.base, 0, 0, width, height)
+    this.eye(ctx, layers, 'L', f.openL, f)
+    this.eye(ctx, layers, 'R', f.openR, f)
     this.mouth(ctx, f)
     this.marks(ctx, f)
     ctx.setTransform(1, 0, 0, 1, 0, 0)
   }
 
-  private eye(ctx: Context2D, side: 'L' | 'R', open: number, f: RigFrame) {
+  private eye(
+    ctx: Context2D,
+    scaled: ScaledRigLayers,
+    side: 'L' | 'R',
+    open: number,
+    f: RigFrame,
+  ) {
     const e = this.rig.eyes[side]
-    const layers = this.images.eyes[side]
+    const layers = scaled.eyes[side]
+    const { k } = scaled
     const [icx, icy, rx, ry] = e.iris
     // lids meet low, like a real blink
     const pivot = icy + ry * 0.42
     const shown = Math.min(1, open)
     if (shown > 0.15) {
-      const canvas = this.scratch[side]
+      // Composited in device pixels from the pre-scaled layers.
+      const canvas = this.scratchFor(side, e.w * k, e.h * k)
       const sx = canvas.getContext('2d')
       if (sx) {
         sx.clearRect(0, 0, canvas.width, canvas.height)
@@ -132,10 +280,10 @@ export class RigPainter {
         sx.drawImage(layers.white, 0, 0)
         // the iris only shows where the white is
         sx.globalCompositeOperation = 'source-atop'
-        const dx = f.gazeX * e.w * 0.05
-        const dy = f.gazeY * e.h * 0.034
-        const ix = icx - e.x + dx
-        const iy = icy - e.y + dy
+        const dx = f.gazeX * e.w * 0.05 * k
+        const dy = f.gazeY * e.h * 0.034 * k
+        const ix = (icx - e.x) * k + dx
+        const iy = (icy - e.y) * k + dy
         sx.save()
         sx.translate(ix, iy)
         sx.scale(f.pupil, f.pupil)
@@ -148,7 +296,17 @@ export class RigPainter {
         ctx.translate(0, pivot)
         ctx.scale(1, shown)
         ctx.translate(0, -pivot)
-        ctx.drawImage(canvas, 0, 0, e.w, e.h, e.x, e.y, e.w, e.h)
+        ctx.drawImage(
+          canvas,
+          0,
+          0,
+          canvas.width,
+          canvas.height,
+          e.x,
+          e.y,
+          canvas.width / k,
+          canvas.height / k,
+        )
         ctx.restore()
       }
     }

@@ -6,13 +6,21 @@ import { LanguageProvider } from '../i18n'
 import type { PersonalAgentState } from '../screens/personalAgent'
 import { AlmaNavButton } from './AlmaNavButton'
 import { AlmaPresenceContext, presenceFace } from './AlmaPresence'
+import { clearExpandDisc, lastExpandDisc } from './almaExpand'
+import { avatarBox, clearAvatarBoxes } from './avatarFlight'
 
 import { haptic } from '../haptics'
 
 vi.mock('../haptics', () => ({ haptic: vi.fn() }))
 vi.mock('./AlmaScreen', () => ({ AlmaScreen: () => null }))
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  clearExpandDisc()
+  clearAvatarBoxes()
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
 
 const ready = (
   threadId: string | null,
@@ -142,13 +150,46 @@ describe('AlmaNavButton', () => {
     expect(live.container.querySelector('[data-busy="true"]')).toBeTruthy()
   })
 
-  it('hands the shared avatar name to the header while on /alma', () => {
+  it('measures the disc after layout and never in the tap', () => {
+    const observed: Array<() => void> = []
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private callback: () => void) {}
+        observe() {
+          observed.push(this.callback)
+        }
+        disconnect() {}
+      },
+    )
+    const rect = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockReturnValue({
+        left: 176,
+        top: 788,
+        width: 48,
+        height: 48,
+      } as DOMRect)
+    renderButton(ready('main'))
+    expect(observed).toHaveLength(1)
+    observed[0]()
+    expect(lastExpandDisc()).toMatchObject({ left: 176, width: 48 })
+    expect(avatarBox('nav')).toMatchObject({ top: 788, height: 48 })
+    rect.mockClear()
+    fireEvent.click(button()!)
+    expect(screen.getByTestId('where').textContent).toBe('/d/home/alma')
+    expect(rect).not.toHaveBeenCalled()
+  })
+
+  it('marks the nav end of the avatar flight only outside /alma', () => {
     const { container, unmount } = renderButton(ready('main'))
-    expect(container.querySelector('.alma-avatar-flight')).toBeTruthy()
+    const avatar = container.querySelector('.alma-avatar-flight')
+    expect(avatar?.getAttribute('data-alma-avatar')).toBe('nav')
     unmount()
     renderButton(ready('main'), { route: '/d/home/alma' })
     expect(button()!.getAttribute('aria-current')).toBe('page')
     expect(document.querySelector('.alma-avatar-flight')).toBeNull()
+    expect(document.querySelector('[data-alma-avatar]')).toBeNull()
     fireEvent.click(button()!)
     expect(screen.getByTestId('where').textContent).toBe('/d/home/alma')
   })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { flightFrames } from './avatarFlight'
 import {
-  avatarFrames,
   circleCoverage,
   circleFrames,
   circleScales,
@@ -143,30 +143,26 @@ describe('keyframes', () => {
   it('animates only transform and opacity', () => {
     for (const frames of [
       circleFrames(timeline),
-      circleFrames(timeline, { x: -10, y: 20 }),
       recedeFrames('open'),
       recedeFrames('close'),
       dimFrames('open'),
       dimFrames('close'),
       topFrames('open'),
       topFrames('close'),
-      avatarFrames(
-        { left: 0, top: 0, width: 48 },
-        { left: 10, top: 10, width: 36 },
+      flightFrames(
+        { left: 0, top: 0, width: 48, height: 48 },
+        { left: 10, top: 10, width: 36, height: 36 },
       )!,
     ])
       for (const property of properties(frames))
         expect(COMPOSITOR_ONLY.has(property), property).toBe(true)
   })
 
-  it('scales the circle from the disc, keeping a group position', () => {
+  it('scales the circle from the disc', () => {
     expect(circleFrames(timeline)).toEqual([
       { transform: `scale(${discRadius / radius})` },
       { transform: 'scale(1)' },
     ])
-    expect(circleFrames(timeline, { x: -5, y: 7 })[1]).toEqual({
-      transform: 'translate(-5px, 7px) scale(1)',
-    })
   })
 
   it('recedes to 0.94 on open and returns on close', () => {
@@ -176,23 +172,5 @@ describe('keyframes', () => {
       opacity: 0,
       transform: 'translateY(8px)',
     })
-  })
-
-  it('flies the avatar with translate and scale only', () => {
-    expect(
-      avatarFrames(
-        { left: 176, top: 790, width: 48 },
-        { left: 56, top: 12, width: 36 },
-      ),
-    ).toEqual([
-      { transform: `translate(176px, 790px) scale(${48 / 36})` },
-      { transform: 'translate(56px, 12px)' },
-    ])
-    expect(
-      avatarFrames(
-        { left: 0, top: 0, width: 0 },
-        { left: 0, top: 0, width: 1 },
-      ),
-    ).toBeUndefined()
   })
 })

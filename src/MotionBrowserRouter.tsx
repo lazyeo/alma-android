@@ -72,15 +72,13 @@ export function MotionBrowserRouter({ children }: { children: ReactNode }) {
       )
 
     if (motion === 'alma' && unobstructed) {
-      // Alma's expand/collapse owns the commit: inside the View Transition
-      // update, or under the covering circle when transitions are missing.
+      // Alma's expand/collapse owns the commit and never uses a View
+      // Transition (render-blocking: a frozen first frame on real phones).
+      // Its compositor overlay swaps the route under the covering circle.
       startAlmaTransition({
         direction: ALMA_ROUTE.test(update.location.pathname) ? 'open' : 'close',
         reduced: reducedMotionPreferred(),
         commit,
-        startViewTransition: viewTransitions
-          ? (callback) => transitionDocument.startViewTransition!(callback)
-          : undefined,
         setNavMotion: setMotionAttribute,
       })
       return

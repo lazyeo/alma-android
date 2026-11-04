@@ -1,115 +1,150 @@
-import { useLayoutEffect, type RefObject } from 'react'
-import { reducedMotionPreferred } from './useReducedMotion'
+/**
+ * The avatar's flight between the tab bar (or rail) disc and the /alma
+ * header during the expand and collapse. A fixed-position clone of her face
+ * flies with a WAAPI transform, so the compositor carries it even while the
+ * main thread renders the destination; both real avatars stay hidden
+ * (`data-alma-avatar-flight` on <html>) until it lands, so there is never a
+ * double avatar. Every box it needs is measured ahead of time
+ * (`useMeasuredBox`), never in the tap.
+ */
 
-/** Mirrors `--dur-flight` / `--ease-spring` for the FLIP fallback. */
-export const FLIGHT_MS = 320
-export const FLIGHT_EASING = 'cubic-bezier(0.34, 1.32, 0.64, 1)'
-
-/** Where the shared avatar sits: the tab bar or rail, or the /alma header. */
-export type FlightEnd = 'nav' | 'header'
-
-interface Box {
+export interface Box {
   left: number
   top: number
   width: number
   height: number
 }
 
-// A route change hands the avatar over within one commit; anything older is
-// an unrelated navigation and must not animate.
-const HANDOFF_WINDOW_MS = 600
+/** Where the avatar sits: the tab bar or rail, or the /alma header. */
+export type AvatarEnd = 'nav' | 'header'
 
-let origin: { end: FlightEnd; box: Box; at: number } | undefined
+/** Marks each end's real avatar; the clone copies it. */
+export const AVATAR_END_ATTRIBUTE = 'data-alma-avatar'
+/** On <html> while a clone flies: hides every `.alma-avatar-flight`. */
+export const AVATAR_FLIGHT_ATTRIBUTE = 'data-alma-avatar-flight'
 
-export function recordFlightOrigin(end: FlightEnd, box: Box, at = now()) {
-  origin = { end, box, at }
+const boxes: Partial<Record<AvatarEnd, Box>> = {}
+
+export function recordAvatarBox(end: AvatarEnd, box: Box) {
+  if (box.width && box.height)
+    boxes[end] = {
+      left: box.left,
+      top: box.top,
+      width: box.width,
+      height: box.height,
+    }
 }
 
-/** The other end's last position, consumed once. */
-export function takeFlightOrigin(end: FlightEnd, at = now()): Box | undefined {
-  const pending = origin
-  if (!pending || pending.end === end) return undefined
-  origin = undefined
-  return at - pending.at <= HANDOFF_WINDOW_MS ? pending.box : undefined
+export function avatarBox(end: AvatarEnd): Box | undefined {
+  return boxes[end]
 }
 
-export function clearFlightOrigin() {
-  origin = undefined
+export function clearAvatarBoxes() {
+  delete boxes.nav
+  delete boxes.header
 }
 
-function now() {
-  return typeof performance !== 'undefined' ? performance.now() : Date.now()
-}
-
-export type FlightMode = 'view-transition' | 'flip' | 'none'
+/** Mirrors `.detail-header` (60px bar, 12px inline padding, 44px back button). */
+const HEADER_BAR_PX = 60
+const HEADER_INLINE_PX = 12
+const HEADER_BACK_PX = 44
+/** Mirrors `.detail-header.alma-header` gap and `.alma-header > .alma-avatar`. */
+const HEADER_GAP_PX = 10
+export const HEADER_AVATAR_PX = 36
 
 /**
- * View Transitions morph the avatar natively (the router already wraps every
- * navigation in one). Without them we FLIP it ourselves. Reduced motion
- * gets neither: the page crossfade is the whole transition.
+ * The phone header avatar's box from the layout tokens, for the first open
+ * before the header has ever been measured.
  */
-export function flightMode({
-  reduced,
-  viewTransitions,
-}: {
-  reduced: boolean
-  viewTransitions: boolean
-}): FlightMode {
-  if (reduced) return 'none'
-  return viewTransitions ? 'view-transition' : 'flip'
+export function predictedHeaderAvatar(
+  insets: { top: number; left: number } = { top: 0, left: 0 },
+): Box {
+  return {
+    left:
+      Math.max(HEADER_INLINE_PX, insets.left) + HEADER_BACK_PX + HEADER_GAP_PX,
+    top: insets.top + (HEADER_BAR_PX - HEADER_AVATAR_PX) / 2,
+    width: HEADER_AVATAR_PX,
+    height: HEADER_AVATAR_PX,
+  }
 }
 
-export function supportsViewTransitions() {
-  return (
-    typeof document !== 'undefined' &&
-    typeof (document as { startViewTransition?: unknown })
-      .startViewTransition === 'function'
-  )
+/** The header's last measured box, or the token prediction. */
+export function headerAvatarTarget(): Box {
+  if (boxes.header) return boxes.header
+  const insets = (
+    window as { __almaNativeInsets?: { top: number; left: number } }
+  ).__almaNativeInsets
+  return predictedHeaderAvatar(insets)
 }
 
-/** Transform-only keyframes that carry `to` back onto `from` and release. */
-export function flipKeyframes(from: Box, to: Box): Keyframe[] | undefined {
-  if (!to.width || !to.height) return undefined
-  const dx = from.left + from.width / 2 - (to.left + to.width / 2)
-  const dy = from.top + from.height / 2 - (to.top + to.height / 2)
-  const scale = from.width / to.width
-  if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5 && Math.abs(scale - 1) < 0.01)
-    return undefined
+/**
+ * Transform-only flight for a clone laid out at `from` (left/top 0, its
+ * own size, origin 0 0): it starts unscaled on `from` and lands on `to`.
+ */
+export function flightFrames(from: Box, to: Box): Keyframe[] | undefined {
+  if (!from.width || !to.width) return undefined
   return [
-    { transform: `translate(${dx}px, ${dy}px) scale(${scale})` },
-    { transform: 'none' },
+    { transform: `translate(${from.left}px, ${from.top}px)` },
+    {
+      transform: `translate(${to.left}px, ${to.top}px) scale(${round(to.width / from.width)})`,
+    },
   ]
 }
 
 /**
- * Hands the avatar between its two ends. The leaving end records its box as
- * it unmounts (or deactivates, for the persistent rail); the arriving end
- * flies in from it when the FLIP fallback is the active mode.
+ * Nudges a flight already in the air onto the real landing box once it is
+ * known, on the clone's inner layer. The outer layer ends at `endScale`,
+ * so the nudge is in its scaled coordinates.
  */
-export function useAvatarFlight(
-  ref: RefObject<HTMLElement>,
-  end: FlightEnd,
-  active: boolean,
-) {
-  useLayoutEffect(() => {
-    const element = ref.current
-    if (!active || !element) return
-    const from = takeFlightOrigin(end)
-    const mode = flightMode({
-      reduced: reducedMotionPreferred(),
-      viewTransitions: supportsViewTransitions(),
+export function correctionFrames(
+  predicted: Box,
+  actual: Box,
+  endScale: number,
+): Keyframe[] | undefined {
+  const dx = actual.left - predicted.left
+  const dy = actual.top - predicted.top
+  if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return undefined
+  const s = endScale || 1
+  return [
+    { transform: 'translate(0px, 0px)' },
+    { transform: `translate(${round(dx / s)}px, ${round(dy / s)}px)` },
+  ]
+}
+
+const round = (value: number) => Number(value.toFixed(4))
+
+/**
+ * A fixed overlay copy of one end's avatar: the element tree is cloned and
+ * each canvas (the mascot rig) is copied pixel for pixel, so the clone
+ * shows exactly the face that was on screen.
+ */
+export function avatarClone(source: Element | null, box: Box) {
+  const flight = document.createElement('div')
+  flight.className = 'alma-avatar-clone'
+  flight.setAttribute('aria-hidden', 'true')
+  flight.style.width = `${box.width}px`
+  flight.style.height = `${box.height}px`
+  const face = document.createElement('div')
+  face.className = 'alma-avatar-clone-face'
+  flight.append(face)
+  if (source) {
+    const copy = source.cloneNode(true) as HTMLElement
+    copy.classList.remove('alma-avatar-flight')
+    copy.removeAttribute(AVATAR_END_ATTRIBUTE)
+    copy.removeAttribute('id')
+    const sources = source.querySelectorAll('canvas')
+    copy.querySelectorAll('canvas').forEach((canvas, index) => {
+      const original = sources[index]
+      if (!original) return
+      canvas.width = original.width
+      canvas.height = original.height
+      canvas.getContext('2d')?.drawImage(original, 0, 0)
     })
-    if (from && mode === 'flip' && typeof element.animate === 'function') {
-      const frames = flipKeyframes(from, element.getBoundingClientRect())
-      if (frames)
-        element.animate(frames, {
-          duration: FLIGHT_MS,
-          easing: FLIGHT_EASING,
-        })
-    }
-    return () => {
-      if (element.isConnected)
-        recordFlightOrigin(end, element.getBoundingClientRect())
-    }
-  }, [active, end, ref])
+    face.append(copy)
+  }
+  return { flight, face }
+}
+
+export function avatarElement(end: AvatarEnd) {
+  return document.querySelector(`[${AVATAR_END_ATTRIBUTE}="${end}"]`)
 }

@@ -8,11 +8,31 @@ import type { FaceActivity, FaceMood } from '../faceState'
 import { useReducedMotion } from '../useReducedMotion'
 import { startBlinkScheduler } from './blink'
 import { RigEngine } from './engine'
-import { RigPainter, loadRigImages, type RigImages } from './paint'
+import {
+  RigPainter,
+  loadRigImages,
+  paintStill,
+  prepareRigLayers,
+  readyRigLayers,
+  type RigImages,
+  type ScaledRigLayers,
+} from './paint'
 
 /** Device pixels per CSS pixel, capped: a 3x avatar is already crisp. */
 export function rigPixelRatio(ratio = window.devicePixelRatio) {
   return Math.min(Math.max(ratio || 1, 1), 3)
+}
+
+/**
+ * CSS sizes her face is drawn at: message avatars, the rail and /alma
+ * header, the tab bar. Their layers are rendered as soon as the rig loads,
+ * so a face mounting mid-transition paints on its first commit.
+ */
+export const RIG_FACE_SIZES = [28, 36, 48] as const
+
+/** The output (device pixel) size a face of `size` CSS pixels draws at. */
+export function rigOutputPixels(size: number, ratio = rigPixelRatio()) {
+  return Math.round(size * ratio)
 }
 
 /**
@@ -90,8 +110,11 @@ export function MascotRig({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const reduced = useReducedMotion()
   const animated = !still && !reduced
-  const [images, setImages] = useState<RigImages | null>(
-    () => loadedImages.get(assets) ?? null,
+  const pixels = rigOutputPixels(size)
+  const readyFor = (images: RigImages | undefined) =>
+    (images && readyRigLayers(images, pixels)) ?? null
+  const [layers, setLayers] = useState<ScaledRigLayers | null>(() =>
+    readyFor(loadedImages.get(assets)),
   )
   const engine = useRef<RigEngine>()
   engine.current ??= new RigEngine()
@@ -117,49 +140,78 @@ export function MascotRig({
       unavailable.current?.()
       return
     }
-    const cached = loadedImages.get(assets)
-    if (cached) {
-      setImages(cached)
+    const ready = readyFor(loadedImages.get(assets))
+    if (ready) {
+      setLayers(ready)
       return
     }
-    loadRigImages(assets).then(
-      (loaded) => {
-        loadedImages.set(assets, loaded)
-        if (!cancelled) setImages(loaded)
-      },
-      () => {
-        if (!cancelled) unavailable.current?.()
-      },
-    )
+    const images = loadedImages.get(assets)
+    const loading = images
+      ? Promise.resolve(images)
+      : loadRigImages(assets).then((loaded) => {
+          loadedImages.set(assets, loaded)
+          // Every size she is shown at, once, at rig load.
+          for (const face of RIG_FACE_SIZES)
+            void prepareRigLayers(
+              loaded,
+              assets.rig,
+              rigOutputPixels(face),
+            ).catch(() => undefined)
+          return loaded
+        })
+    loading
+      .then((loaded) => prepareRigLayers(loaded, assets.rig, pixels))
+      .then(
+        (prepared) => {
+          if (!cancelled) setLayers(prepared)
+        },
+        () => {
+          if (!cancelled) unavailable.current?.()
+        },
+      )
     return () => {
       cancelled = true
     }
-  }, [assets])
+    // `readyFor` only reads `pixels`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assets, pixels])
 
-  const pixels = Math.round(size * rigPixelRatio())
-  const painter = useRef<{ painter: RigPainter; images: RigImages }>()
-  if (images && painter.current?.images !== images)
-    painter.current = { painter: new RigPainter(images, assets.rig), images }
+  // A size change leaves the old layers in state until the new ones land.
+  const current = layers?.pixels === pixels ? layers : null
+  // Built only once layers exist, i.e. the geometry has been validated.
+  const painter = useRef<RigPainter>()
+  const painterRig = useRef<MascotRigAssets['rig']>()
+  if (current && painterRig.current !== assets.rig) {
+    painter.current = new RigPainter(assets.rig)
+    painterRig.current = assets.rig
+  }
 
-  // Static: one settled frame per change of expression.
+  // Static: one settled frame per change of expression. Still copies share
+  // one composited frame per expression and size.
   useEffect(() => {
-    if (running || !images) return
+    if (running || !current) return
     const ctx = canvasRef.current?.getContext('2d')
     if (!ctx || !painter.current) return
-    painter.current.painter.paint(
-      ctx,
-      pixels,
-      engine.current!.settle(mood, activity),
-    )
-  }, [running, images, pixels, mood, activity])
+    if (still)
+      paintStill(ctx, painter.current, current, `${mood}|${activity}`, () =>
+        new RigEngine().settle(mood, activity),
+      )
+    else
+      painter.current.paint(
+        ctx,
+        current,
+        engine.current!.settle(mood, activity),
+      )
+  }, [running, current, still, mood, activity])
 
   // Animated: a rAF loop and blink timer, only while visible.
   useEffect(() => {
-    if (!running || !images) return
+    if (!running || !current) return
     const ctx = canvasRef.current?.getContext('2d')
     if (!ctx || !painter.current) return
     const rig = engine.current!
-    const draw = painter.current.painter
+    const draw = painter.current
+    const scaled = current
     const start = epoch.current!
     const seconds = () => (performance.now() - start) / 1000
     let last = seconds()
@@ -167,14 +219,14 @@ export function MascotRig({
     const tick = () => {
       const now = seconds()
       const { mood: m, activity: a } = latest.current
-      draw.paint(ctx, pixels, rig.update(now, now - last, m, a))
+      draw.paint(ctx, scaled, rig.update(now, now - last, m, a))
       last = now
       frame = requestAnimationFrame(tick)
     }
     // Draw now rather than leave the canvas blank until the next frame.
     draw.paint(
       ctx,
-      pixels,
+      scaled,
       rig.update(last, 0, latest.current.mood, latest.current.activity),
     )
     frame = requestAnimationFrame(tick)
@@ -185,7 +237,7 @@ export function MascotRig({
       cancelAnimationFrame(frame)
       stopBlinking()
     }
-  }, [running, images, pixels])
+  }, [running, current])
 
   return (
     <canvas

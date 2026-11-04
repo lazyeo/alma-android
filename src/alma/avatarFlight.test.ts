@@ -1,16 +1,20 @@
+// @vitest-environment jsdom
 import { readFileSync } from 'node:fs'
-import { afterEach, describe, expect, it } from 'vitest'
+import { resolve } from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  FLIGHT_EASING,
-  FLIGHT_MS,
-  clearFlightOrigin,
-  flightMode,
-  flipKeyframes,
-  recordFlightOrigin,
-  takeFlightOrigin,
+  avatarBox,
+  avatarClone,
+  clearAvatarBoxes,
+  correctionFrames,
+  flightFrames,
+  headerAvatarTarget,
+  predictedHeaderAvatar,
+  recordAvatarBox,
 } from './avatarFlight'
 
-const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
+// jsdom's import.meta.url is not a file URL.
+const css = readFileSync(resolve(process.cwd(), 'src/styles.css'), 'utf8')
 const box = (left: number, top: number, size: number) => ({
   left,
   top,
@@ -18,66 +22,90 @@ const box = (left: number, top: number, size: number) => ({
   height: size,
 })
 
-afterEach(clearFlightOrigin)
+afterEach(() => {
+  clearAvatarBoxes()
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
 
-describe('flightMode', () => {
-  it('uses View Transitions when available and FLIP otherwise', () => {
-    expect(flightMode({ reduced: false, viewTransitions: true })).toBe(
-      'view-transition',
+describe('avatar boxes', () => {
+  it('keeps the last box of each end and ignores empty ones', () => {
+    recordAvatarBox('nav', box(180, 792, 48))
+    recordAvatarBox('nav', box(0, 0, 0))
+    expect(avatarBox('nav')).toEqual(box(180, 792, 48))
+    expect(avatarBox('header')).toBeUndefined()
+  })
+
+  it('predicts the header avatar from the layout tokens until measured', () => {
+    expect(predictedHeaderAvatar()).toEqual(box(66, 12, 36))
+    expect(predictedHeaderAvatar({ top: 40, left: 20 })).toEqual(
+      box(74, 52, 36),
     )
-    expect(flightMode({ reduced: false, viewTransitions: false })).toBe('flip')
-  })
-
-  it('never flies under reduced motion, whatever the browser supports', () => {
-    expect(flightMode({ reduced: true, viewTransitions: true })).toBe('none')
-    expect(flightMode({ reduced: true, viewTransitions: false })).toBe('none')
+    vi.stubGlobal('__almaNativeInsets', { top: 30, left: 0 })
+    expect(headerAvatarTarget()).toEqual(box(66, 42, 36))
+    recordAvatarBox('header', box(60, 44, 36))
+    expect(headerAvatarTarget()).toEqual(box(60, 44, 36))
   })
 })
 
-describe('flight origin handoff', () => {
-  it('hands the leaving box to the other end exactly once', () => {
-    recordFlightOrigin('nav', box(160, 700, 56), 1000)
-    expect(takeFlightOrigin('nav', 1010)).toBeUndefined()
-    expect(takeFlightOrigin('header', 1020)).toEqual(box(160, 700, 56))
-    expect(takeFlightOrigin('header', 1030)).toBeUndefined()
-  })
-
-  it('ignores a stale origin from an unrelated navigation', () => {
-    recordFlightOrigin('header', box(56, 12, 36), 1000)
-    expect(takeFlightOrigin('nav', 2000)).toBeUndefined()
-  })
-})
-
-describe('flipKeyframes', () => {
-  it('maps the header box back onto the tab box with transform only', () => {
-    const frames = flipKeyframes(box(160, 700, 56), box(50, 12, 36))!
-    expect(frames).toEqual([
-      { transform: `translate(120px, 698px) scale(${56 / 36})` },
-      { transform: 'none' },
+describe('flightFrames', () => {
+  it('starts unscaled on the source and lands scaled on the target', () => {
+    expect(flightFrames(box(176, 790, 48), box(66, 12, 36))).toEqual([
+      { transform: 'translate(176px, 790px)' },
+      { transform: 'translate(66px, 12px) scale(0.75)' },
     ])
-    for (const frame of frames)
-      expect(Object.keys(frame)).toEqual(['transform'])
+    expect(flightFrames(box(0, 0, 0), box(0, 0, 36))).toBeUndefined()
   })
 
-  it('skips no-op and unmeasured flights', () => {
-    expect(flipKeyframes(box(10, 10, 40), box(10, 10, 40))).toBeUndefined()
-    expect(flipKeyframes(box(10, 10, 40), box(0, 0, 0))).toBeUndefined()
+  it('nudges onto the measured landing in the scaled layer', () => {
+    expect(correctionFrames(box(66, 12, 36), box(66.2, 12.3, 36), 1)).toBe(
+      undefined,
+    )
+    expect(correctionFrames(box(66, 12, 36), box(60, 18, 36), 0.75)).toEqual([
+      { transform: 'translate(0px, 0px)' },
+      { transform: 'translate(-8px, 8px)' },
+    ])
+  })
+})
+
+describe('avatarClone', () => {
+  it('copies the face, canvas pixels included, without the flight hooks', () => {
+    const drawImage = vi.fn()
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage,
+    } as unknown as RenderingContext)
+    const source = document.createElement('span')
+    source.className = 'alma-avatar alma-avatar-flight'
+    source.setAttribute('data-alma-avatar', 'nav')
+    const canvas = document.createElement('canvas')
+    canvas.width = 144
+    canvas.height = 144
+    source.append(canvas)
+    const { flight, face } = avatarClone(source, box(180, 792, 48))
+    expect(flight.className).toBe('alma-avatar-clone')
+    expect(flight.getAttribute('aria-hidden')).toBe('true')
+    expect(flight.style.width).toBe('48px')
+    const copy = face.firstElementChild!
+    expect(copy.className).toBe('alma-avatar')
+    expect(copy.hasAttribute('data-alma-avatar')).toBe(false)
+    expect(copy.querySelector('canvas')!.width).toBe(144)
+    expect(drawImage).toHaveBeenCalledWith(canvas, 0, 0)
   })
 })
 
 describe('flight styles', () => {
-  it('keeps the FLIP fallback in step with the CSS tokens', () => {
-    expect(css).toContain(`--dur-flight: ${FLIGHT_MS}ms;`)
-    expect(css).toContain(`--ease-spring: ${FLIGHT_EASING};`)
+  it('hides both real avatars while the clone flies, above every layer', () => {
+    expect(css).toContain(
+      'html[data-alma-avatar-flight] .alma-avatar-flight {\n  visibility: hidden;',
+    )
     expect(css).toMatch(
-      /::view-transition-group\(alma-avatar\) \{[^}]*var\(--dur-flight\)[^}]*var\(--ease-spring\)/,
+      /\.alma-avatar-clone \{[^}]*position: fixed;[^}]*z-index: 5;[^}]*transform-origin: 0 0;/,
     )
   })
 
-  it('names the avatar only during the alma motion', () => {
-    expect(css).toContain(
-      "html[data-nav-motion='alma'] .alma-avatar-flight {\n  view-transition-name: alma-avatar;",
-    )
-    expect(css.match(/view-transition-name: alma-avatar;/g)).toHaveLength(1)
+  it('names no Alma element for View Transitions any more', () => {
+    expect(css).not.toContain('view-transition-name: alma-avatar')
+    expect(css).not.toMatch(/view-transition-[a-z]+\(alma-expand/)
+    expect(css).not.toContain("data-alma-expand='reveal'")
   })
 })

@@ -10353,53 +10353,26 @@ dialog:focus,
   }
 }
 
-/* The shared avatar flight between the nav and the /alma header. Only the
-   element carrying .alma-avatar-flight is named, so names never collide. */
-html[data-nav-motion='alma'] .alma-avatar-flight {
-  view-transition-name: alma-avatar;
-}
-html[data-nav-motion='alma']::view-transition-old(root) {
-  animation-name: nav-fade-out;
-  animation-duration: var(--dur-flight);
-}
-html[data-nav-motion='alma']::view-transition-new(root) {
-  animation-name: siblingCrossfade;
-  animation-duration: var(--dur-flight);
-}
-::view-transition-group(alma-avatar) {
-  animation-duration: var(--dur-flight);
-  animation-timing-function: var(--ease-spring);
-}
-::view-transition-old(alma-avatar),
-::view-transition-new(alma-avatar) {
-  animation-duration: var(--dur-flight);
-  animation-timing-function: var(--ease-out);
-}
-
 /* The whole-screen expand into /alma (see alma/almaExpand.ts). A circle of
    her page colour grows out of the avatar disc over the receding page, her
-   page fades in on top once the circle covers most of the screen, and Back
-   runs it in reverse. Only transform and opacity animate, from WAAPI, so
-   the compositor carries every frame. <html> carries:
+   page fades in on top once the circle covers the screen, and Back runs it
+   in reverse. No View Transitions: every layer is a real element animated
+   with WAAPI transform and opacity, so the compositor carries every frame
+   even while the main thread renders the destination. <html> carries:
    - data-alma-motion: open|close for any Alma transition (holds entrances);
-   - data-alma-expand: reveal|overlay while the circle runs;
-   - data-alma-expand-layer: base|top, the page #root currently holds;
+   - data-alma-expand: overlay while the circle runs;
+   - data-alma-expand-layer: base|top, where #root sits against the circle;
+   - data-alma-avatar-flight: her avatar clone is in the air;
    - --alma-expand-x/y: the disc centre, the origin of the recede. */
 html[data-alma-expand] #root {
   position: relative;
   z-index: 0;
-  /* Opaque, so a snapshot of the page never shows the scrim through it. */
+  /* Opaque, so the scrim never shows through the receding page. */
   background: var(--background);
   transform-origin: var(--alma-expand-x) var(--alma-expand-y);
 }
 html[data-alma-expand-layer='top'] #root {
   z-index: 3;
-}
-/* Persistent chrome moves with the page during the expand. */
-html[data-alma-expand] .split-rail,
-html[data-alma-expand] .tab-bar,
-html[data-alma-expand] .split-sidebar {
-  view-transition-name: none;
 }
 .alma-expand-circle,
 .alma-expand-dim {
@@ -10409,96 +10382,33 @@ html[data-alma-expand] .split-sidebar {
 .alma-expand-circle {
   z-index: 2;
   border-radius: var(--radius-full);
+  background: var(--background);
+  box-shadow: var(--shadow-sheet);
   transform-origin: center;
-  view-transition-name: alma-expand-circle;
 }
 .alma-expand-dim {
   inset: 0;
   z-index: 1;
-  view-transition-name: alma-expand-dim;
-}
-/* Overlay variant (no View Transitions): the real elements paint. */
-.alma-expand-circle[data-paint] {
-  background: var(--background);
-  box-shadow: var(--shadow-sheet);
-}
-.alma-expand-dim[data-paint] {
   background: var(--overlay-backdrop);
 }
-/* Reveal variant: the old page is a frozen snapshot, her page a second
-   one, and circle and scrim paint on their own groups, so nothing large
-   is captured or re-rastered while they move. */
-html[data-alma-expand='reveal'][data-alma-expand-layer='base'] #root {
-  view-transition-name: alma-expand-base;
+/* Her avatar in flight: a fixed clone over everything, while both real
+   avatars are hidden so there is never a double. */
+html[data-alma-avatar-flight] .alma-avatar-flight {
+  visibility: hidden;
 }
-html[data-alma-expand='reveal'][data-alma-expand-layer='top'] #root {
-  view-transition-name: alma-expand-top;
-}
-html[data-alma-expand='reveal']::view-transition-group(root),
-html[data-alma-expand='reveal']::view-transition-old(root),
-html[data-alma-expand='reveal']::view-transition-new(root),
-html[data-alma-expand='reveal']::view-transition-group(alma-expand-base),
-html[data-alma-expand='reveal']::view-transition-old(alma-expand-base),
-html[data-alma-expand='reveal']::view-transition-new(alma-expand-base),
-html[data-alma-expand='reveal']::view-transition-group(alma-expand-top),
-html[data-alma-expand='reveal']::view-transition-old(alma-expand-top),
-html[data-alma-expand='reveal']::view-transition-new(alma-expand-top),
-html[data-alma-expand='reveal']::view-transition-group(alma-expand-circle),
-html[data-alma-expand='reveal']::view-transition-group(alma-expand-dim),
-html[data-alma-expand='reveal']::view-transition-group(alma-avatar) {
-  animation: none;
-  mix-blend-mode: normal;
-}
-html[data-alma-expand='reveal']::view-transition-old(alma-expand-circle),
-html[data-alma-expand='reveal']::view-transition-new(alma-expand-circle),
-html[data-alma-expand='reveal']::view-transition-old(alma-expand-dim),
-html[data-alma-expand='reveal']::view-transition-new(alma-expand-dim) {
-  animation: none;
-  opacity: 0;
-}
-html[data-alma-expand='reveal']::view-transition-group(root) {
-  z-index: 0;
-}
-html[data-alma-expand='reveal']::view-transition-group(alma-expand-base) {
-  z-index: 1;
-}
-html[data-alma-expand='reveal']::view-transition-group(alma-expand-dim) {
-  z-index: 2;
-  background: var(--overlay-backdrop);
-}
-html[data-alma-expand='reveal']::view-transition-group(alma-expand-circle) {
-  z-index: 3;
-  border-radius: var(--radius-full);
-  background: var(--background);
-  box-shadow: var(--shadow-sheet);
-  transform-origin: center;
-}
-html[data-alma-expand='reveal']::view-transition-group(alma-expand-top) {
-  z-index: 4;
-}
-html[data-alma-expand='reveal']::view-transition-group(alma-avatar) {
+.alma-avatar-clone {
+  position: fixed;
+  top: 0;
+  left: 0;
   z-index: 5;
+  pointer-events: none;
   transform-origin: 0 0;
+  will-change: transform;
 }
-html[data-alma-expand='reveal']::view-transition-old(alma-expand-base),
-html[data-alma-expand='reveal']::view-transition-new(alma-expand-base) {
-  transform-origin: var(--alma-expand-x) var(--alma-expand-y);
-}
-html[data-alma-motion='open'][data-alma-expand='reveal']::view-transition-old(
-    alma-avatar
-  ),
-html[data-alma-motion='open'][data-alma-expand='reveal']::view-transition-new(
-    alma-avatar
-  ) {
-  animation-duration: var(--dur-expand);
-}
-html[data-alma-motion='close'][data-alma-expand='reveal']::view-transition-old(
-    alma-avatar
-  ),
-html[data-alma-motion='close'][data-alma-expand='reveal']::view-transition-new(
-    alma-avatar
-  ) {
-  animation-duration: var(--dur-collapse);
+.alma-avatar-clone-face,
+.alma-avatar-clone .alma-avatar {
+  width: 100%;
+  height: 100%;
 }
 /* The shell's messages rise in once the expand has landed: held at their
    first frame while any Alma transition runs, then played on real DOM. */

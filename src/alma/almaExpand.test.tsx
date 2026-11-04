@@ -10,13 +10,16 @@ import {
   expandOrigin,
   lastExpandDisc,
   recordExpandDisc,
+  setFrameScheduler,
   setIdleScheduler,
   startAlmaTransition,
   type AlmaExpandMetrics,
-  type ViewTransitionLike,
 } from './almaExpand'
+import { avatarBox, clearAvatarBoxes, recordAvatarBox } from './avatarFlight'
 import {
+  COLLAPSE_EASING,
   COLLAPSE_MS,
+  CROSSFADE_IN_MS,
   ENTRANCE_MS,
   EXPAND_MS,
   expandTimeline,
@@ -28,6 +31,9 @@ vi.mock('../haptics', () => ({ haptic: vi.fn() }))
 
 const phone = { width: 400, height: 860 }
 const discBox = { left: 176, top: 788, width: 48, height: 48 }
+const navAvatar = { left: 180, top: 792, width: 40, height: 40 }
+const headerAvatar = { left: 66, top: 12, width: 36, height: 36 }
+const radius = Math.ceil(Math.hypot(200, 812))
 
 interface Call {
   target: Element
@@ -36,27 +42,70 @@ interface Call {
   animation: { cancel: ReturnType<typeof vi.fn> }
 }
 let calls: Call[] = []
+/** How late each new animation's clock starts (a busy first frame). */
+let startLag = 0
+let frames: Array<() => void> = []
+const viewTransition = vi.fn()
 
 beforeEach(() => {
   vi.useFakeTimers()
   calls = []
+  startLag = 0
+  frames = []
+  // A fake WAAPI: `ready`, `currentTime` and `finished` follow the
+  // animation's own clock, which starts `startLag` ms after creation.
   Object.defineProperty(Element.prototype, 'animate', {
     configurable: true,
     value: function (
       this: Element,
-      frames: Keyframe[],
+      keyframes: Keyframe[],
       options: KeyframeAnimationOptions,
     ) {
-      const animation = { cancel: vi.fn() }
-      calls.push({ target: this, frames, options, animation })
+      const created = Date.now()
+      const lag = startLag
+      let resolve!: () => void
+      let reject!: (error: unknown) => void
+      const finished = new Promise<void>((res, rej) => {
+        resolve = res
+        reject = rej
+      })
+      finished.catch(() => undefined)
+      const total = lag + (options.delay ?? 0) + Number(options.duration ?? 0)
+      const timer = setTimeout(resolve, total)
+      const animation = {
+        cancel: vi.fn(() => {
+          clearTimeout(timer)
+          reject(new Error('AbortError'))
+        }),
+        ready: new Promise<void>((res) => setTimeout(res, lag)),
+        finished,
+        get currentTime() {
+          return Math.max(0, Date.now() - created - lag)
+        },
+      }
+      calls.push({ target: this, frames: keyframes, options, animation })
       return animation
     },
   })
+  ;(document as { startViewTransition?: unknown }).startViewTransition =
+    viewTransition
   const root = document.createElement('div')
   root.id = 'root'
+  const nav = document.createElement('span')
+  nav.className = 'alma-avatar alma-avatar-flight'
+  nav.setAttribute('data-alma-avatar', 'nav')
+  root.append(nav)
   document.body.append(root)
   setIdleScheduler((callback) => callback())
+  setFrameScheduler((callback) => {
+    frames.push(callback)
+    return () => {
+      frames = frames.filter((frame) => frame !== callback)
+    }
+  })
   recordExpandDisc(discBox)
+  recordAvatarBox('nav', navAvatar)
+  recordAvatarBox('header', headerAvatar)
 })
 
 afterEach(() => {
@@ -65,45 +114,29 @@ afterEach(() => {
   vi.useRealTimers()
   cleanup()
   setIdleScheduler(undefined)
+  setFrameScheduler(undefined)
   clearExpandDisc()
+  clearAvatarBoxes()
   document.body.innerHTML = ''
+  delete (document as { startViewTransition?: unknown }).startViewTransition
+  viewTransition.mockClear()
   vi.mocked(haptic).mockClear()
 })
 
 const html = () => document.documentElement
-const flush = () => act(async () => {})
-
-function fakeViewTransition() {
-  let update: (() => void) | undefined
-  let resolveReady!: () => void
-  let resolveFinished!: () => void
-  const transition: ViewTransitionLike = {
-    ready: new Promise<void>((resolve) => (resolveReady = resolve)),
-    finished: new Promise<void>((resolve) => (resolveFinished = resolve)),
-    skipTransition: vi.fn(),
-  }
-  const start = vi.fn((callback: () => void) => {
-    update = callback
-    return transition
-  })
-  return {
-    start,
-    /** The browser captured the old page: run the update, build pseudos. */
-    async capture() {
-      update!()
-      resolveReady()
-      await flush()
-    },
-    async end() {
-      resolveFinished()
-      await flush()
-    },
-  }
+const root = () => document.getElementById('root')!
+const circle = () => document.querySelector<HTMLElement>('.alma-expand-circle')
+const clone = () => document.querySelector<HTMLElement>('.alma-avatar-clone')
+const on = (target: Element | null) =>
+  calls.filter((call) => call.target === target)
+const scaleCalls = () =>
+  on(circle()).filter((call) => 'transform' in call.frames[0])
+const nextFrame = () => {
+  const run = frames
+  frames = []
+  for (const frame of run) frame()
 }
-
-const pseudoCalls = () => calls.filter((call) => call.options.pseudoElement)
-const onPseudo = (name: string) =>
-  pseudoCalls().filter((call) => call.options.pseudoElement === name)
+const advance = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms))
 const animatedProperties = () =>
   new Set(
     calls.flatMap((call) =>
@@ -112,13 +145,40 @@ const animatedProperties = () =>
       ),
     ),
   )
+/** When an open lands: her page's fade-in, from full coverage, ends last. */
+const openLandsAt = () => {
+  const { coverAt } = openTimeline()
+  return Math.max(EXPAND_MS, coverAt + Math.max(EXPAND_MS - coverAt, 160))
+}
+const openTimeline = () =>
+  expandTimeline({
+    direction: 'open',
+    centre: { x: 200, y: 812 },
+    radius,
+    discRadius: 24,
+    viewport: phone,
+    linear: false,
+  })
+
+function start(
+  direction: 'open' | 'close',
+  extra: { reduced?: boolean; commit?: () => void } = {},
+) {
+  return startAlmaTransition({
+    direction,
+    reduced: extra.reduced ?? false,
+    commit: extra.commit ?? vi.fn(),
+    setNavMotion: vi.fn(),
+    viewport: phone,
+  })
+}
 
 describe('expandOrigin', () => {
   it('centres on the disc and reaches the farthest corner', () => {
     const origin = expandOrigin(discBox, phone)
     expect(origin.x).toBe(200)
     expect(origin.y).toBe(812)
-    expect(origin.radius).toBe(Math.ceil(Math.hypot(200, 812)))
+    expect(origin.radius).toBe(radius)
   })
 
   it('picks the far side for an off-centre rail disc', () => {
@@ -135,17 +195,18 @@ describe('expandOrigin', () => {
   })
 
   it('covers every corner of the viewport', () => {
-    const { x, y, radius } = expandOrigin(
-      { left: 300, top: 100, width: 40, height: 40 },
-      phone,
-    )
+    const {
+      x,
+      y,
+      radius: r,
+    } = expandOrigin({ left: 300, top: 100, width: 40, height: 40 }, phone)
     for (const [cx, cy] of [
       [0, 0],
       [phone.width, 0],
       [0, phone.height],
       [phone.width, phone.height],
     ])
-      expect(Math.hypot(cx - x, cy - y)).toBeLessThanOrEqual(radius)
+      expect(Math.hypot(cx - x, cy - y)).toBeLessThanOrEqual(r)
   })
 
   it('ignores an empty disc box', () => {
@@ -155,201 +216,123 @@ describe('expandOrigin', () => {
 })
 
 describe('expandMode', () => {
-  it('reveals with View Transitions and overlays without them', () => {
-    expect(
-      expandMode({ reduced: false, viewTransitions: true, hasOrigin: true }),
-    ).toBe('reveal')
-    expect(
-      expandMode({ reduced: false, viewTransitions: false, hasOrigin: true }),
-    ).toBe('overlay')
+  it('is always the compositor overlay, never a View Transition', () => {
+    expect(expandMode({ reduced: false, hasOrigin: true })).toBe('overlay')
   })
 
   it('crossfades under reduced motion or with no disc to grow from', () => {
-    for (const viewTransitions of [true, false]) {
-      expect(
-        expandMode({ reduced: true, viewTransitions, hasOrigin: true }),
-      ).toBe('crossfade')
-      expect(
-        expandMode({ reduced: false, viewTransitions, hasOrigin: false }),
-      ).toBe('crossfade')
-    }
+    expect(expandMode({ reduced: true, hasOrigin: true })).toBe('crossfade')
+    expect(expandMode({ reduced: false, hasOrigin: false })).toBe('crossfade')
   })
 })
 
-describe('reveal (View Transitions)', () => {
-  it('captures the base page, commits her page as the top layer and animates pseudos', async () => {
-    const vt = fakeViewTransition()
-    const commit = vi.fn(() => {
-      expect(html().getAttribute('data-alma-expand-layer')).toBe('top')
-    })
-    const setNavMotion = vi.fn()
-    const mode = startAlmaTransition({
-      direction: 'open',
-      reduced: false,
-      commit,
-      startViewTransition: vt.start,
-      setNavMotion,
-      viewport: phone,
-    })
-    expect(mode).toBe('reveal')
-    expect(setNavMotion).toHaveBeenCalledWith('alma')
-    expect(html().getAttribute('data-alma-expand')).toBe('reveal')
+describe('open', () => {
+  it('grows the circle over the receding page without a View Transition', () => {
+    const timeline = openTimeline()
+    expect(start('open')).toBe('overlay')
+    expect(viewTransition).not.toHaveBeenCalled()
+    expect(html().getAttribute('data-alma-expand')).toBe('overlay')
     expect(html().getAttribute('data-alma-expand-layer')).toBe('base')
     expect(html().style.getPropertyValue('--alma-expand-x')).toBe('200px')
-    expect(document.querySelector('.alma-expand-circle')).not.toBeNull()
-    // Unpainted: the group carries the paint, nothing big is captured.
-    expect(
-      document.querySelector<HTMLElement>('.alma-expand-circle')!.dataset.paint,
-    ).toBeUndefined()
     expect(almaMotionState()).toEqual({ running: true, deferHeavy: true })
-    expect(commit).not.toHaveBeenCalled()
-
-    await vt.capture()
-    expect(commit).toHaveBeenCalledTimes(1)
-
-    const timeline = expandTimeline({
-      direction: 'open',
-      centre: { x: 200, y: 812 },
-      radius: Math.ceil(Math.hypot(200, 812)),
-      discRadius: 24,
-      viewport: phone,
-      linear: false,
-    })
-    const circle = onPseudo('::view-transition-group(alma-expand-circle)')
-    const scale = circle.find((call) => 'transform' in call.frames[0])!
-    expect(scale.options.duration).toBe(EXPAND_MS)
-    expect(scale.frames[0].transform).toContain(`scale(${timeline.scale.from})`)
-    expect(scale.frames[1].transform).toContain('scale(1)')
-    const top = onPseudo('::view-transition-new(alma-expand-top)')[0]
-    expect(top.options.delay).toBe(timeline.fadeAt)
-    expect(top.options.fill).toBe('both')
-    expect(
-      onPseudo('::view-transition-old(alma-expand-base)')[0].frames.at(-1),
-    ).toEqual({ transform: 'scale(0.94)' })
-    expect(onPseudo('::view-transition-group(alma-expand-dim)')).toHaveLength(1)
-    expect([...animatedProperties()].sort()).toEqual(['opacity', 'transform'])
-
-    await vt.end()
-    expect(html().hasAttribute('data-alma-expand')).toBe(false)
-    expect(html().hasAttribute('data-alma-motion')).toBe(false)
-    expect(document.querySelector('.alma-expand-circle')).toBeNull()
-    expect(setNavMotion).toHaveBeenLastCalledWith('none')
-    expect(haptic).toHaveBeenCalledWith('selection')
-  })
-
-  it('collapses: her page is the old top layer and the circle shrinks into the disc', async () => {
-    const vt = fakeViewTransition()
-    const commit = vi.fn()
-    startAlmaTransition({
-      direction: 'close',
-      reduced: false,
-      commit,
-      startViewTransition: vt.start,
-      setNavMotion: vi.fn(),
-      viewport: phone,
-    })
-    expect(html().getAttribute('data-alma-expand-layer')).toBe('top')
-    expect(almaMotionState().deferHeavy).toBe(false)
-    await vt.capture()
-    expect(html().getAttribute('data-alma-expand-layer')).toBe('base')
-    const fade = onPseudo('::view-transition-old(alma-expand-top)')[0]
-    expect(fade.options.duration).toBe(TOP_OUT_MS)
-    expect(fade.frames).toEqual([{ opacity: 1 }, { opacity: 0 }])
-    const shrink = onPseudo('::view-transition-group(alma-expand-circle)').find(
-      (call) => 'transform' in call.frames[0],
-    )!
-    expect(shrink.options.duration).toBe(COLLAPSE_MS)
-    expect(shrink.options.easing).toBe('cubic-bezier(0.4, 0, 1, 1)')
-    expect(shrink.frames[1].transform).toContain(
-      `scale(${24 / Math.ceil(Math.hypot(200, 812))})`,
-    )
-    expect(
-      onPseudo('::view-transition-new(alma-expand-base)')[0].frames[0],
-    ).toEqual({ transform: 'scale(0.94)' })
-    await vt.end()
-    expect(haptic).not.toHaveBeenCalled()
-  })
-})
-
-describe('overlay (no View Transitions)', () => {
-  it('swaps pages under the covering circle, then fades her page in', () => {
-    const commit = vi.fn()
-    const timeline = expandTimeline({
-      direction: 'open',
-      centre: { x: 200, y: 812 },
-      radius: Math.ceil(Math.hypot(200, 812)),
-      discRadius: 24,
-      viewport: phone,
-      linear: false,
-    })
-    expect(
-      startAlmaTransition({
-        direction: 'open',
-        reduced: false,
-        commit,
-        setNavMotion: vi.fn(),
-        viewport: phone,
-      }),
-    ).toBe('overlay')
-    const root = document.getElementById('root')!
-    const circle = document.querySelector<HTMLElement>('.alma-expand-circle')!
-    expect(circle.dataset.paint).toBe('true')
     // Layers are promoted only for the run.
-    expect(root.style.willChange).toBe('transform, opacity')
-    expect(calls.filter((call) => call.target === circle)[0].frames).toEqual([
+    expect(root().style.willChange).toBe('transform, opacity')
+    expect(scaleCalls()[0].frames).toEqual([
       { transform: `scale(${timeline.scale.from})` },
       { transform: 'scale(1)' },
     ])
-    expect(calls.find((call) => call.target === root)!.frames).toEqual([
+    expect(on(root())[0].frames).toEqual([
       { transform: 'scale(1)' },
       { transform: 'scale(0.94)' },
     ])
+    expect(on(document.querySelector('.alma-expand-dim'))).toHaveLength(1)
+    expect([...animatedProperties()].sort()).toEqual(['opacity', 'transform'])
+  })
 
-    vi.advanceTimersByTime(timeline.coverAt - 1)
+  it('swaps the route only once the circle covers the screen', async () => {
+    const commit = vi.fn(() => {
+      expect(html().getAttribute('data-alma-expand-layer')).toBe('top')
+    })
+    const { coverAt } = openTimeline()
+    start('open', { commit })
+    await advance(coverAt - 1)
     expect(commit).not.toHaveBeenCalled()
-    vi.advanceTimersByTime(1)
+    await advance(1)
     expect(commit).toHaveBeenCalledTimes(1)
-    expect(html().getAttribute('data-alma-expand-layer')).toBe('top')
-    const fadeIn = calls.filter((call) => call.target === root).at(-1)!
+    const fadeIn = on(root()).at(-1)!
     expect(fadeIn.frames[0]).toEqual({
       opacity: 0,
       transform: 'translateY(8px)',
     })
-    expect([...animatedProperties()].sort()).toEqual(['opacity', 'transform'])
-
-    vi.advanceTimersByTime(EXPAND_MS)
-    expect(almaMotionState().running).toBe(false)
-    expect(root.style.willChange).toBe('')
-    expect(document.querySelector('.alma-expand-circle')).toBeNull()
-    expect(html().hasAttribute('data-alma-expand-layer')).toBe(false)
+    // The recede is dropped: nothing of the old page is left to show.
+    expect(on(root())[0].animation.cancel).toHaveBeenCalled()
   })
 
-  it('collapses: her page fades out before the destination commits', () => {
+  it('times the swap by the circle animation clock, not the wall clock', async () => {
+    // The first frame lands 120 ms late (main thread busy): the circle's
+    // clock starts then, and so must the wait for full coverage.
+    startLag = 120
     const commit = vi.fn()
-    startAlmaTransition({
-      direction: 'close',
-      reduced: false,
-      commit,
-      setNavMotion: vi.fn(),
-      viewport: phone,
-    })
-    vi.advanceTimersByTime(TOP_OUT_MS - 1)
+    const { coverAt } = openTimeline()
+    start('open', { commit })
+    await advance(coverAt)
     expect(commit).not.toHaveBeenCalled()
-    vi.advanceTimersByTime(1)
+    await advance(119)
+    expect(commit).not.toHaveBeenCalled()
+    await advance(1)
     expect(commit).toHaveBeenCalledTimes(1)
-    expect(html().getAttribute('data-alma-expand-layer')).toBe('base')
-    vi.advanceTimersByTime(COLLAPSE_MS)
+  })
+
+  it('flies a clone of her avatar to the header and hides the real ones', async () => {
+    const { coverAt } = openTimeline()
+    start('open', {
+      commit: () => {
+        const header = document.createElement('span')
+        header.className = 'alma-avatar alma-avatar-flight'
+        header.setAttribute('data-alma-avatar', 'header')
+        header.getBoundingClientRect = () =>
+          ({ left: 60, top: 18, width: 36, height: 36 }) as DOMRect
+        root().append(header)
+      },
+    })
+    expect(html().hasAttribute('data-alma-avatar-flight')).toBe(true)
+    const flight = clone()!
+    expect(flight.getAttribute('aria-hidden')).toBe('true')
+    expect(flight.querySelector('[data-alma-avatar]')).toBeNull()
+    expect(flight.querySelector('.alma-avatar')).not.toBeNull()
+    expect(on(flight)[0].frames).toEqual([
+      { transform: 'translate(180px, 792px)' },
+      { transform: 'translate(66px, 12px) scale(0.9)' },
+    ])
+    expect(on(flight)[0].options.duration).toBe(EXPAND_MS)
+
+    await advance(coverAt)
+    // The real header box replaces the prediction and nudges the landing.
+    expect(avatarBox('header')).toEqual({
+      left: 60,
+      top: 18,
+      width: 36,
+      height: 36,
+    })
+    const nudge = on(flight.querySelector('.alma-avatar-clone-face'))[0]
+    expect(nudge.frames.at(-1)).toEqual({
+      transform: `translate(${Number((-6 / 0.9).toFixed(4))}px, ${Number((6 / 0.9).toFixed(4))}px)`,
+    })
+    expect(clone()).not.toBeNull()
+
+    await advance(EXPAND_MS)
+    // Landed: the clone goes and the real avatars show in the same task.
+    expect(clone()).toBeNull()
+    expect(html().hasAttribute('data-alma-avatar-flight')).toBe(false)
     expect(almaMotionState().running).toBe(false)
+    expect(root().style.willChange).toBe('')
+    expect(circle()).toBeNull()
+    expect(html().hasAttribute('data-alma-expand-layer')).toBe(false)
+    expect(haptic).toHaveBeenCalledWith('selection')
   })
 
   it('a newer navigation cancels the run and cleans up', () => {
-    startAlmaTransition({
-      direction: 'open',
-      reduced: false,
-      commit: vi.fn(),
-      setNavMotion: vi.fn(),
-      viewport: phone,
-    })
+    start('open')
     const started = calls.length
     cancelAlmaTransition()
     expect(
@@ -357,92 +340,106 @@ describe('overlay (no View Transitions)', () => {
         .slice(0, started)
         .every((call) => call.animation.cancel.mock.calls.length),
     ).toBe(true)
-    expect(document.querySelector('.alma-expand-circle')).toBeNull()
+    expect(circle()).toBeNull()
+    expect(clone()).toBeNull()
+    expect(html().hasAttribute('data-alma-avatar-flight')).toBe(false)
     expect(almaMotionState().running).toBe(false)
   })
 })
 
-describe('reduced motion', () => {
-  it('crossfades with no circle, scrim or scale, and still defers heavy work', async () => {
-    const vt = fakeViewTransition()
+describe('close', () => {
+  it('covers her page, swaps under the circle, and shrinks only after the destination painted', async () => {
     const commit = vi.fn()
-    const setNavMotion = vi.fn()
-    expect(
-      startAlmaTransition({
-        direction: 'open',
-        reduced: true,
-        commit,
-        startViewTransition: vt.start,
-        setNavMotion,
-        viewport: phone,
-      }),
-    ).toBe('crossfade')
-    expect(setNavMotion).toHaveBeenCalledWith('fade')
-    expect(html().hasAttribute('data-alma-expand')).toBe(false)
-    expect(document.querySelector('.alma-expand-circle')).toBeNull()
-    await vt.capture()
+    start('close', { commit })
+    expect(viewTransition).not.toHaveBeenCalled()
+    expect(almaMotionState().deferHeavy).toBe(false)
+    expect(html().getAttribute('data-alma-expand-layer')).toBe('base')
+    // The full-size circle appears over her page with a quick fade.
+    const cover = on(circle())[0]
+    expect(cover.frames).toEqual([{ opacity: 0 }, { opacity: 1 }])
+    expect(cover.options.duration).toBeLessThanOrEqual(90)
+    expect(scaleCalls()).toHaveLength(0)
+    // Her avatar clone waits on the header box, the real ones hidden.
+    expect(clone()!.style.transform).toBe('translate(66px, 12px)')
+    expect(html().hasAttribute('data-alma-avatar-flight')).toBe(true)
+
+    await advance(TOP_OUT_MS - 1)
+    expect(commit).not.toHaveBeenCalled()
+    await advance(1)
     expect(commit).toHaveBeenCalledTimes(1)
-    expect(calls).toHaveLength(0)
+    expect(scaleCalls()).toHaveLength(0)
+    nextFrame()
+    expect(scaleCalls()).toHaveLength(0)
+    nextFrame()
+    const shrink = scaleCalls()[0]
+    expect(shrink.options.duration).toBe(COLLAPSE_MS)
+    expect(shrink.options.easing).toBe(COLLAPSE_EASING)
+    expect(shrink.frames.at(-1)!.transform).toBe(`scale(${24 / radius})`)
+    expect(on(root())[0].frames[0]).toEqual({ transform: 'scale(0.94)' })
+    expect(on(clone())[0].frames.at(-1)).toEqual({
+      transform: `translate(180px, 792px) scale(${Number((40 / 36).toFixed(4))})`,
+    })
+
+    await advance(COLLAPSE_MS)
+    expect(almaMotionState().running).toBe(false)
+    expect(clone()).toBeNull()
+    expect(html().hasAttribute('data-alma-avatar-flight')).toBe(false)
+    expect(haptic).not.toHaveBeenCalled()
+  })
+})
+
+describe('crossfade', () => {
+  it('fades out, swaps, fades in under reduced motion, with no circle or clone', async () => {
+    const commit = vi.fn()
+    expect(start('open', { reduced: true, commit })).toBe('crossfade')
+    expect(viewTransition).not.toHaveBeenCalled()
+    expect(html().hasAttribute('data-alma-expand')).toBe(false)
+    expect(circle()).toBeNull()
+    expect(clone()).toBeNull()
+    expect(on(root())[0].frames).toEqual([{ opacity: 1 }, { opacity: 0 }])
+    await advance(TOP_OUT_MS)
+    expect(commit).toHaveBeenCalledTimes(1)
+    const fadeIn = on(root()).at(-1)!
+    expect(fadeIn.frames).toEqual([{ opacity: 0 }, { opacity: 1 }])
+    expect(fadeIn.options.duration).toBe(CROSSFADE_IN_MS)
     expect(almaMotionState().deferHeavy).toBe(true)
-    await vt.end()
+    await advance(CROSSFADE_IN_MS)
     expect(almaMotionState().running).toBe(false)
     expect(haptic).not.toHaveBeenCalled()
   })
 
-  it('commits at once without View Transitions', () => {
-    const commit = vi.fn()
-    startAlmaTransition({
-      direction: 'open',
-      reduced: true,
-      commit,
-      setNavMotion: vi.fn(),
-      viewport: phone,
-    })
-    expect(commit).toHaveBeenCalledTimes(1)
-    expect(almaMotionState().running).toBe(false)
+  it('crossfades a deep link with no disc to grow from', () => {
+    clearExpandDisc()
+    expect(start('close')).toBe('crossfade')
+    expect(circle()).toBeNull()
   })
 })
 
 describe('deferred heavy rendering', () => {
   it('keeps the shell until the entrance has played after the finish', async () => {
-    const vt = fakeViewTransition()
-    startAlmaTransition({
-      direction: 'open',
-      reduced: false,
-      commit: vi.fn(),
-      startViewTransition: vt.start,
-      setNavMotion: vi.fn(),
-      viewport: phone,
-    })
-    await vt.capture()
-    expect(almaMotionState().deferHeavy).toBe(true)
-    await vt.end()
+    start('open')
+    await advance(openLandsAt() - 1)
+    expect(almaMotionState().running).toBe(true)
+    await advance(1)
     // Finished, but the shell's messages are still rising.
     expect(almaMotionState()).toEqual({ running: false, deferHeavy: true })
-    vi.advanceTimersByTime(ENTRANCE_MS - 1)
+    await advance(ENTRANCE_MS - 1)
     expect(almaMotionState().deferHeavy).toBe(true)
-    vi.advanceTimersByTime(1)
+    await advance(1)
     expect(almaMotionState().deferHeavy).toBe(false)
   })
 
   it('publishes metrics for each run', async () => {
-    const vt = fakeViewTransition()
-    startAlmaTransition({
-      direction: 'open',
-      reduced: false,
-      commit: vi.fn(),
-      startViewTransition: vt.start,
-      setNavMotion: vi.fn(),
-      viewport: phone,
-    })
+    start('open')
     const metrics = () =>
       (window as { __almaExpandMetrics?: AlmaExpandMetrics })
         .__almaExpandMetrics
-    expect(metrics()).toMatchObject({ mode: 'reveal', direction: 'open' })
+    expect(metrics()).toMatchObject({ mode: 'overlay', direction: 'open' })
+    expect(metrics()?.swappedAt).toBeUndefined()
     expect(metrics()?.finishedAt).toBeUndefined()
-    await vt.capture()
-    await vt.end()
-    expect(metrics()!.finishedAt).toBeGreaterThanOrEqual(metrics()!.startedAt)
+    await advance(EXPAND_MS + 200)
+    expect(metrics()!.swappedAt).toBeGreaterThan(metrics()!.startedAt)
+    expect(metrics()!.finishedAt).toBeGreaterThanOrEqual(metrics()!.swappedAt!)
   })
 })
 
@@ -459,21 +456,11 @@ describe('mascot rig during the transition', () => {
     const { container } = render(<MascotRig assets={assets} size={48} />)
     const canvas = () => container.querySelector('canvas')!
     expect(canvas().dataset.running).toBe('true')
-    const vt = fakeViewTransition()
     act(() => {
-      startAlmaTransition({
-        direction: 'open',
-        reduced: false,
-        commit: vi.fn(),
-        startViewTransition: vt.start,
-        setNavMotion: vi.fn(),
-        viewport: phone,
-      })
+      start('open')
     })
     expect(canvas().dataset.running).toBe('false')
-    await vt.capture()
-    expect(canvas().dataset.running).toBe('false')
-    await vt.end()
+    await advance(EXPAND_MS + 200)
     expect(canvas().dataset.running).toBe('true')
   })
 })

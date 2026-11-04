@@ -1,7 +1,6 @@
 /**
  * Numbers and keyframes for the /alma expand and collapse. Everything here
- * is pure so the View Transition and the overlay variants animate exactly
- * the same values, and every animated property is `transform` or `opacity`.
+ * is pure, and every animated property is `transform` or `opacity`.
  */
 
 /** Mirrors `--dur-expand`. */
@@ -27,10 +26,12 @@ export const RISE_PX = 8
 export const MIN_FADE_MS = 140
 /** The circle fades in from the disc over this long (it starts disc-sized). */
 export const CIRCLE_IN_MS = 60
-/** Collapse: /alma fades out this fast, before the circle is half gone. */
+/** Collapse: the full-size circle fades in over her page this fast. */
 export const TOP_OUT_MS = 90
 /** Collapse: the disc-sized circle fades over the last stretch. */
 export const CIRCLE_OUT_MS = 50
+/** Mirrors `--dur-fast`: the crossfade's second half, the new page in. */
+export const CROSSFADE_IN_MS = 160
 
 /** Mirrors `--dur-panel` + 3 × `--dur-stagger`: the shell's message rise. */
 export const ENTRANCE_MS = 250 + 3 * 40
@@ -134,9 +135,8 @@ export interface ExpandTimeline {
 
 /**
  * Timing for one run. Open waits for the circle to cover FADE_COVERAGE of
- * the screen before her page fades in; the overlay variant (no View
- * Transitions, so no snapshot of the old page) swaps pages at `coverAt`,
- * once the circle hides everything.
+ * the screen; the route swaps at `coverAt`, once the circle hides
+ * everything, and her page fades in from there.
  */
 export function expandTimeline({
   direction,
@@ -190,15 +190,11 @@ export function expandTimeline({
   }
 }
 
-/** Scale keyframes for the circle; `offset` re-applies a View Transition group's position. */
-export function circleFrames(
-  timeline: ExpandTimeline,
-  offset?: Point,
-): Keyframe[] {
-  const at = offset ? `translate(${offset.x}px, ${offset.y}px) ` : ''
+/** Scale keyframes for the circle element. */
+export function circleFrames(timeline: ExpandTimeline): Keyframe[] {
   return [
-    { transform: `${at}scale(${timeline.scale.from})` },
-    { transform: `${at}scale(${timeline.scale.to})` },
+    { transform: `scale(${timeline.scale.from})` },
+    { transform: `scale(${timeline.scale.to})` },
   ]
 }
 
@@ -224,22 +220,4 @@ export function topFrames(direction: ExpandDirection): Keyframe[] {
         { opacity: 1, transform: 'translateY(0)' },
       ]
     : [{ opacity: 1 }, { opacity: 0 }]
-}
-
-interface Rect {
-  left: number
-  top: number
-  width: number
-}
-
-/** Transform-only flight for the avatar group, landing on `to`. */
-export function avatarFrames(from: Rect, to: Rect): Keyframe[] | undefined {
-  if (!to.width || !from.width) return undefined
-  const scale = from.width / to.width
-  return [
-    {
-      transform: `translate(${from.left}px, ${from.top}px) scale(${scale})`,
-    },
-    { transform: `translate(${to.left}px, ${to.top}px)` },
-  ]
 }

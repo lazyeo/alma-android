@@ -4,7 +4,8 @@ import { useT } from '../i18n'
 import { AlmaFace } from './AlmaFace'
 import { presenceFace, useAlmaPresence } from './AlmaPresence'
 import { almaStatusLine } from './almaStatus'
-import { useAvatarFlight } from './avatarFlight'
+import { recordAvatarBox } from './avatarFlight'
+import { useMeasuredBox } from './measuredBox'
 
 /**
  * Alma's own header: her face at top-left (the landing spot of the avatar
@@ -22,7 +23,10 @@ export function AlmaHeader({
   const t = useT()
   const presence = useAlmaPresence()
   const avatarRef = useRef<HTMLSpanElement>(null)
-  useAvatarFlight(avatarRef, 'header', true)
+  // Where her avatar clone lands on the next expand and leaves from on Back.
+  useMeasuredBox(avatarRef, true, (avatar) =>
+    recordAvatarBox('header', avatar.getBoundingClientRect()),
+  )
   const state = presence?.state ?? { status: 'loading' as const }
   const live = generating || Boolean(presence?.generating)
   const face = presenceFace(state, live)
@@ -40,7 +44,11 @@ export function AlmaHeader({
           <ArrowLeft />
         </button>
       ) : null}
-      <span ref={avatarRef} className="alma-avatar alma-avatar-flight">
+      <span
+        ref={avatarRef}
+        className="alma-avatar alma-avatar-flight"
+        data-alma-avatar="header"
+      >
         <AlmaFace size={36} mood={face.mood} activity={face.activity} />
       </span>
       <div className="alma-heading">

@@ -52,6 +52,7 @@ describe('AlmaHeader', () => {
     const { container } = renderHeader(ready())
     expect(screen.getByRole('heading', { name: 'Alma' })).toBeTruthy()
     const avatar = container.querySelector('.alma-avatar-flight')!
+    expect(avatar.getAttribute('data-alma-avatar')).toBe('header')
     expect(avatar.nextElementSibling?.className).toBe('alma-heading')
     expect(container.querySelector('.alma-status')).toBeNull()
   })

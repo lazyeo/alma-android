@@ -5,20 +5,33 @@
  * Alma is entered or left; this module decides where the circle starts,
  * which variant runs, and keeps the main thread quiet while it does.
  *
- * Every animated property is `transform` or `opacity`, so the compositor
- * runs the motion on its own. With View Transitions (`reveal`) the old page
- * is a frozen snapshot and the circle and scrim are painted on their own
- * transition groups; without them (`overlay`) the same layers are real
- * elements and the pages swap once the circle covers the screen.
+ * No View Transitions: they are render-blocking, so the browser had to lay
+ * out and paint the destination before the first animation frame (a
+ * 120–180 ms frozen frame on a 120 Hz phone). Instead the circle, scrim,
+ * receding page and a clone of her avatar are real elements animated with
+ * WAAPI `transform` and `opacity`, which the compositor runs on its own
+ * while the main thread is busy. The route only swaps under a circle that
+ * fully covers the screen, so that work is never seen.
  */
 import { useSyncExternalStore } from 'react'
 import { haptic } from '../haptics'
 import {
-  avatarFrames,
+  AVATAR_FLIGHT_ATTRIBUTE,
+  avatarBox,
+  avatarClone,
+  avatarElement,
+  correctionFrames,
+  flightFrames,
+  headerAvatarTarget,
+  recordAvatarBox,
+  type Box,
+} from './avatarFlight'
+import {
   circleFrames,
   CIRCLE_IN_MS,
   CIRCLE_OUT_MS,
   COLLAPSE_EASING,
+  CROSSFADE_IN_MS,
   dimFrames,
   ENTRANCE_MS,
   expandTimeline,
@@ -32,13 +45,7 @@ import {
 } from './expandMotion'
 
 export type { ExpandDirection } from './expandMotion'
-
-export interface Box {
-  left: number
-  top: number
-  width: number
-  height: number
-}
+export type { Box } from './avatarFlight'
 
 export interface Viewport {
   width: number
@@ -54,13 +61,12 @@ export interface ExpandOrigin {
 }
 
 /**
- * - `reveal`: View Transitions keep the old page as a snapshot; circle,
- *   scrim and both pages animate as transition pseudo-elements.
- * - `overlay`: no View Transitions; the circle and scrim are real elements
- *   over #root and the pages swap under a fully covering circle.
- * - `crossfade`: reduced motion, or no disc to grow from.
+ * - `overlay`: the circle, scrim and avatar clone are real elements over
+ *   #root and the pages swap under the fully covering circle.
+ * - `crossfade`: reduced motion, or no disc to grow from: the page fades
+ *   out, the route swaps, the new page fades in.
  */
-export type ExpandMode = 'reveal' | 'overlay' | 'crossfade'
+export type ExpandMode = 'overlay' | 'crossfade'
 
 /** Circle origin for a disc box; the radius always reaches every corner. */
 export function expandOrigin(disc: Box, viewport: Viewport): ExpandOrigin {
@@ -71,21 +77,20 @@ export function expandOrigin(disc: Box, viewport: Viewport): ExpandOrigin {
   return { x, y, radius: Math.ceil(Math.hypot(dx, dy)) }
 }
 
+/** View Transitions play no part: both motions are compositor overlays. */
 export function expandMode({
   reduced,
-  viewTransitions,
   hasOrigin,
 }: {
   reduced: boolean
-  viewTransitions: boolean
   hasOrigin: boolean
 }): ExpandMode {
-  if (reduced || !hasOrigin) return 'crossfade'
-  return viewTransitions ? 'reveal' : 'overlay'
+  return reduced || !hasOrigin ? 'crossfade' : 'overlay'
 }
 
-// The disc's last on-screen box. Open records it on tap; close reuses it so
-// the circle shrinks back into the same disc the user left from.
+// The disc's last on-screen box, kept current by the nav button's
+// ResizeObserver (never measured in the tap); close reuses it so the circle
+// shrinks back into the same disc the user left from.
 let disc: Box | undefined
 
 export function recordExpandDisc(box: Box) {
@@ -196,6 +201,8 @@ export interface AlmaExpandMetrics {
   mode: ExpandMode
   direction: ExpandDirection
   startedAt: number
+  /** When the route swapped (under the covering circle, or between fades). */
+  swappedAt?: number
   finishedAt?: number
 }
 
@@ -222,23 +229,13 @@ const now = () =>
 // ---------------------------------------------------------------------------
 // Orchestration.
 
-export interface ViewTransitionLike {
-  ready: Promise<void>
-  finished: Promise<void>
-  skipTransition?: () => void
-}
-
-export type NavMotionAttribute = 'alma' | 'fade' | 'none'
-
 export interface AlmaTransitionOptions {
   direction: ExpandDirection
   reduced: boolean
   /** Synchronously renders the destination route. */
   commit(): void
-  /** Present only when the browser has View Transitions. */
-  startViewTransition?: (update: () => void) => ViewTransitionLike
-  /** Sets `data-nav-motion` (the avatar's shared name keys off `alma`). */
-  setNavMotion(motion: NavMotionAttribute): void
+  /** Clears `data-nav-motion`: no View Transition style applies to Alma. */
+  setNavMotion(motion: 'none'): void
   viewport?: Viewport
   html?: HTMLElement
 }
@@ -250,13 +247,26 @@ const ORIGIN_X = '--alma-expand-x'
 const ORIGIN_Y = '--alma-expand-y'
 const CIRCLE = 'alma-expand-circle'
 const DIM = 'alma-expand-dim'
-const BASE = 'alma-expand-base'
-const TOP = 'alma-expand-top'
-const AVATAR = 'alma-avatar'
+/** Open: shortest fade of her page in over the covering circle. */
+const MIN_TOP_IN_MS = 160
 
-const group = (name: string) => `::view-transition-group(${name})`
-const oldImage = (name: string) => `::view-transition-old(${name})`
-const newImage = (name: string) => `::view-transition-new(${name})`
+type FrameScheduler = (callback: () => void) => () => void
+
+const browserFrame: FrameScheduler = (callback) => {
+  if (typeof requestAnimationFrame !== 'function') {
+    const timer = setTimeout(callback, 16)
+    return () => clearTimeout(timer)
+  }
+  const handle = requestAnimationFrame(() => callback())
+  return () => cancelAnimationFrame(handle)
+}
+
+let frameScheduler: FrameScheduler = browserFrame
+
+/** Tests drive animation frames by hand. */
+export function setFrameScheduler(scheduler: FrameScheduler | undefined) {
+  frameScheduler = scheduler ?? browserFrame
+}
 
 let active: { cancel(): void } | undefined
 
@@ -266,21 +276,15 @@ export function cancelAlmaTransition() {
   active = undefined
 }
 
-function avatarBox() {
-  const element = document.querySelector<HTMLElement>('.alma-avatar-flight')
-  return element?.getBoundingClientRect()
-}
-
-function layerElement(className: string, paint: boolean) {
+function layerElement(className: string) {
   const element = document.createElement('div')
   element.className = className
   element.setAttribute('aria-hidden', 'true')
-  if (paint) element.dataset.paint = 'true'
   return element
 }
 
-function circleElement(origin: ExpandOrigin, paint: boolean) {
-  const element = layerElement(CIRCLE, paint)
+function circleElement(origin: ExpandOrigin) {
+  const element = layerElement(CIRCLE)
   const size = `${origin.radius * 2}px`
   Object.assign(element.style, {
     left: `${origin.x - origin.radius}px`,
@@ -291,51 +295,74 @@ function circleElement(origin: ExpandOrigin, paint: boolean) {
   return element
 }
 
+/** What one run's phases share; everything registered is undone by finish. */
+interface Run {
+  html: HTMLElement
+  root: HTMLElement
+  isDone(): boolean
+  animate(
+    element: HTMLElement,
+    frames: Keyframe[],
+    timing: KeyframeAnimationOptions,
+  ): Animation
+  /** Once every animation has finished (on the compositor's clock). */
+  onFinished(
+    animations: Array<Animation | undefined>,
+    callback: () => void,
+  ): void
+  /** When `animation` has played `at` ms, by its own clock, not the wall's. */
+  atTime(animation: Animation, at: number, callback: () => void): void
+  /** After two animation frames: the destination has painted. */
+  afterPaint(callback: () => void): void
+  onCleanup(cleanup: () => void): void
+  swap(): void
+  finish(landed: boolean): void
+}
+
 /**
  * Runs the transition for one Alma navigation and returns the variant.
- * The caller must not commit the route itself: this calls `commit` at the
- * right moment (inside the View Transition update, or under the covering
- * circle for the overlay variant).
+ * The caller must not commit the route itself: this calls `commit` once
+ * nothing of the old page can be seen (under the covering circle, or
+ * between the crossfade's two halves).
  */
 export function startAlmaTransition(
   options: AlmaTransitionOptions,
 ): ExpandMode {
   cancelAlmaTransition()
   const html = options.html ?? document.documentElement
+  const root = document.getElementById('root') ?? document.body
   const viewport = options.viewport ?? {
     width: window.innerWidth,
     height: window.innerHeight,
   }
   const box = lastExpandDisc()
-  const mode = expandMode({
-    reduced: options.reduced,
-    viewTransitions: Boolean(options.startViewTransition),
-    hasOrigin: Boolean(box),
-  })
+  const mode = expandMode({ reduced: options.reduced, hasOrigin: Boolean(box) })
   const { direction } = options
   const metrics: AlmaExpandMetrics = { mode, direction, startedAt: now() }
   publishMetrics(metrics)
+  options.setNavMotion('none')
 
-  // Her page mounts as a cheap shell; the full thread waits for `finished`.
+  // Her page mounts as a cheap shell; the full thread waits for the landing.
   setMotionState({
     running: true,
     deferHeavy: direction === 'open' ? true : state.deferHeavy,
   })
   html.setAttribute(MOTION, direction)
 
+  const animations: Animation[] = []
   const cleanups: Array<() => void> = []
   let done = false
   const finish = (landed: boolean) => {
     if (done) return
     done = true
-    if (active === run) active = undefined
+    if (active === handle) active = undefined
+    for (const animation of animations.splice(0)) animation.cancel()
     for (const cleanup of cleanups.splice(0)) cleanup()
     html.removeAttribute(MOTION)
     html.removeAttribute(EXPAND)
     html.removeAttribute(LAYER)
     html.style.removeProperty(ORIGIN_X)
     html.style.removeProperty(ORIGIN_Y)
-    options.setNavMotion('none')
     setMotionState({ running: false })
     if (state.deferHeavy) scheduleHeavy(landed ? ENTRANCE_MS : 0)
     if (landed && direction === 'open' && mode !== 'crossfade')
@@ -343,22 +370,69 @@ export function startAlmaTransition(
     metrics.finishedAt = now()
     publishMetrics(metrics)
   }
-  const run = { cancel: () => finish(false) }
-  active = run
+  const handle = { cancel: () => finish(false) }
+  active = handle
 
-  if (mode === 'crossfade' || !box) {
-    if (options.startViewTransition) {
-      options.setNavMotion(options.reduced ? 'fade' : 'alma')
-      const transition = options.startViewTransition(options.commit)
-      cleanups.push(() => transition.skipTransition?.())
-      void transition.finished.then(
-        () => finish(true),
-        () => finish(true),
+  const after = (ms: number, callback: () => void) => {
+    const timer = setTimeout(callback, ms)
+    cleanups.push(() => clearTimeout(timer))
+  }
+  const run: Run = {
+    html,
+    root,
+    isDone: () => done,
+    animate(element, frames, timing) {
+      const animation = element.animate(frames, { fill: 'both', ...timing })
+      animations.push(animation)
+      return animation
+    },
+    onFinished(list, callback) {
+      void Promise.all(
+        list.flatMap((animation) => (animation ? [animation.finished] : [])),
+      ).then(
+        () => {
+          if (!done) callback()
+        },
+        // Cancelled: the run is over or a newer phase took over.
+        () => undefined,
       )
-    } else {
+    },
+    atTime(animation, at, callback) {
+      const check = () => {
+        if (done) return
+        const played = Number(animation.currentTime ?? 0)
+        if (played >= at) callback()
+        else after(Math.max(1, Math.ceil(at - played)), check)
+      }
+      void animation.ready.then(check, () => undefined)
+    },
+    afterPaint(callback) {
+      let cancel = frameScheduler(() => {
+        cancel = frameScheduler(() => {
+          if (!done) callback()
+        })
+      })
+      cleanups.push(() => cancel())
+    },
+    onCleanup(cleanup) {
+      cleanups.push(cleanup)
+    },
+    swap() {
       options.commit()
-      finish(true)
-    }
+      metrics.swappedAt = now()
+      publishMetrics(metrics)
+    },
+    finish,
+  }
+
+  if (typeof root.animate !== 'function') {
+    // No WAAPI at all: nothing can animate off the main thread.
+    run.swap()
+    finish(true)
+    return mode
+  }
+  if (mode === 'crossfade' || !box) {
+    runCrossfade(run)
     return mode
   }
 
@@ -374,181 +448,177 @@ export function startAlmaTransition(
   html.style.setProperty(ORIGIN_X, `${origin.x}px`)
   html.style.setProperty(ORIGIN_Y, `${origin.y}px`)
   html.setAttribute(EXPAND, mode)
-
-  if (mode === 'reveal')
-    runReveal(options, html, origin, timeline, cleanups, finish)
-  else runOverlay(options, html, origin, timeline, cleanups, finish)
+  if (direction === 'open') runOpen(run, origin, timeline)
+  else runClose(run, origin, timeline)
   return mode
 }
 
-function runReveal(
-  options: AlmaTransitionOptions,
-  html: HTMLElement,
-  origin: ExpandOrigin,
-  timeline: ExpandTimeline,
-  cleanups: Array<() => void>,
-  finish: (landed: boolean) => void,
-) {
-  const open = timeline.direction === 'open'
-  // Unpainted: their groups carry the paint, so no oversized snapshot is
-  // ever captured or re-rastered.
-  const circle = circleElement(origin, false)
-  const dim = layerElement(DIM, false)
-  document.body.append(dim, circle)
-  cleanups.push(() => {
-    circle.remove()
-    dim.remove()
-  })
-  options.setNavMotion('alma')
-  html.setAttribute(LAYER, open ? 'base' : 'top')
-  const from = avatarBox()
-  const transition = options.startViewTransition!(() => {
-    html.setAttribute(LAYER, open ? 'top' : 'base')
-    options.commit()
-  })
-  cleanups.push(() => transition.skipTransition?.())
-
-  void transition.ready.then(
-    () => {
-      const animate = (
-        pseudoElement: string,
-        frames: Keyframe[],
-        timing: KeyframeAnimationOptions,
-      ) => html.animate(frames, { fill: 'both', ...timing, pseudoElement })
-      const main = timeline.duration
-      const motion = { duration: main, easing: timeline.easing }
-      animate(
-        group(CIRCLE),
-        circleFrames(timeline, {
-          x: origin.x - origin.radius,
-          y: origin.y - origin.radius,
-        }),
-        motion,
-      )
-      animate(group(DIM), dimFrames(timeline.direction), {
-        duration: main,
-        easing: open ? FADE_EASING : COLLAPSE_EASING,
-      })
-      if (open) {
-        animate(group(CIRCLE), [{ opacity: 0 }, { opacity: 1 }], {
-          duration: CIRCLE_IN_MS,
-          easing: FADE_EASING,
-        })
-        animate(oldImage(BASE), recedeFrames('open'), motion)
-        animate(newImage(TOP), topFrames('open'), {
-          delay: timeline.fadeAt,
-          duration: timeline.fadeDuration,
-          easing: FADE_EASING,
-        })
-      } else {
-        animate(oldImage(TOP), topFrames('close'), {
-          duration: TOP_OUT_MS,
-          easing: FADE_EASING,
-        })
-        animate(group(CIRCLE), [{ opacity: 1 }, { opacity: 0 }], {
-          delay: main - CIRCLE_OUT_MS,
-          duration: CIRCLE_OUT_MS,
-          easing: FADE_EASING,
-        })
-        animate(newImage(BASE), recedeFrames('close'), motion)
-      }
-      const to = avatarBox()
-      const flight = from && to ? avatarFrames(from, to) : undefined
-      if (flight) animate(group(AVATAR), flight, motion)
-    },
-    () => finish(false),
-  )
-  void transition.finished.then(
-    () => finish(true),
-    () => finish(false),
-  )
-}
-
-function runOverlay(
-  options: AlmaTransitionOptions,
-  html: HTMLElement,
-  origin: ExpandOrigin,
-  timeline: ExpandTimeline,
-  cleanups: Array<() => void>,
-  finish: (landed: boolean) => void,
-) {
-  const open = timeline.direction === 'open'
-  const root = document.getElementById('root') ?? document.body
-  const circle = circleElement(origin, true)
-  const dim = layerElement(DIM, true)
-  const layers = [root, circle, dim]
-  for (const layer of layers) layer.style.willChange = 'transform, opacity'
-  dim.style.opacity = '0'
-  document.body.append(dim, circle)
-  const animations: Animation[] = []
-  const timers: Array<ReturnType<typeof setTimeout>> = []
-  cleanups.push(() => {
-    for (const timer of timers) clearTimeout(timer)
-    for (const animation of animations) animation.cancel()
-    for (const layer of layers) layer.style.removeProperty('will-change')
-    dim.style.removeProperty('opacity')
-    circle.remove()
-    dim.remove()
-  })
-  const animate = (
-    element: HTMLElement,
-    frames: Keyframe[],
-    timing: KeyframeAnimationOptions,
-  ) => {
-    const animation = element.animate(frames, { fill: 'both', ...timing })
-    animations.push(animation)
-    return animation
-  }
-  const after = (ms: number, callback: () => void) =>
-    timers.push(setTimeout(callback, ms))
-  const motion = { duration: timeline.duration, easing: timeline.easing }
-
-  if (open) {
-    html.setAttribute(LAYER, 'base')
-    animate(circle, circleFrames(timeline), motion)
-    animate(circle, [{ opacity: 0 }, { opacity: 1 }], {
-      duration: CIRCLE_IN_MS,
-      easing: FADE_EASING,
-    })
-    animate(dim, dimFrames('open'), {
-      duration: timeline.duration,
-      easing: FADE_EASING,
-    })
-    const recede = animate(root, recedeFrames('open'), motion)
-    // Nothing of the old page shows once the circle covers it: swap there,
-    // and let her page fade in above the circle.
-    const fade = Math.max(timeline.duration - timeline.coverAt, 160)
-    after(timeline.coverAt, () => {
-      recede.cancel()
-      html.setAttribute(LAYER, 'top')
-      options.commit()
-      animate(root, topFrames('open'), { duration: fade, easing: FADE_EASING })
-    })
-    after(Math.max(timeline.duration, timeline.coverAt + fade), () =>
-      finish(true),
-    )
-    return
-  }
-
-  // Close: her page fades off the full circle, then the circle shrinks
-  // into the disc over the returning page.
-  html.setAttribute(LAYER, 'top')
-  animate(root, topFrames('close'), {
+/** Old page out, swap on a blank frame, new page in: opacity only. */
+function runCrossfade(run: Run) {
+  const out = run.animate(run.root, [{ opacity: 1 }, { opacity: 0 }], {
     duration: TOP_OUT_MS,
     easing: FADE_EASING,
   })
-  after(TOP_OUT_MS, () => {
-    for (const animation of animations.splice(0)) animation.cancel()
-    html.setAttribute(LAYER, 'base')
-    options.commit()
-    animate(circle, circleFrames(timeline), motion)
-    animate(circle, [{ opacity: 1 }, { opacity: 0 }], {
-      delay: timeline.duration - CIRCLE_OUT_MS,
-      duration: CIRCLE_OUT_MS,
+  run.onFinished([out], () => {
+    run.swap()
+    // Created before `out` is dropped, so no frame shows the page at 1.
+    const fadeIn = run.animate(run.root, [{ opacity: 0 }, { opacity: 1 }], {
+      duration: CROSSFADE_IN_MS,
       easing: FADE_EASING,
     })
-    animate(dim, dimFrames('close'), motion)
-    animate(root, recedeFrames('close'), motion)
+    out.cancel()
+    run.onFinished([fadeIn], () => run.finish(true))
   })
-  after(TOP_OUT_MS + timeline.duration, () => finish(true))
+}
+
+/** Circle and scrim as real elements, promoted only for the run. */
+function overlayLayers(run: Run, origin: ExpandOrigin) {
+  const circle = circleElement(origin)
+  const dim = layerElement(DIM)
+  dim.style.opacity = '0'
+  const promoted = [run.root, circle, dim]
+  for (const layer of promoted) layer.style.willChange = 'transform, opacity'
+  document.body.append(dim, circle)
+  run.onCleanup(() => {
+    for (const layer of promoted) layer.style.removeProperty('will-change')
+    circle.remove()
+    dim.remove()
+  })
+  return { circle, dim }
+}
+
+interface AvatarFlight {
+  /** Starts the clone's flight (it sits on `from` until then). */
+  launch(timing: { duration: number; easing: string }): Animation
+  /** Open: nudges the landing onto the header's real box, once known. */
+  retarget(actual: Box): void
+}
+
+/**
+ * The avatar clone, sitting on `from` from the first frame with both real
+ * avatars hidden; it is removed in the same task that shows them again.
+ */
+function avatarFlight(
+  run: Run,
+  from: Box | undefined,
+  to: Box,
+  source: Element | null,
+): AvatarFlight | undefined {
+  const frames = from && flightFrames(from, to)
+  if (!from || !frames) return undefined
+  const { flight, face } = avatarClone(source, from)
+  flight.style.transform = String(frames[0].transform)
+  document.body.append(flight)
+  run.html.setAttribute(AVATAR_FLIGHT_ATTRIBUTE, '')
+  run.onCleanup(() => {
+    flight.remove()
+    run.html.removeAttribute(AVATAR_FLIGHT_ATTRIBUTE)
+  })
+  let animation: Animation | undefined
+  let duration = 0
+  return {
+    launch(timing) {
+      duration = timing.duration
+      animation = run.animate(flight, frames, timing)
+      return animation
+    },
+    retarget(actual) {
+      const correction = correctionFrames(to, actual, to.width / from.width)
+      if (!correction || !animation) return
+      const played = Number(animation.currentTime ?? 0)
+      run.animate(face, correction, {
+        duration: Math.max(1, duration - played),
+        easing: FADE_EASING,
+      })
+    },
+  }
+}
+
+/**
+ * Open: the circle grows out of the disc over the receding, dimming page
+ * while the avatar clone flies to the header. Only when the circle covers
+ * the whole screen (by its own animation clock) does the route swap; her
+ * page then fades and rises in above the circle.
+ */
+function runOpen(run: Run, origin: ExpandOrigin, timeline: ExpandTimeline) {
+  const { html, root } = run
+  const { circle, dim } = overlayLayers(run, origin)
+  html.setAttribute(LAYER, 'base')
+  const motion = { duration: timeline.duration, easing: timeline.easing }
+  const target = headerAvatarTarget()
+  const flight = avatarFlight(
+    run,
+    avatarBox('nav'),
+    target,
+    avatarElement('nav'),
+  )
+  const grow = run.animate(circle, circleFrames(timeline), motion)
+  run.animate(circle, [{ opacity: 0 }, { opacity: 1 }], {
+    duration: CIRCLE_IN_MS,
+    easing: FADE_EASING,
+  })
+  const dimIn = run.animate(dim, dimFrames('open'), {
+    duration: timeline.duration,
+    easing: FADE_EASING,
+  })
+  const recede = run.animate(root, recedeFrames('open'), motion)
+  const fly = flight?.launch(motion)
+  run.atTime(grow, timeline.coverAt, () => {
+    recede.cancel()
+    html.setAttribute(LAYER, 'top')
+    run.swap()
+    // The header exists now and #root is untransformed: its box is exact
+    // (the layout is the one the next frame needs anyway).
+    const header = avatarElement('header')?.getBoundingClientRect()
+    if (header?.width) {
+      recordAvatarBox('header', header)
+      flight?.retarget(header)
+    }
+    const fadeIn = run.animate(root, topFrames('open'), {
+      duration: Math.max(timeline.duration - timeline.coverAt, MIN_TOP_IN_MS),
+      easing: FADE_EASING,
+    })
+    run.onFinished([grow, dimIn, fly, fadeIn], () => run.finish(true))
+  })
+}
+
+/**
+ * Close: the circle appears over her page at full size (a quick opacity
+ * fade), the route swaps under it, and once the destination has painted
+ * the circle shrinks into the disc on the accelerating curve while the
+ * page returns from its recede and the clone flies back to the disc.
+ */
+function runClose(run: Run, origin: ExpandOrigin, timeline: ExpandTimeline) {
+  const { html, root } = run
+  const { circle, dim } = overlayLayers(run, origin)
+  html.setAttribute(LAYER, 'base')
+  const to = avatarBox('nav')
+  const flight = to
+    ? avatarFlight(
+        run,
+        avatarBox('header') ?? headerAvatarTarget(),
+        to,
+        avatarElement('header'),
+      )
+    : undefined
+  const cover = run.animate(circle, [{ opacity: 0 }, { opacity: 1 }], {
+    duration: TOP_OUT_MS,
+    easing: FADE_EASING,
+  })
+  run.onFinished([cover], () => {
+    run.swap()
+    run.afterPaint(() => {
+      const motion = { duration: timeline.duration, easing: COLLAPSE_EASING }
+      const shrink = run.animate(circle, circleFrames(timeline), motion)
+      run.animate(circle, [{ opacity: 1 }, { opacity: 0 }], {
+        delay: timeline.duration - CIRCLE_OUT_MS,
+        duration: CIRCLE_OUT_MS,
+        easing: FADE_EASING,
+      })
+      const dimOut = run.animate(dim, dimFrames('close'), motion)
+      const back = run.animate(root, recedeFrames('close'), motion)
+      const fly = flight?.launch(motion)
+      run.onFinished([shrink, dimOut, back, fly], () => run.finish(true))
+    })
+  })
 }
