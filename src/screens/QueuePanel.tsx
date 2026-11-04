@@ -9,11 +9,8 @@ import {
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
-import {
-  PRESENCE_EXIT_MS,
-  presenceClass,
-  usePresence,
-} from '../components/usePresence'
+import { presenceClass, usePresence } from '../components/usePresence'
+import { ROW_EXIT_MS } from '../motionTokens'
 import { haptic } from '../haptics'
 import { useT } from '../i18n'
 import { parseMaterializedReferences } from './references'
@@ -77,6 +74,9 @@ export function QueuePanel({
   const [renderedMessages, setRenderedMessages] = useState(messages)
   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set())
   const previousMessages = useRef(messages)
+  // Rows already queued when the panel opens arrive with it; later rows
+  // open their own slot.
+  const initialIds = useRef(new Set(messages.map((message) => message.id)))
   const exitTimers = useRef(new Map<string, number>())
   const [drag, setDrag] = useState<DragState>()
   const dragRef = useRef<DragState>()
@@ -114,7 +114,7 @@ export function QueuePanel({
               return next
             })
             exitTimers.current.delete(message.id)
-          }, PRESENCE_EXIT_MS),
+          }, ROW_EXIT_MS),
         )
       })
     }
@@ -432,6 +432,7 @@ export function QueuePanel({
                 message={message}
                 index={index}
                 visible={!exitingIds.has(message.id)}
+                appear={!initialIds.current.has(message.id)}
                 disabled={disabled}
                 generating={generating}
                 editing={editingId === message.id}
@@ -460,11 +461,25 @@ export function QueuePanel({
   )
 }
 
-function QueuePresenceRow(props: QueueRowProps & { visible: boolean }) {
-  const { visible, ...rowProps } = props
-  const presence = usePresence(visible)
+/**
+ * A queued row inside its own slot. The slot opens and closes on grid rows
+ * (the queue is a small container) so the rows below move with it instead
+ * of jumping when a row is sent or deleted; the row fades before its slot
+ * closes, so the closing edge never cuts its text.
+ */
+function QueuePresenceRow(
+  props: QueueRowProps & { visible: boolean; appear: boolean },
+) {
+  const { visible, appear, ...rowProps } = props
+  const presence = usePresence(visible, { exitMs: ROW_EXIT_MS, appear })
   if (!presence.rendered) return null
-  return <QueueRow {...rowProps} presence={presenceClass(presence.phase)} />
+  return (
+    <div className={`queue-slot ${presence.phase}`}>
+      <div className="queue-slot-inner">
+        <QueueRow {...rowProps} presence={presenceClass(presence.phase)} />
+      </div>
+    </div>
+  )
 }
 
 type QueueRowProps = {

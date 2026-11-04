@@ -2946,6 +2946,38 @@ select:focus-visible {
   opacity: 0;
   transform: translateY(-4px) scale(0.985);
 }
+/* Each row owns a slot that opens and closes on grid rows, so the rows
+   below follow it. Closing waits for the row to fade (--dur-press). */
+.queue-slot {
+  display: grid;
+  grid-template-rows: 1fr;
+  min-width: 0;
+  transition: grid-template-rows var(--dur-fast) var(--ease-out);
+}
+.queue-slot.entering,
+.queue-slot.exiting {
+  grid-template-rows: 0fr;
+}
+.queue-slot.exiting {
+  transition-delay: var(--dur-press);
+}
+.queue-slot-inner {
+  min-width: 0;
+  min-height: 0;
+}
+.queue-slot.entering > .queue-slot-inner,
+.queue-slot.exiting > .queue-slot-inner {
+  overflow: hidden;
+}
+.queue-item.ui-presence.exiting {
+  transition-duration: var(--dur-press);
+}
+@media (prefers-reduced-motion: reduce) {
+  .queue-slot,
+  .queue-slot.exiting {
+    transition: none;
+  }
+}
 .queue-item.dragging {
   z-index: 2;
   touch-action: none;
