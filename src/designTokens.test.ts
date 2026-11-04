@@ -286,6 +286,20 @@ describe('stylesheet token enforcement', () => {
     }
   })
 
+  it("draws Alma's tab entry as her face alone, sitting in the bar", () => {
+    const [avatar] = rules('.alma-nav-avatar')
+    expect(avatar).toContain('width: 44px;')
+    expect(avatar).toContain('height: 44px;')
+    expect(avatar).not.toMatch(/background|border:|margin/)
+    expect(css).not.toMatch(/\.alma-nav-tab \.alma-nav-avatar\s*{/)
+    const pressed = css.match(
+      /\.alma-nav-avatar\[data-pressed\]\s*{[^}]*}/,
+    )?.[0]
+    expect(pressed).toContain('transform: scale(0.92);')
+    expect(pressed).not.toContain('background')
+    expect(rules('.tab-bar.with-alma')[0]).toContain('align-items: center;')
+  })
+
   it('keeps nested rounded surfaces concentric', () => {
     expect(css).toMatch(
       /--radius-inner-composer:\s*max\(\s*calc\(var\(--radius-lg\) - var\(--composer-pad-x\)\),\s*4px\s*\);/,

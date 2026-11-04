@@ -17,7 +17,7 @@ export function useAlmaNavVisible() {
 }
 
 /**
- * Alma's raised avatar: centre of the phone tab bar, top of the split rail.
+ * Alma's face: centre of the phone tab bar, top of the split rail.
  * Opens her conversation, or explains how to turn her on.
  */
 export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
@@ -116,7 +116,7 @@ export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
             data-alma-avatar={here ? undefined : 'nav'}
           >
             <AlmaFace
-              size={placement === 'tab' ? 48 : 36}
+              size={placement === 'tab' ? 44 : 36}
               mood={face.mood}
               activity={face.activity}
             />

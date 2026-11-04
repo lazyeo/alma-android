@@ -10346,12 +10346,13 @@ dialog:focus,
   }
 }
 
-/* Alma's raised avatar at the centre of the phone tab bar. The two halves
-   share the remaining width equally so the avatar sits on the centre line. */
+/* Alma's face at the centre of the phone tab bar. The two halves share the
+   remaining width equally so she sits on the centre line, and the bar
+   centres her on the icon-and-label column of the other tabs. */
 .tab-bar.with-alma {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
-  align-items: start;
+  align-items: center;
 }
 .tab-bar-half {
   display: flex;
@@ -10370,25 +10371,21 @@ dialog:focus,
 }
 .alma-nav-tab {
   width: 72px;
-  height: 60px;
+  height: 44px;
 }
+/* Just her face: no disc, border or fill. This box is also the expand's
+   origin (measured, see AlmaNavButton), so the circle starts at her face. */
 .alma-nav-avatar {
   position: relative;
   display: grid;
   place-items: center;
-  width: 56px;
-  height: 56px;
-  border: var(--border-hairline) solid var(--gray-7);
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: var(--gray-2);
   transition: transform var(--dur-press) var(--ease-out);
-}
-.alma-nav-tab .alma-nav-avatar {
-  margin-top: -22px;
 }
 .alma-nav:active .alma-nav-avatar,
 .alma-nav-avatar[data-pressed] {
-  background: var(--gray-3);
   transform: scale(0.92);
 }
 .alma-avatar {
@@ -10399,9 +10396,9 @@ dialog:focus,
 /* Running work or a live reply: a slow breathing ring around the avatar. */
 .alma-nav-ring {
   position: absolute;
-  inset: -4px;
+  inset: -3px;
   border-radius: 50%;
-  outline: 1.5px solid var(--accent-8);
+  outline: 1px solid var(--accent-8);
   pointer-events: none;
   animation: alma-breathe var(--dur-breathe) var(--ease-loop-wave) infinite;
 }
@@ -10419,30 +10416,28 @@ dialog:focus,
 /* Something waits on the user's OK. */
 .alma-nav-badge {
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 1px;
+  right: 1px;
   width: 9px;
   height: 9px;
   border-radius: var(--radius-full);
   background: var(--red-9);
-  outline: 2px solid var(--gray-2);
+  outline: 2px solid var(--background);
 }
 .split-alma {
   display: grid;
   place-items: center;
 }
-.alma-nav-rail .alma-nav-avatar {
-  width: 44px;
-  height: 44px;
-  border: 0;
-  background: transparent;
-}
+/* On the rail she is a 36px face in the rail's 44px item box. Active is the
+   rail's own cue: the same rounded sidebar-accent fill as every rail item.
+   The phone bar has no active cue because /alma hides the bar. */
 .alma-nav-rail .alma-nav-badge {
-  top: 0;
-  right: 0;
+  top: 2px;
+  right: 2px;
   outline-color: var(--sidebar);
 }
 .alma-nav-rail.active .alma-nav-avatar {
+  border-radius: var(--radius-md);
   background: var(--sidebar-accent);
 }
 .alma-setup-sheet .settings-section-note {

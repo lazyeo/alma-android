@@ -165,16 +165,16 @@ describe('AlmaNavButton', () => {
     const rect = vi
       .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
       .mockReturnValue({
-        left: 176,
-        top: 788,
-        width: 48,
-        height: 48,
+        left: 178,
+        top: 796,
+        width: 44,
+        height: 44,
       } as DOMRect)
     renderButton(ready('main'))
     expect(observed).toHaveLength(1)
     observed[0]()
-    expect(lastExpandDisc()).toMatchObject({ left: 176, width: 48 })
-    expect(avatarBox('nav')).toMatchObject({ top: 788, height: 48 })
+    expect(lastExpandDisc()).toMatchObject({ left: 178, width: 44 })
+    expect(avatarBox('nav')).toMatchObject({ top: 796, height: 44 })
     rect.mockClear()
     fireEvent.click(button()!)
     expect(screen.getByTestId('where').textContent).toBe('/d/home/alma')
