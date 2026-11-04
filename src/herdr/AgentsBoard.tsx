@@ -10,6 +10,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { desktopAgentPanePath } from '../desktopRoutes'
 import { useT } from '../i18n'
 import { useHerdr } from './HerdrProvider'
+import { chatPageItems, pendingAgentQuestion } from './lastAssistantText'
 import { relative } from '../screens/ThreadListRow'
 import {
   parseBlockedPrompt,
@@ -55,10 +56,23 @@ export function AgentPaneRow({
     setPrompt(null)
     if (pane.status !== 'blocked' || !api) return
     let cancelled = false
+    // Best effort: an older desktop or a failed read keeps the screen text.
+    const chat = Promise.resolve()
+      .then(() => api.getHerdrChat(pane.id))
+      .catch(() => undefined)
     void api
       .readHerdrPane(pane.id, 'text', { source: 'visible' })
-      .then((result) => {
-        if (!cancelled) setPrompt(parseBlockedPrompt(result?.read?.text ?? ''))
+      .then(async (result) => {
+        const parsed = parseBlockedPrompt(result?.read?.text ?? '')
+        if (cancelled) return
+        setPrompt(parsed)
+        if (!parsed) return
+        // The screen gives the menu; the transcript gives the exact words.
+        const question = pendingAgentQuestion(
+          chatPageItems(await chat),
+          parsed.options.map((option) => option.label),
+        )
+        if (!cancelled && question) setPrompt({ ...parsed, question })
       })
       .catch(() => undefined)
     return () => {

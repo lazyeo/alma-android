@@ -21,6 +21,9 @@ const api = {
     },
   })),
   chooseHerdrMenuOption: vi.fn(async () => undefined),
+  getHerdrChat: vi.fn(async (): Promise<unknown> => {
+    throw new Error('older desktop')
+  }),
 }
 
 vi.mock('./HerdrProvider', () => ({
@@ -235,5 +238,57 @@ describe('AgentPaneRow blocked quick answer', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: '3. No, cancel' }))
     expect(api.chooseHerdrMenuOption).toHaveBeenCalledWith('pane-1', 1, 3)
+  })
+
+  it('shows the transcript question word-for-word on a blocked row', async () => {
+    api.readHerdrPane.mockResolvedValueOnce({
+      read: {
+        text: 'Which environment should I deploy th\n❯ 1. Staging\n  2. Production',
+      },
+    })
+    api.getHerdrChat.mockResolvedValueOnce({
+      page: {
+        items: [
+          {
+            id: 't1',
+            kind: 'tool',
+            tool: {
+              name: 'AskUserQuestion',
+              done: false,
+              input: {
+                questions: [
+                  {
+                    header: 'Deploy',
+                    question: 'Which environment should I deploy the build to?',
+                    options: [{ label: 'Staging' }, { label: 'Production' }],
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      },
+    })
+    render(
+      <MemoryRouter>
+        <AgentPaneRow
+          desktopId="desktop"
+          pane={{
+            id: 'pane-1',
+            workspaceId: 'workspace-1',
+            agent: 'claude',
+            status: 'blocked',
+            title: 'Deploy',
+          }}
+        />
+      </MemoryRouter>,
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByText('Which environment should I deploy the build to?'),
+      ).toBeTruthy(),
+    )
+    expect(api.getHerdrChat).toHaveBeenCalledWith('pane-1')
+    expect(screen.getByRole('button', { name: '1. Staging' })).toBeTruthy()
   })
 })

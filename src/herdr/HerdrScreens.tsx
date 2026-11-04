@@ -65,6 +65,7 @@ import {
   type AgentQuestion,
 } from './transcript'
 import { toMessageRows, type HerdrChatItem } from './toMessageParts'
+import { pendingAgentQuestion } from './lastAssistantText'
 import { nextTerminalScrollTop } from '../terminal/terminalScroll'
 import { agentStatusLine } from './statusLine'
 import { HerdrWorkingBar } from './HerdrWorkingBar'
@@ -315,13 +316,17 @@ export function AgentPaneScreen() {
     }
   }, [api, chatReady, decodedPaneId, loadChat])
 
-  const blockedPrompt = useMemo(
-    () =>
-      pane?.agent_status === 'blocked'
-        ? parseBlockedPrompt(stripAnsi(terminal))
-        : null,
-    [pane?.agent_status, terminal],
-  )
+  const blockedPrompt = useMemo(() => {
+    if (pane?.agent_status !== 'blocked') return null
+    const prompt = parseBlockedPrompt(stripAnsi(terminal))
+    if (!prompt) return null
+    // The screen gives the menu; the transcript gives the agent's exact words.
+    const question = pendingAgentQuestion(
+      items,
+      prompt.options.map((option) => option.label),
+    )
+    return question ? { ...prompt, question } : prompt
+  }, [items, pane?.agent_status, terminal])
   const turnTitle = pane ? paneTurnTitle(pane) : undefined
   useEffect(() => {
     if (pane?.agent_status !== 'blocked' || terminal) return

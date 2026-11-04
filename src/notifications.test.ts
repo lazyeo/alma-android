@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { setLanguage } from './i18n/runtime'
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
+  createNotificationDeduper,
   mergeNotificationSettings,
   notificationCopy,
   notificationTypeEnabled,
@@ -128,5 +129,22 @@ describe('isViewingThread', () => {
     expect(isViewingThread('/d/a/threads/t10', 'a', 't1')).toBe(false)
     expect(isViewingThread('/d/b/threads/t1', 'a', 't1')).toBe(false)
     expect(isViewingThread('/d/a/crystals/t1', 'a', 't1')).toBe(false)
+  })
+})
+
+describe('notification deduper', () => {
+  it('claims each key once', () => {
+    const dedupe = createNotificationDeduper()
+    expect(dedupe.claim('desk:approval:r1')).toBe(true)
+    expect(dedupe.claim('desk:approval:r1')).toBe(false)
+    expect(dedupe.claim('other:approval:r1')).toBe(true)
+  })
+
+  it('keeps memory bounded by evicting the oldest keys first', () => {
+    const dedupe = createNotificationDeduper(3)
+    for (const key of ['a', 'b', 'c', 'd']) dedupe.claim(key)
+    expect(dedupe.size).toBe(3)
+    expect(dedupe.claim('d')).toBe(false)
+    expect(dedupe.claim('a')).toBe(true)
   })
 })

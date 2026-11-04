@@ -309,6 +309,46 @@ describe('AgentPaneScreen pane navigation', () => {
     expect(screen.queryByText('Run this command?')).toBeNull()
   })
 
+  it('titles the blocked card with the transcript question, keeping screen options', async () => {
+    paneId = 'pane-b'
+    agentStatus = 'blocked'
+    chatItems = [
+      { id: 'u1', kind: 'user', text: 'deploy it' },
+      {
+        id: 't1',
+        kind: 'tool',
+        tool: {
+          name: 'AskUserQuestion',
+          done: false,
+          input: {
+            questions: [
+              {
+                header: 'Deploy',
+                question: 'Which environment should I deploy the build to?',
+                options: [{ label: 'Staging' }, { label: 'Production' }],
+              },
+            ],
+          },
+        },
+      },
+    ]
+    api.readHerdrPane.mockResolvedValueOnce({
+      read: {
+        text: 'Which environment should I deploy th\n❯ 1. Staging\n  2. Production',
+      },
+    })
+    const view = render(<AgentPaneScreen />)
+
+    await waitFor(() =>
+      expect(
+        view.container.querySelector('.agent-blocked-card strong')?.textContent,
+      ).toBe('Which environment should I deploy the build to?'),
+    )
+    const card = view.container.querySelector('.agent-blocked-card')!
+    expect(card.textContent).toContain('1. Staging')
+    expect(card.textContent).toContain('2. Production')
+  })
+
   it('floats the display mode control over the terminal instead of the key row', async () => {
     paneId = 'pane-a'
     const view = render(<AgentPaneScreen />)

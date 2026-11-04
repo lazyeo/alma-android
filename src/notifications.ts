@@ -32,6 +32,35 @@ export function scopedNotificationTag(desktopId: string, tag: string) {
   return `${desktopId}:${tag}`
 }
 
+/**
+ * Remembers which events already alerted so a resnapshot, list refresh or
+ * status flicker cannot announce the same event twice. Oldest keys are
+ * evicted first once `limit` is reached.
+ */
+export function createNotificationDeduper(limit = 256) {
+  const seen = new Set<string>()
+  return {
+    /** True the first time `key` is claimed; false for every repeat. */
+    claim(key: string) {
+      if (seen.has(key)) return false
+      seen.add(key)
+      if (seen.size > limit) seen.delete(seen.values().next().value!)
+      return true
+    },
+    clear() {
+      seen.clear()
+    },
+    get size() {
+      return seen.size
+    },
+  }
+}
+
+export type NotificationDeduper = ReturnType<typeof createNotificationDeduper>
+
+/** Shared across desktop sources so remounts do not forget delivered alerts. */
+export const deliveredNotifications = createNotificationDeduper()
+
 export function mergeNotificationSettings(
   value: unknown,
 ): NotificationSettings {

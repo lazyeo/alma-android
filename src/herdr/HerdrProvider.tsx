@@ -10,14 +10,22 @@ import {
 import { useLocation } from 'react-router-dom'
 import type { HandoffDesktop } from '../handoff/HandoffProvider'
 import {
+  deliveredNotifications,
   notificationTypeEnabled,
   scopedNotificationTag,
   showForegroundNotification,
+  type NotificationDeduper,
   type NotificationSettings,
 } from '../notifications'
 import { desktopAgentPanePath } from '../desktopRoutes'
 import { stripAnsi } from './transcript'
-import { lastAssistantText, notificationMessage } from './lastAssistantText'
+import {
+  agentTurnIdentity,
+  chatPageItems,
+  lastAssistantText,
+  notificationMessage,
+  pendingAgentQuestion,
+} from './lastAssistantText'
 import {
   agentListFromSnapshot,
   paneTurnTitle,
@@ -67,6 +75,7 @@ export function useHerdrNotificationEvents({
   enabled,
   api,
   notify = showForegroundNotification,
+  dedupe = deliveredNotifications,
 }: {
   desktopId: string
   desktopName: string
@@ -76,6 +85,7 @@ export function useHerdrNotificationEvents({
   enabled: boolean
   api: Pick<HandoffDesktop['api'], 'readHerdrPane' | 'getHerdrChat'>
   notify?: typeof showForegroundNotification
+  dedupe?: NotificationDeduper
 }) {
   const previous = useRef(new Map<string, HerdrPane['agent_status']>())
   return useCallback(() => {
@@ -98,28 +108,44 @@ export function useHerdrNotificationEvents({
       )
         continue
       const sendNotification = async () => {
+        const [screen, chat] = await Promise.allSettled([
+          to === 'blocked'
+            ? api.readHerdrPane(pane.pane_id)
+            : Promise.resolve(undefined),
+          api.getHerdrChat(pane.pane_id),
+        ])
+        const items =
+          chat.status === 'fulfilled' ? chatPageItems(chat.value) : []
+        const turn = agentTurnIdentity(items, to)
+        if (
+          turn &&
+          !dedupe.claim(
+            scopedNotificationTag(
+              desktopId,
+              `agent:${pane.pane_id}:${to}:${turn}`,
+            ),
+          )
+        )
+          return
         let message = ''
         if (to === 'blocked') {
-          try {
-            const screen = await api.readHerdrPane(pane.pane_id)
-            message = notificationMessage(
-              parseBlockedPrompt(stripAnsi(screen?.read?.text ?? ''))
-                ?.question ?? '',
-            )
-          } catch {
-            // Fall through to the chat transcript.
-          }
+          const prompt =
+            screen.status === 'fulfilled'
+              ? parseBlockedPrompt(stripAnsi(screen.value?.read?.text ?? ''))
+              : null
+          // Prefer the agent's own words from the transcript over the screen.
+          message = notificationMessage(
+            pendingAgentQuestion(
+              items,
+              prompt?.options.map((option) => option.label),
+            ) ||
+              prompt?.question ||
+              '',
+          )
         }
-        if (!message) {
-          try {
-            message = lastAssistantText(
-              await api.getHerdrChat(pane.pane_id),
-              to === 'blocked',
-            )
-          } catch {
-            // Message enrichment is best effort; never suppress notification.
-          }
-        }
+        // Message enrichment is best effort; never suppress notification.
+        if (!message && chat.status === 'fulfilled')
+          message = lastAssistantText(chat.value, to === 'blocked')
         const paneTitle =
           pane.terminal_title_stripped?.trim() ||
           pane.title?.trim() ||
@@ -143,6 +169,7 @@ export function useHerdrNotificationEvents({
     previous.current = next
   }, [
     api,
+    dedupe,
     desktopId,
     desktopName,
     enabled,

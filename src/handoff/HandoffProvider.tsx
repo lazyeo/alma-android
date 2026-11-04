@@ -27,6 +27,7 @@ import { createThreadsResync } from '../relay/threadsResync'
 import { THREADS_RESYNCED } from '../desktops/threadActivity'
 import {
   currentNotificationPermission,
+  deliveredNotifications,
   isViewingThread,
   loadNotificationSettings,
   notificationTypeEnabled,
@@ -165,7 +166,12 @@ function DesktopHandoffSource({
     ) => {
       if (
         pushConfig.current(desktopId) ||
-        !notificationTypeEnabled(settingsRef.current, type)
+        !notificationTypeEnabled(settingsRef.current, type) ||
+        // The known-id list is rebuilt from every refresh, so a failed or
+        // stale list can make a request look new again; alert once per id.
+        !deliveredNotifications.claim(
+          scopedNotificationTag(desktopId, `${type}:${request.requestId}`),
+        )
       )
         return
       await showForegroundNotification({
