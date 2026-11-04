@@ -7,6 +7,8 @@ dev-dist/
 .env*
 coverage/
 artifacts/
+# Official mascot art, downloaded at build time (see NOTICE.md); never commit it
+public/alma-mascot/
 keystore.properties
 *.jks
 *.keystore

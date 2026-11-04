@@ -1,4 +1,5 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { expect, it } from 'vitest'
 const root = new URL('../../', import.meta.url).pathname
@@ -52,19 +53,39 @@ it('keeps private integrations and the former namespace out of the public tree',
     .map((path) => relative(root, path))
   expect(offenders).toEqual([])
 })
-it('keeps third-party character art out of the public tree', () => {
-  // Raster mascot rigs are supplied by a private extension at build time;
-  // the public client only ships the generic renderer and its vector face.
-  const forbidden =
-    /eye-[LR]-(?:white|iris|lid)\.png|assets\/mascot\/|private-mascot/
-  const offenders = files(root)
-    .filter((path) => path !== new URL(import.meta.url).pathname)
-    .filter(
-      (path) =>
-        forbidden.test(relative(root, path)) ||
-        (!/\.(?:png|jpe?g|webp|gif|ico|jar|keystore)$/i.test(path) &&
-          forbidden.test(readFileSync(path, 'utf8'))),
-    )
-    .map((path) => relative(root, path))
+// scripts/prepare-mascot.mjs downloads the official Alma art at build time
+// into this gitignored directory; the art must never be committed.
+const mascotOutput = 'public/alma-mascot/'
+function trackedFiles() {
+  try {
+    const top = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+    if (realpathSync(top) !== realpathSync(root)) throw new Error('not ours')
+    return execFileSync('git', ['ls-files', '-z'], {
+      cwd: root,
+      encoding: 'utf8',
+    })
+      .split('\0')
+      .filter(Boolean)
+  } catch {
+    // An exported tree without git: every file on disk counts, except the
+    // build output that is ignored in a checkout.
+    return files(root)
+      .map((path) => relative(root, path))
+      .filter((path) => !path.startsWith(mascotOutput))
+  }
+}
+it('never commits the official mascot art', () => {
+  const official =
+    /(?:^|\/)(?:base|eye-[LR]-(?:white|iris|lid))\.png$|(?:^|\/)assets\/mascot\//
+  const offenders = trackedFiles().filter(
+    (path) => path.startsWith(mascotOutput) || official.test(path),
+  )
   expect(offenders).toEqual([])
+  expect(readFileSync(join(root, '.gitignore'), 'utf8')).toContain(
+    `\n${mascotOutput}\n`,
+  )
 })

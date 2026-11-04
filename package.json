@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5174",
     "dev:lan": "ALMA_MOBILE_HTTPS=1 vite --host 0.0.0.0 --port 5174",
-    "build": "tsc -b && vite build",
+    "build": "npm run mascot && tsc -b && vite build",
+    "mascot": "tsx scripts/prepare-mascot.mjs",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
     "format": "prettier --write src scripts docs README.md capacitor.config.ts vite.config.ts",
