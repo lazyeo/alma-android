@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { BottomSheet } from '../components/BottomSheet'
 import { ALMA_ROUTE, desktopAlmaPath } from '../desktopRoutes'
@@ -6,6 +6,7 @@ import { haptic } from '../haptics'
 import { useT } from '../i18n'
 import { AlmaFace } from './AlmaFace'
 import { useAlmaPresence } from './AlmaPresence'
+import { recordExpandDisc } from './almaExpand'
 import { useAvatarFlight } from './avatarFlight'
 
 /** The centre slot exists only while the desktop has a personal agent. */
@@ -25,9 +26,17 @@ export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
   const { pathname } = useLocation()
   const [setupOpen, setSetupOpen] = useState(false)
   const avatarRef = useRef<HTMLSpanElement>(null)
+  const discRef = useRef<HTMLSpanElement>(null)
   const here = ALMA_ROUTE.test(pathname)
   // On /alma (split rail) the header owns the shared avatar.
   useAvatarFlight(avatarRef, 'nav', !here)
+  // The screen expands out of this disc and Back collapses into it, so keep
+  // its box current whenever it is shown outside /alma.
+  const visible = presence?.state.status === 'ready'
+  useLayoutEffect(() => {
+    if (visible && !here && discRef.current)
+      recordExpandDisc(discRef.current.getBoundingClientRect())
+  }, [visible, here, placement])
   const openable =
     presence?.state.status === 'ready' &&
     Boolean(presence.state.personal.threadId)
@@ -51,10 +60,14 @@ export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
         onClick={() => {
           void haptic('light')
           if (!threadId) setSetupOpen(true)
-          else if (!here) navigate(desktopAlmaPath(desktopId))
+          else if (!here) {
+            if (discRef.current)
+              recordExpandDisc(discRef.current.getBoundingClientRect())
+            navigate(desktopAlmaPath(desktopId))
+          }
         }}
       >
-        <span className="alma-nav-avatar">
+        <span ref={discRef} className="alma-nav-avatar">
           {busy ? (
             <span
               className="alma-nav-ring"

@@ -28,11 +28,16 @@
   --dur-gap: 640ms;
   /* Alma's presence: the avatar flight and her slow idle loops. */
   --dur-flight: 320ms;
+  /* The whole-screen expand into /alma and its staggered persona content. */
+  --dur-expand: 420ms;
+  --dur-stagger: 40ms;
   --dur-breathe: 2.8s;
   --dur-glance: 2.4s;
   --ease-out: cubic-bezier(0.2, 0.9, 0.3, 1);
   /* Only the avatar flight settles with a slight overshoot. */
   --ease-spring: cubic-bezier(0.34, 1.32, 0.64, 1);
+  /* The expand starts fast and lands softly; no overshoot on a full screen. */
+  --ease-expand: cubic-bezier(0.3, 0, 0, 1);
   /* Infinite status loops keep their own rhythm; the panel curve makes them jitter. */
   --ease-loop-step: step-end;
   --ease-loop-linear: linear;
@@ -10329,6 +10334,102 @@ html[data-nav-motion='alma']::view-transition-new(root) {
 ::view-transition-new(alma-avatar) {
   animation-duration: var(--dur-flight);
   animation-timing-function: var(--ease-out);
+}
+
+/* The whole-screen expand into /alma. <html> carries
+   data-alma-expand="(open|close)-(reveal|flip)" and the disc centre and
+   covering radius as --alma-expand-x/y/r (see alma/almaExpand.ts). Open grows
+   /alma as a circle from the disc while the page behind recedes and dims;
+   close shrinks it back into the disc. Reduced motion never sets them. */
+html[data-alma-expand]::view-transition-old(root),
+html[data-alma-expand]::view-transition-new(root) {
+  animation-duration: var(--dur-expand);
+  animation-timing-function: var(--ease-expand);
+  mix-blend-mode: normal;
+  transform-origin: var(--alma-expand-x) var(--alma-expand-y);
+}
+html[data-alma-expand='open-reveal']::view-transition-old(root) {
+  animation-name: alma-page-recede;
+}
+html[data-alma-expand='open-reveal']::view-transition-new(root) {
+  animation-name: alma-reveal-in;
+}
+html[data-alma-expand='close-reveal']::view-transition-old(root) {
+  z-index: 1;
+  animation-name: alma-reveal-out;
+}
+html[data-alma-expand='close-reveal']::view-transition-new(root) {
+  animation-name: alma-page-return;
+}
+html[data-alma-expand]::view-transition-group(alma-avatar) {
+  z-index: 2;
+  animation-duration: var(--dur-expand);
+}
+/* Without View Transitions the old page is already gone: the arriving page
+   reveals itself (open) or returns from the recede (close). */
+html[data-alma-expand='open-flip'] #root {
+  animation: alma-reveal-in var(--dur-expand) var(--ease-expand);
+}
+html[data-alma-expand='close-flip'] #root {
+  transform-origin: var(--alma-expand-x) var(--alma-expand-y);
+  animation: alma-page-return var(--dur-expand) var(--ease-expand);
+}
+/* Persona content follows the circle in: heading, messages, composer. */
+.thread-detail.persona .alma-heading {
+  --alma-stagger: 1;
+}
+.thread-detail.persona .persona-message {
+  --alma-stagger: 2;
+}
+.thread-detail.persona .composer-shell {
+  --alma-stagger: 3;
+}
+html[data-alma-expand^='open'] .thread-detail.persona .alma-heading,
+html[data-alma-expand^='open'] .thread-detail.persona .persona-message,
+html[data-alma-expand^='open'] .thread-detail.persona .composer-shell {
+  animation-name: alma-persona-rise;
+  animation-duration: var(--dur-panel);
+  animation-timing-function: var(--ease-out);
+  animation-delay: calc(var(--alma-stagger) * var(--dur-stagger));
+  animation-fill-mode: backwards;
+}
+@keyframes alma-reveal-in {
+  from {
+    clip-path: circle(0 at var(--alma-expand-x) var(--alma-expand-y));
+  }
+  to {
+    clip-path: circle(
+      var(--alma-expand-r) at var(--alma-expand-x) var(--alma-expand-y)
+    );
+  }
+}
+@keyframes alma-reveal-out {
+  from {
+    clip-path: circle(
+      var(--alma-expand-r) at var(--alma-expand-x) var(--alma-expand-y)
+    );
+  }
+  to {
+    clip-path: circle(0 at var(--alma-expand-x) var(--alma-expand-y));
+  }
+}
+@keyframes alma-page-recede {
+  to {
+    transform: scale(0.96);
+    filter: brightness(0.7);
+  }
+}
+@keyframes alma-page-return {
+  from {
+    transform: scale(0.96);
+    filter: brightness(0.7);
+  }
+}
+@keyframes alma-persona-rise {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
 }
 
 /* /alma: Alma's header and messenger-style conversation. */

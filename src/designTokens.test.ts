@@ -170,6 +170,9 @@ describe('stylesheet token enforcement', () => {
       'ease-loop-wave': 'ease-in-out',
       'dur-flight': '320ms',
       'ease-spring': 'cubic-bezier(0.34, 1.32, 0.64, 1)',
+      'dur-expand': '420ms',
+      'dur-stagger': '40ms',
+      'ease-expand': 'cubic-bezier(0.3, 0, 0, 1)',
     }))
       expect(css).toContain(`--${name}: ${value};`)
   })
@@ -204,6 +207,12 @@ describe('stylesheet token enforcement', () => {
       'alma-glance',
       'alma-glint',
       'alma-breathe',
+      // The whole-screen expand into /alma and its reverse on Back.
+      'alma-reveal-in',
+      'alma-reveal-out',
+      'alma-page-recede',
+      'alma-page-return',
+      'alma-persona-rise',
     ]
     const defined = [...css.matchAll(/@keyframes ([\w-]+)/g)].map(
       (match) => match[1],
@@ -388,7 +397,7 @@ describe('stylesheet token enforcement', () => {
 
   it('uses only motion duration tokens outside documented functional loops', () => {
     const withoutDefinitions = css.replace(
-      /--(?:dur-[\w-]+|ease-out|ease-spring|ease-loop-[\w-]+):\s*[^;]+;/g,
+      /--(?:dur-[\w-]+|ease-out|ease-spring|ease-expand|ease-loop-[\w-]+):\s*[^;]+;/g,
       '',
     )
     expect(

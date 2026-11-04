@@ -18,6 +18,9 @@ import {
   type NavigationMotion,
 } from './navigationMotion'
 import { layoutModeForWidth } from './layout/splitLayout'
+import { ALMA_ROUTE } from './desktopRoutes'
+import { applyExpand, clearExpand, EXPAND_MS } from './alma/almaExpand'
+import { reducedMotionPreferred } from './alma/useReducedMotion'
 
 type HistoryUpdate = Parameters<
   Parameters<ReturnType<typeof createBrowserHistory>['listen']>[0]
@@ -42,6 +45,7 @@ export function MotionBrowserRouter({ children }: { children: ReactNode }) {
   }))
   const current = useRef(state.location)
   current.current = state.location
+  const expandCleanup = useRef<number>()
 
   const apply = useCallback((update: HistoryUpdate) => {
     const motion = decideNavigationMotion(
@@ -52,14 +56,31 @@ export function MotionBrowserRouter({ children }: { children: ReactNode }) {
       layoutModeForWidth(window.innerWidth),
     )
     const transitionDocument = document as TransitionDocument
-    const canAnimate =
-      motion !== 'none' &&
-      overlayCount() === 0 &&
-      !isGestureScrolling() &&
+    const viewTransitions =
       typeof transitionDocument.startViewTransition === 'function'
+    const unobstructed = overlayCount() === 0 && !isGestureScrolling()
+    const canAnimate = motion !== 'none' && unobstructed && viewTransitions
+
+    window.clearTimeout(expandCleanup.current)
+    clearExpand()
+    const expand =
+      motion === 'alma' && unobstructed
+        ? applyExpand(
+            ALMA_ROUTE.test(update.location.pathname) ? 'open' : 'close',
+            { reduced: reducedMotionPreferred(), viewTransitions },
+          )
+        : undefined
 
     if (!canAnimate) {
-      setMotionAttribute('none')
+      if (expand === 'flip') {
+        // No View Transitions: the arriving page reveals itself from the
+        // disc while the avatar FLIPs; the attributes clear on a timer.
+        setMotionAttribute('alma')
+        expandCleanup.current = window.setTimeout(() => {
+          clearExpand()
+          setMotionAttribute('none')
+        }, EXPAND_MS)
+      } else setMotionAttribute('none')
       setState({ action: update.action, location: update.location })
       return
     }
@@ -71,7 +92,10 @@ export function MotionBrowserRouter({ children }: { children: ReactNode }) {
         setState({ action: update.action, location: update.location }),
       )
     })
-    void transition.finished.finally(() => setMotionAttribute('none'))
+    void transition.finished.finally(() => {
+      clearExpand()
+      setMotionAttribute('none')
+    })
   }, [])
 
   useLayoutEffect(() => history.listen(apply), [apply])
