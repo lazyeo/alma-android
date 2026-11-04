@@ -39,12 +39,12 @@ export const ENTRANCE_MS = 250 + 3 * 40
 /**
  * The expand curve: `cubic-bezier(0.3, 0, 0.1, 1)` scaled to peak at
  * 1 + overshoot by `peak` of the run, then a half-cosine settle back to 1.
- * The overshoot is 1.5%, a slight bounce at the end.
+ * The overshoot is 3%, a noticeable bounce at the end.
  */
 export const EXPAND_CURVE = {
   bezier: [0.3, 0, 0.1, 1],
   peak: 0.74,
-  overshoot: 0.015,
+  overshoot: 0.03,
 } as const
 
 /** A CSS cubic-bezier's progress at time `x`, solved by bisection. */
