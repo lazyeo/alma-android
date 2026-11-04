@@ -93,16 +93,11 @@ describe('AlmaNavButton', () => {
     },
   )
 
-  it('opens the setup sheet instead of navigating when no thread is set', () => {
+  it('goes straight to /alma when no thread is set, where setup runs', () => {
     renderButton(ready(null))
     fireEvent.click(button()!)
-    expect(
-      screen.getByRole('dialog', { name: 'Alma is not on yet' }),
-    ).toBeTruthy()
-    expect(
-      screen.getByText('Turn it on in desktop Settings → Personal agent.'),
-    ).toBeTruthy()
-    expect(screen.getByTestId('where').textContent).toBe('/d/home/threads')
+    expect(screen.getByTestId('where').textContent).toBe('/d/home/alma')
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('navigates to /alma when the main thread is set', () => {

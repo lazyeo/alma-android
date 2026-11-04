@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type ReactNode,
 } from 'react'
 import { useDesktops } from '../desktops/DesktopContext'
@@ -14,6 +15,10 @@ import type { PersonalAgentState } from '../screens/personalAgent'
 import { usePersonalAgent } from '../screens/usePersonalAgent'
 import { prefetchAlmaThread } from './almaPrefetch'
 import { faceActivity, faceMoodFromVitals, type FaceState } from './faceState'
+import { ensurePersonalThread } from './personalSetup'
+
+/** Finding or creating her main conversation when the desktop has none. */
+export type AlmaSetupStatus = 'idle' | 'running' | 'error'
 
 export interface AlmaPresence {
   desktopId?: string
@@ -22,6 +27,9 @@ export interface AlmaPresence {
   generating: boolean
   face: FaceState
   refresh(): Promise<void>
+  setup?: AlmaSetupStatus
+  /** Finds or creates her main thread and points the desktop at it. */
+  startSetup?(): void
   /** Warms the thread cache with her main thread before /alma opens. */
   prefetchThread?(fallbackTitle: string): void
 }
@@ -55,7 +63,47 @@ export function AlmaPresenceProvider({ children }: { children: ReactNode }) {
   const desktopId = store.activeId ?? visiblePairings(store.pairings)[0]?.id
   const api = desktops.find((item) => item.pairing.id === desktopId)?.connection
     ?.api
-  const { state, refresh } = usePersonalAgent(api)
+  const { state: polled, refresh } = usePersonalAgent(api)
+  const [setup, setSetup] = useState<{
+    key?: string
+    status: AlmaSetupStatus
+    threadId?: string
+  }>({ status: 'idle' })
+  const setupKey = api && desktopId ? desktopId : undefined
+  const current = setup.key === setupKey ? setup : { status: 'idle' as const }
+  const latestKey = useRef(setupKey)
+  latestKey.current = setupKey
+  const startSetup = useCallback(() => {
+    if (!api || !setupKey) return
+    setSetup({ key: setupKey, status: 'running' })
+    ensurePersonalThread(api, setupKey)
+      .then(async (result) => {
+        if (latestKey.current !== setupKey) return
+        // The poller catches up from the desktop; until then the thread we
+        // just resolved stands in, so a slow refresh cannot restart setup.
+        setSetup({
+          key: setupKey,
+          status: 'idle',
+          ...(result.status === 'ready' ? { threadId: result.threadId } : {}),
+        })
+        await refresh()
+      })
+      .catch((error) => {
+        console.warn('[personal-agent] setup failed', error)
+        if (latestKey.current === setupKey)
+          setSetup({ key: setupKey, status: 'error' })
+      })
+  }, [api, setupKey, refresh])
+  const state = useMemo<PersonalAgentState>(
+    () =>
+      polled.status === 'ready' && !polled.personal.threadId && current.threadId
+        ? {
+            ...polled,
+            personal: { ...polled.personal, threadId: current.threadId },
+          }
+        : polled,
+    [polled, current.threadId],
+  )
   const generatingIds = useGeneratingIds(desktopId ?? '')
   const threadId = state.status === 'ready' ? state.personal.threadId : null
   const generating = Boolean(threadId && generatingIds.has(threadId))
@@ -82,9 +130,19 @@ export function AlmaPresenceProvider({ children }: { children: ReactNode }) {
       generating,
       face: presenceFace(state, generating),
       refresh,
+      setup: current.status,
+      startSetup,
       prefetchThread,
     }),
-    [desktopId, state, generating, refresh, prefetchThread],
+    [
+      desktopId,
+      state,
+      generating,
+      refresh,
+      current.status,
+      startSetup,
+      prefetchThread,
+    ],
   )
   return (
     <AlmaPresenceContext.Provider value={value}>

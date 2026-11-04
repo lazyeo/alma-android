@@ -23,18 +23,28 @@ export function AlmaScreen() {
   const { pairing } = useConnection()
   const presence = useAlmaPresence()
   const refresh = presence?.refresh
+  const startSetup = presence?.startSetup
+  const setup = presence?.setup ?? 'idle'
+  const state = presence?.state
+  // The desktop cannot create her main conversation, so the phone finds or
+  // makes one (personalSetup.ts); the shell stands in until it is known.
+  const needsSetup = state?.status === 'ready' && !state.personal.threadId
   // Arriving through the expand, the shell stands in until the motion and
   // entrance are over; nothing heavy may run on those frames.
   const deferred = useAlmaDeferHeavy()
   // Then the real thread mounts behind the shell and the shell fades off it
   // once it has rendered at her latest message (see almaHandoff.ts).
   const realLayer = useRef<HTMLDivElement>(null)
-  const phase = useAlmaHandoff(deferred, realLayer)
+  const phase = useAlmaHandoff(deferred || needsSetup, realLayer)
   // Fresh vitals and counters on arrival; the shared poller keeps them
   // current (30 s, focus, and after each reply) while the screen is open.
   useEffect(() => {
     if (!deferred) void refresh?.()
   }, [refresh, deferred])
+  // After the expand, so its frames stay free of relay work.
+  useEffect(() => {
+    if (!deferred && needsSetup && setup === 'idle') startSetup?.()
+  }, [deferred, needsSetup, setup, startSetup])
   const backPath = desktopThreadsPath(pairing.id)
   const persona = useMemo<PersonaChrome>(
     () => ({
@@ -43,13 +53,28 @@ export function AlmaScreen() {
     }),
     [backPath],
   )
-  const state = presence?.state
   if (!state || state.status === 'loading')
     return <p className="empty">{t('thread.opening')}</p>
-  // Unsupported, failed, or switched off on the desktop: nothing to show.
-  if (state.status !== 'ready' || !state.personal.threadId)
-    return <Navigate to={backPath} replace />
-  const covered = phase === 'shell' || phase === 'mounting'
+  // Unsupported or unreachable: nothing to show.
+  if (state.status !== 'ready') return <Navigate to={backPath} replace />
+  const threadId = state.personal.threadId ?? undefined
+  const notice = threadId ? undefined : setup === 'error' ? (
+    <div className="empty alma-setup-state" role="alert">
+      <p>{t('threads.personal.setup.failed')}</p>
+      <button
+        type="button"
+        className="quiet-text-button"
+        onClick={() => startSetup?.()}
+      >
+        {t('common.tryAgain')}
+      </button>
+    </div>
+  ) : (
+    <p className="empty alma-setup-state">{t('thread.opening')}</p>
+  )
+  // Without a thread the shell is all there is, whatever the phase (a deep
+  // link starts at 'real').
+  const covered = phase === 'shell' || phase === 'mounting' || !threadId
   // One grid cell holds both layers, so the shell and the thread share a
   // box; the thread keeps its tree when the shell leaves.
   return (
@@ -60,14 +85,11 @@ export function AlmaScreen() {
         aria-hidden={covered || undefined}
         {...inert(covered)}
       >
-        {phase === 'shell' ? null : (
-          <PersonaThreadScreen
-            threadId={state.personal.threadId}
-            persona={persona}
-          />
+        {phase === 'shell' || !threadId ? null : (
+          <PersonaThreadScreen threadId={threadId} persona={persona} />
         )}
       </div>
-      {phase === 'real' ? null : (
+      {phase === 'real' && threadId ? null : (
         <div
           className="alma-handoff-layer alma-handoff-shell"
           aria-hidden={covered ? undefined : true}
@@ -75,8 +97,9 @@ export function AlmaScreen() {
         >
           <AlmaShell
             desktopId={pairing.id}
-            threadId={state.personal.threadId}
+            threadId={threadId}
             backPath={backPath}
+            notice={notice}
           />
         </div>
       )}

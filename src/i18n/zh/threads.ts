@@ -126,9 +126,7 @@ export const threads: CatalogShape<typeof source> = {
     needsYou: '等你确认',
     busy: '正在工作',
     setup: {
-      title: 'Alma 还没开启',
-      body: '在桌面端 设置 → Personal agent 中开启。',
-      done: '知道了',
+      failed: '无法开始对话',
     },
     showThinking: '查看思考过程',
     hideThinking: '收起思考过程',

@@ -123,9 +123,7 @@ export const threads = {
     needsYou: 'Needs your OK',
     busy: 'Working',
     setup: {
-      title: 'Alma is not on yet',
-      body: 'Turn it on in desktop Settings → Personal agent.',
-      done: 'Got it',
+      failed: "Couldn't start the conversation",
     },
     showThinking: 'Show thinking',
     hideThinking: 'Hide thinking',

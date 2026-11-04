@@ -10513,9 +10513,13 @@ dialog:focus,
   border-radius: var(--radius-md);
   background: var(--sidebar-accent);
 }
-.alma-setup-sheet .settings-section-note {
+.alma-setup-state {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+.alma-setup-state p {
   margin: 0;
-  font-size: var(--text-sm);
 }
 @media (prefers-reduced-motion: reduce) {
   .alma-nav-ring {

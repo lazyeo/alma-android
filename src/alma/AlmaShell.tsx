@@ -182,16 +182,19 @@ export function shellRows(rows: readonly MessageRow[], limit = SHELL_ROWS) {
  * a line scan, no parser), and an inert composer of the real idle size. It
  * costs a few milliseconds where the full thread costs tens; AlmaScreen
  * mounts the real thread behind it once the entrance has played and fades
- * the shell off it (almaHandoff.ts).
+ * the shell off it (almaHandoff.ts). Without a thread yet (setup is still
+ * finding or creating it) it stands in empty, with `notice` in the list.
  */
 export function AlmaShell({
   desktopId,
   threadId,
   backPath,
+  notice,
 }: {
   desktopId: string
-  threadId: string
+  threadId?: string
   backPath: string
+  notice?: ReactNode
 }) {
   const t = useT()
   const navigate = useNavigate()
@@ -202,7 +205,10 @@ export function AlmaShell({
     Boolean(presence?.generating),
   ).mood
   const rows = useMemo(
-    () => shellRows(threadCache.getThread(desktopId, threadId)?.rows ?? []),
+    () =>
+      threadId
+        ? shellRows(threadCache.getThread(desktopId, threadId)?.rows ?? [])
+        : [],
     [desktopId, threadId],
   )
   return (
@@ -213,6 +219,7 @@ export function AlmaShell({
       />
       <div className="message-area">
         <div className="message-scroll alma-shell-scroll">
+          {notice}
           {rows.map((row) => (
             <article
               key={row.id}
