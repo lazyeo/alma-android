@@ -113,6 +113,42 @@
   content: '';
   opacity: 0.35;
 }
+/* In trackpad mode the whole surface is the pad: an inset, rounded fill with
+   a hairline edge, so its bounds read on wide screens where the picture is
+   letterboxed. */
+.remote-screen-surface.is-trackpad {
+  margin: 8px;
+  border: var(--border-hairline) solid var(--gray-7);
+  border-radius: var(--radius-lg);
+  background: var(--gray-3);
+}
+.remote-screen-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  max-width: calc(100% - 24px);
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: var(--border-hairline) solid var(--gray-7);
+  border-radius: var(--radius-full);
+  background: var(--gray-2);
+  color: var(--gray-11);
+  font-size: var(--text-xs);
+  pointer-events: none;
+  transform: translateX(-50%);
+  transition: opacity var(--dur-panel) var(--ease-out);
+  white-space: nowrap;
+}
+.remote-screen-hint span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.remote-screen-hint.is-seen {
+  opacity: 0;
+}
 .remote-screen-transform {
   position: absolute;
   inset: 0;

@@ -45,7 +45,13 @@ import {
   UNSUPPORTED_OS,
   unavailableCopy,
 } from './availability'
-import { recallInputMode, rememberInputMode, type InputMode } from './inputMode'
+import {
+  recallInputMode,
+  recallTrackpadHintSeen,
+  rememberInputMode,
+  rememberTrackpadHintSeen,
+  type InputMode,
+} from './inputMode'
 import {
   createTouchGestureState,
   nextGestureDeadline,
@@ -251,6 +257,10 @@ export function RemoteScreen() {
     setInputModeState(mode)
     rememberInputMode(pairing.id, mode)
   }
+  // The trackpad's hint fades after its first touch and stays gone.
+  const [trackpadHintSeen, setTrackpadHintSeen] = useState(
+    recallTrackpadHintSeen,
+  )
   const [panMode, setPanMode] = useState(false)
   const [zoom, setZoom] = useState({ scale: 1, oneToOne: false })
   const zoomed = zoom.scale > 1
@@ -576,7 +586,13 @@ export function RemoteScreen() {
   ) => {
     if (event.pointerType === 'mouse') return
     event.preventDefault()
-    if (type === 'down') event.currentTarget.setPointerCapture(event.pointerId)
+    if (type === 'down') {
+      event.currentTarget.setPointerCapture(event.pointerId)
+      if (trackpad && !trackpadHintSeen) {
+        setTrackpadHintSeen(true)
+        rememberTrackpadHintSeen()
+      }
+    }
     const size = surfaceSize()
     dispatchGesture({
       type,
@@ -729,7 +745,7 @@ export function RemoteScreen() {
 
       <div
         ref={surfaceRef}
-        className={`remote-screen-surface ${remote.control ? 'is-controlling' : ''}`}
+        className={`remote-screen-surface${remote.control ? ' is-controlling' : ''}${trackpad ? ' is-trackpad' : ''}`}
         data-sidebar-swipe-exclude={remote.control || zoomed ? '' : undefined}
         {...screenPointerHandlers}
       >
@@ -749,6 +765,15 @@ export function RemoteScreen() {
             aria-hidden="true"
           >
             <MousePointer2 size={20} />
+          </div>
+        ) : null}
+        {trackpad ? (
+          <div
+            className={`remote-screen-hint${trackpadHintSeen ? ' is-seen' : ''}`}
+            aria-hidden="true"
+          >
+            <Hand size={14} />
+            <span>{t('screen.trackpadHint')}</span>
           </div>
         ) : null}
         {unavailable ? (

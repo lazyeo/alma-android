@@ -27,6 +27,7 @@ export const screen = {
   controlling: 'Controlling Mac',
   direct: 'Direct',
   trackpad: 'Trackpad',
+  trackpadHint: 'Drag to move the pointer, tap to click',
   stats: 'Stats',
   hideStats: 'Hide stats',
   mode: 'Mode',

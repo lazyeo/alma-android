@@ -154,6 +154,24 @@ describe('RemoteScreen zoom and input mode', () => {
       'trackpad',
     )
   })
+
+  it('marks out the trackpad and fades its hint after the first touch', () => {
+    const { container } = render(<RemoteScreen />)
+    const surface = container.querySelector<HTMLElement>(
+      '.remote-screen-surface',
+    )!
+    surface.setPointerCapture = vi.fn()
+    expect(surface.classList.contains('is-trackpad')).toBe(false)
+    expect(container.querySelector('.remote-screen-hint')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'screen.trackpad' }))
+    expect(surface.classList.contains('is-trackpad')).toBe(true)
+    const hint = container.querySelector('.remote-screen-hint')!
+    expect(hint.textContent).toBe('screen.trackpadHint')
+    expect(hint.classList.contains('is-seen')).toBe(false)
+    fireEvent.pointerDown(surface, { pointerId: 1, pointerType: 'touch' })
+    expect(hint.classList.contains('is-seen')).toBe(true)
+    expect(localStorage.getItem('alma.screen.trackpadHintSeen')).toBe('1')
+  })
 })
 
 describe('RemoteScreen window target', () => {

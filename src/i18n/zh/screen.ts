@@ -27,6 +27,7 @@ export const screen: CatalogShape<typeof source> = {
   controlling: '正在控制 Mac',
   direct: '直控',
   trackpad: '触控板',
+  trackpadHint: '拖动移动指针，轻点即点击',
   stats: '状态',
   hideStats: '隐藏状态',
   mode: '模式',
