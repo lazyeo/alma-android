@@ -3,12 +3,10 @@ import { haptic } from '../haptics'
 import { useT } from '../i18n'
 import {
   personalAgentSubtitle,
-  type PersonalAgentSnapshot,
+  type PersonalAgentState,
 } from './personalAgent'
 
-export type PersonalAgentRowState =
-  | { status: 'loading' | 'unsupported' | 'error' }
-  | { status: 'ready'; personal: PersonalAgentSnapshot; mood?: string }
+export type PersonalAgentRowState = PersonalAgentState
 
 /** Alma's main conversation, pinned above the thread list (desktop 0.4.407+). */
 export function PersonalAgentRow({
@@ -44,7 +42,7 @@ export function PersonalAgentRow({
       </div>
     )
   const threadId = personal.threadId
-  const parts = personalAgentSubtitle(personal, state.mood, t)
+  const parts = personalAgentSubtitle(personal, state.vitals?.mood, t)
   return (
     <button
       type="button"

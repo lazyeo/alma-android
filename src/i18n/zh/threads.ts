@@ -115,6 +115,27 @@ export const threads: CatalogShape<typeof source> = {
     notSetUp: '未启用：在桌面 设置 → Personal agent 中开启',
     running: { one: '{count} 个运行中', other: '{count} 个运行中' },
     approvals: { one: '{count} 个待审批', other: '{count} 个待审批' },
+    status: {
+      thinking: '在想…',
+      approvals: {
+        one: '有 {count} 件事等你确认',
+        other: '有 {count} 件事等你确认',
+      },
+      working: {
+        one: '正在处理 {count} 件事',
+        other: '正在处理 {count} 件事',
+      },
+    },
+    needsYou: '等你确认',
+    busy: '正在工作',
+    setup: {
+      title: 'Alma 还没开启',
+      body: '在桌面端 设置 → Personal agent 中开启。',
+      done: '知道了',
+    },
+    did: '做了：{actions}',
+    showThinking: '查看思考过程',
+    hideThinking: '收起思考过程',
     mood: {
       happy: '开心',
       excited: '兴奋',

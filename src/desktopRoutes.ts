@@ -33,6 +33,13 @@ export function desktopReferencesPath(desktopId: string, uri?: string) {
   return uri ? `${base}/${encodeURIComponent(uri)}` : base
 }
 
+/** Alma's main conversation (the personal agent) on one desktop. */
+export function desktopAlmaPath(desktopId: string) {
+  return `/d/${encodeURIComponent(desktopId)}/alma`
+}
+
+export const ALMA_ROUTE = /^\/d\/[^/]+\/alma\/?$/
+
 /** Keep root desktop sections stable when the desktop switcher changes scope. */
 export function desktopSectionPath(desktopId: string, pathname: string) {
   const section =

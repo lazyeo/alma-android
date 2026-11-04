@@ -113,6 +113,27 @@ export const threads = {
       'Not set up — start it from Alma on your phone or desktop Settings → Personal agent',
     running: { one: '{count} running', other: '{count} running' },
     approvals: { one: '{count} approval', other: '{count} approvals' },
+    status: {
+      thinking: 'thinking…',
+      approvals: {
+        one: '{count} thing needs your OK',
+        other: '{count} things need your OK',
+      },
+      working: {
+        one: 'working on {count} thing',
+        other: 'working on {count} things',
+      },
+    },
+    needsYou: 'Needs your OK',
+    busy: 'Working',
+    setup: {
+      title: 'Alma is not on yet',
+      body: 'Turn it on in desktop Settings → Personal agent.',
+      done: 'Got it',
+    },
+    did: 'did: {actions}',
+    showThinking: 'Show thinking',
+    hideThinking: 'Hide thinking',
     mood: {
       happy: 'Happy',
       excited: 'Excited',

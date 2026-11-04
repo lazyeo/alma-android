@@ -41,7 +41,7 @@ afterEach(() => {
 const flush = () => act(async () => {})
 
 describe('usePersonalAgent', () => {
-  it('loads the overview with mood on mount', async () => {
+  it('loads the overview with vitals on mount', async () => {
     const api = fakeApi()
     const { result } = renderHook(() => usePersonalAgent(api))
     expect(result.current.state.status).toBe('loading')
@@ -49,11 +49,21 @@ describe('usePersonalAgent', () => {
     expect(result.current.state).toEqual({
       status: 'ready',
       personal,
-      mood: 'happy',
+      vitals: { mood: 'happy' },
     })
   })
 
-  it('keeps the row when vitals are unavailable', async () => {
+  it('waits without a desktop connection', async () => {
+    const { result } = renderHook(() => usePersonalAgent(undefined))
+    await flush()
+    await act(async () => {
+      await result.current.refresh()
+      vi.advanceTimersByTime(PERSONAL_AGENT_POLL_MS)
+    })
+    expect(result.current.state.status).toBe('loading')
+  })
+
+  it('keeps Alma when vitals are unavailable', async () => {
     const api = fakeApi({
       getAlmaVitals: vi.fn().mockRejectedValue(new Error('boom')),
     })
@@ -62,7 +72,7 @@ describe('usePersonalAgent', () => {
     expect(result.current.state).toEqual({ status: 'ready', personal })
   })
 
-  it('hides the row on older desktops and stops polling', async () => {
+  it('hides Alma on older desktops and stops polling', async () => {
     const api = fakeApi({
       getPersonal: vi.fn().mockResolvedValue({ status: 'unsupported' }),
     })

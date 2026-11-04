@@ -67,7 +67,7 @@ describe('PersonalAgentRow', () => {
         state={{
           status: 'ready',
           personal: personal('thread-main'),
-          mood: 'happy',
+          vitals: { mood: 'happy' },
         }}
         onOpen={onOpen}
       />,

@@ -20,6 +20,11 @@ export interface AlmaVitals {
   updated?: string
 }
 
+/** What the Alma entry points render; anything but `ready` hides them. */
+export type PersonalAgentState =
+  | { status: 'loading' | 'unsupported' | 'error' }
+  | { status: 'ready'; personal: PersonalAgentSnapshot; vitals?: AlmaVitals }
+
 export type PersonalAgentResult =
   { status: 'ok'; personal: PersonalAgentSnapshot } | { status: 'unsupported' }
 

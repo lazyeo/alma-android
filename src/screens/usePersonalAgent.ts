@@ -1,26 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AlmaApi } from '../relay'
-import type { PersonalAgentRowState } from './PersonalAgentRow'
+import type { PersonalAgentState } from './personalAgent'
 
 /** Live counters change slowly; never poll the desktop faster than this. */
 export const PERSONAL_AGENT_POLL_MS = 30_000
 
 /**
- * The active desktop's personal agent row: loads on mount, on focus or when
- * the page becomes visible, every 30 s while
- * visible, and on demand (pull-to-refresh).
+ * The active desktop's personal agent: loads on mount, on focus or when the
+ * page becomes visible, every 30 s while visible, and on demand
+ * (pull-to-refresh, opening Alma). Without a connection it stays loading.
  */
-export function usePersonalAgent(api: AlmaApi) {
-  const [state, setState] = useState<PersonalAgentRowState>({
+export function usePersonalAgent(api: AlmaApi | undefined) {
+  const [state, setState] = useState<PersonalAgentState>({
     status: 'loading',
   })
   const supported = useRef(true)
   const load = useCallback(async () => {
-    if (!supported.current) return
+    if (!api || !supported.current) return
     try {
       const [result, vitals] = await Promise.all([
         api.getPersonal(),
-        // Mood is decoration: a vitals failure must not hide the row.
+        // Mood is decoration: a vitals failure must not hide Alma.
         api.getAlmaVitals().catch(() => undefined),
       ])
       if (result.status === 'unsupported') {
@@ -28,14 +28,13 @@ export function usePersonalAgent(api: AlmaApi) {
         setState({ status: 'unsupported' })
         return
       }
-      const mood = vitals?.status === 'ok' ? vitals.vitals.mood : undefined
       setState({
         status: 'ready',
         personal: result.personal,
-        ...(mood ? { mood } : {}),
+        ...(vitals?.status === 'ok' ? { vitals: vitals.vitals } : {}),
       })
     } catch (error) {
-      // 503 "not ready" or a dropped tunnel: keep the last good row; with
+      // 503 "not ready" or a dropped tunnel: keep the last good state; with
       // none yet, stay hidden and let the next refresh retry.
       console.warn('[personal-agent] load failed', error)
       setState((current) =>
@@ -47,6 +46,7 @@ export function usePersonalAgent(api: AlmaApi) {
   useEffect(() => {
     supported.current = true
     setState({ status: 'loading' })
+    if (!api) return
     void load()
     const refreshIfVisible = () => {
       if (document.visibilityState === 'visible') void load()
@@ -59,7 +59,7 @@ export function usePersonalAgent(api: AlmaApi) {
       window.removeEventListener('focus', refreshIfVisible)
       document.removeEventListener('visibilitychange', refreshIfVisible)
     }
-  }, [load])
+  }, [api, load])
 
   return { state, refresh: load }
 }
