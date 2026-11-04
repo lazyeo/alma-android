@@ -30,11 +30,22 @@ export function fromBase64url(value: string): Uint8Array {
   const padded =
     value.replaceAll('-', '+').replaceAll('_', '/') +
     '='.repeat((4 - (value.length % 4)) % 4)
+  const native = (
+    Uint8Array as unknown as {
+      fromBase64?: (input: string) => Uint8Array
+    }
+  ).fromBase64
+  // Relay frames are large; the per-character Uint8Array.from callback cost
+  // ~60 ms per thread load on a mid-range phone.
+  if (typeof native === 'function') return native(padded)
   const binary =
     typeof atob === 'function'
       ? atob(padded)
       : Buffer.from(padded, 'base64').toString('binary')
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0))
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1)
+    bytes[index] = binary.charCodeAt(index)
+  return bytes
 }
 
 export function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {

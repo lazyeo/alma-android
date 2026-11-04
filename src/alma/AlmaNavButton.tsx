@@ -83,10 +83,12 @@ export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
         aria-current={here ? 'page' : undefined}
         data-busy={busy ? 'true' : undefined}
         onPointerDown={() => {
-          // Press feedback and the warm-up start before the click lands.
+          // Press feedback only. No network here: a relay fetch on press
+          // (base64 decode + decrypt + GC) landed inside the expand's first
+          // frames on a real phone. The idle prefetch keeps the cache warm and
+          // the shell is happy with stale rows.
           if (discRef.current) discRef.current.dataset.pressed = 'true'
           void haptic('light')
-          prefetch()
         }}
         onPointerUp={release}
         onPointerCancel={release}

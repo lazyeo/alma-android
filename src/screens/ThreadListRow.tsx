@@ -54,10 +54,22 @@ export const relative = (value: unknown) => {
           : 86400
   const locale = currentLocale()
   // Chinese long style reads "8秒钟前"; short is the natural "8秒前".
-  return new Intl.RelativeTimeFormat(locale, {
-    numeric: 'auto',
-    style: locale.startsWith('zh') ? 'short' : 'long',
-  }).format(Math.round(seconds / divisor), unit)
+  return relativeFormatter(locale).format(Math.round(seconds / divisor), unit)
+}
+
+const relativeFormatters = new Map<string, Intl.RelativeTimeFormat>()
+
+/** One formatter per locale; constructing one per row cost ~50 ms per list. */
+function relativeFormatter(locale: string) {
+  let formatter = relativeFormatters.get(locale)
+  if (!formatter) {
+    formatter = new Intl.RelativeTimeFormat(locale, {
+      numeric: 'auto',
+      style: locale.startsWith('zh') ? 'short' : 'long',
+    })
+    relativeFormatters.set(locale, formatter)
+  }
+  return formatter
 }
 
 /**

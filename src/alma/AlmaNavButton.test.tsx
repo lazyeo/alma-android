@@ -104,7 +104,7 @@ describe('AlmaNavButton', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('presses the disc, ticks and warms her thread on pointer-down', () => {
+  it('presses the disc and ticks on pointer-down without fetching', () => {
     const prefetchThread = vi.fn()
     const { container } = renderButton(ready('main'), { prefetchThread })
     const disc = container.querySelector<HTMLElement>('.alma-nav-avatar')!
@@ -112,7 +112,7 @@ describe('AlmaNavButton', () => {
     fireEvent.pointerDown(button()!)
     expect(disc.dataset.pressed).toBe('true')
     expect(haptic).toHaveBeenCalledWith('light')
-    expect(prefetchThread).toHaveBeenCalledWith('Alma')
+    expect(prefetchThread).not.toHaveBeenCalled()
     fireEvent.pointerUp(button()!)
     expect(disc.dataset.pressed).toBeUndefined()
     // The click itself adds no second tick.

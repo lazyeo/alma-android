@@ -208,11 +208,15 @@ export function formatProjectCardRelativeTime(
   const [unit, size] =
     units.find(([, candidate]) => Math.abs(delta) >= candidate) ??
     (['second', 1000] as const)
-  return new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(
-    Math.round(delta / size),
-    unit,
-  )
+  let formatter = projectRelativeFormatters.get(locale)
+  if (!formatter) {
+    formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+    projectRelativeFormatters.set(locale, formatter)
+  }
+  return formatter.format(Math.round(delta / size), unit)
 }
+
+const projectRelativeFormatters = new Map<string, Intl.RelativeTimeFormat>()
 
 export function normalizeSavedProjectCard(value: ProjectCardResponse) {
   return normalizeProjectCardResponse(value)
