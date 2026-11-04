@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Nothing yet.
+
+## [0.1.7] - 2026-11-05
+
+### Added
+
 - Alma tab: on Alma desktop 0.4.407+, a raised Alma avatar in the center of the tab bar (and in the side rail) opens the personal agent at `/alma`. The vector face follows her vitals (energy and valence on 0–10, fatigue on 0–100, mood, and awake/tired/asleep level), and dots show when she is working or needs your OK. If the desktop has no main conversation yet, the first tap sets one up with no extra steps: it reuses the desktop's main thread or the one this phone used before, or creates an "Alma" thread with your default model, and makes it the desktop's main conversation, with Try again if that fails. It stays hidden on older desktops (2026-11-04, setup 2026-11-05).
 - Alma persona screen: a messenger-style view of the main conversation, with a header showing her face and a status line (thinking, working on N things, N things need your OK, or mood). Each reply has a collapsible thinking section and a "did: …" summary of what she did (2026-11-04).
 - Alma mascot: when an extension registers a mascot rig, her face is drawn from it with eased expressions, blinks, glances, breathing and a talking mouth while a reply streams. Without a rig, or if it fails to load, the vector face is shown (2026-11-05).
@@ -36,7 +42,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Reopening a thread reuses already-rendered Markdown (bounded cache), and the first frame of a thread renders only the bottom rows (2026-11-03).
 - Opening a thread no longer re-parses every visible message on each re-render and starts at the bottom instead of rendering the top rows first; on a Redmi the main-thread work while opening dropped from 147–273 ms to about 90 ms (2026-11-03).
 - Thread list: generating spinners now share one animation clock, so several running threads no longer multiply idle redraws (2026-11-03).
-
 ## [0.1.6] - 2026-11-02
 
 ### Changed
@@ -181,7 +186,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Foldable layouts, a frosted screen transition, optional Shizuku live hinge-angle input, and an estimated fallback.
 - Foreground-lifetime local notifications for completed replies and pending approvals; no push service is used.
 
-[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.7...HEAD
 [0.1.0]: https://github.com/lazyeo/alma-android/releases/tag/v0.1.0
 [0.1.1]: https://github.com/lazyeo/alma-android/compare/v0.1.0...v0.1.1
 [0.1.2]: https://github.com/lazyeo/alma-android/compare/v0.1.1...v0.1.2
@@ -189,3 +194,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.1.4]: https://github.com/lazyeo/alma-android/compare/v0.1.3...v0.1.4
 [0.1.5]: https://github.com/lazyeo/alma-android/compare/v0.1.4...v0.1.5
 [0.1.6]: https://github.com/lazyeo/alma-android/compare/v0.1.5...v0.1.6
+[0.1.7]: https://github.com/lazyeo/alma-android/compare/v0.1.6...v0.1.7
