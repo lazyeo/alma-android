@@ -24,6 +24,25 @@ export interface RemoteScreenOptions {
   rtcTimeoutMs?: number
 }
 
+/**
+ * Whether to ask the desktop for WebRTC video. The desktop's video track is
+ * the display (its window source is only picked when the window is already
+ * known, which it is not yet when `rtc_start` arrives), so a window target
+ * stays on the JPEG frames, which the desktop crops to the window. Once the
+ * window closes the desktop shows the display again, so video can start.
+ */
+export function wantsVideo({
+  rtc,
+  windowId,
+  windowClosed = false,
+}: {
+  rtc: boolean
+  windowId?: number
+  windowClosed?: boolean
+}) {
+  return rtc && (windowId === undefined || windowClosed)
+}
+
 export interface ScreenWindowList {
   windows: ScreenWindow[]
   error?: string
@@ -76,11 +95,13 @@ export function useRemoteScreen(
   useEffect(() => {
     let disposed = false
     let rtcTimer: ReturnType<typeof setTimeout> | undefined
+    let rtcStarted = false
     const path = screenPath({ displayId, windowId })
     const socket = tunnel.openWebSocket(path)
     socketRef.current = socket
     setStatus(undefined)
     setWindowList(undefined)
+    setRtcState('idle')
     const stopRtc = () => {
       if (rtcTimer) clearTimeout(rtcTimer)
       rtcTimer = undefined
@@ -91,12 +112,28 @@ export function useRemoteScreen(
       videoLiveRef.current = false
       setVideoLive(false)
     }
+    const startRtc = () => {
+      if (disposed || rtcStarted) return
+      rtcStarted = true
+      send({ type: 'rtc_start' })
+      rtcTimer = setTimeout(() => {
+        if (!videoLiveRef.current) {
+          setRtcState('timeout')
+          send({ type: 'rtc_stop' })
+          stopRtc()
+        }
+      }, rtcTimeoutMs)
+    }
     const removeMessage = socket.onMessage((raw) => {
       if (disposed || typeof raw !== 'string') return
       const next = decodeScreenMessage(raw)
       if (!next) return
       setMessage(next)
-      if (next.type === 'status') setStatus(next)
+      if (next.type === 'status') {
+        setStatus(next)
+        if (wantsVideo({ rtc, windowId, windowClosed: next.windowClosed }))
+          startRtc()
+      }
       if (next.type === 'windows')
         setWindowList({ windows: next.windows, error: next.error })
       if (next.type === 'frame') {
@@ -157,16 +194,7 @@ export function useRemoteScreen(
         if (disposed) return
         setConnected(true)
         lastFrameAt.current = Date.now()
-        if (rtc) {
-          send({ type: 'rtc_start' })
-          rtcTimer = setTimeout(() => {
-            if (!videoLiveRef.current) {
-              setRtcState('timeout')
-              send({ type: 'rtc_stop' })
-              stopRtc()
-            }
-          }, rtcTimeoutMs)
-        }
+        if (wantsVideo({ rtc, windowId })) startRtc()
       })
       .catch((cause) => {
         if (!disposed)

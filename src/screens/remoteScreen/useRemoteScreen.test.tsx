@@ -2,7 +2,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { TunnelSocket } from '../../relay'
-import { useRemoteScreen } from './useRemoteScreen'
+import { useRemoteScreen, wantsVideo } from './useRemoteScreen'
 
 function fakeSocket() {
   let message: (data: string | Uint8Array) => void = () => undefined
@@ -89,5 +89,107 @@ describe('useRemoteScreen', () => {
         }),
       )
     })
+  })
+
+  it('streams a window as JPEG frames and the whole screen as video', async () => {
+    const fake = fakeSocket()
+    const openWebSocket = vi.fn(() => fake.socket)
+    const tunnel = { openWebSocket }
+    const { result, rerender } = renderHook(
+      ({ windowId }: { windowId?: number }) =>
+        useRemoteScreen(tunnel, { rtc: true, windowId }),
+      { initialProps: { windowId: 42 } as { windowId?: number } },
+    )
+    await act(async () => {
+      await fake.socket.opened
+    })
+    expect(openWebSocket).toHaveBeenLastCalledWith('/ws/screen?window=42')
+    const rtcStarts = () =>
+      vi
+        .mocked(fake.socket.send)
+        .mock.calls.filter(
+          ([raw]) => raw === JSON.stringify({ type: 'rtc_start' }),
+        ).length
+    act(() => {
+      fake.message(
+        JSON.stringify({
+          type: 'status',
+          bound: true,
+          displayId: 1,
+          width: 800,
+          height: 600,
+          scale: 2,
+          mode: 'jpeg',
+          window: { id: 42, app: 'Notes' },
+        }),
+      )
+      fake.message(
+        JSON.stringify({ type: 'viewport', width: 1280, height: 960 }),
+      )
+      fake.message(
+        JSON.stringify({
+          type: 'frame',
+          data: '/9j/',
+          width: 1280,
+          height: 960,
+          seq: 1,
+        }),
+      )
+    })
+    expect(rtcStarts()).toBe(0)
+    expect(result.current.frame?.width).toBe(1280)
+    expect(result.current.status?.width).toBe(800)
+
+    rerender({ windowId: undefined })
+    await act(async () => {
+      await fake.socket.opened
+    })
+    expect(openWebSocket).toHaveBeenLastCalledWith('/ws/screen')
+    expect(rtcStarts()).toBe(1)
+  })
+
+  it('starts video once the streamed window closes and the display shows', async () => {
+    const fake = fakeSocket()
+    renderHook(() =>
+      useRemoteScreen(
+        { openWebSocket: () => fake.socket },
+        { rtc: true, windowId: 7 },
+      ),
+    )
+    await act(async () => {
+      await fake.socket.opened
+    })
+    expect(fake.socket.send).not.toHaveBeenCalled()
+    act(() => {
+      fake.message(
+        JSON.stringify({
+          type: 'status',
+          bound: true,
+          displayId: 1,
+          width: 1512,
+          height: 982,
+          scale: 2,
+          mode: 'jpeg',
+          windowClosed: true,
+        }),
+      )
+    })
+    expect(fake.socket.send).toHaveBeenCalledWith(
+      JSON.stringify({ type: 'rtc_start' }),
+    )
+  })
+})
+
+describe('wantsVideo', () => {
+  it('uses video for the whole screen and JPEG frames for a window', () => {
+    expect(wantsVideo({ rtc: true })).toBe(true)
+    expect(wantsVideo({ rtc: true, windowId: 3 })).toBe(false)
+    expect(wantsVideo({ rtc: true, windowId: 3, windowClosed: true })).toBe(
+      true,
+    )
+    expect(wantsVideo({ rtc: false })).toBe(false)
+    expect(wantsVideo({ rtc: false, windowId: 3, windowClosed: true })).toBe(
+      false,
+    )
   })
 })
