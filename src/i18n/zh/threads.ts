@@ -18,6 +18,10 @@ export const threads: CatalogShape<typeof source> = {
     brief: '简介',
     focus: '当前重点',
     resume: '继续',
+    recent: {
+      title: '最近对话',
+      showAll: '查看全部（{count}）',
+    },
     empty: '未设置',
     expand: '展开',
     collapse: '收起',

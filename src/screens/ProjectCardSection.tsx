@@ -1,4 +1,6 @@
 import {
+  ChevronRight,
+  Clock,
   FileText,
   MessageCircle,
   MoreHorizontal,
@@ -12,6 +14,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -25,8 +28,11 @@ import type {
   AlmaApi,
   ProjectCard,
   ProjectCardConsultTranscript,
+  Thread,
 } from '../relay'
 import { MarkdownContent } from './MarkdownContent'
+import { CompactProjectThread } from './ThreadListRow'
+import { selectProjectRecentThreads } from './projectRecent'
 import {
   RefCardSheet,
   RefChip,
@@ -51,6 +57,13 @@ interface ProjectCardSectionProps {
   workspaceId: string
   onNewThread?(): void
   onNavigate(path: string): void
+  /** This project's threads, already on the client from the thread list. */
+  threads?: readonly Thread[]
+  selectedThreadId?: string
+  threadNeedsResponse?(thread: Thread): boolean
+  onOpenThread?(thread: Thread): void
+  /** Reveals the project's full thread list after the sheet closes. */
+  onShowAllThreads?(): void
 }
 
 type CardState =
@@ -107,6 +120,11 @@ export function ProjectCardSection({
   workspaceId,
   onNewThread = () => undefined,
   onNavigate,
+  threads = [],
+  selectedThreadId,
+  threadNeedsResponse,
+  onOpenThread,
+  onShowAllThreads,
 }: ProjectCardSectionProps) {
   const t = useT()
   const [state, setState] = useState<CardState>({ status: 'loading' })
@@ -127,6 +145,12 @@ export function ProjectCardSection({
   const [pending, setPending] = useState<Pending>()
   const [notice, setNotice] = useState('')
   const [openedRef, setOpenedRef] = useState<OpenedRef>()
+  // Recomputed from the live list every time the sheet opens.
+  const recentThreads = useMemo(
+    () =>
+      cardOpen ? selectProjectRecentThreads(threads) : { recent: [], total: 0 },
+    [cardOpen, threads],
+  )
 
   const load = useCallback(async () => {
     try {
@@ -466,6 +490,42 @@ export function ProjectCardSection({
                     : t('threads.projectCard.accept')}
                 </button>
               </div>
+            </section>
+          ) : null}
+          {onOpenThread && recentThreads.recent.length ? (
+            <section className="project-card-field project-card-recent">
+              <h3>
+                <Clock size={15} /> {t('threads.projectCard.recent.title')}
+              </h3>
+              <div className="project-card-recent-list">
+                {recentThreads.recent.map((thread) => (
+                  <CompactProjectThread
+                    key={thread.id}
+                    thread={thread}
+                    selected={thread.id === selectedThreadId}
+                    needsResponse={threadNeedsResponse?.(thread) ?? false}
+                    onOpen={() => {
+                      setCardOpen(false)
+                      onOpenThread(thread)
+                    }}
+                  />
+                ))}
+              </div>
+              {onShowAllThreads &&
+              recentThreads.total > recentThreads.recent.length ? (
+                <button
+                  className="quiet-text-button project-card-recent-all"
+                  onClick={() => {
+                    setCardOpen(false)
+                    onShowAllThreads()
+                  }}
+                >
+                  {t('threads.projectCard.recent.showAll', {
+                    count: recentThreads.total,
+                  })}
+                  <ChevronRight size={14} aria-hidden="true" />
+                </button>
+              ) : null}
             </section>
           ) : null}
         </BottomSheet>

@@ -29,6 +29,7 @@ import {
 } from './threadStatus'
 import { workspaceName } from './workspaceOptions'
 import { currentLocale } from '../i18n/runtime'
+import { haptic } from '../haptics'
 import { useLanguage, useT } from '../i18n'
 
 export const relative = (value: unknown) => {
@@ -332,5 +333,40 @@ export function ThreadRow({
     >
       {children}
     </article>
+  )
+}
+
+/** Single-line row used inside project groups and the project card. */
+export function CompactProjectThread({
+  thread,
+  selected,
+  needsResponse,
+  onOpen,
+}: {
+  thread: Thread
+  selected: boolean
+  needsResponse: boolean
+  onOpen(): void
+}) {
+  const t = useT()
+  return (
+    <button
+      className={`project-thread-row${selected ? ' selected' : ''}`}
+      onClick={() => {
+        void haptic('light')
+        onOpen()
+      }}
+    >
+      <span>{thread.title || t('common.untitledThread')}</span>
+      <span className="project-thread-meta">
+        <time>{relative(thread.updatedAt ?? thread.createdAt)}</time>
+        {needsResponse ? (
+          <span
+            className="response-dot"
+            aria-label={t('threads.row.needsResponse')}
+          />
+        ) : null}
+      </span>
+    </button>
   )
 }

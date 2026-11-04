@@ -6225,6 +6225,16 @@ button:focus-visible,
   font-size: var(--text-xs);
   font-weight: var(--weight-semibold);
 }
+.project-card-recent-list {
+  display: grid;
+  margin: 0 -12px;
+}
+.project-card-recent-all {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 .project-card-expandable p,
 .project-card-empty,
 .project-card-proposal > p {

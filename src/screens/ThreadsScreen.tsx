@@ -48,6 +48,7 @@ import { resolveDefaultWorkspaceId } from './workspaceOptions'
 import { presenceClass, usePresence } from '../components/usePresence'
 import { autoTodo, findAutoTodoMessage, isTodoThread } from './threadGtd'
 import {
+  CompactProjectThread,
   ThreadRow,
   ThreadRowContent,
   relative,
@@ -143,6 +144,28 @@ export function ThreadsScreen({
   const { generating, pendingThreadIds, indicatorsFor } =
     useThreadRowIndicators(pairing.id)
   const [projectId, setProjectId] = useState<string>()
+  // Generating outranks a pending response.
+  const threadNeedsResponse = (thread: Thread) =>
+    pendingThreadIds.has(thread.id) &&
+    !generating.has(thread.id) &&
+    !thread.isGenerating
+  const openThread = (thread: Thread) => {
+    markRead(pairing.id, thread.id)
+    navigateToThread(thread.id)
+  }
+  const showAllProjectThreads = (id: string) => {
+    setProjectId(id)
+    requestAnimationFrame(() => {
+      const group = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          '.project-group[data-project-id]',
+        ),
+      ).find((node) => node.dataset.projectId === id)
+      group
+        ?.querySelector('.project-thread-row')
+        ?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    })
+  }
   const searchRef = useRef<HTMLInputElement>(null)
   const [deleting, setDeleting] = useState<Thread>()
   const visible = useMemo(
@@ -433,6 +456,7 @@ export function ThreadsScreen({
                   <div
                     className={`project-group${open ? ' open' : ''}`}
                     key={project.id}
+                    data-project-id={project.id}
                   >
                     <button
                       className="project-row"
@@ -462,6 +486,13 @@ export function ThreadsScreen({
                             workspaceId={project.id}
                             onNewThread={() => void create(project.id)}
                             onNavigate={(path) => navigate(path)}
+                            threads={projectThreads}
+                            selectedThreadId={selectedThreadId}
+                            threadNeedsResponse={threadNeedsResponse}
+                            onOpenThread={openThread}
+                            onShowAllThreads={() =>
+                              showAllProjectThreads(project.id)
+                            }
                           />
                         ) : (
                           <button
@@ -477,16 +508,8 @@ export function ThreadsScreen({
                             key={thread.id}
                             thread={thread}
                             selected={thread.id === selectedThreadId}
-                            needsResponse={
-                              // Generating outranks a pending response.
-                              pendingThreadIds.has(thread.id) &&
-                              !generating.has(thread.id) &&
-                              !thread.isGenerating
-                            }
-                            onOpen={() => {
-                              markRead(pairing.id, thread.id)
-                              navigateToThread(thread.id)
-                            }}
+                            needsResponse={threadNeedsResponse(thread)}
+                            onOpen={() => openThread(thread)}
                           />
                         ))}
                       </div>
@@ -771,40 +794,6 @@ export function ThreadsScreen({
         </BottomSheet>
       ) : null}
     </section>
-  )
-}
-
-function CompactProjectThread({
-  thread,
-  selected,
-  needsResponse,
-  onOpen,
-}: {
-  thread: Thread
-  selected: boolean
-  needsResponse: boolean
-  onOpen(): void
-}) {
-  const t = useT()
-  return (
-    <button
-      className={`project-thread-row${selected ? ' selected' : ''}`}
-      onClick={() => {
-        void haptic('light')
-        onOpen()
-      }}
-    >
-      <span>{thread.title || t('common.untitledThread')}</span>
-      <span className="project-thread-meta">
-        <time>{relative(thread.updatedAt ?? thread.createdAt)}</time>
-        {needsResponse ? (
-          <span
-            className="response-dot"
-            aria-label={t('threads.row.needsResponse')}
-          />
-        ) : null}
-      </span>
-    </button>
   )
 }
 

@@ -15,6 +15,10 @@ export const threads = {
     brief: 'Brief',
     focus: 'Focus',
     resume: 'Resume',
+    recent: {
+      title: 'Recent',
+      showAll: 'Show all ({count})',
+    },
     empty: 'Not set',
     expand: 'Show more',
     collapse: 'Show less',
