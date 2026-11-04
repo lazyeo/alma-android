@@ -6,6 +6,12 @@ import {
   EXPAND_EASING,
   EXPAND_MS,
 } from './alma/expandMotion'
+import {
+  DUR_FAST_MS,
+  DUR_PANEL_MS,
+  DUR_PRESS_MS,
+  EASE_OUT,
+} from './motionTokens'
 import { mapBase46ToCSS } from './theme'
 import { themes } from './themes'
 
@@ -180,6 +186,14 @@ describe('stylesheet token enforcement', () => {
       'dur-collapse': `${COLLAPSE_MS}ms`,
       'dur-stagger': '40ms',
       'ease-collapse': COLLAPSE_EASING,
+    }))
+      expect(css).toContain(`--${name}: ${value};`)
+    // Script timers and WAAPI motion read the same tokens from TS.
+    for (const [name, value] of Object.entries({
+      'dur-press': `${DUR_PRESS_MS}ms`,
+      'dur-fast': `${DUR_FAST_MS}ms`,
+      'dur-panel': `${DUR_PANEL_MS}ms`,
+      'ease-out': EASE_OUT,
     }))
       expect(css).toContain(`--${name}: ${value};`)
     // The expand spring is generated in TS and mirrored as a token.
