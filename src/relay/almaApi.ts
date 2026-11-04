@@ -14,6 +14,12 @@ import {
 } from '../screens/crystals'
 import { parseTimeClues, type TimeClueResponse } from '../screens/timeClues'
 import { parseAgentCrew, type AgentCrew } from '../screens/agentCrew'
+import {
+  parseAlmaVitals,
+  parsePersonalAgent,
+  type AlmaVitalsResult,
+  type PersonalAgentResult,
+} from '../screens/personalAgent'
 import type { LiveSubagentSnapshot } from '../screens/subagentLive'
 import type { RelayTunnel, TunnelSocket } from './tunnel'
 
@@ -1182,6 +1188,35 @@ export class AlmaApi {
     } catch (error) {
       if (error instanceof AlmaHttpError && error.status === 404)
         return { commands: [] }
+      throw error
+    }
+  }
+  /** Personal agent overview; a 404 means the desktop predates 0.4.407. */
+  async getPersonal(): Promise<PersonalAgentResult> {
+    try {
+      return {
+        status: 'ok',
+        personal: parsePersonalAgent(
+          await this.request<unknown>('/api/personal'),
+        ),
+      }
+    } catch (error) {
+      if (error instanceof AlmaHttpError && error.status === 404)
+        return { status: 'unsupported' }
+      throw error
+    }
+  }
+  async getAlmaVitals(): Promise<AlmaVitalsResult> {
+    try {
+      return {
+        status: 'ok',
+        vitals: parseAlmaVitals(
+          await this.request<unknown>('/api/alma/vitals'),
+        ),
+      }
+    } catch (error) {
+      if (error instanceof AlmaHttpError && error.status === 404)
+        return { status: 'unsupported' }
       throw error
     }
   }

@@ -893,3 +893,129 @@ describe('live sub-agent snapshots', () => {
     await expect(broken.getLiveSubagents('t1')).rejects.toThrow()
   })
 })
+
+describe('personal agent routes', () => {
+  const respond = (status: number, body: unknown) =>
+    vi.fn().mockResolvedValue({
+      status,
+      json: async () => body,
+      text: async () => (status === 200 ? '' : 'Not Found'),
+      headers: {},
+    })
+  const apiWith = (fetch: ReturnType<typeof respond>) =>
+    new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)
+
+  it('reads the personal agent status from GET /api/personal', async () => {
+    const fetch = respond(200, {
+      threadId: 'thread-personal',
+      settings: {
+        threadId: 'thread-personal',
+        reportResults: true,
+        permissions: {},
+        dailyBudgetUsd: 5,
+        routing: {},
+      },
+      today: { spentUsd: 1.234, budgetUsd: 5, over: false },
+      running: 2,
+      pendingApprovals: 1,
+      notifications: [],
+    })
+
+    await expect(apiWith(fetch).getPersonal()).resolves.toEqual({
+      status: 'ok',
+      personal: {
+        threadId: 'thread-personal',
+        today: { spentUsd: 1.234, budgetUsd: 5, over: false },
+        running: 2,
+        pendingApprovals: 1,
+      },
+    })
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/personal',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('keeps an unset personal thread and defaults malformed counters', async () => {
+    const fetch = respond(200, {
+      threadId: null,
+      today: { spentUsd: 'x' },
+      running: -1,
+    })
+
+    await expect(apiWith(fetch).getPersonal()).resolves.toEqual({
+      status: 'ok',
+      personal: {
+        threadId: null,
+        today: { spentUsd: 0, budgetUsd: null, over: false },
+        running: 0,
+        pendingApprovals: 0,
+      },
+    })
+  })
+
+  it('maps a missing personal route on older desktops to unsupported', async () => {
+    await expect(apiWith(respond(404, {})).getPersonal()).resolves.toEqual({
+      status: 'unsupported',
+    })
+    await expect(apiWith(respond(500, {})).getPersonal()).rejects.toThrow()
+  })
+
+  it('reads Alma vitals with an optional mood', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        status: 200,
+        json: async () => ({
+          fatigue: 0.2,
+          level: 'awake',
+          isNight: false,
+          mood: 'happy',
+          energy: 8,
+          valence: 7,
+          updated: '2026-11-04T00:00:00.000Z',
+        }),
+        text: async () => '',
+        headers: {},
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        json: async () => ({
+          fatigue: 10,
+          isNight: true,
+          mood: null,
+          updated: null,
+        }),
+        text: async () => '',
+        headers: {},
+      })
+    const api = apiWith(fetch)
+
+    await expect(api.getAlmaVitals()).resolves.toEqual({
+      status: 'ok',
+      vitals: {
+        fatigue: 0.2,
+        level: 'awake',
+        isNight: false,
+        mood: 'happy',
+        energy: 8,
+        valence: 7,
+        updated: '2026-11-04T00:00:00.000Z',
+      },
+    })
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/alma/vitals',
+      expect.objectContaining({ method: 'GET' }),
+    )
+    await expect(api.getAlmaVitals()).resolves.toEqual({
+      status: 'ok',
+      vitals: { fatigue: 10, isNight: true },
+    })
+  })
+
+  it('maps a missing vitals route to unsupported', async () => {
+    await expect(apiWith(respond(404, {})).getAlmaVitals()).resolves.toEqual({
+      status: 'unsupported',
+    })
+  })
+})

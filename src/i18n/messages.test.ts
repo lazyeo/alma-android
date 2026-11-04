@@ -82,4 +82,5 @@ const SAME_IN_BOTH = new Set<string>([
   // Product name is intentionally unchanged in both locales.
   'nav.agents',
   'agents.title',
+  'threads.personal.title',
 ])

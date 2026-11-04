@@ -123,5 +123,7 @@ export function useDesktopThreadList() {
     loading,
     error,
     setError,
+    /** Re-fetch threads, projects, and settings (pull-to-refresh). */
+    reload: load,
   }
 }

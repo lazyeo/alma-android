@@ -102,6 +102,26 @@ export const threads = {
     queued: { one: '{count} queued', other: '{count} queued' },
     draft: 'Draft',
   },
+  personal: {
+    title: 'Alma',
+    open: 'Open Alma main conversation',
+    notSetUp:
+      'Not set up — start it from Alma on your phone or desktop Settings → Personal agent',
+    running: { one: '{count} running', other: '{count} running' },
+    approvals: { one: '{count} approval', other: '{count} approvals' },
+    mood: {
+      happy: 'Happy',
+      excited: 'Excited',
+      amused: 'Amused',
+      content: 'Content',
+      neutral: 'Neutral',
+      bored: 'Bored',
+      annoyed: 'Annoyed',
+      sad: 'Sad',
+      upset: 'Upset',
+      angry: 'Angry',
+    },
+  },
   organize: {
     movedTo: 'Moved to {status}',
     setStatus: 'Set status',

@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Threads: on Alma desktop 0.4.407+, an Alma row at the top of the list opens the personal agent's main conversation and shows mood, running tasks, pending approvals, and today's spend; it refreshes on focus, every 30 s while visible, and with a new pull-to-refresh at the top of the Threads list (which also reloads the threads), explains setup when no main conversation is set, and stays hidden on older desktops (2026-11-04).
+
 ### Changed
 
 - New launcher icon: the glasses character with sage-green lenses, so this unofficial client is easy to tell apart from the official Alma app (2026-11-04).

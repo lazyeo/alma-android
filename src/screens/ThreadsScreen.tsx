@@ -57,6 +57,9 @@ import { useThreadOrganize } from './ThreadOrganize'
 import { useDesktopThreadList } from './useDesktopThreadList'
 import { useT } from '../i18n'
 import { ProjectCardSection } from './ProjectCardSection'
+import { PersonalAgentRow } from './PersonalAgentRow'
+import { usePersonalAgent } from './usePersonalAgent'
+import { usePullToRefresh } from './usePullToRefresh'
 
 export function ThreadsScreen({
   selectedThreadId,
@@ -83,6 +86,7 @@ export function ThreadsScreen({
     loading,
     error,
     setError,
+    reload,
   } = useDesktopThreadList()
   const [query, setQuery] = useState(''),
     [searchOpen, setSearchOpen] = useState(false),
@@ -131,6 +135,11 @@ export function ThreadsScreen({
     }
   }, [api, query, tab, searchSupported])
   const { markRead } = useUnreadActivity()
+  const personalAgent = usePersonalAgent(api)
+  const listBodyRef = useRef<HTMLDivElement>(null)
+  const pull = usePullToRefresh(listBodyRef, () =>
+    Promise.all([reload(), personalAgent.refresh()]),
+  )
   const { generating, pendingThreadIds, indicatorsFor } =
     useThreadRowIndicators(pairing.id)
   const [projectId, setProjectId] = useState<string>()
@@ -375,13 +384,39 @@ export function ThreadsScreen({
         onSelect={setTab}
         label={t('threads.views')}
       />
-      <div className="page-body threads-page-body">
+      <div className="page-body threads-page-body" ref={listBodyRef}>
+        {pull.distance || pull.refreshing ? (
+          <div
+            className="pull-refresh-indicator"
+            style={{ height: pull.refreshing ? 40 : pull.distance }}
+            aria-hidden="true"
+          >
+            <LoaderCircle
+              className={pull.refreshing ? 'spinner' : undefined}
+              size={18}
+              style={
+                pull.refreshing
+                  ? undefined
+                  : { transform: `rotate(${pull.distance * 4}deg)` }
+              }
+            />
+          </div>
+        ) : null}
         {errorPresence.rendered ? (
           <p className={`error ${presenceClass(errorPresence.phase)}`}>
             {presentedError.current}
           </p>
         ) : null}
         <div className={`thread-list thread-tab-content ${tab}`} key={tab}>
+          {tab === 'threads' && !query.trim() ? (
+            <PersonalAgentRow
+              state={personalAgent.state}
+              onOpen={(threadId) => {
+                markRead(pairing.id, threadId)
+                navigateToThread(threadId)
+              }}
+            />
+          ) : null}
           {loading ? (
             <p className="empty">{t('threads.loading')}</p>
           ) : tab === 'projects' ? (
