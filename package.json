@@ -27,17 +27,17 @@
     "@capacitor/keyboard": "^8.0.6",
     "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/status-bar": "^8.0.4",
-    "@tanstack/react-virtual": "^3.14.23",
+    "@tanstack/react-virtual": "^3.14.25",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-unicode11": "^0.9.0",
     "@xterm/xterm": "^6.0.0",
     "@zxing/browser": "^0.2.1",
     "docx-preview": "^0.4.1",
     "katex": "^0.19.1",
-    "lucide-react": "^1.63.0",
+    "lucide-react": "^1.66.0",
     "mdast-util-from-markdown": "^2.1.0",
     "mermaid": "^12.2.0",
-    "pdfjs-dist": "^6.4.299",
+    "pdfjs-dist": "^6.5.438",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^9.1.0",
@@ -70,7 +70,7 @@
     "vitest": "^3.2.4",
     "workbox-core": "^7.3.0",
     "workbox-precaching": "^7.3.0",
-    "ws": "^8.18.3"
+    "ws": "^8.22.1"
   },
   "license": "MIT"
 }
