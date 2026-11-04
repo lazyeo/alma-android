@@ -53,5 +53,7 @@ describe('MascotRig helpers', () => {
     expect(shouldAnimate({ ...on, animated: false })).toBe(false)
     expect(shouldAnimate({ ...on, intersecting: false })).toBe(false)
     expect(shouldAnimate({ ...on, pageVisible: false })).toBe(false)
+    // Paused while the /alma expand runs, so no snapshot re-rasters.
+    expect(shouldAnimate({ ...on, transitioning: true })).toBe(false)
   })
 })

@@ -1,5 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import {
+  COLLAPSE_EASING,
+  COLLAPSE_MS,
+  EXPAND_EASING,
+  EXPAND_MS,
+} from './alma/expandMotion'
 import { mapBase46ToCSS } from './theme'
 import { themes } from './themes'
 
@@ -170,11 +176,17 @@ describe('stylesheet token enforcement', () => {
       'ease-loop-wave': 'ease-in-out',
       'dur-flight': '320ms',
       'ease-spring': 'cubic-bezier(0.34, 1.32, 0.64, 1)',
-      'dur-expand': '420ms',
+      'dur-expand': `${EXPAND_MS}ms`,
+      'dur-collapse': `${COLLAPSE_MS}ms`,
       'dur-stagger': '40ms',
-      'ease-expand': 'cubic-bezier(0.3, 0, 0, 1)',
+      'ease-collapse': COLLAPSE_EASING,
     }))
       expect(css).toContain(`--${name}: ${value};`)
+    // The expand spring is generated in TS and mirrored as a token.
+    const expand = /--ease-expand:\s*(linear\([^)]*\));/.exec(css)?.[1]
+    expect(
+      expand?.replace(/\s+/g, ' ').replace('( ', '(').replace(' )', ')'),
+    ).toBe(EXPAND_EASING)
   })
 
   it('retains only documented functional keyframes and no decorative motion', () => {
@@ -207,11 +219,8 @@ describe('stylesheet token enforcement', () => {
       'alma-glance',
       'alma-glint',
       'alma-breathe',
-      // The whole-screen expand into /alma and its reverse on Back.
-      'alma-reveal-in',
-      'alma-reveal-out',
-      'alma-page-recede',
-      'alma-page-return',
+      // Her messages rising in once the /alma expand lands (the expand
+      // itself is WAAPI: transform and opacity only, no keyframes here).
       'alma-persona-rise',
     ]
     const defined = [...css.matchAll(/@keyframes ([\w-]+)/g)].map(
@@ -397,7 +406,7 @@ describe('stylesheet token enforcement', () => {
 
   it('uses only motion duration tokens outside documented functional loops', () => {
     const withoutDefinitions = css.replace(
-      /--(?:dur-[\w-]+|ease-out|ease-spring|ease-expand|ease-loop-[\w-]+):\s*[^;]+;/g,
+      /--(?:dur-[\w-]+|ease-out|ease-spring|ease-expand|ease-collapse|ease-loop-[\w-]+):\s*[^;]+;/g,
       '',
     )
     expect(

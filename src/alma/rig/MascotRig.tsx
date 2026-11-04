@@ -3,6 +3,7 @@ import {
   validMascotRig,
   type MascotRigAssets,
 } from '../../extensions/mascotRig'
+import { useAlmaMotionRunning } from '../almaExpand'
 import type { FaceActivity, FaceMood } from '../faceState'
 import { useReducedMotion } from '../useReducedMotion'
 import { startBlinkScheduler } from './blink'
@@ -16,19 +17,27 @@ export function rigPixelRatio(ratio = window.devicePixelRatio) {
 
 /**
  * Animate only while someone can see it: on screen and the page visible.
- * Static copies and reduced motion never animate.
+ * Static copies and reduced motion never animate, and neither does any
+ * face while the /alma expand runs: a live canvas inside a transition
+ * snapshot would be re-rastered every frame.
  */
 export function shouldAnimate({
   animated,
   intersecting,
   pageVisible,
+  transitioning = false,
 }: {
   animated: boolean
   intersecting: boolean
   pageVisible: boolean
+  transitioning?: boolean
 }) {
-  return animated && intersecting && pageVisible
+  return animated && intersecting && pageVisible && !transitioning
 }
+
+// Decoded layers per rig, so a face that remounts (the /alma header after
+// the expand) paints on its first commit instead of a blank frame.
+const loadedImages = new WeakMap<MascotRigAssets, RigImages>()
 
 function useOnScreen(target: RefObject<Element>, enabled: boolean) {
   const [intersecting, setIntersecting] = useState(true)
@@ -81,7 +90,9 @@ export function MascotRig({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const reduced = useReducedMotion()
   const animated = !still && !reduced
-  const [images, setImages] = useState<RigImages | null>(null)
+  const [images, setImages] = useState<RigImages | null>(
+    () => loadedImages.get(assets) ?? null,
+  )
   const engine = useRef<RigEngine>()
   engine.current ??= new RigEngine()
   // One clock per face, so pausing offscreen never rewinds its timers.
@@ -92,7 +103,13 @@ export function MascotRig({
   const unavailable = useRef(onUnavailable)
   unavailable.current = onUnavailable
   const { intersecting, pageVisible } = useOnScreen(canvasRef, animated)
-  const running = shouldAnimate({ animated, intersecting, pageVisible })
+  const transitioning = useAlmaMotionRunning()
+  const running = shouldAnimate({
+    animated,
+    intersecting,
+    pageVisible,
+    transitioning,
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -100,8 +117,14 @@ export function MascotRig({
       unavailable.current?.()
       return
     }
+    const cached = loadedImages.get(assets)
+    if (cached) {
+      setImages(cached)
+      return
+    }
     loadRigImages(assets).then(
       (loaded) => {
+        loadedImages.set(assets, loaded)
         if (!cancelled) setImages(loaded)
       },
       () => {
@@ -148,6 +171,12 @@ export function MascotRig({
       last = now
       frame = requestAnimationFrame(tick)
     }
+    // Draw now rather than leave the canvas blank until the next frame.
+    draw.paint(
+      ctx,
+      pixels,
+      rig.update(last, 0, latest.current.mood, latest.current.activity),
+    )
     frame = requestAnimationFrame(tick)
     const stopBlinking = startBlinkScheduler((double) =>
       rig.blink(seconds(), double),

@@ -7,6 +7,8 @@ import type { PersonalAgentState } from '../screens/personalAgent'
 import { AlmaNavButton } from './AlmaNavButton'
 import { AlmaPresenceContext, presenceFace } from './AlmaPresence'
 
+import { haptic } from '../haptics'
+
 vi.mock('../haptics', () => ({ haptic: vi.fn() }))
 vi.mock('./AlmaScreen', () => ({ AlmaScreen: () => null }))
 
@@ -31,7 +33,15 @@ function Where() {
 
 function renderButton(
   state: PersonalAgentState,
-  { generating = false, route = '/d/home/threads' } = {},
+  {
+    generating = false,
+    route = '/d/home/threads',
+    prefetchThread = vi.fn(),
+  }: {
+    generating?: boolean
+    route?: string
+    prefetchThread?: (fallbackTitle: string) => void
+  } = {},
 ) {
   return render(
     <LanguageProvider>
@@ -42,6 +52,7 @@ function renderButton(
           generating,
           face: presenceFace(state, generating),
           refresh: vi.fn(),
+          prefetchThread,
         }}
       >
         <MemoryRouter initialEntries={[route]}>
@@ -91,6 +102,22 @@ describe('AlmaNavButton', () => {
     fireEvent.click(button()!)
     expect(screen.getByTestId('where').textContent).toBe('/d/home/alma')
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('presses the disc, ticks and warms her thread on pointer-down', () => {
+    const prefetchThread = vi.fn()
+    const { container } = renderButton(ready('main'), { prefetchThread })
+    const disc = container.querySelector<HTMLElement>('.alma-nav-avatar')!
+    vi.mocked(haptic).mockClear()
+    fireEvent.pointerDown(button()!)
+    expect(disc.dataset.pressed).toBe('true')
+    expect(haptic).toHaveBeenCalledWith('light')
+    expect(prefetchThread).toHaveBeenCalledWith('Alma')
+    fireEvent.pointerUp(button()!)
+    expect(disc.dataset.pressed).toBeUndefined()
+    // The click itself adds no second tick.
+    fireEvent.click(button()!, { detail: 1 })
+    expect(haptic).toHaveBeenCalledTimes(1)
   })
 
   it('shows the approval dot only while something waits', () => {

@@ -40,11 +40,36 @@ export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
   const openable =
     presence?.state.status === 'ready' &&
     Boolean(presence.state.personal.threadId)
-  // Load the screen chunk ahead of the tap: a Suspense fallback in the
-  // transition's new snapshot would leave the avatar nowhere to land.
+  // Load the screen chunk and warm her thread ahead of the tap: the expand
+  // renders from the cache and must never wait on the network or Suspense.
+  const fallbackTitle = t('threads.personal.title')
+  const prefetch = () => {
+    if (!here) presence?.prefetchThread?.(fallbackTitle)
+  }
+  const prefetchRef = useRef(prefetch)
+  prefetchRef.current = prefetch
   useEffect(() => {
-    if (openable) void import('./AlmaScreen')
+    if (!openable) return
+    void import('./AlmaScreen')
+    const idle = (
+      window as {
+        requestIdleCallback?: (callback: () => void) => number
+        cancelIdleCallback?: (handle: number) => void
+      }
+    ).requestIdleCallback
+    if (typeof idle !== 'function') {
+      const timer = window.setTimeout(() => prefetchRef.current(), 1000)
+      return () => window.clearTimeout(timer)
+    }
+    const handle = idle(() => prefetchRef.current())
+    return () =>
+      (
+        window as { cancelIdleCallback?: (handle: number) => void }
+      ).cancelIdleCallback?.(handle)
   }, [openable])
+  const release = () => {
+    if (discRef.current) delete discRef.current.dataset.pressed
+  }
   if (!presence?.desktopId || presence.state.status !== 'ready') return null
   const { desktopId, face, generating } = presence
   const { threadId, running, pendingApprovals } = presence.state.personal
@@ -57,8 +82,18 @@ export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
         aria-label={t('threads.personal.open')}
         aria-current={here ? 'page' : undefined}
         data-busy={busy ? 'true' : undefined}
-        onClick={() => {
+        onPointerDown={() => {
+          // Press feedback and the warm-up start before the click lands.
+          if (discRef.current) discRef.current.dataset.pressed = 'true'
           void haptic('light')
+          prefetch()
+        }}
+        onPointerUp={release}
+        onPointerCancel={release}
+        onPointerLeave={release}
+        onClick={(event) => {
+          // Keyboard activation has no pointer-down tick.
+          if (event.detail === 0) void haptic('light')
           if (!threadId) setSetupOpen(true)
           else if (!here) {
             if (discRef.current)

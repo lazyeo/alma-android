@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -11,6 +12,7 @@ import { visiblePairings } from '../desktops/desktopVisibility'
 import { useGeneratingIds } from '../desktops/ThreadActivityProvider'
 import type { PersonalAgentState } from '../screens/personalAgent'
 import { usePersonalAgent } from '../screens/usePersonalAgent'
+import { prefetchAlmaThread } from './almaPrefetch'
 import { faceActivity, faceMoodFromVitals, type FaceState } from './faceState'
 
 export interface AlmaPresence {
@@ -20,6 +22,8 @@ export interface AlmaPresence {
   generating: boolean
   face: FaceState
   refresh(): Promise<void>
+  /** Warms the thread cache with her main thread before /alma opens. */
+  prefetchThread?(fallbackTitle: string): void
 }
 
 export const AlmaPresenceContext = createContext<AlmaPresence | null>(null)
@@ -63,6 +67,14 @@ export function AlmaPresenceProvider({ children }: { children: ReactNode }) {
     wasGenerating.current = generating
   }, [generating, refresh])
 
+  const prefetchThread = useCallback(
+    (fallbackTitle: string) => {
+      if (api && desktopId && threadId)
+        void prefetchAlmaThread(api, desktopId, threadId, { fallbackTitle })
+    },
+    [api, desktopId, threadId],
+  )
+
   const value = useMemo<AlmaPresence>(
     () => ({
       desktopId,
@@ -70,8 +82,9 @@ export function AlmaPresenceProvider({ children }: { children: ReactNode }) {
       generating,
       face: presenceFace(state, generating),
       refresh,
+      prefetchThread,
     }),
-    [desktopId, state, generating, refresh],
+    [desktopId, state, generating, refresh, prefetchThread],
   )
   return (
     <AlmaPresenceContext.Provider value={value}>
