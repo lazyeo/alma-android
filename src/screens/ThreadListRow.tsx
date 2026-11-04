@@ -318,6 +318,8 @@ export function ThreadRow({
   className: string
   style?: CSSProperties
   'aria-current'?: 'page'
+  /** Identity for list edit motion (`useListFlip`). */
+  'data-flip-key'?: string
 }) {
   const t = useT()
   const press = useLongPress(onActions)

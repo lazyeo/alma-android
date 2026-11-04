@@ -45,6 +45,7 @@ import {
 import { useTimeCluesStatus } from './useTimeCluesStatus'
 import type { Thread } from '../relay'
 import { resolveDefaultWorkspaceId } from './workspaceOptions'
+import { useListFlip } from '../components/listFlip'
 import { presenceClass, usePresence } from '../components/usePresence'
 import { autoTodo, findAutoTodoMessage, isTodoThread } from './threadGtd'
 import {
@@ -93,6 +94,8 @@ export function ThreadsScreen({
     [createOpen, setCreateOpen] = useState(false),
     [libraryOpen, setLibraryOpen] = useState(false)
   const errorPresence = usePresence(Boolean(error))
+  const listRef = useRef<HTMLDivElement>(null)
+  useListFlip(listRef)
   const presentedError = useRef(error)
   if (error) presentedError.current = error
   const [tab, setTab] = useState<'threads' | 'projects'>('threads')
@@ -429,7 +432,11 @@ export function ThreadsScreen({
             {presentedError.current}
           </p>
         ) : null}
-        <div className={`thread-list thread-tab-content ${tab}`} key={tab}>
+        <div
+          ref={listRef}
+          className={`thread-list thread-tab-content ${tab}`}
+          key={tab}
+        >
           {loading ? (
             <p className="empty">{t('threads.loading')}</p>
           ) : tab === 'projects' ? (
@@ -619,6 +626,7 @@ export function ThreadsScreen({
                 <ThreadRow
                   className={`thread-row${selected ? ' selected' : ''}`}
                   key={thread.id}
+                  data-flip-key={thread.id}
                   aria-current={selected ? 'page' : undefined}
                   onClick={() => {
                     void haptic('light')

@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { AnchoredMenu, pointAnchor } from '../components/AnchoredMenu'
+import { useListFlip } from '../components/listFlip'
 import { presenceClass, usePresence } from '../components/usePresence'
 import { TabBar } from '../components/TabBar'
 import { useConnection } from '../desktops/DesktopContext'
@@ -76,6 +77,8 @@ export function GtdScreen({
   const { threads, setThreads, workspaces, loading, error, setError } =
     useDesktopThreadList()
   const errorPresence = usePresence(Boolean(error))
+  const listRef = useRef<HTMLDivElement>(null)
+  useListFlip(listRef)
   const presentedError = useRef(error)
   if (error) presentedError.current = error
   const { markRead } = useUnreadActivity()
@@ -112,6 +115,7 @@ export function GtdScreen({
     const content = (style?: CSSProperties) => (
       <ThreadRow
         className={`thread-row${selected ? ' selected' : ''}`}
+        data-flip-key={swipeable ? thread.id : `favorite:${thread.id}`}
         style={style}
         aria-current={selected ? 'page' : undefined}
         onClick={() => open(thread)}
@@ -188,7 +192,7 @@ export function GtdScreen({
         {loading ? (
           <p className="empty">{t('threads.loading')}</p>
         ) : (
-          <div className="thread-list gtd-list">
+          <div ref={listRef} className="thread-list gtd-list">
             {segment !== 'archived' && favoriteCount ? (
               <section className="gtd-group" aria-label={t('gtd.favorites')}>
                 <button
