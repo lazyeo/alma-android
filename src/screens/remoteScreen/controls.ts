@@ -157,6 +157,58 @@ export function reduceTrackpadGesture(
   }
 }
 
+type ScrollEvent = Extract<ControlEvent, { type: 'scroll' }>
+
+/**
+ * Sums scroll deltas and sends at most once per interval, at the latest
+ * position. Sending every touch event piles up in the relay and causes
+ * latency spikes. Deltas go out as whole pixels; the fraction carries over.
+ */
+export function createScrollCoalescer(
+  send: (value: ScrollEvent) => void,
+  intervalMs = 33,
+) {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let point: { x: number; y: number } | undefined
+  let dx = 0
+  let dy = 0
+  let closed = false
+  const emit = () => {
+    if (closed || !point) return false
+    const wholeX = Math.trunc(dx)
+    const wholeY = Math.trunc(dy)
+    if (!wholeX && !wholeY) return false
+    dx -= wholeX
+    dy -= wholeY
+    send({ type: 'scroll', ...point, dx: wholeX, dy: wholeY })
+    return true
+  }
+  const tick = () => {
+    timer = undefined
+    if (emit()) timer = setTimeout(tick, intervalMs)
+  }
+  return {
+    push(value: ScrollEvent) {
+      if (closed) return
+      point = { x: value.x, y: value.y }
+      dx += value.dx
+      dy += value.dy
+      if (!timer && emit()) timer = setTimeout(tick, intervalMs)
+    },
+    /** Sends whatever whole pixels are waiting and drops the remainder. */
+    flush() {
+      emit()
+      dx = 0
+      dy = 0
+    },
+    close() {
+      closed = true
+      if (timer) clearTimeout(timer)
+      timer = undefined
+    },
+  }
+}
+
 export function createMoveCoalescer<T>(
   send: (value: T) => void,
   intervalMs = 33,
