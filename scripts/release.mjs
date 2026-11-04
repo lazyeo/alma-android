@@ -261,6 +261,9 @@ function publish() {
   if (missing.length)
     fail(`missing signing environment variables: ${missing.join(', ')}`)
 
+  if (process.env.ALMA_MASCOT === 'skip')
+    fail('releases ship the official mascot art; unset ALMA_MASCOT=skip')
+
   if (dryRun) {
     if (prebuilt) console.log('[dry-run] use prebuilt release APK')
     else {
@@ -282,6 +285,16 @@ function publish() {
   }
 
   const sourceApk = findReleaseApk()
+  // Releases ship the official mascot art (see NOTICE.md); catch a prebuilt
+  // APK that was assembled with ALMA_MASCOT=skip.
+  if (
+    !execFileSync('unzip', ['-l', sourceApk], { encoding: 'utf8' }).includes(
+      'assets/public/alma-mascot/rig.json',
+    )
+  )
+    fail(
+      `${sourceApk} has no official mascot art (built with ALMA_MASCOT=skip?)`,
+    )
   const apksigner = findApksigner()
   run(apksigner, ['verify', '--verbose', '--print-certs', sourceApk])
 
