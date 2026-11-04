@@ -5,7 +5,8 @@ const read = (path: string) =>
   readFileSync(new URL(path, import.meta.url), 'utf8')
 const app = read('../App.tsx')
 const shell = read('../layout/AppShell.tsx')
-const threads = read('./ThreadsScreen.tsx')
+// Compact rows live in ThreadListRow.tsx (shared with the project card).
+const threads = read('./ThreadsScreen.tsx') + read('./ThreadListRow.tsx')
 const styles = read('../styles.css')
 const capture = read('../../scripts/screenshots/capture.mjs')
 
