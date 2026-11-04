@@ -10,6 +10,7 @@ This is the single source of truth for new Alma Mobile screens and sections. It 
 - Never claim gestures from overlays, editable controls, active queue interactions, hold-to-stop, horizontally scrollable content that can consume the movement, or the leftmost 24px Android back-gesture zone.
 - Pointer gestures use capture only after intent is established, handle cancellation, preserve taps and scrolling until claimed, and suppress the release click after a claimed title swipe.
 - Reduced motion removes direct-follow animation and applies the committed state immediately. Selection commits use `haptic('selection')` only.
+- The remote screen surface owns every touch on it and runs one gesture machine in direct, trackpad, and pan modes: claim after 8px, hold 350ms to drag. Two fingers always pinch (1–4x, anchored at their centroid, snapping back to fit below 1.03) or scroll; in pan mode they pan instead. A two-finger tap right-clicks, and a quick second one resets the zoom when zoomed. The view is a single transform written outside React renders, and every desktop coordinate goes through its inverse.
 
 ## Principles
 

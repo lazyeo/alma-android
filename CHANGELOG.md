@@ -8,7 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Nothing yet.
+- Remote screen zoom and pan: pinch zooms the stream 1–4x around your fingers and snaps back to fit just above 1x. A zoom chip shows the percentage and switches between Fit and 1:1, a hand button lets one finger pan the zoomed view without touching the Mac, and a quick double two-finger tap resets the zoom. Taps, drags and scrolls land where you see them at any zoom (2026-11-05).
+- Remote screen trackpad mode: instead of a separate pad, your finger moves a cursor drawn over the stream, with pointer acceleration, while the Mac hides its own pointer. Tap to click, hold then move to drag, two fingers to scroll or right-click. The view follows the cursor near the edges when zoomed, and each desktop remembers the input mode you chose (2026-11-05).
+- Remote screen picker: on desktops that report more than one display or can stream single windows (macOS), a button in the header opens a sheet to show a display, the whole screen, or one app window, with app icons and the current choice ticked. If the streamed window closes, a short notice says so and the picker shows the whole screen as the current choice (2026-11-05).
 
 ## [0.1.7] - 2026-11-05
 
