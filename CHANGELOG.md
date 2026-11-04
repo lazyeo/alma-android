@@ -8,11 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Threads: on Alma desktop 0.4.407+, an Alma row at the top of the list opens the personal agent's main conversation and shows mood, running tasks, pending approvals, and today's spend; it refreshes on focus, every 30 s while visible, and with a new pull-to-refresh at the top of the Threads list (which also reloads the threads), explains setup when no main conversation is set, and stays hidden on older desktops (2026-11-04).
+- Alma tab: on Alma desktop 0.4.407+, a raised Alma avatar in the center of the tab bar (and in the side rail) opens the personal agent at `/alma`. The vector face follows her vitals (energy and valence on 0–10, fatigue on 0–100, mood, and awake/tired/asleep level), and badges show when she is working or needs your OK. If no main conversation is set up, it explains how to turn one on. It stays hidden on older desktops (2026-11-04).
+- Alma persona screen: a messenger-style view of the main conversation, with a header showing her face and a status line (thinking, working on N things, N things need your OK, or mood). Each reply has a collapsible thinking section and a "did: …" summary of what she did (2026-11-04).
+- Threads: pull-to-refresh at the top of the list reloads the threads and Alma's status (2026-11-04).
 - Project card: a Recent section lists the project's five most recently updated threads (re-sorted each time the card opens), with Show all (N) jumping to the full project thread list, matching desktop 0.4.396 and the official app (2026-11-04).
 
 ### Changed
 
+- Threads: the pinned Alma row at the top of the list is gone; the center Alma tab replaces it (2026-11-04).
 - New launcher icon: the glasses character with sage-green lenses, so this unofficial client is easy to tell apart from the official Alma app (2026-11-04).
 
 ### Fixed
