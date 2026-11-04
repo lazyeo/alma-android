@@ -1,8 +1,18 @@
 import { haptic } from '../haptics'
 import { shouldFinishOverlayClose } from '../overlayClosing'
 import { ArrowLeft, X } from 'lucide-react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { useAnimatedOverlay } from './useAnimatedOverlay'
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import { playDetachedExit } from './detachedExit'
+import {
+  OVERLAY_EXIT_FALLBACK_MS,
+  useAnimatedOverlay,
+} from './useAnimatedOverlay'
 import { useT } from '../i18n'
 
 // Dragging the handle further than this dismisses the sheet; shorter drags
@@ -32,9 +42,23 @@ export function BottomSheet({
   const sheetRef = useRef<HTMLElement>(null)
   const [dragY, setDragY] = useState(0)
   const dragStart = useRef<number>()
-  const { closing, requestClose, finishClose } = useAnimatedOverlay(
+  const { rendered, closing, requestClose, finishClose } = useAnimatedOverlay(
     true,
     onClose,
+  )
+  const backdropRef = useRef<HTMLDivElement>(null)
+  const openRef = useRef(true)
+  openRef.current = rendered && !closing
+
+  // Owners often close a sheet by unmounting it (a picked row sets the
+  // state that renders it). Play the exit anyway, from its last frame.
+  useLayoutEffect(
+    () => () => {
+      const node = backdropRef.current
+      if (node && openRef.current)
+        playDetachedExit(node, { fallbackMs: OVERLAY_EXIT_FALLBACK_MS })
+    },
+    [],
   )
 
   useEffect(() => {
@@ -85,6 +109,7 @@ export function BottomSheet({
 
   return (
     <div
+      ref={backdropRef}
       className={`sheet-backdrop${closing ? ' closing' : ''}`}
       onClick={requestClose}
       onAnimationEnd={(event) => {
