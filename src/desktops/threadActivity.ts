@@ -2,6 +2,12 @@ import type { RealtimeEvent } from '../relay'
 
 type ThreadEvent = Pick<RealtimeEvent, 'type' | 'data'>
 
+/**
+ * Client-side hub event (never sent by the desktop): the background
+ * `/ws/threads` reopened after a gap, so list screens must reload over HTTP.
+ */
+export const THREADS_RESYNCED = 'threads_resynced'
+
 const FINISHED = new Set([
   'generation_completed',
   'generation_error',

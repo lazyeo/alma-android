@@ -1263,6 +1263,9 @@ export class ThreadsSocket {
   get opened() {
     return this.socket.opened
   }
+  onClose(listener: () => void) {
+    return this.socket.onClose(listener)
+  }
   private send(type: string, data: unknown) {
     this.socket.send(JSON.stringify({ type, data }))
   }

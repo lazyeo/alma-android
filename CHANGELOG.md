@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Thread chats and the thread list reconnect `/ws/threads` after the desktop closes or rejects it while the relay tunnel stays up (retrying after 1/2/5/15 s, capped at 15 s, or immediately on return to the foreground). After a reconnect they reload the open thread and the list over HTTP, so replies keep streaming in without reopening the thread (2026-11-04).
 - Herdr chats resync after silent, closed, or stale relay sockets so new transcript items keep arriving without leaving and reopening the pane (2026-11-04).
 - Reopening a thread reuses already-rendered Markdown (bounded cache), and the first frame of a thread renders only the bottom rows (2026-11-03).
 - Opening a thread no longer re-parses every visible message on each re-render and starts at the bottom instead of rendering the top rows first; on a Redmi the main-thread work while opening dropped from 147–273 ms to about 90 ms (2026-11-03).

@@ -20,8 +20,11 @@ import {
   type ApprovalSocketEvent,
   type QuestionRequest,
   type QuestionSocketEvent,
+  type RealtimeEvent,
   type Thread,
 } from '../relay'
+import { createThreadsResync } from '../relay/threadsResync'
+import { THREADS_RESYNCED } from '../desktops/threadActivity'
 import {
   currentNotificationPermission,
   isViewingThread,
@@ -292,7 +295,7 @@ function DesktopHandoffSource({
       )
       // This is the desktop's only background `/ws/threads`; screens read
       // generating status and list events from it via the activity hub.
-      const threadSocket = api.threadsSocket((event) => {
+      const handleThreadEvent = (event: RealtimeEvent) => {
         publishThreadEvent(desktopId, event)
         eventRef.current(event)
         if (
@@ -328,8 +331,33 @@ function DesktopHandoffSource({
             }).catch(() => undefined)
           }
         }
+      }
+      // Reopens after the desktop closes `/ws/threads` while the tunnel stays
+      // up; the tunnel-down case is handled by setOnline closing the watch.
+      const threadResync = createThreadsResync({
+        open: (onEvent, onClose) => {
+          const socket = api.threadsSocket(onEvent)
+          socket.onClose(onClose)
+          return socket
+        },
+        onEvent: handleThreadEvent,
+        onOpened: (_socket, reconnected) => {
+          // Events during the gap are gone; list screens reload over HTTP.
+          if (reconnected)
+            publishThreadEvent(desktopId, { type: THREADS_RESYNCED, data: {} })
+        },
       })
-      threadSocket.opened.catch(() => undefined)
+      const onVisibilityChange = () => {
+        if (document.visibilityState === 'visible') threadResync.visible()
+      }
+      document.addEventListener('visibilitychange', onVisibilityChange)
+      threadResync.start()
+      const threadSocket = {
+        close() {
+          document.removeEventListener('visibilitychange', onVisibilityChange)
+          threadResync.stop()
+        },
+      }
       return [approvalSocket, questionSocket, threadSocket]
     }
     const watch = createDesktopWatch({ refresh, openSockets, pollMs: 5000 })

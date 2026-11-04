@@ -5,7 +5,7 @@ import {
   useDesktopThreadEvents,
   useUnreadActivity,
 } from '../desktops/ThreadActivityProvider'
-import { generatingChange } from '../desktops/threadActivity'
+import { generatingChange, THREADS_RESYNCED } from '../desktops/threadActivity'
 import { useRealtimeLink } from '../desktops/useRealtimeLink'
 import {
   initialThreadListState,
@@ -105,9 +105,12 @@ export function useDesktopThreadList() {
       setThreads((rows) => applyThreadTitleEvent(rows, event))
     }
     if (
-      ['thread_created', 'thread_updated', 'thread_deleted'].includes(
-        event.type,
-      )
+      [
+        'thread_created',
+        'thread_updated',
+        'thread_deleted',
+        THREADS_RESYNCED,
+      ].includes(event.type)
     ) {
       load()
     }

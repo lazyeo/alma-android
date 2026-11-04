@@ -118,10 +118,12 @@ import type {
   AlmaSettings,
   MessagePart,
   MessageRow,
+  RealtimeEvent,
   ReasoningEffort,
   ThreadsSocket,
   Workspace,
 } from '../relay'
+import { createThreadsResync } from '../relay/threadsResync'
 import { threadCache, type CachedThread } from '../relay/threadCache'
 import { DeltaAccumulator } from './threadDeltas'
 import {
@@ -1006,7 +1008,7 @@ function ThreadView({ threadId }: { threadId: string }) {
       void load()
       void loadLiveSubagents()
     }
-    const socket = api.threadsSocket((event) => {
+    const handleEvent = (event: RealtimeEvent) => {
       const data = event.data
       if (event.type === 'generating_snapshot') {
         const active = (data?.ids ?? []).includes(threadId)
@@ -1136,25 +1138,49 @@ function ThreadView({ threadId }: { threadId: string }) {
         if (result.rows !== rowsRef.current) commitRows(result.rows)
         if (result.needsResync) scheduleResync()
       }
-    })
+    }
 
-    socketRef.current = socket
-    socket.opened
-      .then(() => {
-        if (socketRef.current !== socket) return
+    // Owns this effect's sockets; a dropped one leaves socketRef empty so
+    // sends wait for the reconnect instead of writing into a dead socket.
+    const owned = new Set<ThreadsSocket>()
+    const release = (socket: ThreadsSocket) => {
+      owned.delete(socket)
+      if (socketRef.current !== socket) return
+      socketRef.current = undefined
+      socketReady.current = false
+      setSocketIsReady(false)
+    }
+    const resync = createThreadsResync<ThreadsSocket>({
+      open: (onEvent, onClose) => {
+        const socket = api.threadsSocket(onEvent)
+        socket.onClose(onClose)
+        owned.add(socket)
+        socketRef.current = socket
+        return socket
+      },
+      onEvent: handleEvent,
+      onOpened: (_socket, reconnected) => {
         socketReady.current = true
         setSocketIsReady(true)
-      })
-      .catch(() => undefined)
+        if (!reconnected) return
+        // `/ws/threads` does not replay missed events. A pending foreground
+        // reload runs from the socketIsReady flip, so don't load twice.
+        if (!foregroundReloadPending.current) void load()
+        void loadLiveSubagents()
+      },
+      onLost: release,
+    })
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') resync.visible()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    resync.start()
     return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       clearTimeout(resyncTimer.current)
       resyncTimer.current = undefined
-      socket.close()
-      if (socketRef.current === socket) {
-        socketRef.current = undefined
-        socketReady.current = false
-        setSocketIsReady(false)
-      }
+      resync.stop()
+      for (const socket of [...owned]) release(socket)
     }
   }, [
     api,
