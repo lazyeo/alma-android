@@ -3651,36 +3651,6 @@ select:focus-visible {
   overflow: hidden;
   color: var(--muted-foreground);
 }
-/* Alma's main conversation, pinned above the thread list. */
-.personal-agent-row {
-  width: 100%;
-  text-align: left;
-}
-.personal-agent-row.unset {
-  cursor: default;
-}
-.personal-agent-row.unset:active,
-.personal-agent-row.unset:hover {
-  background: transparent;
-}
-.personal-agent-icon img {
-  display: block;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-full);
-}
-.personal-agent-row .personal-agent-subtitle {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.personal-agent-row.unset .personal-agent-subtitle {
-  white-space: normal;
-}
-.personal-agent-subtitle strong {
-  color: var(--accent-11);
-  font-weight: var(--weight-semibold);
-}
 .thread-status.queued {
   color: var(--amber-11);
 }

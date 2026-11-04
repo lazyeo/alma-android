@@ -1,7 +1,7 @@
 import type { Translator } from '../i18n/core'
 import type { Messages } from '../i18n/en'
 
-/** The parts of `GET /api/personal` (desktop 0.4.407+) the Threads row shows. */
+/** The parts of `GET /api/personal` (desktop 0.4.407+) the Alma entry points show. */
 export interface PersonalAgentSnapshot {
   threadId: string | null
   today: { spentUsd: number; budgetUsd: number | null; over: boolean }
@@ -68,7 +68,7 @@ export function parseAlmaVitals(value: unknown): AlmaVitals {
 }
 
 // The desktop's emotion prompt asks for one of these words; anything else is
-// free text we cannot translate, so the subtitle leaves it out.
+// free text we cannot translate, so the status line leaves it out.
 const KNOWN_MOODS = [
   'happy',
   'excited',
@@ -92,49 +92,4 @@ export function personalMoodLabel(
 ) {
   const key = mood?.trim().toLowerCase() ?? ''
   return isKnownMood(key) ? t(`threads.personal.mood.${key}`) : undefined
-}
-
-export interface PersonalSubtitlePart {
-  kind: 'mood' | 'running' | 'approvals' | 'spend'
-  text: string
-  emphasized?: true
-}
-
-const usd = (value: number) => `$${value.toFixed(2)}`
-
-/** Status fragments for the row, each shown only when it carries signal. */
-export function personalAgentSubtitle(
-  personal: Pick<
-    PersonalAgentSnapshot,
-    'running' | 'pendingApprovals' | 'today'
-  >,
-  mood: string | undefined,
-  t: Translator<Messages>,
-): PersonalSubtitlePart[] {
-  const parts: PersonalSubtitlePart[] = []
-  const moodLabel = personalMoodLabel(mood, t)
-  if (moodLabel) parts.push({ kind: 'mood', text: moodLabel })
-  if (personal.running > 0)
-    parts.push({
-      kind: 'running',
-      text: t('threads.personal.running', { count: personal.running }),
-    })
-  if (personal.pendingApprovals > 0)
-    parts.push({
-      kind: 'approvals',
-      text: t('threads.personal.approvals', {
-        count: personal.pendingApprovals,
-      }),
-      emphasized: true,
-    })
-  const { spentUsd, budgetUsd } = personal.today
-  if (spentUsd > 0)
-    parts.push({
-      kind: 'spend',
-      text:
-        budgetUsd !== null
-          ? `${usd(spentUsd)} / ${usd(budgetUsd)}`
-          : usd(spentUsd),
-    })
-  return parts
 }

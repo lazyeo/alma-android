@@ -112,9 +112,6 @@ export const threads: CatalogShape<typeof source> = {
   personal: {
     title: 'Alma',
     open: '打开 Alma 主对话',
-    notSetUp: '未启用：在桌面 设置 → Personal agent 中开启',
-    running: { one: '{count} 个运行中', other: '{count} 个运行中' },
-    approvals: { one: '{count} 个待审批', other: '{count} 个待审批' },
     status: {
       thinking: '在想…',
       approvals: {

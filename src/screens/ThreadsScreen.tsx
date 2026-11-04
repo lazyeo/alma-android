@@ -58,8 +58,7 @@ import { useThreadOrganize } from './ThreadOrganize'
 import { useDesktopThreadList } from './useDesktopThreadList'
 import { useT } from '../i18n'
 import { ProjectCardSection } from './ProjectCardSection'
-import { PersonalAgentRow } from './PersonalAgentRow'
-import { usePersonalAgent } from './usePersonalAgent'
+import { useAlmaPresence } from '../alma/AlmaPresence'
 import { usePullToRefresh } from './usePullToRefresh'
 
 export function ThreadsScreen({
@@ -136,10 +135,10 @@ export function ThreadsScreen({
     }
   }, [api, query, tab, searchSupported])
   const { markRead } = useUnreadActivity()
-  const personalAgent = usePersonalAgent(api)
+  const almaPresence = useAlmaPresence()
   const listBodyRef = useRef<HTMLDivElement>(null)
   const pull = usePullToRefresh(listBodyRef, () =>
-    Promise.all([reload(), personalAgent.refresh()]),
+    Promise.all([reload(), almaPresence?.refresh()]),
   )
   const { generating, pendingThreadIds, indicatorsFor } =
     useThreadRowIndicators(pairing.id)
@@ -431,15 +430,6 @@ export function ThreadsScreen({
           </p>
         ) : null}
         <div className={`thread-list thread-tab-content ${tab}`} key={tab}>
-          {tab === 'threads' && !query.trim() ? (
-            <PersonalAgentRow
-              state={personalAgent.state}
-              onOpen={(threadId) => {
-                markRead(pairing.id, threadId)
-                navigateToThread(threadId)
-              }}
-            />
-          ) : null}
           {loading ? (
             <p className="empty">{t('threads.loading')}</p>
           ) : tab === 'projects' ? (
