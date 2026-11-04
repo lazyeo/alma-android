@@ -155,3 +155,35 @@ it('keeps the same table scroller across re-renders so horizontal scroll survive
   rerender(<MarkdownContent text={text} renderLink={() => null} />)
   expect(container.querySelector('.markdown-table-wrap')).toBe(wrap)
 })
+
+it.each([
+  ['no language', '```\nconst a = 1\n```', 'const a = 1'],
+  ['an unknown language', '```notalang\nconst a = 1\n```', 'const a = 1'],
+  ['a language with symbols', '```c++\nint a = 1;\n```', 'int a = 1;'],
+  ['an empty block', '```\n```', ''],
+  ['an empty block with a language', '```ts\n```', ''],
+  [
+    'a block inside a list item',
+    '- step\n\n  ```\n  npm test\n  ```',
+    'npm test',
+  ],
+  [
+    'an unlabeled block inside a list item',
+    '1. step\n   ```\n   echo hi\n   ```',
+    'echo hi',
+  ],
+])(
+  'renders a fenced block with %s as code without throwing',
+  (_label, text, code) => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { container } = render(<MarkdownContent text={text} />)
+      const pre = container.querySelector('pre')
+      expect(pre).not.toBeNull()
+      expect(pre?.textContent ?? '').toContain(code)
+      expect(consoleError).not.toHaveBeenCalled()
+    } finally {
+      consoleError.mockRestore()
+    }
+  },
+)
