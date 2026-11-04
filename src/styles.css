@@ -7857,6 +7857,77 @@ button:active:not(:disabled),
     transform: scale(0.94);
   }
 }
+
+/* Long-press lift (components/longPressLift.ts): a copy of the pressed row
+   raised inside the overlay, above its backdrop and below the menu or sheet.
+   z-index -1 paints it over the host's own background (the sheet's dim) but
+   under everything the host draws. Per frame only transform and opacity
+   change; the raised surface and its shadow are pre-drawn and faded. */
+.long-press-lift-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+/* Released when its overlay unmounted while open: settles just under
+   overlays, where the original row would be. */
+.long-press-lift-layer.released {
+  z-index: calc(var(--z-menu) - 1);
+}
+.long-press-lift-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-backdrop);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.long-press-lift {
+  position: fixed;
+  transform-origin: center;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+  will-change: transform, opacity;
+}
+.long-press-lift-surface {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-lg);
+  background: var(--gray-3);
+  box-shadow: var(--shadow-popover);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.long-press-lift-clone {
+  position: absolute !important;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0 !important;
+  box-sizing: border-box;
+}
+.long-press-lift-blank {
+  display: block;
+}
+.long-press-lift-layer[data-state='lifted'] .long-press-lift {
+  transform: translateY(-2px) scale(1.02);
+}
+.long-press-lift-layer[data-state='lifted'] .long-press-lift-scrim,
+.long-press-lift-layer[data-state='lifted'] .long-press-lift-surface {
+  opacity: 1;
+}
+.long-press-lift-layer[data-state='fading'] .long-press-lift {
+  opacity: 0;
+}
+/* Reduced motion: the highlight only, no scale or raise. */
+.long-press-lift-layer[data-reduced='true'] .long-press-lift {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .long-press-lift-layer .long-press-lift {
+    transform: none;
+  }
+}
 .anchored-menu-row {
   width: 100%;
   height: auto;

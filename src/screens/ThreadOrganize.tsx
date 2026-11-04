@@ -160,6 +160,8 @@ export function useThreadOrganize({
         ? t('threads.organize.unfavorite')
         : t('threads.organize.favorite'),
       icon: thread.isFavorited ? <StarOff size={16} /> : <Star size={16} />,
+      // The row moves between the favourites group and the list.
+      removesAnchor: true,
       onSelect: () => toggleFavorite(thread),
     },
     ...(thread.isFavorited
@@ -174,6 +176,7 @@ export function useThreadOrganize({
             ) : (
               <Pin size={16} />
             ),
+            removesAnchor: true,
             onSelect: () => togglePin(thread),
           },
         ]

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, type PointerEvent } from 'react'
 import { createLongPress } from './longPress'
 import { haptic } from '../haptics'
+import { armLongPressLift, disarmLongPressLift } from './longPressLift'
 /**
  * Android WebView can deliver its own contextmenu before our timer fires, and
  * the pointerdown that would have recorded the point may have been skipped
@@ -18,18 +19,38 @@ export function contextMenuPoint(
   return { x: rect.right - 16, y: rect.top + rect.height / 2 }
 }
 
+/**
+ * A context menu from a touch or mouse press lifts the row; one from the
+ * keyboard (Shift+F10, the menu key) does not. Chromium reports keyboard
+ * menus with an empty pointerType; older engines with (0, 0) coordinates.
+ */
+export function isPointerContextMenu(event: {
+  clientX: number
+  clientY: number
+  nativeEvent?: Event
+}) {
+  const pointerType: unknown = (
+    event.nativeEvent as { pointerType?: unknown } | undefined
+  )?.pointerType
+  if (typeof pointerType === 'string') return pointerType !== ''
+  return event.clientX > 0 || event.clientY > 0
+}
+
 export function useLongPress(
   action: (point: { x: number; y: number }) => void,
 ) {
   const latest = useRef(action),
     fired = useRef(false),
-    point = useRef({ x: 0, y: 0 })
+    point = useRef({ x: 0, y: 0 }),
+    source = useRef<HTMLElement | null>(null)
   latest.current = action
   const press = useMemo(
     () =>
       createLongPress(() => {
         fired.current = true
+        // The lift that follows reuses this tick; it never adds its own.
         void haptic('medium')
+        if (source.current) armLongPressLift(source.current)
         latest.current(point.current)
       }),
     [],
@@ -51,6 +72,8 @@ export function useLongPress(
       if (event.button !== 0 || (control && control !== event.currentTarget))
         return
       point.current = { x: event.clientX, y: event.clientY }
+      source.current = event.currentTarget
+      disarmLongPressLift()
       press.start(event.clientX, event.clientY)
     },
     onPointerMove(event: PointerEvent<HTMLElement>) {
@@ -71,6 +94,8 @@ export function useLongPress(
       press.cancel()
       if (!fired.current) {
         void haptic('medium')
+        if (isPointerContextMenu(event)) armLongPressLift(event.currentTarget)
+        else disarmLongPressLift()
         latest.current(contextMenuPoint(event, point.current))
       }
     },

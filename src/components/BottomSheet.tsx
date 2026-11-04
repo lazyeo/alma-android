@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import { playDetachedExit } from './detachedExit'
+import { useLongPressLift } from './longPressLift'
 import {
   OVERLAY_EXIT_FALLBACK_MS,
   useAnimatedOverlay,
@@ -60,6 +61,9 @@ export function BottomSheet({
     },
     [],
   )
+  // A long-pressed message or row stays lifted above the dim while its
+  // actions are open; the backdrop fades as a whole, so it hosts the copy.
+  useLongPressLift(backdropRef, rendered, closing, { hostFades: true })
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

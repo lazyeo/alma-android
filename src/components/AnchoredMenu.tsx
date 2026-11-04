@@ -22,6 +22,7 @@ import {
   type MenuRect,
 } from './anchoredMenuPlacement'
 import { useAnimatedOverlay } from './useAnimatedOverlay'
+import { useLongPressLift } from './longPressLift'
 
 export type AnchoredMenuItem =
   | { type: 'separator'; key?: string }
@@ -34,6 +35,8 @@ export type AnchoredMenuItem =
       icon?: ReactNode
       checked?: boolean
       destructive?: boolean
+      /** Picking it removes or moves the pressed row; destructive implies it. */
+      removesAnchor?: boolean
       disabled?: boolean
       onSelect(): void
     }
@@ -49,6 +52,22 @@ function setRefs<T>(...refs: Array<Ref<T> | undefined>) {
 
 export function pointAnchor(x: number, y: number): MenuRect {
   return { left: x, right: x, top: y, bottom: y }
+}
+
+/** Lifted copies grow by this much (scale and the -2px raise) past the row. */
+const LIFT_CLEARANCE = 6
+
+/**
+ * With a lifted row on screen the menu sits above or below the row, never
+ * on it; the horizontal anchor (the press point) is kept.
+ */
+export function anchorBesideLift(anchor: MenuRect, lift: MenuRect): MenuRect {
+  return {
+    left: anchor.left,
+    right: anchor.right,
+    top: lift.top - LIFT_CLEARANCE,
+    bottom: lift.bottom + LIFT_CLEARANCE,
+  }
 }
 
 export function AnchoredMenu({
@@ -73,11 +92,14 @@ export function AnchoredMenu({
   const menuId = useId()
   const triggerRef = useRef<HTMLElement | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const backdropRef = useRef<HTMLDivElement>(null)
   const [style, setStyle] = useState<CSSProperties>({ visibility: 'hidden' })
   const { rendered, closing, requestClose, finishClose } = useAnimatedOverlay(
     open,
     () => onOpenChange(false),
   )
+  // Declared before placement so the menu can anchor beside the lifted row.
+  const lift = useLongPressLift(backdropRef, rendered, closing, { dim: true })
 
   useLayoutEffect(() => {
     if (!open || !menuRef.current) return
@@ -98,9 +120,10 @@ export function AnchoredMenu({
           )
         : undefined)
     if (!anchor) return
+    const lifted = lift.current?.rect
     const menuBox = menuRef.current.getBoundingClientRect()
     const placement = placeAnchoredMenu(
-      anchor,
+      lifted ? anchorBesideLift(anchor, lifted) : anchor,
       { width: menuBox.width, height: menuBox.height },
       { width: window.innerWidth, height: window.innerHeight },
     )
@@ -111,7 +134,7 @@ export function AnchoredMenu({
       transformOrigin: `${placement.originX} ${placement.placement === 'below' ? 'top' : 'bottom'}`,
     })
     requestAnimationFrame(() => menuRef.current?.focus())
-  }, [anchorRect, open, rendered])
+  }, [anchorRect, lift, open, rendered])
 
   useEffect(() => {
     if (!open) return
@@ -141,6 +164,7 @@ export function AnchoredMenu({
     anchoredMenuHasContent(items.length, Boolean(header))
       ? createPortal(
           <div
+            ref={backdropRef}
             className={`anchored-menu-backdrop${closing ? ' closing' : ''}`}
             onPointerDown={requestClose}
             onAnimationEnd={(event) => {
@@ -202,6 +226,8 @@ export function AnchoredMenu({
                     className={`anchored-menu-row${item.destructive ? ' destructive' : ''}`}
                     onClick={() => {
                       void haptic('selection')
+                      if (item.destructive || item.removesAnchor)
+                        lift.current?.fade()
                       requestClose()
                       item.onSelect()
                     }}
