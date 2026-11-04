@@ -52,3 +52,19 @@ it('keeps private integrations and the former namespace out of the public tree',
     .map((path) => relative(root, path))
   expect(offenders).toEqual([])
 })
+it('keeps third-party character art out of the public tree', () => {
+  // Raster mascot rigs are supplied by a private extension at build time;
+  // the public client only ships the generic renderer and its vector face.
+  const forbidden =
+    /eye-[LR]-(?:white|iris|lid)\.png|assets\/mascot\/|private-mascot/
+  const offenders = files(root)
+    .filter((path) => path !== new URL(import.meta.url).pathname)
+    .filter(
+      (path) =>
+        forbidden.test(relative(root, path)) ||
+        (!/\.(?:png|jpe?g|webp|gif|ico|jar|keystore)$/i.test(path) &&
+          forbidden.test(readFileSync(path, 'utf8'))),
+    )
+    .map((path) => relative(root, path))
+  expect(offenders).toEqual([])
+})
