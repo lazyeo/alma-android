@@ -4,7 +4,7 @@ import { ALMA_ROUTE, desktopAlmaPath } from '../desktopRoutes'
 import { haptic } from '../haptics'
 import { useT } from '../i18n'
 import { AlmaFace } from './AlmaFace'
-import { useAlmaPresence } from './AlmaPresence'
+import { useAlmaPresence, type AlmaPresence } from './AlmaPresence'
 import { recordExpandDisc } from './almaExpand'
 import { recordAvatarBox } from './avatarFlight'
 import { useMeasuredBox } from './measuredBox'
@@ -12,10 +12,20 @@ import { useMeasuredBox } from './measuredBox'
 /** CSS size of her face: the phone tab, the split rail. */
 export const NAV_FACE_SIZE = { tab: 56, rail: 36 } as const
 
-/** The centre slot exists only while the desktop has a personal agent. */
+/**
+ * Her slot: shown while the desktop has a personal agent, held through a
+ * desktop switch until the new desktop answers, faded before it goes.
+ */
+export function almaNavSlot(presence: AlmaPresence | null) {
+  if (!presence?.desktopId) return 'hidden'
+  return (
+    presence.slot ?? (presence.state.status === 'ready' ? 'shown' : 'hidden')
+  )
+}
+
+/** The centre slot exists while the desktop has (or may have) her. */
 export function useAlmaNavVisible() {
-  const presence = useAlmaPresence()
-  return Boolean(presence?.desktopId && presence.state.status === 'ready')
+  return almaNavSlot(useAlmaPresence()) !== 'hidden'
 }
 
 /**
@@ -36,7 +46,9 @@ export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
   // avatar). Measured after layout, never in the tap.
   // Both come from her face's own box, not the rail's item box around it,
   // so the circle starts at her face and its radius follows the face size.
-  const visible = presence?.state.status === 'ready'
+  const slot = almaNavSlot(presence)
+  const ready = presence?.state.status === 'ready'
+  const visible = slot === 'shown'
   useMeasuredBox(discRef, visible && !here, () => {
     if (!avatarRef.current) return
     const face = avatarRef.current.getBoundingClientRect()
@@ -76,18 +88,26 @@ export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
   const release = () => {
     if (discRef.current) delete discRef.current.dataset.pressed
   }
-  if (!presence?.desktopId || presence.state.status !== 'ready') return null
+  if (!presence?.desktopId || slot === 'hidden') return null
   const { desktopId, face, generating } = presence
-  const { running, pendingApprovals } = presence.state.personal
-  const busy = generating || running > 0
+  // While a newly chosen desktop loads, the slot keeps its place with a
+  // resting face; it opens once the desktop answers.
+  const { running, pendingApprovals } =
+    presence.state.status === 'ready'
+      ? presence.state.personal
+      : { running: 0, pendingApprovals: 0 }
+  const busy = ready && (generating || running > 0)
   return (
     <button
       type="button"
       className={`alma-nav alma-nav-${placement}${here ? ' active' : ''}`}
       aria-label={t('threads.personal.open')}
       aria-current={here ? 'page' : undefined}
+      aria-disabled={ready ? undefined : 'true'}
       data-busy={busy ? 'true' : undefined}
+      data-slot={slot === 'hiding' ? 'hiding' : undefined}
       onPointerDown={() => {
+        if (!ready) return
         // Press feedback only. No network here: a relay fetch on press
         // (base64 decode + decrypt + GC) landed inside the expand's first
         // frames on a real phone. The idle prefetch keeps the cache warm and
@@ -100,6 +120,7 @@ export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
       onPointerLeave={release}
       onClick={(event) => {
         // Keyboard activation has no pointer-down tick.
+        if (!ready) return
         if (event.detail === 0) void haptic('light')
         if (!here) navigate(desktopAlmaPath(desktopId))
       }}

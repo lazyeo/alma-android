@@ -10463,6 +10463,13 @@ dialog:focus,
   color: inherit;
   -webkit-tap-highlight-color: transparent;
 }
+/* Leaving: her slot fades before the bar closes the gap (desktop without
+   a personal agent). Opacity only. */
+.alma-nav[data-slot='hiding'] {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-panel) var(--ease-out);
+}
 /* On phones the column is as tall as the other tab items (28px icon row,
    4px gap, 15px label) and centred like them, so the bar keeps its height.
    Her 56px face sits on the label line: its bottom is 13px above the

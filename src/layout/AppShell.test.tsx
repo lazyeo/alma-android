@@ -1,14 +1,16 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LanguageProvider } from '../i18n'
+import { SLOT_FADE_MS } from '../alma/AlmaPresence'
 import type { PersonalAgentState } from '../screens/personalAgent'
 import { AgentsNavLink, AppShell } from './AppShell'
 
 const mocks = vi.hoisted(() => ({
   mode: 'split' as 'split' | 'single',
+  activeId: 'desktop',
   personal: { status: 'unsupported' } as PersonalAgentState,
 }))
 
@@ -29,8 +31,11 @@ vi.mock('../desktops/DesktopContext', () => ({
   },
   useDesktops: () => ({
     store: {
-      activeId: 'desktop',
-      pairings: [{ id: 'desktop', name: 'Desktop' }],
+      activeId: mocks.activeId,
+      pairings: [
+        { id: 'desktop', name: 'Desktop' },
+        { id: 'other', name: 'Other' },
+      ],
     },
     desktops: [],
   }),
@@ -104,6 +109,32 @@ const readyPersonal: PersonalAgentState = {
     pendingApprovals: 0,
   },
 }
+
+beforeEach(() => {
+  const values = new Map<string, string>()
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+      clear: () => values.clear(),
+    },
+  })
+  mocks.activeId = 'desktop'
+})
+
+const shell = (route: string) => (
+  <LanguageProvider>
+    <MemoryRouter initialEntries={[route]}>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="*" element={<div />} />
+        </Route>
+      </Routes>
+    </MemoryRouter>
+  </LanguageProvider>
+)
 
 function renderShell(route: string) {
   return render(
@@ -200,6 +231,8 @@ describe('Alma in the navigation', () => {
     expect(top.querySelector('.alma-nav-rail')).toBeTruthy()
     expect(top.querySelector('img')).toBeNull()
     cleanup()
+    // A desktop never seen with her (a known one fades her out first).
+    localStorage.clear()
     mocks.personal = { status: 'unsupported' }
     const plain = renderShell('/d/desktop/threads')
     expect(
@@ -222,5 +255,66 @@ describe('Agents navigation', () => {
     expect(link.getAttribute('href')).toBe('/d/desktop/agents')
     expect(link.querySelector('.herdr-mark')).toBeTruthy()
     expect(link.querySelector('.lucide-square-terminal')).toBeNull()
+  })
+})
+
+describe('switching desktops', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    cleanup()
+  })
+
+  it('keeps the tab bar and her slot while the next desktop loads', () => {
+    vi.useFakeTimers()
+    mocks.mode = 'single'
+    mocks.personal = readyPersonal
+    const { container, rerender } = render(shell('/threads'))
+    const bar = container.querySelector('.tab-bar')!
+    const alma = bar.querySelector('.alma-nav')!
+    const links = [...bar.querySelectorAll('a')]
+    expect(alma).not.toBeNull()
+
+    mocks.activeId = 'other'
+    mocks.personal = { status: 'loading' }
+    rerender(shell('/threads'))
+    act(() => vi.advanceTimersByTime(2_000))
+    expect(container.querySelector('.tab-bar')).toBe(bar)
+    expect(bar.classList.contains('with-alma')).toBe(true)
+    expect(bar.querySelector('.alma-nav')).toBe(alma)
+    expect(alma.getAttribute('data-slot')).toBeNull()
+    expect(alma.getAttribute('aria-disabled')).toBe('true')
+    // Same link nodes: nothing was re-parented or remounted.
+    expect([...bar.querySelectorAll('a')]).toEqual(links)
+    links.forEach((link, index) =>
+      expect(bar.querySelectorAll('a')[index]).toBe(link),
+    )
+    expect(bar.querySelector('a')?.getAttribute('href')).toBe(
+      '/d/other/threads',
+    )
+
+    // A transient error does not hide her either.
+    mocks.personal = { status: 'error' }
+    rerender(shell('/threads'))
+    expect(bar.querySelector('.alma-nav')).toBe(alma)
+
+    // Confirmed unsupported: she fades, then the bar closes the gap.
+    mocks.personal = { status: 'unsupported' }
+    rerender(shell('/threads'))
+    expect(bar.querySelector('.alma-nav')).toBe(alma)
+    expect(alma.getAttribute('data-slot')).toBe('hiding')
+    act(() => vi.advanceTimersByTime(SLOT_FADE_MS))
+    expect(bar.querySelector('.alma-nav')).toBeNull()
+    expect(container.querySelector('.tab-bar')).toBe(bar)
+
+    // Back to a desktop known to have her: the slot returns at once.
+    mocks.activeId = 'desktop'
+    mocks.personal = { status: 'loading' }
+    rerender(shell('/threads'))
+    expect(bar.querySelector('.alma-nav')).not.toBeNull()
+    // And the other desktop is remembered as without her.
+    mocks.activeId = 'other'
+    rerender(shell('/threads'))
+    act(() => vi.advanceTimersByTime(SLOT_FADE_MS))
+    expect(bar.querySelector('.alma-nav')).toBeNull()
   })
 })

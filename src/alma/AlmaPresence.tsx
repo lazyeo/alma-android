@@ -20,9 +20,59 @@ import { ensurePersonalThread } from './personalSetup'
 /** Finding or creating her main conversation when the desktop has none. */
 export type AlmaSetupStatus = 'idle' | 'running' | 'error'
 
+/**
+ * Her slot in the tab bar and rail. It survives a desktop switch while the
+ * new desktop is still loading, and fades (`hiding`) before it goes once the
+ * desktop is confirmed to have no personal agent.
+ */
+export type AlmaNavSlot = 'shown' | 'hiding' | 'hidden'
+
+/** Mirrors `--dur-panel`: the slot's fade before the bar closes the gap. */
+export const SLOT_FADE_MS = 250
+
+const slotKey = (desktopId: string) => `alma.nav.almaSlot.${desktopId}`
+
+function recallSlot(desktopId: string): boolean | undefined {
+  try {
+    const value = localStorage.getItem(slotKey(desktopId))
+    return value === '1' ? true : value === '0' ? false : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function rememberSlot(desktopId: string, shown: boolean) {
+  try {
+    localStorage.setItem(slotKey(desktopId), shown ? '1' : '0')
+  } catch {
+    // Storage is best effort.
+  }
+}
+
+/**
+ * Whether her slot should show: what the desktop confirmed if it has
+ * (ready or unsupported), else what it last confirmed, else whatever the bar
+ * shows now, so loading and transient errors never reflow the bar.
+ */
+export function wantsAlmaSlot({
+  status,
+  known,
+  current,
+}: {
+  status: PersonalAgentState['status']
+  known?: boolean
+  current: boolean
+}) {
+  if (status === 'ready') return true
+  if (status === 'unsupported') return false
+  return known ?? current
+}
+
 export interface AlmaPresence {
   desktopId?: string
   state: PersonalAgentState
+  /** Defaults to shown exactly while `state` is ready. */
+  slot?: AlmaNavSlot
   /** The personal agent's main thread is streaming a reply. */
   generating: boolean
   face: FaceState
@@ -115,6 +165,41 @@ export function AlmaPresenceProvider({ children }: { children: ReactNode }) {
     wasGenerating.current = generating
   }, [generating, refresh])
 
+  // Per-desktop memory of the slot, so switching desktops keeps the bar.
+  const knownSlots = useRef(new Map<string, boolean>())
+  const known = (id: string) => {
+    if (!knownSlots.current.has(id)) {
+      const stored = recallSlot(id)
+      if (stored !== undefined) knownSlots.current.set(id, stored)
+    }
+    return knownSlots.current.get(id)
+  }
+  const [slot, setSlot] = useState<AlmaNavSlot>(() =>
+    desktopId && known(desktopId) ? 'shown' : 'hidden',
+  )
+  const wanted = wantsAlmaSlot({
+    status: state.status,
+    known: desktopId ? known(desktopId) : false,
+    current: slot === 'shown',
+  })
+  useEffect(() => {
+    if (!desktopId) return
+    if (state.status !== 'ready' && state.status !== 'unsupported') return
+    const shown = state.status === 'ready'
+    if (knownSlots.current.get(desktopId) === shown) return
+    knownSlots.current.set(desktopId, shown)
+    rememberSlot(desktopId, shown)
+  }, [desktopId, state.status])
+  useEffect(() => {
+    if (wanted) {
+      setSlot('shown')
+      return
+    }
+    setSlot((current) => (current === 'shown' ? 'hiding' : current))
+    const timer = window.setTimeout(() => setSlot('hidden'), SLOT_FADE_MS)
+    return () => window.clearTimeout(timer)
+  }, [wanted])
+
   const prefetchThread = useCallback(
     (fallbackTitle: string) => {
       if (api && desktopId && threadId)
@@ -127,6 +212,7 @@ export function AlmaPresenceProvider({ children }: { children: ReactNode }) {
     () => ({
       desktopId,
       state,
+      slot,
       generating,
       face: presenceFace(state, generating),
       refresh,
@@ -137,6 +223,7 @@ export function AlmaPresenceProvider({ children }: { children: ReactNode }) {
     [
       desktopId,
       state,
+      slot,
       generating,
       refresh,
       current.status,
