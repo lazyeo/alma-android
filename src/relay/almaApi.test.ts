@@ -961,6 +961,37 @@ describe('personal agent routes', () => {
     await expect(apiWith(respond(500, {})).getPersonal()).rejects.toThrow()
   })
 
+  it('sets the personal main thread with PUT /api/personal/main', async () => {
+    const fetch = respond(200, { threadId: 'thread-1' })
+    await apiWith(fetch).setPersonalMain('thread-1')
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/personal/main',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ threadId: 'thread-1' }),
+      }),
+    )
+  })
+
+  it('creates a thread with a model and effort and no workspace', async () => {
+    const fetch = respond(200, { id: 'thread-1' })
+    await apiWith(fetch).createThread('Alma', undefined, {
+      model: 'openai:gpt-5',
+      reasoningEffort: 'medium',
+    })
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/threads',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          title: 'Alma',
+          model: 'openai:gpt-5',
+          reasoningEffort: 'medium',
+        }),
+      }),
+    )
+  })
+
   it('reads Alma vitals with an optional mood', async () => {
     const fetch = vi
       .fn()

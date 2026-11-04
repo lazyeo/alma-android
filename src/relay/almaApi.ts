@@ -821,10 +821,21 @@ export class AlmaApi {
       `/api/search/threads?q=${encodeURIComponent(query)}`,
     )
   }
-  createThread(title = 'New Chat', workspaceId?: string) {
+  createThread(
+    title = 'New Chat',
+    workspaceId?: string,
+    options: Pick<Thread, 'model' | 'reasoningEffort'> = {},
+  ) {
     return this.request<Thread>('/api/threads', {
       method: 'POST',
-      body: { title, ...(workspaceId ? { workspaceId } : {}) },
+      body: {
+        title,
+        ...(workspaceId ? { workspaceId } : {}),
+        ...(options.model ? { model: options.model } : {}),
+        ...(options.reasoningEffort
+          ? { reasoningEffort: options.reasoningEffort }
+          : {}),
+      },
     })
   }
   updateThread(
@@ -1205,6 +1216,16 @@ export class AlmaApi {
         return { status: 'unsupported' }
       throw error
     }
+  }
+  /**
+   * Makes `threadId` the personal agent's main conversation; the desktop
+   * answers 404 when the thread does not exist.
+   */
+  setPersonalMain(threadId: string) {
+    return this.request<unknown>('/api/personal/main', {
+      method: 'PUT',
+      body: { threadId },
+    })
   }
   async getAlmaVitals(): Promise<AlmaVitalsResult> {
     try {
