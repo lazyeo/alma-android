@@ -3,6 +3,8 @@ import {
   VITALS_MAX,
   faceActivity,
   faceMoodFromVitals,
+  fallbackMood,
+  moodFromWord,
   nextBlinkDelay,
   unitScale,
 } from './faceState'
@@ -35,10 +37,35 @@ describe('faceMoodFromVitals', () => {
   })
 
   it('maps positive moods and high valence to happy', () => {
-    for (const mood of ['happy', 'Cheerful', 'Excited', 'amused', 'content'])
+    for (const mood of ['happy', 'Cheerful', 'Excited', 'amused', '开心'])
       expect(faceMoodFromVitals({ mood }), mood).toBe('happy')
     expect(faceMoodFromVitals({ valence: 7 })).toBe('happy')
     expect(faceMoodFromVitals({ valence: 5 })).toBe('neutral')
+  })
+
+  it('reads the desktop mood word for every rig expression', () => {
+    const cases: [string, string][] = [
+      ['shy', 'shy'],
+      ['Annoyed', 'angry'],
+      ['busy', 'busy'],
+      ['content', 'relaxed'],
+      ['awkward', 'embarrassed'],
+      ['anxious', 'nervous'],
+      ['frightened', 'scared'],
+      ['drowsy', 'sleepy'],
+      ['unhappy', 'sad'],
+      ['curious', 'thinking'],
+      ['bored', 'neutral'],
+    ]
+    for (const [mood, face] of cases)
+      expect(faceMoodFromVitals({ mood }), mood).toBe(face)
+    expect(moodFromWord('  ')).toBeUndefined()
+  })
+
+  it('places valence and energy when no word matches', () => {
+    expect(faceMoodFromVitals({ valence: 8, energy: 3 })).toBe('relaxed')
+    expect(faceMoodFromVitals({ valence: 2 })).toBe('sad')
+    expect(faceMoodFromVitals({ valence: 2, energy: 8 })).toBe('nervous')
   })
 
   it('lets fatigue and low energy win over emotion', () => {
@@ -50,33 +77,29 @@ describe('faceMoodFromVitals', () => {
   })
 
   it('shows an asleep Alma sleeping, day or night', () => {
-    expect(faceMoodFromVitals({ level: 'asleep' })).toBe('sleepy-night')
+    expect(faceMoodFromVitals({ level: 'asleep' })).toBe('sleepy')
     expect(
       faceMoodFromVitals({ level: 'asleep', isNight: false, energy: 9 }),
-    ).toBe('sleepy-night')
+    ).toBe('sleepy')
   })
 
   it('turns a weary night into sleepy, but not an energetic one', () => {
-    expect(faceMoodFromVitals({ isNight: true, energy: 3 })).toBe(
-      'sleepy-night',
-    )
-    expect(faceMoodFromVitals({ isNight: true, fatigue: 60 })).toBe(
-      'sleepy-night',
-    )
-    expect(faceMoodFromVitals({ isNight: true, energy: 9 })).toBe('focused')
+    expect(faceMoodFromVitals({ isNight: true, energy: 3 })).toBe('sleepy')
+    expect(faceMoodFromVitals({ isNight: true, fatigue: 60 })).toBe('sleepy')
+    expect(faceMoodFromVitals({ isNight: true, energy: 9 })).toBe('busy')
     expect(faceMoodFromVitals({ isNight: true })).toBe('neutral')
   })
 
-  it('reads high energy without a positive mood as focused', () => {
-    expect(faceMoodFromVitals({ energy: 8, mood: 'neutral' })).toBe('focused')
+  it('reads high energy without a mood word as busy', () => {
+    expect(faceMoodFromVitals({ energy: 8, mood: 'neutral' })).toBe('busy')
   })
 })
 
 describe('faceActivity', () => {
-  it('ranks live work above waiting above idle', () => {
+  it('ranks her reply above other work above waiting above idle', () => {
     expect(
-      faceActivity({ generating: true, running: 0, pendingApprovals: 2 }),
-    ).toBe('thinking')
+      faceActivity({ generating: true, running: 3, pendingApprovals: 2 }),
+    ).toBe('talking')
     expect(
       faceActivity({ generating: false, running: 1, pendingApprovals: 2 }),
     ).toBe('thinking')
@@ -86,6 +109,16 @@ describe('faceActivity', () => {
     expect(
       faceActivity({ generating: false, running: 0, pendingApprovals: 0 }),
     ).toBe('idle')
+  })
+})
+
+describe('fallbackMood', () => {
+  it('folds rig expressions into what the vector face can draw', () => {
+    expect(fallbackMood('relaxed')).toBe('happy')
+    expect(fallbackMood('sad')).toBe('tired')
+    expect(fallbackMood('sleepy')).toBe('sleepy-night')
+    expect(fallbackMood('thinking')).toBe('focused')
+    expect(fallbackMood('angry')).toBe('neutral')
   })
 })
 

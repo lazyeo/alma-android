@@ -1,9 +1,11 @@
 import { useEffect, useId, useState } from 'react'
 import {
   BLINK_MS,
+  fallbackMood,
   nextBlinkDelay,
   type FaceActivity,
   type FaceMood,
+  type FallbackMood,
 } from './faceState'
 import { useReducedMotion } from './useReducedMotion'
 
@@ -43,7 +45,7 @@ function Eye({
 }: {
   x: number
   y: number
-  mood: FaceMood
+  mood: FallbackMood
   clipId: string
 }) {
   if (mood === 'happy')
@@ -78,7 +80,7 @@ function Eye({
   )
 }
 
-const MOUTHS: Record<FaceMood, string> = {
+const MOUTHS: Record<FallbackMood, string> = {
   neutral: 'M30 48.5 Q32 49.6 34 48.5',
   happy: 'M28.5 47.5 Q32 51.5 35.5 47.5',
   tired: 'M30 49 L34 49',
@@ -108,7 +110,10 @@ export function AlmaFace({
 }) {
   const reduced = useReducedMotion()
   const animated = !still && !reduced
-  const blinking = useBlink(animated && mood !== 'happy')
+  const drawn = fallbackMood(mood)
+  // The vector face has no mouth flaps; a streaming reply reads as thinking.
+  const shown = activity === 'talking' ? 'thinking' : activity
+  const blinking = useBlink(animated && drawn !== 'happy')
   const id = useId().replace(/:/g, '')
   const leftClip = `${id}-lens-l`
   const rightClip = `${id}-lens-r`
@@ -120,8 +125,8 @@ export function AlmaFace({
       viewBox="0 0 64 64"
       aria-hidden="true"
       focusable="false"
-      data-mood={mood}
-      data-activity={activity}
+      data-mood={drawn}
+      data-activity={shown}
       data-animated={animated ? 'true' : 'false'}
       data-blink={blinking ? 'true' : undefined}
     >
@@ -152,8 +157,8 @@ export function AlmaFace({
           d="M44 15 L47 11 L48.5 15.5 L52 14.5 L49 18 Z"
         />
         <g className="alma-face-eyes">
-          <Eye {...LEFT_EYE} mood={mood} clipId={leftClip} />
-          <Eye {...RIGHT_EYE} mood={mood} clipId={rightClip} />
+          <Eye {...LEFT_EYE} mood={drawn} clipId={leftClip} />
+          <Eye {...RIGHT_EYE} mood={drawn} clipId={rightClip} />
         </g>
         <g className="alma-face-glasses">
           <circle
@@ -188,7 +193,7 @@ export function AlmaFace({
             />
           </g>
         </g>
-        <path className="alma-face-mouth" d={MOUTHS[mood]} />
+        <path className="alma-face-mouth" d={MOUTHS[drawn]} />
       </g>
     </svg>
   )
