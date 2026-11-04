@@ -34,9 +34,13 @@ export function canPickTarget(status?: ScreenStatus) {
 export type PickerSelection =
   { kind: 'display'; id: number } | { kind: 'window'; id: number }
 
-/** What the desktop says it is streaming now. */
+/**
+ * What the desktop says it is streaming now. Once the streamed window
+ * closed, the desktop shows its display instead.
+ */
 export function currentSelection(status?: ScreenStatus): PickerSelection {
-  if (status?.window) return { kind: 'window', id: status.window.id }
+  if (status?.window && !status.windowClosed)
+    return { kind: 'window', id: status.window.id }
   return { kind: 'display', id: status?.displayId ?? 0 }
 }
 
@@ -77,3 +81,6 @@ export function targetForSelection(
 
 export const sameSelection = (a: PickerSelection, b: PickerSelection) =>
   a.kind === b.kind && a.id === b.id
+
+export const sameTarget = (a: ScreenTarget, b: ScreenTarget) =>
+  a.displayId === b.displayId && a.windowId === b.windowId

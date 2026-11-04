@@ -6,6 +6,7 @@ import {
   pickerDisplays,
   pickerWindows,
   sameSelection,
+  sameTarget,
   screenPath,
   targetForSelection,
   windowAppName,
@@ -82,6 +83,21 @@ describe('currentSelection', () => {
       kind: 'window',
       id: 9,
     })
+  })
+
+  it('falls back to the display once the window closed', () => {
+    expect(
+      currentSelection(status({ window: { id: 9 }, windowClosed: true })),
+    ).toEqual({ kind: 'display', id: 1 })
+  })
+})
+
+describe('sameTarget', () => {
+  it('compares display and window', () => {
+    expect(sameTarget({}, {})).toBe(true)
+    expect(sameTarget({ windowId: 7 }, { windowId: 7 })).toBe(true)
+    expect(sameTarget({ windowId: 7 }, {})).toBe(false)
+    expect(sameTarget({ displayId: 1 }, { displayId: 2 })).toBe(false)
   })
 })
 

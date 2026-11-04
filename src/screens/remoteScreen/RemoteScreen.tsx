@@ -77,6 +77,7 @@ import { ScreenPicker } from './ScreenPicker'
 import {
   canPickTarget,
   sameSelection,
+  sameTarget,
   currentSelection,
   targetForSelection,
   type PickerSelection,
@@ -86,6 +87,9 @@ import { selectLocalWakeWorkspace } from './wakeDisplay'
 import './remoteScreen.css'
 
 // DOM key name → copy key under `screen.*` (and the key sent to the Mac).
+/** How long a notice such as a clipboard copy stays up. */
+const NOTICE_MS = 3_000
+
 const SPECIAL_KEYS = {
   Escape: 'esc',
   Tab: 'tab',
@@ -623,9 +627,17 @@ export function RemoteScreen() {
     )
   }
 
+  // Once per close: later statuses repeat the flag.
+  const windowClosed = status?.windowClosed === true
   useEffect(() => {
-    if (status?.windowClosed) setNotice(t('screen.picker.windowClosed'))
-  }, [status, t])
+    if (windowClosed) setNotice(t('screen.picker.windowClosed'))
+  }, [windowClosed, t])
+
+  useEffect(() => {
+    if (!notice) return
+    const timer = setTimeout(() => setNotice(''), NOTICE_MS)
+    return () => clearTimeout(timer)
+  }, [notice])
 
   const openPicker = () => {
     setPickerOpen(true)
@@ -633,8 +645,16 @@ export function RemoteScreen() {
   }
   const selectTarget = (selection: PickerSelection) => {
     setPickerOpen(false)
-    if (sameSelection(selection, currentSelection(status))) return
-    setTarget(targetForSelection(selection, status))
+    const next = targetForSelection(selection, status)
+    // After a window closed the display is already shown, but the target
+    // still names the window; reconnect so a later reconnect does not ask
+    // for it again.
+    if (
+      sameSelection(selection, currentSelection(status)) &&
+      (sameTarget(next, target) || !target.windowId)
+    )
+      return
+    setTarget(next)
   }
 
   const sendText = (event?: FormEvent) => {

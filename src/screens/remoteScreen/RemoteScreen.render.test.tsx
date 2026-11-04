@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -7,11 +8,17 @@ import {
   waitFor,
 } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ScreenStatus } from './protocol'
 import { RemoteScreen } from './RemoteScreen'
+import type { ScreenTarget } from './screenTargets'
+import type { ScreenWindowList } from './useRemoteScreen'
 
 const sendControl = vi.fn()
 const send = vi.fn()
 const requestFullscreen = vi.fn(async () => undefined)
+const requestWindows = vi.fn()
+const remoteState: { status?: ScreenStatus; windowList?: ScreenWindowList } = {}
+const targets: ScreenTarget[] = []
 
 vi.mock('react-router-dom', async () => {
   const actual =
@@ -40,35 +47,46 @@ vi.mock('../../desktops/DesktopSwitcher', () => ({
   DesktopSwitcher: () => <div>Mac</div>,
 }))
 
-vi.mock('../../i18n', () => ({
-  useT: () => (key: string) =>
+vi.mock('../../i18n', () => {
+  // Stable like the real context value, so effects keyed on it settle.
+  const t = (key: string) =>
     ({
       'screen.fullscreen': 'Full screen',
       'screen.paste': 'Paste to Mac',
-    })[key] ?? key,
-}))
+    })[key] ?? key
+  return { useT: () => t }
+})
 
 vi.mock('./useRemoteScreen', () => ({
-  useRemoteScreen: () => ({
-    connected: true,
-    markVideoFrame: vi.fn(),
-    stalled: false,
-    videoLive: false,
-    control: true,
-    error: '',
-    frame: undefined,
-    message: undefined,
-    status: undefined,
-    rtcState: 'idle',
-    stream: undefined,
-    send,
-    sendControl,
-    setControl: vi.fn(),
-  }),
+  useRemoteScreen: (_tunnel: unknown, target: ScreenTarget) => {
+    targets.push(target)
+    return {
+      connected: true,
+      markVideoFrame: vi.fn(),
+      stalled: false,
+      videoLive: false,
+      control: true,
+      error: '',
+      frame: undefined,
+      message: undefined,
+      status: remoteState.status,
+      windowList: remoteState.windowList,
+      requestWindows,
+      rtcState: 'idle',
+      stream: undefined,
+      send,
+      sendControl,
+      setControl: vi.fn(),
+    }
+  },
 }))
 
 beforeEach(() => {
   sendControl.mockClear()
+  requestWindows.mockClear()
+  remoteState.status = undefined
+  remoteState.windowList = undefined
+  targets.length = 0
   send.mockClear()
   const values = new Map<string, string>()
   Object.defineProperty(window, 'localStorage', {
@@ -135,5 +153,73 @@ describe('RemoteScreen zoom and input mode', () => {
     expect(localStorage.getItem('alma.screen.inputMode.desktop-1')).toBe(
       'trackpad',
     )
+  })
+})
+
+describe('RemoteScreen window target', () => {
+  const status = (extra: Partial<ScreenStatus> = {}): ScreenStatus => ({
+    type: 'status',
+    bound: true,
+    displayId: 1,
+    width: 1512,
+    height: 982,
+    scale: 2,
+    mode: 'jpeg',
+    windows: true,
+    ...extra,
+  })
+
+  it('streams a picked window and falls back when it closes', () => {
+    remoteState.status = status()
+    remoteState.windowList = {
+      windows: [
+        { id: 7, app: 'Safari', title: 'Docs', width: 800, height: 600 },
+      ],
+    }
+    const { rerender } = render(<RemoteScreen />)
+    fireEvent.click(screen.getByRole('button', { name: 'screen.picker.open' }))
+    expect(requestWindows).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /Safari/ }))
+    expect(targets.at(-1)).toEqual({ windowId: 7 })
+
+    remoteState.status = status({ window: { id: 7, app: 'Safari' } })
+    rerender(<RemoteScreen />)
+    expect(screen.queryByText('screen.picker.windowClosed')).toBeNull()
+
+    remoteState.status = status({ windowClosed: true })
+    rerender(<RemoteScreen />)
+    expect(screen.getByText('screen.picker.windowClosed')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'screen.picker.open' }))
+    const whole = screen.getByRole('button', {
+      name: 'screen.picker.wholeScreen',
+    })
+    expect(whole.getAttribute('aria-pressed')).toBe('true')
+    // Picking the shown display drops the closed window from the target.
+    fireEvent.click(whole)
+    expect(targets.at(-1)).toEqual({})
+  })
+
+  it('hides the window-closed notice after a moment', () => {
+    vi.useFakeTimers()
+    try {
+      remoteState.status = status({ windowClosed: true })
+      render(<RemoteScreen />)
+      expect(screen.getByText('screen.picker.windowClosed')).toBeTruthy()
+      act(() => {
+        vi.advanceTimersByTime(3_000)
+      })
+      expect(screen.queryByText('screen.picker.windowClosed')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('has no picker when there is nothing to choose', () => {
+    remoteState.status = status({ windows: false })
+    render(<RemoteScreen />)
+    expect(
+      screen.queryByRole('button', { name: 'screen.picker.open' }),
+    ).toBeNull()
   })
 })
