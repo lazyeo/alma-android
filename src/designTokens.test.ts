@@ -241,6 +241,16 @@ describe('stylesheet token enforcement', () => {
       (match) => match[1],
     )
     expect(defined.sort()).toEqual(allowed.sort())
+    // Keyframes run on the compositor: no clip-path, filter, shadow,
+    // radius or box-size animation, whatever the surface.
+    for (const [, name, body] of css.matchAll(
+      /@keyframes ([\w-]+)\s*{((?:[^{}]*{[^}]*})*)\s*}/g,
+    ))
+      for (const [, property] of body.matchAll(/([\w-]+)\s*:/g))
+        expect(
+          ['transform', 'translate', 'opacity', 'background-color'],
+          `${name} animates ${property}`,
+        ).toContain(property)
     for (const value of declarations('animation')) {
       const name = value.split(/\s+/)[0]
       expect(name === 'none' || allowed.includes(name), value).toBe(true)
@@ -370,7 +380,7 @@ describe('stylesheet token enforcement', () => {
     expect(
       declarations('border-radius').filter(
         (value) =>
-          !/^(0|50%|inherit|var\(--radius-(sm|md|lg|full|inner-composer)\)|var\(--editor-origin-radius\))$/.test(
+          !/^(0|50%|inherit|var\(--radius-(sm|md|lg|full|inner-composer)\))$/.test(
             value,
           ) &&
           !/^max\(calc\(var\(--radius-(sm|md|lg)\) - \d+px\), 4px\)$/.test(

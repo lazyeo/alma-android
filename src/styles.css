@@ -7590,13 +7590,15 @@ button:active:not(:disabled),
 }
 
 /* The expanded editor hosts the shared composer full screen and
-   morphs from the inline composer shell. */
+   morphs from the inline composer shell. The morph is transform-only (a
+   full-viewport surface never animates clip-path or border-radius): under
+   the origin's flat scale any corner radius is squashed to a pixel or two,
+   and the chrome stays invisible while the surface is stretched. */
 .fullscreen-editor {
   --editor-origin-left: 0px;
   --editor-origin-top: 0px;
   --editor-origin-scale-x: 1;
   --editor-origin-scale-y: 1;
-  --editor-origin-radius: var(--radius-lg);
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -7616,26 +7618,18 @@ button:active:not(:disabled),
 }
 @keyframes fullscreen-editor-in {
   from {
-    border-radius: var(--editor-origin-radius);
-    clip-path: inset(0 round var(--editor-origin-radius));
     transform: translate(var(--editor-origin-left), var(--editor-origin-top))
       scale(var(--editor-origin-scale-x), var(--editor-origin-scale-y));
   }
   to {
-    border-radius: 0;
-    clip-path: inset(0 round 0);
     transform: translate(0, 0) scale(1);
   }
 }
 @keyframes fullscreen-editor-out {
   from {
-    border-radius: 0;
-    clip-path: inset(0 round 0);
     transform: translate(0, 0) scale(1);
   }
   to {
-    border-radius: var(--editor-origin-radius);
-    clip-path: inset(0 round var(--editor-origin-radius));
     transform: translate(var(--editor-origin-left), var(--editor-origin-top))
       scale(var(--editor-origin-scale-x), var(--editor-origin-scale-y));
   }
@@ -7649,7 +7643,7 @@ button:active:not(:disabled),
 .fullscreen-editor.closing > header,
 .fullscreen-editor.closing > .ref-picker,
 .fullscreen-editor.closing > .composer {
-  animation: fullscreen-editor-chrome-out var(--dur-fast) var(--ease-out) both;
+  animation: fullscreen-editor-chrome-out var(--dur-press) var(--ease-out) both;
 }
 @keyframes fullscreen-editor-chrome-in {
   from {

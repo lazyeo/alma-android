@@ -2274,9 +2274,6 @@ function ThreadView({
         '--editor-origin-top': `${editorOrigin.top}px`,
         '--editor-origin-scale-x': `${editorOrigin.width / window.innerWidth}`,
         '--editor-origin-scale-y': `${editorOrigin.height / window.innerHeight}`,
-        '--editor-origin-radius': getComputedStyle(
-          composerShellRef.current ?? document.documentElement,
-        ).borderRadius,
       } as CSSProperties)
     : undefined
 
