@@ -1,4 +1,10 @@
-import type { AlmaApi, AlmaModel, ReasoningEffort, Workspace } from '../relay'
+import type {
+  AlmaApi,
+  AlmaModel,
+  AlmaSettings,
+  ReasoningEffort,
+  Workspace,
+} from '../relay'
 import { normalizeEffortForModel } from './modelOptions'
 import { resolveDefaultWorkspaceId } from './workspaceOptions'
 
@@ -9,6 +15,21 @@ export interface NewConversationDefaults {
   model: string
   effort: ReasoningEffort | 'off'
   fastMode: boolean
+}
+
+/** The composer's starting effort before the model narrows it. */
+export const COMPOSER_DEFAULT_EFFORT: ReasoningEffort = 'medium'
+
+/** The desktop's default chat model when it is listed, else the first one. */
+export function composerDefaultModel(
+  models: AlmaModel[],
+  settings: AlmaSettings,
+) {
+  return (
+    models.find((item) => item.id === settings.chat?.defaultModel)?.id ||
+    models[0]?.id ||
+    ''
+  )
 }
 
 export async function loadNewConversationDefaults(
@@ -25,11 +46,8 @@ export async function loadNewConversationDefaults(
     models,
     workspaceId:
       workspaceId ?? resolveDefaultWorkspaceId(settings, workspaces) ?? '',
-    model:
-      models.find((item) => item.id === settings.chat?.defaultModel)?.id ||
-      models[0]?.id ||
-      '',
-    effort: 'medium',
+    model: composerDefaultModel(models, settings),
+    effort: COMPOSER_DEFAULT_EFFORT,
     fastMode: false,
   }
 }
