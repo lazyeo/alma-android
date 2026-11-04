@@ -12,18 +12,27 @@ export interface FaceState {
   activity: FaceActivity
 }
 
-// The desktop reports vitals on more than one scale (0..1 fractions and
-// 0..10 scores both occur), so every number is folded into 0..1 first.
-export function unitScale(value: number | undefined): number | undefined {
+/** Desktop vitals scales: energy and valence 0–10, fatigue 0–100. */
+export const VITALS_MAX = { energy: 10, valence: 10, fatigue: 100 } as const
+
+/** A reading on its known 0..max scale as 0..1; junk or absence → undefined. */
+export function unitScale(
+  value: number | undefined,
+  max: number,
+): number | undefined {
   if (value === undefined || !Number.isFinite(value)) return undefined
-  const magnitude = Math.abs(value)
-  const scaled =
-    magnitude > 10 ? value / 100 : magnitude > 1 ? value / 10 : value
-  return Math.max(-1, Math.min(1, scaled))
+  return Math.max(0, Math.min(1, value / max))
 }
 
-const POSITIVE_MOODS = new Set(['happy', 'excited', 'amused', 'content'])
-const TIRED_LEVEL = /tired|exhaust|drain|sleep|weary/i
+const POSITIVE_MOODS = new Set([
+  'happy',
+  'cheerful',
+  'excited',
+  'amused',
+  'content',
+])
+const ASLEEP_LEVEL = /asleep|sleeping/i
+const TIRED_LEVEL = /tired|exhaust|drain|weary|drowsy/i
 
 /**
  * Vitals → expression. Body state wins over emotion: a happy but exhausted
@@ -31,26 +40,32 @@ const TIRED_LEVEL = /tired|exhaust|drain|sleep|weary/i
  */
 export function faceMoodFromVitals(vitals: AlmaVitals | undefined): FaceMood {
   if (!vitals) return 'neutral'
-  const fatigue = unitScale(vitals.fatigue)
-  const energy = unitScale(vitals.energy)
-  const valence = unitScale(vitals.valence)
-  const tiredLevel = vitals.level ? TIRED_LEVEL.test(vitals.level) : false
+  const fatigue = unitScale(vitals.fatigue, VITALS_MAX.fatigue)
+  const energy = unitScale(vitals.energy, VITALS_MAX.energy)
+  const valence = unitScale(vitals.valence, VITALS_MAX.valence)
+  const level = vitals.level ?? ''
+  if (ASLEEP_LEVEL.test(level)) return 'sleepy-night'
+  const tiredLevel = TIRED_LEVEL.test(level)
   const mood = vitals.mood?.trim().toLowerCase()
+  // energy ≤ 4/10, fatigue ≥ 50/100
   const lowEnergy = energy !== undefined && energy <= 0.4
   const weary = (fatigue !== undefined && fatigue >= 0.5) || tiredLevel
 
   if (vitals.isNight && (lowEnergy || weary)) return 'sleepy-night'
+  // fatigue ≥ 70/100 or energy ≤ 2/10
   if (
     (fatigue !== undefined && fatigue >= 0.7) ||
-    (energy !== undefined && energy <= 0.25) ||
+    (energy !== undefined && energy <= 0.2) ||
     tiredLevel
   )
     return 'tired'
+  // valence 5/10 is neutral; 7+ reads as pleased
   if (
     (mood && POSITIVE_MOODS.has(mood)) ||
-    (valence !== undefined && valence >= 0.5)
+    (valence !== undefined && valence >= 0.7)
   )
     return 'happy'
+  // energy ≥ 7/10
   if (energy !== undefined && energy >= 0.7) return 'focused'
   return 'neutral'
 }

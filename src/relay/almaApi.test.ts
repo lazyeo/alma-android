@@ -967,10 +967,10 @@ describe('personal agent routes', () => {
       .mockResolvedValueOnce({
         status: 200,
         json: async () => ({
-          fatigue: 0.2,
+          fatigue: 20,
           level: 'awake',
           isNight: false,
-          mood: 'happy',
+          mood: 'cheerful',
           energy: 8,
           valence: 7,
           updated: '2026-11-04T00:00:00.000Z',
@@ -994,10 +994,10 @@ describe('personal agent routes', () => {
     await expect(api.getAlmaVitals()).resolves.toEqual({
       status: 'ok',
       vitals: {
-        fatigue: 0.2,
+        fatigue: 20,
         level: 'awake',
         isNight: false,
-        mood: 'happy',
+        mood: 'cheerful',
         energy: 8,
         valence: 7,
         updated: '2026-11-04T00:00:00.000Z',

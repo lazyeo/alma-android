@@ -11,11 +11,16 @@ export interface PersonalAgentSnapshot {
 
 /** `GET /api/alma/vitals`; `mood` is absent once the base emotion expires. */
 export interface AlmaVitals {
+  /** 0–100. */
   fatigue?: number
+  /** e.g. `awake`, `tired`, `asleep`. */
   level?: string
   isNight?: boolean
+  /** Free-form word, e.g. `cheerful`. */
   mood?: string
+  /** 0–10 integer. */
   energy?: number
+  /** 0–10 integer. */
   valence?: number
   updated?: string
 }
