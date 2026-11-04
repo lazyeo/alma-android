@@ -10221,3 +10221,135 @@ dialog:focus,
     animation: none;
   }
 }
+
+/* Alma's raised avatar at the centre of the phone tab bar. The two halves
+   share the remaining width equally so the avatar sits on the centre line. */
+.tab-bar.with-alma {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
+  align-items: start;
+}
+.tab-bar-half {
+  display: flex;
+  min-width: 0;
+  justify-content: space-around;
+}
+.alma-nav {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.alma-nav-tab {
+  width: 72px;
+  height: 60px;
+}
+.alma-nav-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: var(--border-hairline) solid var(--gray-7);
+  border-radius: 50%;
+  background: var(--gray-2);
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.alma-nav-tab .alma-nav-avatar {
+  margin-top: -22px;
+}
+.alma-nav:active .alma-nav-avatar {
+  background: var(--gray-3);
+  transform: scale(0.96);
+}
+.alma-avatar {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+/* Running work or a live reply: a slow breathing ring around the avatar. */
+.alma-nav-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  outline: 1.5px solid var(--accent-8);
+  pointer-events: none;
+  animation: alma-breathe var(--dur-breathe) var(--ease-loop-wave) infinite;
+}
+@keyframes alma-breathe {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.04);
+  }
+}
+/* Something waits on the user's OK. */
+.alma-nav-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-full);
+  background: var(--red-9);
+  outline: 2px solid var(--gray-2);
+}
+.split-alma {
+  display: grid;
+  place-items: center;
+}
+.alma-nav-rail .alma-nav-avatar {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+}
+.alma-nav-rail .alma-nav-badge {
+  top: 0;
+  right: 0;
+  outline-color: var(--sidebar);
+}
+.alma-nav-rail.active .alma-nav-avatar {
+  background: var(--sidebar-accent);
+}
+.alma-setup-sheet .settings-section-note {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+@media (prefers-reduced-motion: reduce) {
+  .alma-nav-ring {
+    animation: none;
+    opacity: 0.9;
+  }
+}
+
+/* The shared avatar flight between the nav and the /alma header. Only the
+   element carrying .alma-avatar-flight is named, so names never collide. */
+html[data-nav-motion='alma'] .alma-avatar-flight {
+  view-transition-name: alma-avatar;
+}
+html[data-nav-motion='alma']::view-transition-old(root) {
+  animation-name: nav-fade-out;
+  animation-duration: var(--dur-flight);
+}
+html[data-nav-motion='alma']::view-transition-new(root) {
+  animation-name: siblingCrossfade;
+  animation-duration: var(--dur-flight);
+}
+::view-transition-group(alma-avatar) {
+  animation-duration: var(--dur-flight);
+  animation-timing-function: var(--ease-spring);
+}
+::view-transition-old(alma-avatar),
+::view-transition-new(alma-avatar) {
+  animation-duration: var(--dur-flight);
+  animation-timing-function: var(--ease-out);
+}

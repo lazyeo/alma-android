@@ -2,13 +2,14 @@ import type { Location } from '@remix-run/router'
 import type { LayoutMode } from './layout/splitLayout'
 
 export type NavigationMotion =
-  'none' | 'push' | 'pop' | 'fade' | 'shared-composer'
+  'none' | 'push' | 'pop' | 'fade' | 'shared-composer' | 'alma'
 
 // GTD mirrors Threads: a list root with conversations pushed above it.
 const threadList = /^\/d\/[^/]+\/(?:threads|gtd)\/?$/
 const threadDetail = /^\/d\/[^/]+\/(?:threads|gtd)\/[^/]+\/?$/
 const crystalList = /^\/d\/[^/]+\/crystals\/?$/
 const crystalDetail = /^\/d\/[^/]+\/crystals\/[^/]+\/?$/
+const almaRoute = /^\/d\/[^/]+\/alma\/?$/
 
 function depth(pathname: string) {
   if (threadDetail.test(pathname) || crystalDetail.test(pathname)) return 2
@@ -60,6 +61,13 @@ export function decideNavigationMotion(
       'shared-composer'
   )
     return 'shared-composer'
+  // Entering or leaving Alma flies her avatar between nav and header, for
+  // pushes, history pops, and the replace that hardware Back performs.
+  if (
+    from.pathname !== to.pathname &&
+    almaRoute.test(from.pathname) !== almaRoute.test(to.pathname)
+  )
+    return 'alma'
   if (action === 'REPLACE' || from.pathname === to.pathname) return 'none'
 
   if (action === 'POP' && delta) return delta < 0 ? 'pop' : 'push'

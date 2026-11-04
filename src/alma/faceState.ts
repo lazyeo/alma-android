@@ -1,7 +1,8 @@
 import type { AlmaVitals } from '../screens/personalAgent'
 
 /** The handful of expressions the vector character can draw. */
-export type FaceMood = 'neutral' | 'happy' | 'tired' | 'sleepy-night' | 'focused'
+export type FaceMood =
+  'neutral' | 'happy' | 'tired' | 'sleepy-night' | 'focused'
 
 /** What Alma is doing right now, independent of how she feels. */
 export type FaceActivity = 'idle' | 'thinking' | 'waiting'
@@ -16,7 +17,8 @@ export interface FaceState {
 export function unitScale(value: number | undefined): number | undefined {
   if (value === undefined || !Number.isFinite(value)) return undefined
   const magnitude = Math.abs(value)
-  const scaled = magnitude > 10 ? value / 100 : magnitude > 1 ? value / 10 : value
+  const scaled =
+    magnitude > 10 ? value / 100 : magnitude > 1 ? value / 10 : value
   return Math.max(-1, Math.min(1, scaled))
 }
 
@@ -44,7 +46,10 @@ export function faceMoodFromVitals(vitals: AlmaVitals | undefined): FaceMood {
     tiredLevel
   )
     return 'tired'
-  if ((mood && POSITIVE_MOODS.has(mood)) || (valence !== undefined && valence >= 0.5))
+  if (
+    (mood && POSITIVE_MOODS.has(mood)) ||
+    (valence !== undefined && valence >= 0.5)
+  )
     return 'happy'
   if (energy !== undefined && energy >= 0.7) return 'focused'
   return 'neutral'

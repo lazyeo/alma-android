@@ -200,9 +200,10 @@ describe('stylesheet token enforcement', () => {
       'nav-old-pop',
       'nav-new-pop',
       'nav-fade-out',
-      // Alma's presence: the thinking glance and lens glint.
+      // Alma's presence: thinking glance/glint and the busy breathing ring.
       'alma-glance',
       'alma-glint',
+      'alma-breathe',
     ]
     const defined = [...css.matchAll(/@keyframes ([\w-]+)/g)].map(
       (match) => match[1],

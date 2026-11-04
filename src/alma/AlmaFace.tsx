@@ -59,7 +59,12 @@ function Eye({
       <g className="alma-face-iris">
         <circle className="alma-face-eye" cx={x} cy={y} r={4.4} />
         <circle className="alma-face-pupil" cx={x} cy={y + 0.4} r={2} />
-        <circle className="alma-face-catchlight" cx={x - 1.3} cy={y - 1.5} r={1} />
+        <circle
+          className="alma-face-catchlight"
+          cx={x - 1.3}
+          cy={y - 1.5}
+          r={1}
+        />
       </g>
       {/* The lid drops from the top of the lens: blink, tired, sleepy. */}
       <rect
@@ -151,14 +156,36 @@ export function AlmaFace({
           <Eye {...RIGHT_EYE} mood={mood} clipId={rightClip} />
         </g>
         <g className="alma-face-glasses">
-          <circle className="alma-face-lens" cx={LEFT_EYE.x} cy={LEFT_EYE.y} r={LENS_R} />
-          <circle className="alma-face-lens" cx={RIGHT_EYE.x} cy={RIGHT_EYE.y} r={LENS_R} />
+          <circle
+            className="alma-face-lens"
+            cx={LEFT_EYE.x}
+            cy={LEFT_EYE.y}
+            r={LENS_R}
+          />
+          <circle
+            className="alma-face-lens"
+            cx={RIGHT_EYE.x}
+            cy={RIGHT_EYE.y}
+            r={LENS_R}
+          />
           <path className="alma-face-line" d="M30.6 37.2 Q32 36.2 33.4 37.2" />
           <g clipPath={`url(#${leftClip})`}>
-            <rect className="alma-face-glint" x={14} y={28} width={3} height={20} />
+            <rect
+              className="alma-face-glint"
+              x={14}
+              y={28}
+              width={3}
+              height={20}
+            />
           </g>
           <g clipPath={`url(#${rightClip})`}>
-            <rect className="alma-face-glint" x={28} y={28} width={3} height={20} />
+            <rect
+              className="alma-face-glint"
+              x={28}
+              y={28}
+              width={3}
+              height={20}
+            />
           </g>
         </g>
         <path className="alma-face-mouth" d={MOUTHS[mood]} />

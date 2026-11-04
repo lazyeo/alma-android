@@ -224,4 +224,36 @@ describe('navigation motion', () => {
       ),
     ).toBe('push')
   })
+
+  it('flies the Alma avatar into and out of /alma, including hardware Back', () => {
+    const cases: [string, string, 'PUSH' | 'POP' | 'REPLACE', number | null][] =
+      [
+        ['/d/home/threads', '/d/home/alma', 'PUSH', null],
+        ['/settings', '/d/home/alma', 'PUSH', null],
+        ['/d/home/alma', '/d/home/threads', 'POP', -1],
+        ['/d/home/alma', '/d/home/threads', 'REPLACE', null],
+        ['/d/home/alma', '/d/home/threads', 'PUSH', null],
+      ]
+    for (const [from, to, action, delta] of cases)
+      for (const layout of ['single', 'split'] as const)
+        expect(
+          decideNavigationMotion(
+            location(from),
+            location(to),
+            action,
+            delta,
+            layout,
+          ),
+          `${from} -> ${to} ${action} ${layout}`,
+        ).toBe('alma')
+    expect(
+      decideNavigationMotion(
+        location('/d/home/alma'),
+        location('/d/home/alma', '?x=1'),
+        'REPLACE',
+        null,
+        'single',
+      ),
+    ).toBe('none')
+  })
 })

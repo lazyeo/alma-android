@@ -18,7 +18,10 @@ import {
 } from 'react-router-dom'
 import { ConnectionContext, useDesktops } from '../desktops/DesktopContext'
 import { DesktopSwitcher } from '../desktops/DesktopSwitcher'
+import { AlmaPresenceProvider } from '../alma/AlmaPresence'
+import { AlmaNavButton, useAlmaNavVisible } from '../alma/AlmaNavButton'
 import {
+  ALMA_ROUTE,
   desktopAgentPanePath,
   desktopAgentsPath,
   desktopCrystalsPath,
@@ -88,60 +91,80 @@ function MainNav({
   const { pathname } = useLocation()
   const threadsPath = useActiveThreadsPath()
   const desktopId = decodeURIComponent(threadsPath.split('/')[2] ?? '')
+  // The phone tab bar puts Alma at its geometric centre; the rail shows her
+  // at its top instead (see AppShell).
+  const almaCentre = useAlmaNavVisible() && !compact
+  const items: ReactNode[] = []
+  NAV_ITEMS.filter(({ to }) => includeGtd || to !== '/gtd').forEach(
+    ({ to, labelKey, Icon }, index) => {
+      const label = t(labelKey)
+      const threads = to === '/threads'
+      const gtd = to === '/gtd'
+      const destination = threads
+        ? threadsPath
+        : gtd
+          ? desktopGtdPath(desktopId)
+          : to
+      const active = gtd
+        ? /^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname)
+        : threads
+          ? (pathname === to || pathname.startsWith('/d/')) &&
+            !ALMA_ROUTE.test(pathname) &&
+            !/^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname) &&
+            !pathname.includes('/crystals') &&
+            !pathname.includes('/time-clues') &&
+            !pathname.includes('/references') &&
+            !pathname.includes('/agents')
+          : pathname === to || pathname.startsWith(`${to}/`)
+      if (to === '/settings') {
+        const before =
+          beforeSettings ??
+          (desktopId ? (
+            <AgentsNavLink desktopId={desktopId} compact={false} />
+          ) : null)
+        if (before)
+          items.push(<Fragment key="before-settings">{before}</Fragment>)
+      }
+      items.push(
+        <Link
+          key={to}
+          to={destination}
+          replace
+          aria-label={compact ? label : undefined}
+          title={compact ? label : undefined}
+          aria-current={active ? 'page' : undefined}
+          className={active ? 'active' : ''}
+        >
+          <span className="tab-icon">
+            <Icon size={22} />
+            {to === '/settings' && badge ? (
+              <span
+                className="update-badge-dot"
+                aria-label={t('settings.updates.availableDot')}
+              />
+            ) : null}
+          </span>
+          {compact ? null : label}
+        </Link>,
+      )
+      if (index === 1 && children)
+        items.push(<Fragment key="rail-extras">{children}</Fragment>)
+    },
+  )
+  if (!almaCentre)
+    return (
+      <nav className={className} aria-label={t('nav.main')}>
+        {items}
+      </nav>
+    )
+  // Two equal halves keep the avatar on the bar's centre line whatever the
+  // tab count; an odd count leaves the extra tab on the left.
+  const split = Math.ceil(items.length / 2)
   return (
-    <nav className={className} aria-label={t('nav.main')}>
-      {NAV_ITEMS.filter(({ to }) => includeGtd || to !== '/gtd').map(
-        ({ to, labelKey, Icon }, index) => {
-          const label = t(labelKey)
-          const threads = to === '/threads'
-          const gtd = to === '/gtd'
-          const destination = threads
-            ? threadsPath
-            : gtd
-              ? desktopGtdPath(desktopId)
-              : to
-          const active = gtd
-            ? /^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname)
-            : threads
-              ? (pathname === to || pathname.startsWith('/d/')) &&
-                !/^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname) &&
-                !pathname.includes('/crystals') &&
-                !pathname.includes('/time-clues') &&
-                !pathname.includes('/references') &&
-                !pathname.includes('/agents')
-              : pathname === to || pathname.startsWith(`${to}/`)
-          return (
-            <Fragment key={to}>
-              {to === '/settings'
-                ? (beforeSettings ??
-                  (desktopId ? (
-                    <AgentsNavLink desktopId={desktopId} compact={false} />
-                  ) : null))
-                : null}
-              <Link
-                to={destination}
-                replace
-                aria-label={compact ? label : undefined}
-                title={compact ? label : undefined}
-                aria-current={active ? 'page' : undefined}
-                className={active ? 'active' : ''}
-              >
-                <span className="tab-icon">
-                  <Icon size={22} />
-                  {to === '/settings' && badge ? (
-                    <span
-                      className="update-badge-dot"
-                      aria-label={t('settings.updates.availableDot')}
-                    />
-                  ) : null}
-                </span>
-                {compact ? null : label}
-              </Link>
-              {index === 1 ? children : null}
-            </Fragment>
-          )
-        },
-      )}
+    <nav className={`${className} with-alma`} aria-label={t('nav.main')}>
+      <div className="tab-bar-half">{items.slice(0, split)}</div>
+      <AlmaNavButton placement="tab" />
+      <div className="tab-bar-half">{items.slice(split)}</div>
     </nav>
   )
 }
@@ -279,8 +302,33 @@ function SidebarThreads({
  * One layout route for every screen. Element types stay identical across
  * child routes so the outlet (and, in split mode, the sidebar list with its
  * state) is never remounted by navigation; only the URL decides content.
+ * Alma's presence wraps the whole shell so nav and /alma share one poller.
  */
 export function AppShell() {
+  return (
+    <AlmaPresenceProvider>
+      <AppShellLayout />
+    </AlmaPresenceProvider>
+  )
+}
+
+function SplitRailTop() {
+  // With a personal agent the rail's top slot is Alma herself, otherwise
+  // the non-interactive app logo.
+  if (useAlmaNavVisible())
+    return (
+      <div className="split-logo split-alma">
+        <AlmaNavButton placement="rail" />
+      </div>
+    )
+  return (
+    <span className="split-logo" aria-hidden="true">
+      <img src="/icon-192.png" alt="" />
+    </span>
+  )
+}
+
+function AppShellLayout() {
   const t = useT()
   const mode = useLayoutMode()
   const [collapsed, toggleSidebar, setSidebarCollapsed] = useSidebarCollapsed()
@@ -303,11 +351,13 @@ export function AppShell() {
   const { agents } = useHerdr()
   const agentWorkspaces = agentsDesktopId ? agents(agentsDesktopId) : []
   const screenDetail = /^\/d\/[^/]+\/screen\/?$/.test(pathname)
+  const almaDetail = ALMA_ROUTE.test(pathname)
   const phoneChild =
     /^\/d\/[^/]+\/(?:gtd|crystals|time-clues|references)(?:\/|$)/.test(pathname)
   const detail =
     Boolean(thread?.threadId) ||
     screenDetail ||
+    almaDetail ||
     Boolean(agentsPaneId) ||
     (mode === 'single' && phoneChild)
 
@@ -358,9 +408,7 @@ export function AppShell() {
       {...sidebarSwipe}
     >
       <div className="split-rail">
-        <span className="split-logo" aria-hidden="true">
-          <img src="/icon-192.png" alt="" />
-        </span>
+        <SplitRailTop />
         <MainNav
           className="split-nav"
           compact

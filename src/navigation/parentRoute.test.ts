@@ -43,4 +43,9 @@ describe('parentRoute', () => {
     )
     expect(parentRoute('/d/desk/screen', 'split')).toBe(home)
   })
+
+  it('returns from Alma to the Threads list in both layouts', () => {
+    expect(parentRoute('/d/desk/alma', 'single')).toBe(home)
+    expect(parentRoute('/d/desk/alma', 'split')).toBe(home)
+  })
 })

@@ -56,9 +56,7 @@ describe('AlmaFace', () => {
 
   it('turns every idle animation off, blink included, under reduced motion', () => {
     reduced = true
-    const { container } = render(
-      <AlmaFace size={40} activity="thinking" />,
-    )
+    const { container } = render(<AlmaFace size={40} activity="thinking" />)
     expect(face(container).dataset.animated).toBe('false')
     act(() => vi.advanceTimersByTime(10000))
     expect(face(container).dataset.blink).toBeUndefined()
@@ -78,7 +76,9 @@ describe('AlmaFace', () => {
         <AlmaFace size={40} />
       </>,
     )
-    const ids = [...container.querySelectorAll('clipPath')].map((node) => node.id)
+    const ids = [...container.querySelectorAll('clipPath')].map(
+      (node) => node.id,
+    )
     expect(new Set(ids).size).toBe(4)
   })
 })
