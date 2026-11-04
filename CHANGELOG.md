@@ -10,12 +10,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Alma tab: on Alma desktop 0.4.407+, a raised Alma avatar in the center of the tab bar (and in the side rail) opens the personal agent at `/alma`. The vector face follows her vitals (energy and valence on 0–10, fatigue on 0–100, mood, and awake/tired/asleep level), and badges show when she is working or needs your OK. If no main conversation is set up, it explains how to turn one on. It stays hidden on older desktops (2026-11-04).
 - Alma persona screen: a messenger-style view of the main conversation, with a header showing her face and a status line (thinking, working on N things, N things need your OK, or mood). Each reply has a collapsible thinking section and a "did: …" summary of what she did (2026-11-04).
+- Alma mascot: when an extension registers a mascot rig, her face is drawn from it with eased expressions, blinks, glances, breathing and a talking mouth while a reply streams. Without a rig, or if it fails to load, the vector face is shown (2026-11-05).
+- Opening Alma expands her screen as a circle from the avatar while the page behind shrinks slightly and dims, and the avatar moves into her header. Back collapses it into the avatar. With reduced motion it is a crossfade (2026-11-05).
 - Threads: pull-to-refresh at the top of the list reloads the threads and Alma's status (2026-11-04).
 - Project card: a Recent section lists the project's five most recently updated threads (re-sorted each time the card opens), with Show all (N) jumping to the full project thread list, matching desktop 0.4.396 and the official app (2026-11-04).
 
 ### Changed
 
 - Threads: the pinned Alma row at the top of the list is gone; the center Alma tab replaces it (2026-11-04).
+- Tab bar: two tabs on each side of Alma: Threads and Agents, then GTD and Settings. The side rail uses the same order (2026-11-05).
+- GTD is a tab on phones: its list is a root page with the tab bar and no Back button (2026-11-05).
 - New launcher icon: the glasses character with sage-green lenses, so this unofficial client is easy to tell apart from the official Alma app (2026-11-04).
 
 ### Fixed
