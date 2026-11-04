@@ -29,11 +29,19 @@ export interface MascotEyeLayers {
   lid: string
 }
 
+/**
+ * Vector extras the app draws over the raster face, fitted from the rig
+ * geometry. `glasses`: round lenses over the eye boxes, drawn after the
+ * eyes with a faint tint so blinks still show.
+ */
+export type MascotRigAccessory = 'glasses'
+
 /** Image URLs plus geometry; registered by a build-time extension. */
 export interface MascotRigAssets {
   base: string
   eyes: { L: MascotEyeLayers; R: MascotEyeLayers }
   rig: MascotRigGeometry
+  accessories?: readonly MascotRigAccessory[]
 }
 
 let registered: MascotRigAssets | undefined

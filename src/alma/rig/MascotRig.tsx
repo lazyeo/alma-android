@@ -181,10 +181,10 @@ export function MascotRig({
   const current = layers?.pixels === pixels ? layers : null
   // Built only once layers exist, i.e. the geometry has been validated.
   const painter = useRef<RigPainter>()
-  const painterRig = useRef<MascotRigAssets['rig']>()
-  if (current && painterRig.current !== assets.rig) {
-    painter.current = new RigPainter(assets.rig)
-    painterRig.current = assets.rig
+  const painterAssets = useRef<MascotRigAssets>()
+  if (current && painterAssets.current !== assets) {
+    painter.current = new RigPainter(assets.rig, undefined, assets.accessories)
+    painterAssets.current = assets
   }
 
   // Static: one settled frame per change of expression. Still copies share

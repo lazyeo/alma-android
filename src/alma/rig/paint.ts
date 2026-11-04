@@ -1,8 +1,10 @@
 import type {
+  MascotRigAccessory,
   MascotRigEye,
   MascotRigGeometry,
 } from '../../extensions/mascotRig'
 import type { RigFrame } from './engine'
+import { glassesGeometry, paintGlasses, type GlassesGeometry } from './glasses'
 
 export interface RigEyeImages {
   white: CanvasImageSource
@@ -217,11 +219,15 @@ export function paintStill(
  */
 export class RigPainter {
   private scratch: Partial<Record<'L' | 'R', HTMLCanvasElement>> = {}
+  private glasses?: GlassesGeometry
 
   constructor(
     private rig: MascotRigGeometry,
     private view: RigView = portraitView(rig),
-  ) {}
+    accessories: readonly MascotRigAccessory[] = [],
+  ) {
+    if (accessories.includes('glasses')) this.glasses = glassesGeometry(rig)
+  }
 
   private scratchFor(side: 'L' | 'R', width: number, height: number) {
     const w = Math.max(1, Math.ceil(width))
@@ -251,6 +257,8 @@ export class RigPainter {
     ctx.drawImage(layers.base, 0, 0, width, height)
     this.eye(ctx, layers, 'L', f.openL, f)
     this.eye(ctx, layers, 'R', f.openR, f)
+    // over the eyes (tinted, so blinks show through), under the marks
+    if (this.glasses) paintGlasses(ctx, this.glasses, k)
     this.mouth(ctx, f)
     this.marks(ctx, f)
     ctx.setTransform(1, 0, 0, 1, 0, 0)
