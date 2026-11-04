@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { BottomSheet } from '../components/BottomSheet'
 import { SettingsRow } from '../components/SettingsRow'
 import { presenceClass, usePresence } from '../components/usePresence'
+import { COLLAPSE_EXIT_MS } from '../motionTokens'
 import { haptic, hapticsEnabled } from '../haptics'
 import {
   Bell,
@@ -122,7 +123,9 @@ function FoldTransitionSection() {
   >()
   const [error, setError] = useState('')
   const [advancedOpen, setAdvancedOpen] = useState(false)
-  const advancedPresence = usePresence(advancedOpen)
+  const advancedPresence = usePresence(advancedOpen, {
+    exitMs: COLLAPSE_EXIT_MS,
+  })
   const [angleSource, setAngleSource] = useState<FoldAngleSourceState>()
   useEffect(() => {
     let current = true
@@ -270,104 +273,106 @@ function FoldTransitionSection() {
         />
         {advancedPresence.rendered ? (
           <div
-            className={`${presenceClass(advancedPresence.phase)} fold-advanced-list`}
+            className={`${presenceClass(advancedPresence.phase)} settings-collapse fold-advanced-list`}
           >
-            <SettingsRow
-              icon={<Gauge size={17} />}
-              title={t('settings.fold.blur.title')}
-              onClick={() => {
-                void haptic('selection')
-                setSheet('blur')
-              }}
-              trailing={
-                <span className="desktop-row-trailing">
-                  <span className="settings-value">
-                    {settings.blurSpread.toFixed(2)}
+            <div className="settings-collapse-inner">
+              <SettingsRow
+                icon={<Gauge size={17} />}
+                title={t('settings.fold.blur.title')}
+                onClick={() => {
+                  void haptic('selection')
+                  setSheet('blur')
+                }}
+                trailing={
+                  <span className="desktop-row-trailing">
+                    <span className="settings-value">
+                      {settings.blurSpread.toFixed(2)}
+                    </span>
+                    <ChevronRight className="settings-chevron" size={16} />
                   </span>
-                  <ChevronRight className="settings-chevron" size={16} />
-                </span>
-              }
-            />
-            <SettingsRow
-              icon={<Gauge size={17} />}
-              title={t('settings.fold.darkening.title')}
-              onClick={() => {
-                void haptic('selection')
-                setSheet('darkening')
-              }}
-              trailing={
-                <span className="desktop-row-trailing">
-                  <span className="settings-value">
-                    {settings.darkening.toFixed(3)}
+                }
+              />
+              <SettingsRow
+                icon={<Gauge size={17} />}
+                title={t('settings.fold.darkening.title')}
+                onClick={() => {
+                  void haptic('selection')
+                  setSheet('darkening')
+                }}
+                trailing={
+                  <span className="desktop-row-trailing">
+                    <span className="settings-value">
+                      {settings.darkening.toFixed(3)}
+                    </span>
+                    <ChevronRight className="settings-chevron" size={16} />
                   </span>
-                  <ChevronRight className="settings-chevron" size={16} />
-                </span>
-              }
-            />
-            <SettingsRow
-              icon={<DraftingCompass size={17} />}
-              title={t('settings.fold.eyeDistance.title')}
-              onClick={() => {
-                void haptic('selection')
-                setSheet('eyeDistance')
-              }}
-              trailing={
-                <span className="desktop-row-trailing">
-                  <span className="settings-value">{`${settings.eyeDistanceMm} mm`}</span>
-                  <ChevronRight className="settings-chevron" size={16} />
-                </span>
-              }
-            />
-            <SettingsRow
-              icon={<ScrollText size={17} />}
-              title={t('settings.fold.logging.title')}
-              secondary={t('settings.fold.logging.hint')}
-              trailing={
-                <Switch
-                  label={t('settings.fold.logging.title')}
-                  checked={settings.logging}
-                  onChange={(logging) => {
-                    void haptic('selection')
-                    update({ ...settings, logging })
+                }
+              />
+              <SettingsRow
+                icon={<DraftingCompass size={17} />}
+                title={t('settings.fold.eyeDistance.title')}
+                onClick={() => {
+                  void haptic('selection')
+                  setSheet('eyeDistance')
+                }}
+                trailing={
+                  <span className="desktop-row-trailing">
+                    <span className="settings-value">{`${settings.eyeDistanceMm} mm`}</span>
+                    <ChevronRight className="settings-chevron" size={16} />
+                  </span>
+                }
+              />
+              <SettingsRow
+                icon={<ScrollText size={17} />}
+                title={t('settings.fold.logging.title')}
+                secondary={t('settings.fold.logging.hint')}
+                trailing={
+                  <Switch
+                    label={t('settings.fold.logging.title')}
+                    checked={settings.logging}
+                    onChange={(logging) => {
+                      void haptic('selection')
+                      update({ ...settings, logging })
+                    }}
+                  />
+                }
+              />
+              {(['open', 'close'] as const).map((direction) => (
+                <SettingsRow
+                  key={direction}
+                  icon={<Play size={17} />}
+                  title={t(`settings.fold.preview.${direction}`)}
+                  secondary={t('settings.fold.preview.hint')}
+                  onClick={() => {
+                    void haptic('light')
+                    previewNativeFoldTransition(direction)
+                      .then((played) =>
+                        setError(
+                          played ? '' : t('settings.fold.preview.unsupported'),
+                        ),
+                      )
+                      .catch(() => setError(t('settings.fold.preview.failed')))
                   }}
                 />
-              }
-            />
-            {(['open', 'close'] as const).map((direction) => (
+              ))}
               <SettingsRow
-                key={direction}
-                icon={<Play size={17} />}
-                title={t(`settings.fold.preview.${direction}`)}
-                secondary={t('settings.fold.preview.hint')}
+                icon={<RotateCcw size={17} />}
+                title={t('settings.fold.reset.title')}
+                secondary={t('settings.fold.reset.hint')}
                 onClick={() => {
                   void haptic('light')
-                  previewNativeFoldTransition(direction)
-                    .then((played) =>
-                      setError(
-                        played ? '' : t('settings.fold.preview.unsupported'),
-                      ),
-                    )
-                    .catch(() => setError(t('settings.fold.preview.failed')))
+                  update({
+                    ...settings,
+                    activationAngle:
+                      defaultFoldTransitionSettings.activationAngle,
+                    blurSpread: defaultFoldTransitionSettings.blurSpread,
+                    darkening: defaultFoldTransitionSettings.darkening,
+                    eyeDistanceMm: defaultFoldTransitionSettings.eyeDistanceMm,
+                    logging: defaultFoldTransitionSettings.logging,
+                  })
                 }}
               />
-            ))}
-            <SettingsRow
-              icon={<RotateCcw size={17} />}
-              title={t('settings.fold.reset.title')}
-              secondary={t('settings.fold.reset.hint')}
-              onClick={() => {
-                void haptic('light')
-                update({
-                  ...settings,
-                  activationAngle:
-                    defaultFoldTransitionSettings.activationAngle,
-                  blurSpread: defaultFoldTransitionSettings.blurSpread,
-                  darkening: defaultFoldTransitionSettings.darkening,
-                  eyeDistanceMm: defaultFoldTransitionSettings.eyeDistanceMm,
-                  logging: defaultFoldTransitionSettings.logging,
-                })
-              }}
-            />
+            </div>
           </div>
         ) : null}
       </div>
@@ -543,7 +548,9 @@ export function SettingsScreen() {
   const navigate = useNavigate()
   const [desktopDetail, setDesktopDetail] = useState<string>()
   const [hiddenOpen, setHiddenOpen] = useState(false)
-  const hiddenPresence = usePresence(hiddenOpen)
+  const hiddenPresence = usePresence(hiddenOpen, {
+    exitMs: COLLAPSE_EXIT_MS,
+  })
   const [editing, setEditing] = useState<{ id: string; name: string }>()
   const [removing, setRemoving] = useState<{ id: string; name: string }>()
   const [feedback, setFeedback] = useState(hapticsEnabled)
@@ -720,23 +727,28 @@ export function SettingsScreen() {
               ) : null}
               {hiddenPresence.rendered ? (
                 <div
-                  className={`${presenceClass(hiddenPresence.phase)} hidden-desktops-list`}
+                  className={`${presenceClass(hiddenPresence.phase)} settings-collapse hidden-desktops-list`}
                 >
-                  {hiddenDesktops.map(({ pairing }) => (
-                    <SettingsRow
-                      key={pairing.id}
-                      icon={<DesktopPlatformIcon desktopId={pairing.id} />}
-                      title={pairing.name}
-                      secondary={t('settings.desktops.hiddenHint')}
-                      onClick={() => {
-                        void haptic('selection')
-                        setDesktopDetail(pairing.id)
-                      }}
-                      trailing={
-                        <ChevronRight className="settings-chevron" size={16} />
-                      }
-                    />
-                  ))}
+                  <div className="settings-collapse-inner">
+                    {hiddenDesktops.map(({ pairing }) => (
+                      <SettingsRow
+                        key={pairing.id}
+                        icon={<DesktopPlatformIcon desktopId={pairing.id} />}
+                        title={pairing.name}
+                        secondary={t('settings.desktops.hiddenHint')}
+                        onClick={() => {
+                          void haptic('selection')
+                          setDesktopDetail(pairing.id)
+                        }}
+                        trailing={
+                          <ChevronRight
+                            className="settings-chevron"
+                            size={16}
+                          />
+                        }
+                      />
+                    ))}
+                  </div>
                 </div>
               ) : null}
             </div>

@@ -1885,26 +1885,41 @@ dd {
 .desktop-list {
   display: grid;
 }
-.hidden-desktops-list {
+/* An inline Settings disclosure. The room opens on grid rows (a small
+   container, never a screen-sized surface) and its rows fade in once the
+   room is mostly open; closing fades them first, then closes the room, so
+   the moving edge never slices text. */
+.settings-collapse.ui-presence {
+  display: grid;
+  grid-template-rows: 0fr;
+  min-width: 0;
+  opacity: 1;
+  transform: none;
+  transition: grid-template-rows var(--dur-panel) var(--ease-out)
+    var(--dur-press);
+}
+.settings-collapse.ui-presence.entered {
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--dur-panel) var(--ease-out);
+}
+.settings-collapse-inner {
   display: grid;
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
-  transform-origin: top;
-  transition:
-    opacity var(--dur-panel) var(--ease-out),
-    transform var(--dur-panel) var(--ease-out),
-    max-height var(--dur-panel) var(--ease-out);
-}
-.hidden-desktops-list.entering,
-.hidden-desktops-list.exiting {
-  max-height: 0;
   opacity: 0;
-  transform: translateY(-6px);
+  transition: opacity var(--dur-press) var(--ease-out);
 }
-.hidden-desktops-list.entered {
-  max-height: 520px;
+.settings-collapse.entered > .settings-collapse-inner {
   opacity: 1;
-  transform: translateY(0);
+  transition: opacity var(--dur-fast) var(--ease-out) var(--dur-press);
+}
+@media (prefers-reduced-motion: reduce) {
+  .settings-collapse.ui-presence,
+  .settings-collapse-inner,
+  .settings-collapse.entered > .settings-collapse-inner {
+    transition-delay: var(--dur-reduced);
+  }
 }
 .hidden-desktops-chevron {
   transition: transform var(--dur-fast) var(--ease-out);
@@ -8800,27 +8815,6 @@ dialog:focus,
   }
 }
 
-.fold-advanced-list {
-  display: grid;
-  min-width: 0;
-  overflow: hidden;
-  transform-origin: top;
-  transition:
-    opacity var(--dur-panel) var(--ease-out),
-    transform var(--dur-panel) var(--ease-out),
-    max-height var(--dur-panel) var(--ease-out);
-}
-.fold-advanced-list.entering,
-.fold-advanced-list.exiting {
-  max-height: 0;
-  opacity: 0;
-  transform: translateY(-6px);
-}
-.fold-advanced-list.entered {
-  max-height: 640px;
-  opacity: 1;
-  transform: translateY(0);
-}
 .fold-advanced-chevron {
   transition: transform var(--dur-fast) var(--ease-out);
 }
