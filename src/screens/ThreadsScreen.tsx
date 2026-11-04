@@ -480,6 +480,9 @@ export function ThreadsScreen({
                             selectedThreadId={selectedThreadId}
                             threadNeedsResponse={threadNeedsResponse}
                             onOpenThread={openThread}
+                            onThreadActions={(thread, { x, y }) =>
+                              setActionMenu({ thread, x, y })
+                            }
                             onShowAllThreads={() =>
                               showAllProjectThreads(project.id)
                             }
@@ -500,6 +503,9 @@ export function ThreadsScreen({
                             selected={thread.id === selectedThreadId}
                             needsResponse={threadNeedsResponse(thread)}
                             onOpen={() => openThread(thread)}
+                            onActions={({ x, y }) =>
+                              setActionMenu({ thread, x, y })
+                            }
                           />
                         ))}
                       </div>

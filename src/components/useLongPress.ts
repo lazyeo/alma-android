@@ -44,12 +44,11 @@ export function useLongPress(
   return {
     onPointerDown(event: PointerEvent<HTMLElement>) {
       fired.current = false
-      if (
-        event.button !== 0 ||
-        (event.target as HTMLElement).closest(
-          'button, a, input, textarea, summary',
-        )
+      // Nested controls keep their own press; the row itself may be a button.
+      const control = (event.target as HTMLElement).closest(
+        'button, a, input, textarea, summary',
       )
+      if (event.button !== 0 || (control && control !== event.currentTarget))
         return
       point.current = { x: event.clientX, y: event.clientY }
       press.start(event.clientX, event.clientY)

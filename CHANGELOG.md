@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Projects: threads in a project group and in the project card's Recent list now open the thread actions menu (rename, organize, delete, …) on long press, right click, or the ContextMenu / Shift+F10 key, like the main thread list. Long pressing no longer also opens the thread, and a deleted thread drops out of its project right away (2026-11-04).
 - Thread chats and the thread list reconnect `/ws/threads` after the desktop closes or rejects it while the relay tunnel stays up (retrying after 1/2/5/15 s, capped at 15 s, or immediately on return to the foreground). After a reconnect they reload the open thread and the list over HTTP, so replies keep streaming in without reopening the thread (2026-11-04).
 - Approval and question alerts no longer repeat when a desktop refresh briefly fails or a stale refresh races a new request, and Herdr "needs you"/finished alerts no longer repeat when an agent's status flickers away and back within the same turn (2026-11-04).
 - Herdr "needs you" cards and alerts show an agent's question word-for-word from the transcript instead of the possibly wrapped or truncated terminal line, falling back to the screen when the transcript has none (2026-11-04).

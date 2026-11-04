@@ -342,20 +342,39 @@ export function CompactProjectThread({
   selected,
   needsResponse,
   onOpen,
+  onActions,
 }: {
   thread: Thread
   selected: boolean
   needsResponse: boolean
   onOpen(): void
+  /** Row actions (long press, context menu, ContextMenu / Shift+F10). */
+  onActions?(point: { x: number; y: number }): void
 }) {
   const t = useT()
+  const press = useLongPress((point) => onActions?.(point))
   return (
     <button
+      {...(onActions ? press : {})}
       className={`project-thread-row${selected ? ' selected' : ''}`}
       onClick={() => {
         void haptic('light')
         onOpen()
       }}
+      onKeyDown={
+        onActions
+          ? (event) => {
+              if (
+                event.key === 'ContextMenu' ||
+                (event.shiftKey && event.key === 'F10')
+              ) {
+                event.preventDefault()
+                const rect = event.currentTarget.getBoundingClientRect()
+                onActions({ x: rect.right - 16, y: rect.top + rect.height / 2 })
+              }
+            }
+          : undefined
+      }
     >
       <span>{thread.title || t('common.untitledThread')}</span>
       <span className="project-thread-meta">

@@ -62,6 +62,8 @@ interface ProjectCardSectionProps {
   selectedThreadId?: string
   threadNeedsResponse?(thread: Thread): boolean
   onOpenThread?(thread: Thread): void
+  /** Row actions for a recent thread; the sheet closes before they open. */
+  onThreadActions?(thread: Thread, point: { x: number; y: number }): void
   /** Reveals the project's full thread list after the sheet closes. */
   onShowAllThreads?(): void
 }
@@ -124,6 +126,7 @@ export function ProjectCardSection({
   selectedThreadId,
   threadNeedsResponse,
   onOpenThread,
+  onThreadActions,
   onShowAllThreads,
 }: ProjectCardSectionProps) {
   const t = useT()
@@ -508,6 +511,14 @@ export function ProjectCardSection({
                       setCardOpen(false)
                       onOpenThread(thread)
                     }}
+                    onActions={
+                      onThreadActions
+                        ? (point) => {
+                            setCardOpen(false)
+                            onThreadActions(thread, point)
+                          }
+                        : undefined
+                    }
                   />
                 ))}
               </div>
