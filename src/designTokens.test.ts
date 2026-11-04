@@ -8,6 +8,7 @@ import {
 } from './alma/expandMotion'
 import {
   DUR_FAST_MS,
+  DUR_HANDOFF_MS,
   DUR_PANEL_MS,
   DUR_PRESS_MS,
   EASE_OUT,
@@ -197,6 +198,7 @@ describe('stylesheet token enforcement', () => {
       'dur-press': `${DUR_PRESS_MS}ms`,
       'dur-fast': `${DUR_FAST_MS}ms`,
       'dur-panel': `${DUR_PANEL_MS}ms`,
+      'dur-handoff': `${DUR_HANDOFF_MS}ms`,
       'ease-out': EASE_OUT,
     }))
       expect(css).toContain(`--${name}: ${value};`)
@@ -466,7 +468,8 @@ describe('stylesheet token enforcement', () => {
       expect(
         declarations('transition', source).filter(
           (value) =>
-            !/var\(--dur-(press|fast|panel)\)/.test(value) && value !== 'none',
+            !/var\(--dur-(press|fast|panel|handoff)\)/.test(value) &&
+            value !== 'none',
         ),
       ).toEqual([])
       expect(withoutDefinitions).not.toMatch(

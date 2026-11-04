@@ -9,6 +9,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, MemoryRouter } from 'react-router-dom'
+import { MotionBrowserRouter } from '../MotionBrowserRouter'
 import App from '../App'
 import { ThemeProvider } from '../ThemeProvider'
 import { LanguageProvider } from '../i18n'
@@ -347,6 +348,37 @@ function conversation(threadId: string, turns: number, startMinutes: number) {
   return rows
 }
 
+// Alma's main thread for `?fixture=alma`: plain chat with the Markdown
+// her replies usually carry (lists, emphasis, inline and fenced code).
+const almaTurns: Array<[string, string]> = [
+  [
+    'Morning. What is on today?',
+    'Morning! Three things are waiting:\n\n- the **release notes** draft for 0.2\n- a review on the queue panel\n- your dentist reminder at 15:00',
+  ],
+  [
+    'Start with the release notes.',
+    'Here is a first pass. I kept it short and grouped by what people will notice:\n\n1. Alma lives in the tab bar now.\n2. Lists glide when threads move.\n3. The editor grows out of the composer.\n\nWant me to add the fixes too?',
+  ],
+  [
+    'Yes, and the build command.',
+    'Added. The build is one line:\n\n```sh\nnpm run android:release\n```\n\nRun it from the repo root; it signs with the key in `android/keystore.properties`.',
+  ],
+  [
+    'Thanks. Anything else from yesterday?',
+    'Only one loose end: the relay smoke test timed out once at 02:10 and passed on retry. I will keep an eye on it tonight and tell you if it happens again.',
+  ],
+  ['Sounds good.', 'Great. I will ping you before the dentist.'],
+]
+const almaRows: MessageRow[] = almaTurns.flatMap(
+  ([question, answer], index) => {
+    const at = NOW - (almaTurns.length - index) * 600_000
+    return [
+      row('t-alma', index * 2, 'user', [text(question)], at),
+      row('t-alma', index * 2 + 1, 'assistant', [text(answer)], at + 20_000),
+    ]
+  },
+)
+
 const generatingRows: MessageRow[] = [
   ...conversation('t-gen', 2, 30),
   row(
@@ -646,6 +678,16 @@ const threads: Array<Thread & { messages: MessageRow[] }> = [
     createdAt: minutesAgo(7),
     updatedAt: minutesAgo(5),
     messages: refRows,
+  },
+  {
+    id: 't-alma',
+    title: 'Alma',
+    model: 'anthropic:claude-sonnet-5-5',
+    workspaceId: 'ws-app',
+    metadata: { gtdStatus: 'inbox' },
+    createdAt: minutesAgo(60),
+    updatedAt: minutesAgo(50),
+    messages: almaRows,
   },
   {
     id: 't-long',
@@ -1340,6 +1382,21 @@ document.getElementById('probe').textContent='parent storage: ' + verdict
 function route(method: string, path: string, body?: unknown): TunnelResponse {
   const [pathname, query = ''] = path.split('?')
   const thread = (id: string) => threads.find((item) => item.id === id)
+  // The personal agent exists only in `?fixture=alma`, so the README shots
+  // keep the plain tab bar.
+  if (pathname === '/api/personal')
+    return fixtureMode === 'alma'
+      ? json(200, {
+          threadId: 't-alma',
+          today: { spentUsd: 0.42, budgetUsd: 5, over: false },
+          running: 0,
+          pendingApprovals: 0,
+        })
+      : json(404, { error: 'Not found' })
+  if (pathname === '/api/alma/vitals')
+    return fixtureMode === 'alma'
+      ? json(200, { mood: 'content', energy: 7, valence: 6, level: 'awake' })
+      : json(404, { error: 'Not found' })
   if (pathname === '/api/herdr/info') {
     if (fixtureMode === 'agents-unsupported')
       return json(404, { error: 'Not found' })
@@ -1740,7 +1797,9 @@ function route(method: string, path: string, body?: unknown): TunnelResponse {
   if (pathname === '/api/threads' && method === 'GET')
     return json(
       200,
-      threads.map(({ messages: _messages, ...summary }) => summary),
+      threads
+        .filter((item) => fixtureMode === 'alma' || item.id !== 't-alma')
+        .map(({ messages: _messages, ...summary }) => summary),
     )
   const match = /^\/api\/threads\/([^/]+)(?:\/([^/]+))?$/.exec(pathname)
   const found = match && thread(decodeURIComponent(match[1]))
@@ -2453,10 +2512,18 @@ saveThreadQueue(
 const initialRoute =
   new URLSearchParams(window.location.search).get('route') ??
   `/d/${DESKTOP_ID}/threads`
-const trackHistory = screenshotParams.has('trackHistory')
+// `?fixture=alma` runs the app's own router so the /alma expand plays.
+const motionRouter = fixtureMode === 'alma'
+const trackHistory = motionRouter || screenshotParams.has('trackHistory')
 if (trackHistory) window.history.replaceState(null, '', initialRoute)
-const Router = trackHistory ? BrowserRouter : MemoryRouter
-const routerProps = trackHistory ? {} : { initialEntries: [initialRoute] }
+const Router = motionRouter
+  ? MotionBrowserRouter
+  : trackHistory
+    ? BrowserRouter
+    : MemoryRouter
+const routerProps = trackHistory
+  ? ({} as { initialEntries?: string[] })
+  : { initialEntries: [initialRoute] }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
