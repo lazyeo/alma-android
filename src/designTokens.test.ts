@@ -235,10 +235,10 @@ describe('stylesheet token enforcement', () => {
       'nav-old-pop',
       'nav-new-pop',
       'nav-fade-out',
-      // Alma's presence: thinking glance/glint and the busy breathing ring.
+      // Alma's presence: thinking glance/glint and the busy dot's pulse.
       'alma-glance',
       'alma-glint',
-      'alma-breathe',
+      'alma-busy-pulse',
       // Her messages rising in once the /alma expand lands (the expand
       // itself is WAAPI: transform and opacity only, no keyframes here).
       'alma-persona-rise',
@@ -290,16 +290,37 @@ describe('stylesheet token enforcement', () => {
 
   it("draws Alma's tab entry as her face alone, sitting in the bar", () => {
     const [avatar] = rules('.alma-nav-avatar')
-    expect(avatar).toContain('width: 44px;')
-    expect(avatar).toContain('height: 44px;')
+    expect(avatar).toContain('width: var(--alma-nav-box);')
+    expect(avatar).toContain('height: var(--alma-nav-box);')
     expect(avatar).not.toMatch(/background|border:|margin/)
-    expect(css).not.toMatch(/\.alma-nav-tab \.alma-nav-avatar\s*{/)
+    // 56px face in a column as tall as the other tab items, so the bar
+    // keeps its height; the face rises at most 8px past the bar's top.
+    const [tab] = rules('.alma-nav-tab')
+    expect(tab).toContain('--alma-face: 56px;')
+    expect(tab).toContain('height: 47px;')
+    const [tabAvatar] = rules('.alma-nav-tab .alma-nav-avatar')
+    expect(tabAvatar).toContain('left: calc(50% - var(--alma-nav-box) / 2);')
+    // The 47px column is centred in the 76px bar's 60px content box.
+    const bottom = Number(tabAvatar.match(/bottom: ([\d.]+)px;/)?.[1])
+    const columnTop = 8 + (76 - 16 - 47) / 2
+    expect(56 + bottom - 47 - columnTop).toBeLessThanOrEqual(8)
     const pressed = css.match(
       /\.alma-nav-avatar\[data-pressed\]\s*{[^}]*}/,
     )?.[0]
     expect(pressed).toContain('transform: scale(0.92);')
     expect(pressed).not.toContain('background')
     expect(rules('.tab-bar.with-alma')[0]).toContain('align-items: center;')
+    // Busy is a centred dot that animates only opacity and transform; no
+    // ring outlines her face.
+    expect(css).not.toContain('.alma-nav-ring')
+    const [busy] = rules('.alma-nav-busy')
+    expect(busy).toContain('left: calc(50% - 2px);')
+    expect(busy).toContain('width: 4px;')
+    const pulse = css.match(/@keyframes alma-busy-pulse\s*{[\s\S]*?\n}/)?.[0]
+    const animated = [...(pulse ?? '').matchAll(/([a-z-]+):/g)].map(
+      ([, property]) => property,
+    )
+    expect(new Set(animated)).toEqual(new Set(['opacity', 'transform']))
   })
 
   it('keeps nested rounded surfaces concentric', () => {

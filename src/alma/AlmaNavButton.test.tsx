@@ -4,10 +4,11 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LanguageProvider } from '../i18n'
 import type { PersonalAgentState } from '../screens/personalAgent'
-import { AlmaNavButton } from './AlmaNavButton'
+import { AlmaNavButton, NAV_FACE_SIZE } from './AlmaNavButton'
 import { AlmaPresenceContext, presenceFace } from './AlmaPresence'
 import { clearExpandDisc, lastExpandDisc } from './almaExpand'
 import { avatarBox, clearAvatarBoxes } from './avatarFlight'
+import { RIG_FACE_SIZES } from './rig/MascotRig'
 
 import { haptic } from '../haptics'
 
@@ -131,21 +132,36 @@ describe('AlmaNavButton', () => {
     expect(screen.getByLabelText('Needs your OK')).toBeTruthy()
   })
 
-  it('breathes while runs are active or the main thread generates', () => {
+  it('shows busy as a labelled dot under her face, with no ring', () => {
     const idle = renderButton(ready('main'))
-    expect(idle.container.querySelector('.alma-nav-ring')).toBeNull()
+    expect(idle.container.querySelector('.alma-nav-busy')).toBeNull()
     idle.unmount()
     const running = renderButton(ready('main', { running: 1 }))
-    expect(running.container.querySelector('.alma-nav-ring')).toBeTruthy()
+    const dot = screen.getByRole('img', { name: 'Working' })
+    expect(dot.classList.contains('alma-nav-busy')).toBe(true)
+    // Outside the pressed avatar box, so it never outlines or scales with her.
+    expect(dot.closest('.alma-nav-avatar')).toBeNull()
+    expect(running.container.querySelector('.alma-nav-ring')).toBeNull()
     expect(
       running.container.querySelector('svg')?.getAttribute('data-activity'),
     ).toBe('thinking')
     running.unmount()
     const live = renderButton(ready('main'), { generating: true })
     expect(live.container.querySelector('[data-busy="true"]')).toBeTruthy()
+    expect(live.container.querySelector('.alma-nav-busy')).toBeTruthy()
   })
 
-  it('measures the disc after layout and never in the tap', () => {
+  it('draws her face at 56px on the phone tab', () => {
+    const { container } = renderButton(ready('main'))
+    const face = container.querySelector('.alma-avatar svg')!
+    expect(face.getAttribute('width')).toBe(String(NAV_FACE_SIZE.tab))
+    expect(NAV_FACE_SIZE).toEqual({ tab: 56, rail: 36 })
+    expect(RIG_FACE_SIZES).toEqual(
+      expect.arrayContaining(Object.values(NAV_FACE_SIZE)),
+    )
+  })
+
+  it('measures her face box after layout and never in the tap', () => {
     const observed: Array<() => void> = []
     vi.stubGlobal(
       'ResizeObserver',
@@ -159,17 +175,19 @@ describe('AlmaNavButton', () => {
     )
     const rect = vi
       .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
-      .mockReturnValue({
-        left: 178,
-        top: 796,
-        width: 44,
-        height: 44,
-      } as DOMRect)
+      .mockImplementation(function (this: HTMLElement) {
+        // The face, not the box around it, is the expand's origin.
+        return (
+          this.classList.contains('alma-avatar')
+            ? { left: 175, top: 821, width: 56, height: 56 }
+            : { left: 167, top: 843, width: 72, height: 47 }
+        ) as DOMRect
+      })
     renderButton(ready('main'))
     expect(observed).toHaveLength(1)
     observed[0]()
-    expect(lastExpandDisc()).toMatchObject({ left: 178, width: 44 })
-    expect(avatarBox('nav')).toMatchObject({ top: 796, height: 44 })
+    expect(lastExpandDisc()).toMatchObject({ left: 175, width: 56 })
+    expect(avatarBox('nav')).toMatchObject({ top: 821, height: 56 })
     rect.mockClear()
     fireEvent.click(button()!)
     expect(screen.getByTestId('where').textContent).toBe('/d/home/alma')

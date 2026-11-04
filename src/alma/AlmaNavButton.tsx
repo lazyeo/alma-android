@@ -9,6 +9,9 @@ import { recordExpandDisc } from './almaExpand'
 import { recordAvatarBox } from './avatarFlight'
 import { useMeasuredBox } from './measuredBox'
 
+/** CSS size of her face: the phone tab, the split rail. */
+export const NAV_FACE_SIZE = { tab: 56, rail: 36 } as const
+
 /** The centre slot exists only while the desktop has a personal agent. */
 export function useAlmaNavVisible() {
   const presence = useAlmaPresence()
@@ -31,11 +34,14 @@ export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
   // her avatar clone flies from and to it, so keep both boxes current
   // whenever it is shown outside /alma (on /alma the header owns her
   // avatar). Measured after layout, never in the tap.
+  // Both come from her face's own box, not the rail's item box around it,
+  // so the circle starts at her face and its radius follows the face size.
   const visible = presence?.state.status === 'ready'
-  useMeasuredBox(discRef, visible && !here, (disc) => {
-    recordExpandDisc(disc.getBoundingClientRect())
-    if (avatarRef.current)
-      recordAvatarBox('nav', avatarRef.current.getBoundingClientRect())
+  useMeasuredBox(discRef, visible && !here, () => {
+    if (!avatarRef.current) return
+    const face = avatarRef.current.getBoundingClientRect()
+    recordExpandDisc(face)
+    recordAvatarBox('nav', face)
   })
   const openable =
     presence?.state.status === 'ready' &&
@@ -99,12 +105,6 @@ export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
       }}
     >
       <span ref={discRef} className="alma-nav-avatar">
-        {busy ? (
-          <span
-            className="alma-nav-ring"
-            aria-label={t('threads.personal.busy')}
-          />
-        ) : null}
         <span
           ref={avatarRef}
           // Hidden while her clone flies; on /alma the header is that end.
@@ -112,7 +112,7 @@ export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
           data-alma-avatar={here ? undefined : 'nav'}
         >
           <AlmaFace
-            size={placement === 'tab' ? 44 : 36}
+            size={NAV_FACE_SIZE[placement]}
             mood={face.mood}
             activity={face.activity}
           />
@@ -124,6 +124,15 @@ export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
           />
         ) : null}
       </span>
+      {/* Busy is a small dot centred under her face, never an outline: the
+          drawn face is not centred in its box, so a ring looks lopsided. */}
+      {busy ? (
+        <span
+          className="alma-nav-busy"
+          role="img"
+          aria-label={t('threads.personal.busy')}
+        />
+      ) : null}
     </button>
   )
 }

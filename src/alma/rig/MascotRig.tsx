@@ -25,10 +25,11 @@ export function rigPixelRatio(ratio = window.devicePixelRatio) {
 
 /**
  * CSS sizes her face is drawn at: message avatars, the rail and /alma
- * header, the tab bar. Their layers are rendered as soon as the rig loads,
- * so a face mounting mid-transition paints on its first commit.
+ * header, the phone tab bar (NAV_FACE_SIZE). Their layers are rendered as
+ * soon as the rig loads, so a face mounting mid-transition paints on its
+ * first commit.
  */
-export const RIG_FACE_SIZES = [28, 36, 44] as const
+export const RIG_FACE_SIZES = [28, 36, 56] as const
 
 /** The output (device pixel) size a face of `size` CSS pixels draws at. */
 export function rigOutputPixels(size: number, ratio = rigPixelRatio()) {

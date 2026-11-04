@@ -10432,7 +10432,11 @@ dialog:focus,
   min-width: 0;
   justify-content: space-around;
 }
+/* --alma-face is her drawn size (NAV_FACE_SIZE in AlmaNavButton) and
+   --alma-nav-box the square around it that presses and holds the badge. */
 .alma-nav {
+  --alma-face: 36px;
+  --alma-nav-box: 44px;
   position: relative;
   display: grid;
   place-items: center;
@@ -10442,18 +10446,30 @@ dialog:focus,
   color: inherit;
   -webkit-tap-highlight-color: transparent;
 }
+/* On phones the column is as tall as the other tab items (28px icon row,
+   4px gap, 15px label) and centred like them, so the bar keeps its height.
+   Her 56px face sits on the label line: its bottom is 13px above the
+   column's foot (the label less 2px), which lifts its top 7px past the
+   bar's top edge. */
 .alma-nav-tab {
+  --alma-face: 56px;
+  --alma-nav-box: 56px;
   width: 72px;
-  height: 44px;
+  height: 47px;
 }
-/* Just her face: no disc, border or fill. This box is also the expand's
-   origin (measured, see AlmaNavButton), so the circle starts at her face. */
+.alma-nav-tab .alma-nav-avatar {
+  position: absolute;
+  left: calc(50% - var(--alma-nav-box) / 2);
+  bottom: 13px;
+}
+/* Just her face: no disc, border or fill. Her face inside it is the
+   expand's measured origin (see AlmaNavButton). */
 .alma-nav-avatar {
   position: relative;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: var(--alma-nav-box);
+  height: var(--alma-nav-box);
   border-radius: 50%;
   transition: transform var(--dur-press) var(--ease-out);
 }
@@ -10466,31 +10482,44 @@ dialog:focus,
   place-items: center;
   border-radius: 50%;
 }
-/* Running work or a live reply: a slow breathing ring around the avatar. */
-.alma-nav-ring {
+/* Running work or a live reply: a 4px accent dot centred under her face,
+   on the line where the other tabs show their labels. It pulses with
+   opacity and scale only; nothing outlines the face. */
+.alma-nav-busy {
   position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  outline: 1px solid var(--accent-8);
+  left: calc(50% - 2px);
+  bottom: 5.5px;
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--accent-9);
   pointer-events: none;
-  animation: alma-breathe var(--dur-breathe) var(--ease-loop-wave) infinite;
+  animation: alma-busy-pulse var(--dur-breathe) var(--ease-loop-wave) infinite;
 }
-@keyframes alma-breathe {
+@keyframes alma-busy-pulse {
   0%,
   100% {
-    opacity: 0.25;
-    transform: scale(0.96);
+    opacity: 0.35;
+    transform: scale(0.75);
   }
   50% {
-    opacity: 0.9;
-    transform: scale(1.04);
+    opacity: 1;
+    transform: scale(1);
   }
 }
-/* Something waits on the user's OK. */
+/* Something waits on the user's OK. Centred on the face's visual top-right
+   (45 degrees round her face, 0.1464 of its size in from each edge), not
+   on the corner of the box around it. */
 .alma-nav-badge {
   position: absolute;
-  top: 1px;
-  right: 1px;
+  top: calc(
+    (var(--alma-nav-box) - var(--alma-face)) / 2 + var(--alma-face) * 0.1464 -
+      4.5px
+  );
+  right: calc(
+    (var(--alma-nav-box) - var(--alma-face)) / 2 + var(--alma-face) * 0.1464 -
+      4.5px
+  );
   width: 9px;
   height: 9px;
   border-radius: var(--radius-full);
@@ -10503,11 +10532,13 @@ dialog:focus,
 }
 /* On the rail she is a 36px face in the rail's 44px item box. Active is the
    rail's own cue: the same rounded sidebar-accent fill as every rail item.
-   The phone bar has no active cue because /alma hides the bar. */
+   The phone bar has no active cue because /alma hides the bar. Busy is the
+   same dot, under the item box so it clears the active fill. */
 .alma-nav-rail .alma-nav-badge {
-  top: 2px;
-  right: 2px;
   outline-color: var(--sidebar);
+}
+.alma-nav-rail .alma-nav-busy {
+  bottom: -6px;
 }
 .alma-nav-rail.active .alma-nav-avatar {
   border-radius: var(--radius-md);
@@ -10522,7 +10553,7 @@ dialog:focus,
   margin: 0;
 }
 @media (prefers-reduced-motion: reduce) {
-  .alma-nav-ring {
+  .alma-nav-busy {
     animation: none;
     opacity: 0.9;
   }

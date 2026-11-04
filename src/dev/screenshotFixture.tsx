@@ -1060,6 +1060,9 @@ const crystalDetail = (id: string) => {
 
 /** `?fixture=legacy` simulates a desktop without refs or Crystals routes. */
 const fixtureMode = new URLSearchParams(window.location.search).get('fixture')
+// `alma-busy` is `alma` with one run going and one approval waiting, for
+// the busy tab entry and its badge.
+const almaFixture = fixtureMode === 'alma' || fixtureMode === 'alma-busy'
 const legacyDesktop = fixtureMode === 'legacy'
 const emptyCrystals = fixtureMode === 'empty-crystals'
 
@@ -1385,16 +1388,16 @@ function route(method: string, path: string, body?: unknown): TunnelResponse {
   // The personal agent exists only in `?fixture=alma`, so the README shots
   // keep the plain tab bar.
   if (pathname === '/api/personal')
-    return fixtureMode === 'alma'
+    return almaFixture
       ? json(200, {
           threadId: 't-alma',
           today: { spentUsd: 0.42, budgetUsd: 5, over: false },
-          running: 0,
-          pendingApprovals: 0,
+          running: fixtureMode === 'alma-busy' ? 1 : 0,
+          pendingApprovals: fixtureMode === 'alma-busy' ? 1 : 0,
         })
       : json(404, { error: 'Not found' })
   if (pathname === '/api/alma/vitals')
-    return fixtureMode === 'alma'
+    return almaFixture
       ? json(200, { mood: 'content', energy: 7, valence: 6, level: 'awake' })
       : json(404, { error: 'Not found' })
   if (pathname === '/api/herdr/info') {
@@ -1798,7 +1801,7 @@ function route(method: string, path: string, body?: unknown): TunnelResponse {
     return json(
       200,
       threads
-        .filter((item) => fixtureMode === 'alma' || item.id !== 't-alma')
+        .filter((item) => almaFixture || item.id !== 't-alma')
         .map(({ messages: _messages, ...summary }) => summary),
     )
   const match = /^\/api\/threads\/([^/]+)(?:\/([^/]+))?$/.exec(pathname)
@@ -2513,7 +2516,7 @@ const initialRoute =
   new URLSearchParams(window.location.search).get('route') ??
   `/d/${DESKTOP_ID}/threads`
 // `?fixture=alma` runs the app's own router so the /alma expand plays.
-const motionRouter = fixtureMode === 'alma'
+const motionRouter = almaFixture
 const trackHistory = motionRouter || screenshotParams.has('trackHistory')
 if (trackHistory) window.history.replaceState(null, '', initialRoute)
 const Router = motionRouter
