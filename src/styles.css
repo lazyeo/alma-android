@@ -30,7 +30,7 @@
   --dur-flight: 320ms;
   /* The whole-screen expand into /alma, its collapse on Back, and the
      staggered entrance of her messages once it lands. */
-  --dur-expand: 380ms;
+  --dur-expand: 460ms;
   --dur-collapse: 340ms;
   --dur-stagger: 40ms;
   /* The shell fading off the real thread it covered (see almaHandoff.ts). */
@@ -40,42 +40,59 @@
   --ease-out: cubic-bezier(0.2, 0.9, 0.3, 1);
   /* Only the avatar flight settles with a slight overshoot. */
   --ease-spring: cubic-bezier(0.34, 1.32, 0.64, 1);
-  /* The expand is a damped spring (about 1.5% overshoot, settled well before
-     the end); the collapse accelerates into the disc. Both are applied from
-     alma/expandMotion.ts, which generates the same curve. */
+  /* The expand is a fast-out bezier (0.3, 0, 0.1, 1) with a slight bounce
+     (1.5% overshoot, settled by the end); the collapse accelerates into the disc.
+     Both are applied from alma/expandMotion.ts, which generates the same
+     curve. */
   --ease-expand: linear(
     0,
-    0.0306,
-    0.106,
-    0.2064,
-    0.3173,
-    0.4289,
-    0.5345,
-    0.6301,
-    0.7137,
-    0.7848,
-    0.8435,
-    0.8909,
-    0.9281,
-    0.9565,
-    0.9776,
-    0.9926,
-    1.0029,
-    1.0094,
-    1.0132,
+    0.0033,
+    0.0143,
+    0.0356,
+    0.0703,
+    0.1221,
+    0.1925,
+    0.2772,
+    0.3661,
+    0.4497,
+    0.5238,
+    0.5881,
+    0.6437,
+    0.6919,
+    0.7339,
+    0.7707,
+    0.803,
+    0.8316,
+    0.8568,
+    0.8792,
+    0.8991,
+    0.9167,
+    0.9323,
+    0.9461,
+    0.9583,
+    0.9689,
+    0.9782,
+    0.9862,
+    0.9931,
+    0.9989,
+    1.0037,
+    1.0076,
+    1.0106,
+    1.0128,
+    1.0142,
     1.0149,
-    1.0151,
-    1.0144,
-    1.0131,
-    1.0116,
-    1.0099,
-    1.0082,
-    1.0066,
+    1.0149,
+    1.0145,
+    1.0136,
+    1.0123,
+    1.0107,
+    1.0089,
+    1.007,
     1.0052,
-    1.004,
-    1.003,
-    1.0021,
-    1.0015,
+    1.0035,
+    1.002,
+    1.0009,
+    1.0002,
     1
   );
   --ease-collapse: cubic-bezier(0.32, 0, 0.67, 0);

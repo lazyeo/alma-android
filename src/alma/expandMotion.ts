@@ -4,7 +4,7 @@
  */
 
 /** Mirrors `--dur-expand`. */
-export const EXPAND_MS = 380
+export const EXPAND_MS = 460
 /** Mirrors `--dur-collapse`. */
 export const COLLAPSE_MS = 340
 /** Mirrors `--ease-collapse`: accelerates into the disc, no settle. */
@@ -37,35 +37,58 @@ export const CROSSFADE_IN_MS = 160
 export const ENTRANCE_MS = 250 + 3 * 40
 
 /**
- * A slightly underdamped spring over normalised time 0..1. Damping 0.8
- * overshoots by about 1.5% and settles well before the end, so the motion
- * has weight without the long drift of a bezier tail.
+ * The expand curve: `cubic-bezier(0.3, 0, 0.1, 1)` scaled to peak at
+ * 1 + overshoot by `peak` of the run, then a half-cosine settle back to 1.
+ * The overshoot is 1.5%, a slight bounce at the end.
  */
-export const SPRING = { damping: 0.8, frequency: 8.5 } as const
+export const EXPAND_CURVE = {
+  bezier: [0.3, 0, 0.1, 1],
+  peak: 0.74,
+  overshoot: 0.015,
+} as const
 
-export function springProgress(t: number, spring = SPRING) {
+/** A CSS cubic-bezier's progress at time `x`, solved by bisection. */
+export function cubicBezierAt(
+  x: number,
+  [x1, y1, x2, y2]: readonly [number, number, number, number],
+  iterations = 40,
+) {
+  const axis = (t: number, p1: number, p2: number) =>
+    3 * (1 - t) ** 2 * t * p1 + 3 * (1 - t) * t * t * p2 + t ** 3
+  let lo = 0
+  let hi = 1
+  for (let index = 0; index < iterations; index++) {
+    const mid = (lo + hi) / 2
+    if (axis(mid, x1, x2) < x) lo = mid
+    else hi = mid
+  }
+  return axis((lo + hi) / 2, y1, y2)
+}
+
+/** The expand curve's progress at normalised time `t` (0..1). */
+export function expandProgress(t: number, curve = EXPAND_CURVE) {
   if (t <= 0) return 0
   if (t >= 1) return 1
-  const { damping: z, frequency: w } = spring
-  const wd = w * Math.sqrt(1 - z * z)
+  const { bezier, peak, overshoot } = curve
+  if (t <= peak) return cubicBezierAt(t / peak, bezier) * (1 + overshoot)
   return (
-    1 -
-    Math.exp(-z * w * t) *
-      (Math.cos(wd * t) + ((z * w) / wd) * Math.sin(wd * t))
+    1 + (overshoot * (1 + Math.cos((Math.PI * (t - peak)) / (1 - peak)))) / 2
   )
 }
 
-const round = (value: number) => String(Number(value.toFixed(4)))
-
-/** The spring as a CSS `linear()` easing; mirrors `--ease-expand`. */
-export function springEasing(samples = 32, spring = SPRING) {
+/** The expand curve as a CSS `linear()` easing; mirrors `--ease-expand`. */
+export function expandEasing(samples = 48, curve = EXPAND_CURVE) {
   const points: string[] = []
   for (let index = 0; index <= samples; index++)
-    points.push(round(springProgress(index / samples, spring)))
+    points.push(
+      index === samples
+        ? '1'
+        : String(Number(expandProgress(index / samples, curve).toFixed(4))),
+    )
   return `linear(${points.join(', ')})`
 }
 
-export const EXPAND_EASING = springEasing()
+export const EXPAND_EASING = expandEasing()
 
 /** Sampled points of a `linear()` easing string. */
 export function linearPoints(easing: string) {
@@ -169,7 +192,7 @@ export function expandTimeline({
   let coverAt: number | undefined
   for (let index = 0; index <= steps; index++) {
     const t = index / steps
-    const s = scale.from + (scale.to - scale.from) * springProgress(t)
+    const s = scale.from + (scale.to - scale.from) * expandProgress(t)
     const coverage = circleCoverage(centre, s * radius, viewport)
     if (fadeAt === undefined && coverage >= FADE_COVERAGE) fadeAt = t
     if (coverAt === undefined && coverage >= 0.999) coverAt = t
