@@ -16,15 +16,14 @@ const references = read('./ReferencesScreen.tsx')
 const header = read('../layout/ScopedRootHeader.tsx')
 
 describe('GTD navigation structure', () => {
-  it('keeps GTD in the shared roots but removes it from the phone bottom bar', () => {
+  it('keeps GTD in the shared roots and in the phone bottom bar', () => {
     const nav = /const NAV_ITEMS = \[([\s\S]*?)\] as const/.exec(shell)?.[1]
     expect(nav).toBeDefined()
     expect([...nav!.matchAll(/labelKey: '([^']+)'/g)].map((m) => m[1])).toEqual(
       ['nav.threads', 'nav.gtd', 'nav.settings'],
     )
-    expect(shell).toContain(
-      '<MainNav className="tab-bar" includeGtd={false} />',
-    )
+    expect(shell).toContain('<MainNav className="tab-bar" />')
+    expect(shell).not.toContain('includeGtd')
     expect(shell).toMatch(/<MainNav\s+className="split-nav"\s+compact/)
   })
 
@@ -116,7 +115,7 @@ describe('GTD navigation structure', () => {
     expect(shell).toContain('function ActiveDesktopStrip()')
     expect(shell).toContain('<DesktopSwitcher className="desktop-strip" />')
     expect(shell).toMatch(
-      /<ActiveDesktopStrip \/>\s*<MainNav className="tab-bar" includeGtd=\{false\} \/>/,
+      /<ActiveDesktopStrip \/>\s*<MainNav className="tab-bar" \/>/,
     )
     expect(shell).toMatch(/<SidebarThreads[\s\S]*<ActiveDesktopStrip \/>/)
     expect(styles).toMatch(/\.desktop-strip \{[\s\S]*min-height: 28px/)
@@ -129,16 +128,16 @@ describe('GTD navigation structure', () => {
     )
   })
 
-  it('places Archive in the shared header action area and makes phone GTD a child', () => {
+  it('places Archive in the shared header action area and keeps phone GTD a tab root', () => {
     expect(gtd).toContain('<ScopedRootHeader')
-    expect(gtd).toContain('childOnPhone')
+    expect(gtd).not.toContain('childOnPhone')
     expect(gtd).toContain('actions={')
     expect(gtd).not.toContain('<h1>GTD</h1>')
   })
 
-  it('renders GTD and every Library destination in the phone detail shell', () => {
+  it('renders every Library destination in the phone detail shell', () => {
     expect(shell).toContain('const phoneChild =')
-    expect(shell).toContain('(?:gtd|crystals|time-clues|references)')
+    expect(shell).toContain('(?:crystals|time-clues|references)')
     expect(shell).toMatch(/const detail =[\s\S]*phoneChild/)
     expect(shell).toMatch(/detail \? null : \([\s\S]*<ActiveDesktopStrip \/>/)
     expect(capture).toContain('phone child destination still shows tab bar')

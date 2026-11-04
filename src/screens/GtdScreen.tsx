@@ -144,7 +144,6 @@ export function GtdScreen({
     <section className="root-page gtd-page">
       <ScopedRootHeader
         title={t('nav.gtd')}
-        childOnPhone
         className="gtd-header"
         actions={
           <button

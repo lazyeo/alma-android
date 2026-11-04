@@ -76,14 +76,13 @@ function useActiveThreadsPath() {
 function MainNav({
   className,
   compact,
-  includeGtd = true,
-  children,
+  extras,
   beforeSettings,
 }: {
   className: string
   compact?: boolean
-  includeGtd?: boolean
-  children?: ReactNode
+  /** Rail-only destinations, after the shared tabs. */
+  extras?: ReactNode
   beforeSettings?: ReactNode
 }) {
   const t = useT()
@@ -94,71 +93,72 @@ function MainNav({
   // The phone tab bar puts Alma at its geometric centre; the rail shows her
   // at its top instead (see AppShell).
   const almaCentre = useAlmaNavVisible() && !compact
-  const items: ReactNode[] = []
-  NAV_ITEMS.filter(({ to }) => includeGtd || to !== '/gtd').forEach(
-    ({ to, labelKey, Icon }, index) => {
-      const label = t(labelKey)
-      const threads = to === '/threads'
-      const gtd = to === '/gtd'
-      const destination = threads
-        ? threadsPath
-        : gtd
-          ? desktopGtdPath(desktopId)
-          : to
-      const active = gtd
-        ? /^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname)
-        : threads
-          ? (pathname === to || pathname.startsWith('/d/')) &&
-            !ALMA_ROUTE.test(pathname) &&
-            !/^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname) &&
-            !pathname.includes('/crystals') &&
-            !pathname.includes('/time-clues') &&
-            !pathname.includes('/references') &&
-            !pathname.includes('/agents')
-          : pathname === to || pathname.startsWith(`${to}/`)
-      if (to === '/settings') {
-        const before =
-          beforeSettings ??
-          (desktopId ? (
-            <AgentsNavLink desktopId={desktopId} compact={false} />
-          ) : null)
-        if (before)
-          items.push(<Fragment key="before-settings">{before}</Fragment>)
-      }
-      items.push(
-        <Link
-          key={to}
-          to={destination}
-          replace
-          aria-label={compact ? label : undefined}
-          title={compact ? label : undefined}
-          aria-current={active ? 'page' : undefined}
-          className={active ? 'active' : ''}
-        >
-          <span className="tab-icon">
-            <Icon size={22} />
-            {to === '/settings' && badge ? (
-              <span
-                className="update-badge-dot"
-                aria-label={t('settings.updates.availableDot')}
-              />
-            ) : null}
-          </span>
-          {compact ? null : label}
-        </Link>,
-      )
-      if (index === 1 && children)
-        items.push(<Fragment key="rail-extras">{children}</Fragment>)
-    },
-  )
+  const link = (
+    { to, labelKey, Icon }: (typeof NAV_ITEMS)[number],
+    destination: string,
+    active: boolean,
+  ) => {
+    const label = t(labelKey)
+    return (
+      <Link
+        key={to}
+        to={destination}
+        replace
+        aria-label={compact ? label : undefined}
+        title={compact ? label : undefined}
+        aria-current={active ? 'page' : undefined}
+        className={active ? 'active' : ''}
+      >
+        <span className="tab-icon">
+          <Icon size={22} />
+          {to === '/settings' && badge ? (
+            <span
+              className="update-badge-dot"
+              aria-label={t('settings.updates.availableDot')}
+            />
+          ) : null}
+        </span>
+        {compact ? null : label}
+      </Link>
+    )
+  }
+  const [threads, gtd, settings] = NAV_ITEMS
+  const gtdActive = /^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname)
+  const threadsActive =
+    (pathname === threads.to || pathname.startsWith('/d/')) &&
+    !ALMA_ROUTE.test(pathname) &&
+    !gtdActive &&
+    !pathname.includes('/crystals') &&
+    !pathname.includes('/time-clues') &&
+    !pathname.includes('/references') &&
+    !pathname.includes('/agents')
+  const settingsActive =
+    pathname === settings.to || pathname.startsWith(`${settings.to}/`)
+  // Same order everywhere: Threads, Agents, GTD, (rail extras), Settings.
+  const items: ReactNode[] = [
+    link(threads, threadsPath, threadsActive),
+    desktopId ? (
+      <AgentsNavLink
+        key="agents"
+        desktopId={desktopId}
+        compact={Boolean(compact)}
+      />
+    ) : null,
+    link(gtd, desktopId ? desktopGtdPath(desktopId) : gtd.to, gtdActive),
+    extras ? <Fragment key="rail-extras">{extras}</Fragment> : null,
+    beforeSettings ? (
+      <Fragment key="before-settings">{beforeSettings}</Fragment>
+    ) : null,
+    link(settings, settings.to, settingsActive),
+  ].filter(Boolean)
   if (!almaCentre)
     return (
       <nav className={className} aria-label={t('nav.main')}>
         {items}
       </nav>
     )
-  // Two equal halves keep the avatar on the bar's centre line whatever the
-  // tab count; an odd count leaves the extra tab on the left.
+  // Two equal halves keep the avatar on the bar's centre line: Threads,
+  // Agents | Alma | GTD, Settings. An odd count leaves the extra tab left.
   const split = Math.ceil(items.length / 2)
   return (
     <nav className={`${className} with-alma`} aria-label={t('nav.main')}>
@@ -352,8 +352,9 @@ function AppShellLayout() {
   const agentWorkspaces = agentsDesktopId ? agents(agentsDesktopId) : []
   const screenDetail = /^\/d\/[^/]+\/screen\/?$/.test(pathname)
   const almaDetail = ALMA_ROUTE.test(pathname)
+  // GTD is a phone tab now; its list is a root, its threads are details.
   const phoneChild =
-    /^\/d\/[^/]+\/(?:gtd|crystals|time-clues|references)(?:\/|$)/.test(pathname)
+    /^\/d\/[^/]+\/(?:crystals|time-clues|references)(?:\/|$)/.test(pathname)
   const detail =
     Boolean(thread?.threadId) ||
     screenDetail ||
@@ -395,7 +396,7 @@ function AppShellLayout() {
         {detail ? null : (
           <>
             <ActiveDesktopStrip />
-            <MainNav className="tab-bar" includeGtd={false} />
+            <MainNav className="tab-bar" />
           </>
         )}
       </div>
@@ -428,16 +429,16 @@ function AppShellLayout() {
               )}
             </button>
           }
-        >
-          {activeDesktopId ? (
-            <>
-              <AgentsNavLink desktopId={activeDesktopId} />
-              <CrystalsRailLink desktopId={activeDesktopId} />
-              <TimeCluesRailLink desktopId={activeDesktopId} />
-              <ReferencesRailLink desktopId={activeDesktopId} />
-            </>
-          ) : null}
-        </MainNav>
+          extras={
+            activeDesktopId ? (
+              <>
+                <CrystalsRailLink desktopId={activeDesktopId} />
+                <TimeCluesRailLink desktopId={activeDesktopId} />
+                <ReferencesRailLink desktopId={activeDesktopId} />
+              </>
+            ) : null
+          }
+        />
       </div>
       <aside
         className="split-sidebar"

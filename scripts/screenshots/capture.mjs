@@ -708,10 +708,8 @@ async function assertNavigationWithoutInbox(page, selector) {
   const normalized = labels.map((label) => label.trim())
   if (normalized.includes('Inbox'))
     throw new Error(`Inbox remains in navigation: ${JSON.stringify(labels)}`)
-  const expected =
-    selector === '.tab-bar'
-      ? ['Threads', 'Herdr', 'Settings']
-      : ['Threads', 'GTD', 'Herdr', 'Settings']
+  // Tab bar and rail share one root order; the rail adds its extras.
+  const expected = ['Threads', 'Herdr', 'GTD', 'Settings']
   const roots = normalized.filter((label) => expected.includes(label))
   if (
     (selector === '.tab-bar' && normalized.join('|') !== expected.join('|')) ||
@@ -6287,7 +6285,11 @@ const phoneGtdNavigationShots = ['en', 'zh'].flatMap((language) => {
         await page.locator('.gtd-page .gtd-list .thread-row').first().waitFor()
         if (await page.locator('.threads-page').count())
           throw new Error('Threads root remained after GTD header navigation')
-        await assertPhoneChildShell(page, '.gtd-page')
+        // GTD is a phone tab: a root page with the tab bar and no Back.
+        if (!(await page.locator('.tab-bar [aria-current="page"]').count()))
+          throw new Error('phone GTD tab is not selected in the tab bar')
+        if (await page.locator('.gtd-page .scoped-root-back').count())
+          throw new Error('phone GTD tab unexpectedly shows Back')
         await assertNoHorizontalOverflow(page, '.gtd-page')
       },
     },
@@ -6338,8 +6340,8 @@ const unfoldedGtdRailShots = ['en', 'zh'].map((language) => ({
   async act(page) {
     const expected =
       language === 'zh'
-        ? ['对话', 'GTD', 'Herdr', '设置']
-        : ['Threads', 'GTD', 'Herdr', 'Settings']
+        ? ['对话', 'Herdr', 'GTD', '设置']
+        : ['Threads', 'Herdr', 'GTD', 'Settings']
     const labels = await page
       .locator('.split-nav a')
       .evaluateAll((links) =>

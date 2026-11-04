@@ -128,7 +128,10 @@ describe('Alma in the navigation', () => {
     expect(bar.classList.contains('with-alma')).toBe(false)
     expect(bar.querySelector('.alma-nav')).toBeNull()
     expect(bar.querySelector('.tab-bar-half')).toBeNull()
-    expect(bar.querySelectorAll(':scope > a')).toHaveLength(3)
+    // Threads, Herdr, GTD, Settings, evenly
+    expect(
+      [...bar.querySelectorAll(':scope > a')].map((a) => a.textContent),
+    ).toEqual(['Threads', 'Herdr', 'GTD', 'Settings'])
     cleanup()
   })
 
@@ -143,10 +146,28 @@ describe('Alma in the navigation', () => {
       'alma-nav alma-nav-tab',
       'tab-bar-half',
     ])
-    // Threads, Herdr | Alma | Settings: every tab is still there.
-    expect(children.map((child) => child.querySelectorAll('a').length)).toEqual(
-      [2, 0, 1],
+    // Threads, Herdr | Alma | GTD, Settings: two each side.
+    expect(
+      children.map((child) =>
+        [...child.querySelectorAll('a')].map((a) => a.textContent),
+      ),
+    ).toEqual([['Threads', 'Herdr'], [], ['GTD', 'Settings']])
+    expect(bar.querySelector('a[href="/d/desktop/agents"]')?.textContent).toBe(
+      'Herdr',
     )
+    cleanup()
+  })
+
+  it('shows GTD as a phone tab root with the tab bar', () => {
+    mocks.mode = 'single'
+    mocks.personal = readyPersonal
+    const { container } = renderShell('/d/desktop/gtd')
+    const bar = container.querySelector('.tab-bar')!
+    expect(bar).toBeTruthy()
+    expect(bar.querySelector('[aria-current="page"]')?.textContent).toBe('GTD')
+    cleanup()
+    const detail = renderShell('/d/desktop/gtd/thread-1')
+    expect(detail.container.querySelector('.tab-bar')).toBeNull()
     cleanup()
   })
 
@@ -156,6 +177,18 @@ describe('Alma in the navigation', () => {
     const { container } = renderShell('/d/desktop/alma')
     expect(container.querySelector('.tab-bar')).toBeNull()
     expect(container.querySelector('.detail-shell')).toBeTruthy()
+    cleanup()
+  })
+
+  it('orders the rail like the phone tabs', () => {
+    mocks.mode = 'split'
+    mocks.personal = readyPersonal
+    const { container } = renderShell('/d/desktop/threads')
+    const labels = [
+      ...container.querySelectorAll('.split-nav > a, .split-nav > button'),
+    ].map((item) => item.getAttribute('aria-label'))
+    expect(labels.slice(0, 3)).toEqual(['Threads', 'Herdr', 'GTD'])
+    expect(labels.at(-1)).toBe('Settings')
     cleanup()
   })
 
