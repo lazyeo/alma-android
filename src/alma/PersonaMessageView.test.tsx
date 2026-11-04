@@ -78,8 +78,9 @@ describe('PersonaMessageView', () => {
         { type: 'text', text: 'All set.' },
       ]),
     ])
-    expect(container.querySelectorAll('.persona-did')).toHaveLength(1)
-    expect(screen.getByText('did: Read and Task')).toBeTruthy()
+    expect(container.querySelector('.persona-did')).toBeNull()
+    expect(screen.queryByText(/did:/)).toBeNull()
+    expect(screen.getByText('All set.')).toBeTruthy()
     expect(container.querySelector('.tool-group, .tool-children')).toBeNull()
   })
 
@@ -99,7 +100,7 @@ describe('PersonaMessageView', () => {
     expect(screen.queryByText('They asked for the weather.')).toBeNull()
   })
 
-  it('shows a typing bubble while an empty reply streams, and live tool work', () => {
+  it('shows a typing bubble while an empty reply streams or tools run', () => {
     const empty = renderRows([message('a1', 'assistant', [])], true)
     expect(empty.container.querySelector('.persona-bubble.typing')).toBeTruthy()
     empty.unmount()
@@ -111,8 +112,8 @@ describe('PersonaMessageView', () => {
       ],
       true,
     )
-    expect(screen.getByText('did: Bash')).toBeTruthy()
-    expect(screen.getByTestId('orb')).toBeTruthy()
+    expect(screen.queryByText(/did:/)).toBeNull()
+    expect(document.querySelector('.persona-bubble.typing')).toBeTruthy()
   })
 
   it('keeps the delivery status for unsent user messages', () => {

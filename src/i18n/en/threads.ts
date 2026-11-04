@@ -127,7 +127,6 @@ export const threads = {
       body: 'Turn it on in desktop Settings → Personal agent.',
       done: 'Got it',
     },
-    did: 'did: {actions}',
     showThinking: 'Show thinking',
     hideThinking: 'Hide thinking',
     mood: {

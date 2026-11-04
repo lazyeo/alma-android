@@ -1,17 +1,13 @@
 import { RefreshCw } from 'lucide-react'
 import { memo, useMemo, useState } from 'react'
 import { useLongPress } from '../components/useLongPress'
-import { currentLocale, useT } from '../i18n'
+import { useT } from '../i18n'
 import { PartView, type PartViewCapabilities } from '../messages/PartView'
 import type { MessageRow } from '../relay'
 import { LoadingOrb } from '../screens/LoadingOrbCanvas'
 import { AlmaFace } from './AlmaFace'
 import type { FaceMood } from './faceState'
-import {
-  listActions,
-  personaParts,
-  type PersonaRowLayout,
-} from './personaLayout'
+import { personaParts, type PersonaRowLayout } from './personaLayout'
 
 export interface PersonaMessageViewProps {
   row: MessageRow
@@ -25,8 +21,8 @@ export interface PersonaMessageViewProps {
 
 /**
  * One message in Alma's messenger view: her words in a left bubble (with
- * her face on the first of a run), the user's on the right, tool work as a
- * single muted "did: …" line, and reasoning only on request.
+ * her face on the first of a run), the user's on the right, tool work hidden
+ * (the header status shows what she is doing live), reasoning on request.
  */
 export const PersonaMessageView = memo(function PersonaMessageView({
   row,
@@ -46,8 +42,7 @@ export const PersonaMessageView = memo(function PersonaMessageView({
   )
   const alma = layout.side === 'alma'
   const status = row.metadata?.optimisticStatus
-  const empty =
-    !parts.body.length && !parts.actions.length && !parts.reasoning.length
+  const empty = !parts.body.length && !parts.reasoning.length
   return (
     <article
       {...press}
@@ -79,16 +74,6 @@ export const PersonaMessageView = memo(function PersonaMessageView({
               </div>
             ))}
           </div>
-        ) : null}
-        {parts.actions.length ? (
-          <p className="persona-did">
-            {generating && parts.acting ? <LoadingOrb size={12} /> : null}
-            <span>
-              {t('threads.personal.did', {
-                actions: listActions(parts.actions, currentLocale()),
-              })}
-            </span>
-          </p>
         ) : null}
         {parts.body.length ? (
           <div className="persona-bubble">

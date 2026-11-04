@@ -6,9 +6,9 @@
 /** Mirrors `--dur-expand`. */
 export const EXPAND_MS = 380
 /** Mirrors `--dur-collapse`. */
-export const COLLAPSE_MS = 280
+export const COLLAPSE_MS = 340
 /** Mirrors `--ease-collapse`: accelerates into the disc, no settle. */
-export const COLLAPSE_EASING = 'cubic-bezier(0.4, 0, 1, 1)'
+export const COLLAPSE_EASING = 'cubic-bezier(0.32, 0, 0.67, 0)'
 /** Mirrors `--ease-out`, for fades. */
 export const FADE_EASING = 'cubic-bezier(0.2, 0.9, 0.3, 1)'
 /** Used where `linear()` is unsupported (WebView < 113). */

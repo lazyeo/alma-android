@@ -31,7 +31,7 @@
   /* The whole-screen expand into /alma, its collapse on Back, and the
      staggered entrance of her messages once it lands. */
   --dur-expand: 380ms;
-  --dur-collapse: 280ms;
+  --dur-collapse: 340ms;
   --dur-stagger: 40ms;
   --dur-breathe: 2.8s;
   --dur-glance: 2.4s;
@@ -76,7 +76,7 @@
     1.0015,
     1
   );
-  --ease-collapse: cubic-bezier(0.4, 0, 1, 1);
+  --ease-collapse: cubic-bezier(0.32, 0, 0.67, 0);
   /* Infinite status loops keep their own rhythm; the panel curve makes them jitter. */
   --ease-loop-step: step-end;
   --ease-loop-linear: linear;
@@ -10502,15 +10502,29 @@ html[data-alma-motion] .alma-shell .persona-message {
   min-height: 1px;
   align-self: flex-start;
 }
+.thread-detail.persona .message-scroll,
+.alma-shell-scroll {
+  padding-inline: 10px;
+}
+/* Her face opens a run on its own line, so her bubbles use the full width. */
+.persona-message.alma {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.persona-message.alma:not(.first) .persona-avatar-slot {
+  display: none;
+}
 .persona-stack {
   min-width: 0;
-  max-width: 82%;
+  max-width: 92%;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
 }
 .persona-message.user .persona-stack {
+  max-width: 86%;
   align-items: flex-end;
 }
 .persona-bubble {
@@ -10538,21 +10552,6 @@ html[data-alma-motion] .alma-shell .persona-message {
   display: grid;
   place-items: center;
   min-width: 44px;
-}
-.persona-did {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  padding: 0 4px;
-  color: var(--muted-foreground);
-  font-size: var(--text-xs);
-  line-height: var(--leading-normal);
-}
-.persona-did > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .persona-thinking-toggle {
   min-height: 28px;

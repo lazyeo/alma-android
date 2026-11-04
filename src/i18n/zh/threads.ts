@@ -130,7 +130,6 @@ export const threads: CatalogShape<typeof source> = {
       body: '在桌面端 设置 → Personal agent 中开启。',
       done: '知道了',
     },
-    did: '做了：{actions}',
     showThinking: '查看思考过程',
     hideThinking: '收起思考过程',
     mood: {
