@@ -8,6 +8,7 @@ import { AlmaNavButton } from './AlmaNavButton'
 import { AlmaPresenceContext, presenceFace } from './AlmaPresence'
 
 vi.mock('../haptics', () => ({ haptic: vi.fn() }))
+vi.mock('./AlmaScreen', () => ({ AlmaScreen: () => null }))
 
 afterEach(cleanup)
 

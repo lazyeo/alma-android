@@ -10353,3 +10353,124 @@ html[data-nav-motion='alma']::view-transition-new(root) {
   animation-duration: var(--dur-flight);
   animation-timing-function: var(--ease-out);
 }
+
+/* /alma: Alma's header and messenger-style conversation. */
+.detail-header.alma-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.alma-header > .alma-avatar {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+}
+.alma-heading {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.alma-heading h1 {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+.alma-header .alma-status {
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  line-height: var(--leading-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.alma-header .alma-status.approvals {
+  color: var(--amber-11);
+}
+.persona-message {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  touch-action: pan-y;
+  -webkit-touch-callout: none;
+}
+.persona-message.first {
+  padding-top: 10px;
+}
+.persona-message.user {
+  justify-content: flex-end;
+}
+.persona-avatar-slot {
+  flex: 0 0 28px;
+  width: 28px;
+  min-height: 1px;
+  align-self: flex-start;
+}
+.persona-stack {
+  min-width: 0;
+  max-width: 82%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.persona-message.user .persona-stack {
+  align-items: flex-end;
+}
+.persona-bubble {
+  min-width: 0;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: var(--border-hairline) solid var(--gray-7);
+  border-radius: var(--radius-lg);
+  background: var(--gray-2);
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+.persona-message.user .persona-bubble {
+  border-color: transparent;
+  background: var(--chat-user-bg);
+  color: var(--chat-user-foreground);
+}
+.persona-bubble > :first-child {
+  margin-top: 0;
+}
+.persona-bubble > :last-child {
+  margin-bottom: 0;
+}
+.persona-bubble.typing {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+}
+.persona-did {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0 4px;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+.persona-did > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.persona-thinking-toggle {
+  min-height: 28px;
+  padding: 0 4px;
+}
+.persona-thinking-toggle:active {
+  background: var(--gray-3);
+}
+.persona-thinking {
+  padding: 0 4px;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}

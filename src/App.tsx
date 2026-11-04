@@ -89,6 +89,12 @@ const ThreadScreen = lazy(() =>
   })),
 )
 
+const AlmaScreen = lazy(() =>
+  import('./alma/AlmaScreen').then((module) => ({
+    default: module.AlmaScreen,
+  })),
+)
+
 /** Legacy unscoped routes (and unknown ones) resolve to the active desktop. */
 function ActiveRedirect() {
   const { threadId } = useParams()
@@ -499,6 +505,14 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
                         }
                       />
                       <Route path="time-clues" element={<TimeCluesScreen />} />
+                      <Route
+                        path="alma"
+                        element={
+                          <Suspense fallback={<OpeningThread />}>
+                            <AlmaScreen />
+                          </Suspense>
+                        }
+                      />
                       <Route
                         path="screen"
                         element={

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { BottomSheet } from '../components/BottomSheet'
 import { ALMA_ROUTE, desktopAlmaPath } from '../desktopRoutes'
@@ -28,6 +28,14 @@ export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
   const here = ALMA_ROUTE.test(pathname)
   // On /alma (split rail) the header owns the shared avatar.
   useAvatarFlight(avatarRef, 'nav', !here)
+  const openable =
+    presence?.state.status === 'ready' &&
+    Boolean(presence.state.personal.threadId)
+  // Load the screen chunk ahead of the tap: a Suspense fallback in the
+  // transition's new snapshot would leave the avatar nowhere to land.
+  useEffect(() => {
+    if (openable) void import('./AlmaScreen')
+  }, [openable])
   if (!presence?.desktopId || presence.state.status !== 'ready') return null
   const { desktopId, face, generating } = presence
   const { threadId, running, pendingApprovals } = presence.state.personal

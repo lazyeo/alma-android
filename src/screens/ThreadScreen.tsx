@@ -99,6 +99,9 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { MarkdownContent } from './MarkdownContent'
 import { initialThreadOverscan, THREAD_OVERSCAN } from './threadVirtualizer'
 import { MessageView, PartView, type NestedMessageRow } from '../messages'
+import { presenceFace, useAlmaPresence } from '../alma/AlmaPresence'
+import { PersonaMessageView } from '../alma/PersonaMessageView'
+import { personaLayout } from '../alma/personaLayout'
 
 import { useConnection } from '../desktops/DesktopContext'
 import { useRealtimeLink } from '../desktops/useRealtimeLink'
@@ -462,7 +465,33 @@ export function ThreadScreen() {
   return <ThreadView key={threadId} threadId={threadId} />
 }
 
-function ThreadView({ threadId }: { threadId: string }) {
+/**
+ * The persona variant: the same thread data, stream, queue and composer,
+ * drawn as Alma's messenger (custom header, bubbles, collapsed tool work).
+ */
+export interface PersonaChrome {
+  /** Where header and hardware Back return to. */
+  backPath: string
+  renderHeader(props: { generating: boolean; onBack?: () => void }): ReactNode
+}
+
+export function PersonaThreadScreen({
+  threadId,
+  persona,
+}: {
+  threadId: string
+  persona: PersonaChrome
+}) {
+  return <ThreadView key={threadId} threadId={threadId} persona={persona} />
+}
+
+function ThreadView({
+  threadId,
+  persona,
+}: {
+  threadId: string
+  persona?: PersonaChrome
+}) {
   const t = useT()
   const navigate = useNavigate()
   const location = useLocation()
@@ -482,10 +511,12 @@ function ThreadView({ threadId }: { threadId: string }) {
   const layoutMode = useLayoutMode()
   const { api, pairing, status } = useConnection()
   // Back returns to the list this conversation was opened from.
-  const listPath = threadListPath(
-    pairing.id,
-    threadRouteMatch(location.pathname)?.section ?? 'threads',
-  )
+  const listPath =
+    persona?.backPath ??
+    threadListPath(
+      pairing.id,
+      threadRouteMatch(location.pathname)?.section ?? 'threads',
+    )
   const link = useRealtimeLink(api, status)
   const {
     approvals,
@@ -1218,6 +1249,16 @@ function ThreadView({ threadId }: { threadId: string }) {
   const effectiveFastMode =
     fastMode ?? selectedModel?.capabilities.defaultServiceTier === 'priority'
   const roots = useMemo(() => rootRows(messages), [messages])
+  // Messenger grouping and Alma's current face for the persona variant.
+  const personaRows = useMemo(
+    () => (persona ? personaLayout(roots) : undefined),
+    [persona, roots],
+  )
+  const almaPresence = useAlmaPresence()
+  const almaFace = presenceFace(
+    almaPresence?.state ?? { status: 'loading' },
+    false,
+  )
   const workspacePath = useMemo(
     () => workspaces.find((workspace) => workspace.id === workspaceId)?.path,
     [workspaces, workspaceId],
@@ -2389,7 +2430,11 @@ function ThreadView({ threadId }: { threadId: string }) {
       {/* prettier-ignore */}
       <ImageGalleryProvider images={galleryImages} onAnnotate={stageImageEdit}>
         <FileLinkProvider>
-        <div className="thread-detail">
+        <div className={persona ? 'thread-detail persona' : 'thread-detail'}>
+        {persona ? persona.renderHeader({
+          generating,
+          onBack: layoutMode === 'single' ? () => navigate(listPath) : undefined,
+        }) : (
         <header className="detail-header">
           {layoutMode === 'single' ? (
             <button
@@ -2528,6 +2573,7 @@ function ThreadView({ threadId }: { threadId: string }) {
             />
           </div>
         </header>
+        )}
         {missingThread ? (
           <section className="thread-missing-state">
             <Trash2 size={28} strokeWidth={1.7} aria-hidden="true" />
@@ -2591,6 +2637,17 @@ function ThreadView({ threadId }: { threadId: string }) {
                       }}
                     >
                       <MessageBoundary>
+                        {persona && personaRows ? (
+                          <PersonaMessageView
+                            row={row}
+                            layout={personaRows[item.index]}
+                            generating={generating && row === roots.at(-1)}
+                            mood={almaFace.mood}
+                            capabilities={threadPartCapabilities}
+                            onActions={setActionRow}
+                            onRetryFailed={retryFailedUserMessage}
+                          />
+                        ) : (
                         <ThreadMessageView
                           row={row}
                           workspacePath={workspacePath}
@@ -2606,6 +2663,7 @@ function ThreadView({ threadId }: { threadId: string }) {
                           onSwitchVersion={switchVersion}
                           nestedByParent={nestedByParent}
                         />
+                        )}
                       </MessageBoundary>
                     </div>
                   )
@@ -2622,7 +2680,7 @@ function ThreadView({ threadId }: { threadId: string }) {
                 ) : null}
               </div>
             </div>
-            {timeline.length >= TIMELINE_MIN_ENTRIES ? (
+            {!persona && timeline.length >= TIMELINE_MIN_ENTRIES ? (
               <TimelineRail
                 entries={timeline}
                 rowCount={roots.length}
