@@ -130,7 +130,7 @@
 }
 .remote-screen-video {
   opacity: 0;
-  transition: opacity 160ms ease;
+  transition: opacity var(--dur-fast) var(--ease-out);
 }
 .remote-screen-video.live {
   opacity: 1;

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { RollingText } from '../components/RollingText'
 import type { MessageRow } from '../relay'
 import { activityBarState, defaultActivityPhase } from './generationActivity'
 import { HoldToStopButton } from './HoldToStopButton'
@@ -45,20 +46,26 @@ export function GenerationActivityBar({
   })
   const visible = state.visible || todoProgress.visible
   const presence = usePresence(visible)
+  // While the whole stack fades out, keep the bar it is fading: the orb
+  // keeps turning and the last status stays put instead of blinking away.
+  const shown = useRef(state)
+  if (state.visible) shown.current = state
+  const bar =
+    !state.visible && presence.phase === 'exiting' ? shown.current : state
   if (!presence.rendered) return null
   return (
     <div className={`activity-stack ${presenceClass(presence.phase)}`}>
       {todoProgress.visible ? (
         <TodoProgressButton progress={todoProgress} onOpen={onOpenTodos} />
       ) : null}
-      {state.visible ? (
+      {bar.visible ? (
         <div className="activity-bar" role="status">
           <LoadingOrb size={20} />
           <span className="activity-bar-phase" aria-live="polite">
-            {state.phase || defaultActivityPhase()}
+            <RollingText text={bar.phase || defaultActivityPhase()} />
           </span>
-          {state.elapsed ? (
-            <time className="activity-bar-elapsed">{state.elapsed}</time>
+          {bar.elapsed ? (
+            <time className="activity-bar-elapsed">{bar.elapsed}</time>
           ) : null}
           <span className="activity-bar-actions">
             <HoldToStopButton onStop={onStop} />

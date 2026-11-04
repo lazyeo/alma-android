@@ -176,7 +176,10 @@ export function Composer({
             disabled={disabled || sending}
             onClick={onSend}
           >
-            {generating ? <ListPlus {...ICON} /> : <ArrowUp {...ICON} />}
+            <span className="send-icons" aria-hidden="true">
+              <ArrowUp {...ICON} className="send-icon-send" />
+              <ListPlus {...ICON} className="send-icon-queue" />
+            </span>
           </button>
         </div>
       </div>

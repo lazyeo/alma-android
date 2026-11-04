@@ -16,10 +16,14 @@ import { mapBase46ToCSS } from './theme'
 import { themes } from './themes'
 
 const css = readFileSync(new URL('./styles.css', import.meta.url), 'utf8')
+const remoteScreenCss = readFileSync(
+  new URL('./screens/remoteScreen/remoteScreen.css', import.meta.url),
+  'utf8',
+)
 
-function declarations(property: string) {
+function declarations(property: string, source = css) {
   const pattern = new RegExp(`(?<![\\w-])${property}\\s*:\\s*([^;}]+)`, 'g')
-  return [...css.matchAll(pattern)].map((match) => match[1].trim())
+  return [...source.matchAll(pattern)].map((match) => match[1].trim())
 }
 
 function rules(selector: string) {
@@ -236,6 +240,9 @@ describe('stylesheet token enforcement', () => {
       // Her messages rising in once the /alma expand lands (the expand
       // itself is WAAPI: transform and opacity only, no keyframes here).
       'alma-persona-rise',
+      // The activity status word rolling in its one-line slot.
+      'status-roll-in',
+      'status-roll-out',
     ]
     const defined = [...css.matchAll(/@keyframes ([\w-]+)/g)].map(
       (match) => match[1],
@@ -428,22 +435,29 @@ describe('stylesheet token enforcement', () => {
       expect(value, value).toMatch(/var\(--ease-loop-(step|linear|wave)\)/)
   })
 
-  it('uses only motion duration tokens outside documented functional loops', () => {
-    const withoutDefinitions = css.replace(
-      /--(?:dur-[\w-]+|ease-out|ease-spring|ease-expand|ease-collapse|ease-loop-[\w-]+):\s*[^;]+;/g,
-      '',
-    )
-    expect(
-      withoutDefinitions.match(/(?<![\w.-])(?:\d*\.)?\d+m?s\b/g),
-    ).toBeNull()
-    expect(
-      declarations('transition').filter(
-        (value) =>
-          !/var\(--dur-(press|fast|panel)\)/.test(value) && value !== 'none',
-      ),
-    ).toEqual([])
-    expect(withoutDefinitions).not.toMatch(
-      /(?<![\w-])(?:ease(?:-in-out|-in|-out)?|linear|step-start|step-end|cubic-bezier\([^)]*\)|steps\([^)]*\))(?![\w-])/,
-    )
-  })
+  it.each([
+    ['styles.css', css],
+    // Screen-local sheets read the same tokens; no literal timing there either.
+    ['remoteScreen.css', remoteScreenCss],
+  ])(
+    'uses only motion duration tokens outside documented functional loops (%s)',
+    (_name, source) => {
+      const withoutDefinitions = source.replace(
+        /--(?:dur-[\w-]+|ease-out|ease-spring|ease-expand|ease-collapse|ease-loop-[\w-]+):\s*[^;]+;/g,
+        '',
+      )
+      expect(
+        withoutDefinitions.match(/(?<![\w.-])(?:\d*\.)?\d+m?s\b/g),
+      ).toBeNull()
+      expect(
+        declarations('transition', source).filter(
+          (value) =>
+            !/var\(--dur-(press|fast|panel)\)/.test(value) && value !== 'none',
+        ),
+      ).toEqual([])
+      expect(withoutDefinitions).not.toMatch(
+        /(?<![\w-])(?:ease(?:-in-out|-in|-out)?|linear|step-start|step-end|cubic-bezier\([^)]*\)|steps\([^)]*\))(?![\w-])/,
+      )
+    },
+  )
 })

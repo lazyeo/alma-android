@@ -3205,6 +3205,23 @@ select:focus-visible {
   color: var(--muted-foreground);
   opacity: 1;
 }
+/* Send and queue share one slot: the glyph crossfades as generation starts
+   or ends, so the button never swaps its icon in a single frame. */
+.send-icons {
+  display: grid;
+  place-items: center;
+}
+.send-icons > svg {
+  grid-area: 1 / 1;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.send:not(.queue-send) .send-icon-queue,
+.send.queue-send .send-icon-send {
+  opacity: 0;
+  transform: scale(0.6);
+}
 .expand-editor {
   position: absolute;
   z-index: 2;
@@ -6162,18 +6179,29 @@ button:focus-visible,
 .project-group.open .project-row svg {
   transform: rotate(180deg);
 }
+/* Same disclosure as .settings-collapse: the room opens on grid rows and
+   the rows fade in once it is mostly open; closing fades them on
+   --dur-press first, then closes the room, so the edge never slices text. */
 .project-threads {
   display: grid;
   grid-template-rows: 0fr;
   overflow: hidden;
-  transition: grid-template-rows var(--dur-panel) var(--ease-out);
+  transition: grid-template-rows var(--dur-panel) var(--ease-out)
+    var(--dur-press);
 }
 .project-group.open .project-threads {
   grid-template-rows: 1fr;
+  transition: grid-template-rows var(--dur-panel) var(--ease-out);
 }
 .project-threads-inner {
   min-height: 0;
   overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--dur-press) var(--ease-out);
+}
+.project-group.open .project-threads-inner {
+  opacity: 1;
+  transition: opacity var(--dur-fast) var(--ease-out) var(--dur-press);
 }
 .project-header {
   width: calc(100% - 8px);
@@ -6658,6 +6686,17 @@ button:active:not(:disabled),
 .thread-tabs button:active {
   background: transparent;
   transform: none;
+}
+/* Tab and chip labels follow their selection colour on --dur-fast, so the
+   label lands with the indicator instead of a frame ahead of it. */
+.thread-tabs button,
+.tab-bar a,
+.chip-button {
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 .tab-bar-indicator {
   position: absolute;
@@ -7154,6 +7193,41 @@ button:active:not(:disabled),
   white-space: nowrap;
   color: var(--muted-foreground);
 }
+/* A status word that rolls to its next value in a fixed one-line slot. The
+   outgoing word is out of flow, so the slot (and the elapsed time beside
+   it) moves once, to the new word's width. */
+.rolling-text {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+}
+.rolling-text-line {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rolling-text-current {
+  animation: status-roll-in var(--dur-fast) var(--ease-out) both;
+}
+.rolling-text-previous {
+  position: absolute;
+  inset: 0;
+  animation: status-roll-out var(--dur-fast) var(--ease-out) both;
+}
+@keyframes status-roll-in {
+  from {
+    opacity: 0;
+    transform: translateY(60%);
+  }
+}
+@keyframes status-roll-out {
+  to {
+    opacity: 0;
+    transform: translateY(-60%);
+  }
+}
 .activity-bar-elapsed {
   flex: 0 0 auto;
   font-variant-numeric: tabular-nums;
@@ -7490,7 +7564,10 @@ button:active:not(:disabled),
     transform: none;
   }
   .thread-tab-content,
-  .project-threads {
+  .project-threads,
+  .project-group.open .project-threads,
+  .project-threads-inner,
+  .project-group.open .project-threads-inner {
     animation: none;
     transition: none;
   }
@@ -7549,6 +7626,12 @@ button:active:not(:disabled),
 }
 .tool-group summary:active {
   background: var(--muted);
+}
+/* A native <details> makes its room in one frame; the content then fades
+   into it rather than appearing at full strength. */
+.reasoning[open] > :not(summary),
+.tool-group[open] > :not(summary) {
+  animation: siblingCrossfade var(--dur-fast) var(--ease-out);
 }
 
 /* Composer icon buttons share one exact 28px visual box with 16px
