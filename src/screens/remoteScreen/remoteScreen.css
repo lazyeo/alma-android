@@ -276,6 +276,20 @@
   font-size: var(--text-xs);
   transform: translateX(-50%);
 }
+.remote-picker-icon {
+  display: inline-flex;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+}
+.remote-picker-icon img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
 @media (min-width: 720px) {
   .remote-screen-header {
     padding-inline: 18px;

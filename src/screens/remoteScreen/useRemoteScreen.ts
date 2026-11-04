@@ -7,7 +7,9 @@ import {
   type ScreenFrame,
   type ScreenServerMessage,
   type ScreenStatus,
+  type ScreenWindow,
 } from './protocol'
+import { screenPath } from './screenTargets'
 import { isFrameStalled } from './liveness'
 
 interface ScreenTunnel {
@@ -17,12 +19,24 @@ interface ScreenTunnel {
 export interface RemoteScreenOptions {
   rtc?: boolean
   displayId?: number
+  /** Streams one app window instead of the display (macOS desktops). */
+  windowId?: number
   rtcTimeoutMs?: number
+}
+
+export interface ScreenWindowList {
+  windows: ScreenWindow[]
+  error?: string
 }
 
 export function useRemoteScreen(
   tunnel: ScreenTunnel,
-  { rtc = true, displayId, rtcTimeoutMs = 5_000 }: RemoteScreenOptions = {},
+  {
+    rtc = true,
+    displayId,
+    windowId,
+    rtcTimeoutMs = 5_000,
+  }: RemoteScreenOptions = {},
 ) {
   const socketRef = useRef<TunnelSocket>()
   const peerRef = useRef<RTCPeerConnection>()
@@ -32,6 +46,7 @@ export function useRemoteScreen(
   const [message, setMessage] = useState<ScreenServerMessage>()
   // The latest status survives the frames that follow it.
   const [status, setStatus] = useState<ScreenStatus>()
+  const [windowList, setWindowList] = useState<ScreenWindowList>()
   const [frame, setFrame] = useState<ScreenFrame>()
   const [stream, setStream] = useState<MediaStream>()
   const [connected, setConnected] = useState(false)
@@ -61,12 +76,11 @@ export function useRemoteScreen(
   useEffect(() => {
     let disposed = false
     let rtcTimer: ReturnType<typeof setTimeout> | undefined
-    const path = displayId
-      ? `/ws/screen?display=${encodeURIComponent(displayId)}`
-      : '/ws/screen'
+    const path = screenPath({ displayId, windowId })
     const socket = tunnel.openWebSocket(path)
     socketRef.current = socket
     setStatus(undefined)
+    setWindowList(undefined)
     const stopRtc = () => {
       if (rtcTimer) clearTimeout(rtcTimer)
       rtcTimer = undefined
@@ -83,6 +97,8 @@ export function useRemoteScreen(
       if (!next) return
       setMessage(next)
       if (next.type === 'status') setStatus(next)
+      if (next.type === 'windows')
+        setWindowList({ windows: next.windows, error: next.error })
       if (next.type === 'frame') {
         lastFrameAt.current = Date.now()
         setStalled(false)
@@ -180,7 +196,13 @@ export function useRemoteScreen(
       socket.close()
       if (socketRef.current === socket) socketRef.current = undefined
     }
-  }, [displayId, rtc, rtcTimeoutMs, send, setControl, tunnel])
+  }, [displayId, rtc, rtcTimeoutMs, send, setControl, tunnel, windowId])
+
+  /** Asks the desktop for its windows; the answer lands in `windowList`. */
+  const requestWindows = useCallback(() => {
+    setWindowList(undefined)
+    send({ type: 'windows' })
+  }, [send])
 
   const markVideoFrame = useCallback(() => {
     if (videoLiveRef.current) return
@@ -198,6 +220,8 @@ export function useRemoteScreen(
     frame,
     message,
     status,
+    windowList,
+    requestWindows,
     rtcState,
     stream,
     send,

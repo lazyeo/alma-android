@@ -58,4 +58,18 @@ export const screen: CatalogShape<typeof source> = {
   modifierOption: '选项键',
   modifierControl: '控制键',
   modifierShift: '上档键',
+  picker: {
+    open: '选择屏幕或窗口',
+    title: '在手机上显示',
+    screen: '屏幕',
+    displays: '显示器',
+    display: '显示器',
+    primary: '主显示器',
+    wholeScreen: '整个屏幕',
+    windows: '窗口',
+    loading: '正在列出窗口…',
+    failed: '无法列出这台 Mac 上的窗口。',
+    empty: '没有可显示的窗口。',
+    windowClosed: '窗口已关闭，现在显示整个屏幕。',
+  },
 }

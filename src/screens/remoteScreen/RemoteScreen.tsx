@@ -1,4 +1,5 @@
 import {
+  AppWindowMac,
   ArrowDown,
   ArrowLeft,
   ArrowRight,
@@ -72,6 +73,15 @@ import {
   zoomPercent,
   type View,
 } from './viewport'
+import { ScreenPicker } from './ScreenPicker'
+import {
+  canPickTarget,
+  sameSelection,
+  currentSelection,
+  targetForSelection,
+  type PickerSelection,
+  type ScreenTarget,
+} from './screenTargets'
 import { selectLocalWakeWorkspace } from './wakeDisplay'
 import './remoteScreen.css'
 
@@ -200,7 +210,10 @@ export function RemoteScreen() {
   const navigate = useNavigate()
   const location = useLocation()
   const { pairing, tunnel, api } = useConnection()
-  const remote = useRemoteScreen(tunnel)
+  const [target, setTarget] = useState<ScreenTarget>({})
+  useEffect(() => setTarget({}), [pairing.id])
+  const remote = useRemoteScreen(tunnel, target)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const surfaceRef = useRef<HTMLDivElement>(null)
   const layerRef = useRef<HTMLDivElement>(null)
   const cursorRef = useRef<HTMLDivElement>(null)
@@ -610,6 +623,20 @@ export function RemoteScreen() {
     )
   }
 
+  useEffect(() => {
+    if (status?.windowClosed) setNotice(t('screen.picker.windowClosed'))
+  }, [status, t])
+
+  const openPicker = () => {
+    setPickerOpen(true)
+    if (status?.windows) remote.requestWindows()
+  }
+  const selectTarget = (selection: PickerSelection) => {
+    setPickerOpen(false)
+    if (sameSelection(selection, currentSelection(status))) return
+    setTarget(targetForSelection(selection, status))
+  }
+
   const sendText = (event?: FormEvent) => {
     event?.preventDefault()
     if (composing || !text.trim()) return
@@ -795,6 +822,16 @@ export function RemoteScreen() {
           </span>
         )}
         <div className="remote-screen-tools">
+          {canPickTarget(status) ? (
+            <button
+              className="quiet-icon-button"
+              aria-label={t('screen.picker.open')}
+              aria-haspopup="dialog"
+              onClick={openPicker}
+            >
+              <AppWindowMac size={18} />
+            </button>
+          ) : null}
           {remote.control && zoomed ? (
             <button
               className="quiet-icon-button"
@@ -898,6 +935,14 @@ export function RemoteScreen() {
         </section>
       ) : null}
       {notice ? <p className="remote-screen-notice">{notice}</p> : null}
+      {pickerOpen ? (
+        <ScreenPicker
+          status={status}
+          windowList={remote.windowList}
+          onSelect={selectTarget}
+          onClose={() => setPickerOpen(false)}
+        />
+      ) : null}
     </section>
   )
 }

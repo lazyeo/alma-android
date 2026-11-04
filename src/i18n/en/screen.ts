@@ -58,4 +58,18 @@ export const screen = {
   modifierOption: 'Option',
   modifierControl: 'Control',
   modifierShift: 'Shift',
+  picker: {
+    open: 'Choose a screen or window',
+    title: 'Show on phone',
+    screen: 'Screen',
+    displays: 'Displays',
+    display: 'Display',
+    primary: 'Main display',
+    wholeScreen: 'Whole screen',
+    windows: 'Windows',
+    loading: 'Listing windows…',
+    failed: "Couldn't list the windows on this Mac.",
+    empty: 'No windows to show.',
+    windowClosed: 'The window closed, so the whole screen is shown.',
+  },
 } as const
