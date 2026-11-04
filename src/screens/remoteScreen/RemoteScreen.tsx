@@ -5,6 +5,7 @@ import {
   ArrowUp,
   BarChart3,
   ChevronLeft,
+  Hand,
   Keyboard,
   Monitor,
   MonitorOff,
@@ -15,6 +16,7 @@ import {
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -26,17 +28,15 @@ import { copyText } from '../../clipboard'
 import { useConnection } from '../../desktops/DesktopContext'
 import { DesktopSwitcher } from '../../desktops/DesktopSwitcher'
 import { useDesktopPlatform } from '../../desktops/platform'
+import { haptic } from '../../haptics'
 import { useT } from '../../i18n'
 import {
   buildKeyCombo,
   createMoveCoalescer,
+  createScrollCoalescer,
   directPointerEvent,
-  mapClientPoint,
-  reduceTrackpadGesture,
   type ControlEvent,
   type KeyModifiers,
-  type TrackpadState,
-  type ViewTransform,
 } from './controls'
 import {
   rememberScreenUnavailable,
@@ -44,19 +44,36 @@ import {
   UNSUPPORTED_OS,
   unavailableCopy,
 } from './availability'
+import { recallInputMode, rememberInputMode, type InputMode } from './inputMode'
 import {
-  createGestureState,
-  GESTURE_HOLD_DELAY,
-  reducePointerGesture,
+  createTouchGestureState,
+  nextGestureDeadline,
+  reduceTouchGesture,
   type GestureAction,
-  type GestureInput,
-} from './gestures'
+  type GestureMode,
+  type TouchGestureInput,
+} from './touchGestures'
 import { BLANK_POSTER, isDarkSample } from './liveness'
 import { useRemoteScreen } from './useRemoteScreen'
+import {
+  clampView,
+  desktopToSurface,
+  IDENTITY_VIEW,
+  isZoomed,
+  keepPointVisible,
+  oneToOneScale,
+  panView,
+  pinchView,
+  settleView,
+  surfaceDeltaToDesktop,
+  surfaceToDesktop,
+  viewTransform,
+  zoomAround,
+  zoomPercent,
+  type View,
+} from './viewport'
 import { selectLocalWakeWorkspace } from './wakeDisplay'
 import './remoteScreen.css'
-
-type InputMode = 'direct' | 'trackpad'
 
 // DOM key name → copy key under `screen.*` (and the key sent to the Mac).
 const SPECIAL_KEYS = {
@@ -185,16 +202,41 @@ export function RemoteScreen() {
   const { pairing, tunnel, api } = useConnection()
   const remote = useRemoteScreen(tunnel)
   const surfaceRef = useRef<HTMLDivElement>(null)
+  const layerRef = useRef<HTMLDivElement>(null)
+  const cursorRef = useRef<HTMLDivElement>(null)
+  const status = remote.status
   const videoSize = useMemo(
     () =>
-      remote.message?.type === 'status'
-        ? { width: remote.message.width, height: remote.message.height }
+      status
+        ? { width: status.width, height: status.height }
         : remote.frame
           ? { width: remote.frame.width, height: remote.frame.height }
           : { width: 16, height: 10 },
-    [remote.frame, remote.message],
+    // Only the dimensions matter; a new status object with the same size
+    // must not reset the zoom.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [status?.width, status?.height, remote.frame?.width, remote.frame?.height],
   )
-  const [inputMode, setInputMode] = useState<InputMode>('direct')
+  // Desktop pixels, for the 1:1 zoom.
+  const pixelScale = status?.scale || 1
+  const pixelSize = useMemo(
+    () => ({
+      width: videoSize.width * pixelScale,
+      height: videoSize.height * pixelScale,
+    }),
+    [pixelScale, videoSize],
+  )
+  const [inputMode, setInputModeState] = useState<InputMode>(() =>
+    recallInputMode(pairing.id),
+  )
+  useEffect(() => setInputModeState(recallInputMode(pairing.id)), [pairing.id])
+  const setInputMode = (mode: InputMode) => {
+    setInputModeState(mode)
+    rememberInputMode(pairing.id, mode)
+  }
+  const [panMode, setPanMode] = useState(false)
+  const [zoom, setZoom] = useState({ scale: 1, oneToOne: false })
+  const zoomed = zoom.scale > 1
   const [statsOpen, setStatsOpen] = useState(false)
   const [dark, setDark] = useState(false)
   const [keyboardOpen, setKeyboardOpen] = useState(false)
@@ -206,22 +248,20 @@ export function RemoteScreen() {
     'loading' | 'ready' | 'pending' | 'success' | 'error'
   >('loading')
   const [modifiers, setModifiers] = useState<KeyModifiers>({})
-  const [transform] = useState<ViewTransform>({
-    scale: 1,
-    x: 0,
-    y: 0,
-  })
-  const transformRef = useRef(transform)
-  transformRef.current = transform
-  const trackpadRef = useRef<TrackpadState>({
-    cursor: { x: 0.5, y: 0.5 },
-    phase: 'idle',
-  })
-  const gestureState = useRef(createGestureState())
+  const viewRef = useRef<View>(IDENTITY_VIEW)
+  const pinchBase = useRef<View>()
+  const cursor = useRef({ x: 0.5, y: 0.5 })
+  const gestureState = useRef(createTouchGestureState())
   const gestureTimer = useRef<ReturnType<typeof setTimeout>>()
   const frameTimes = useRef<number[]>([])
   const [fps, setFps] = useState(0)
   const [frameAge, setFrameAge] = useState(0)
+
+  const trackpad = remote.control && inputMode === 'trackpad'
+  const gestureMode: GestureMode =
+    !remote.control || panMode ? 'pan' : inputMode
+  const gestureModeRef = useRef(gestureMode)
+  gestureModeRef.current = gestureMode
 
   useEffect(() => {
     let current = true
@@ -265,125 +305,246 @@ export function RemoteScreen() {
     () => createMoveCoalescer<ControlEvent>(remote.sendControl, 33),
     [remote.sendControl],
   )
-  useEffect(() => () => moveCoalescer.close(), [moveCoalescer])
-
-  const updateTrackpad = useCallback(
-    (event: Parameters<typeof reduceTrackpadGesture>[1]) => {
-      const result = reduceTrackpadGesture(trackpadRef.current, event)
-      trackpadRef.current = result.state
-      for (const output of result.events)
-        output.type === 'pointer' && output.action === 'move'
-          ? moveCoalescer.push(output)
-          : remote.sendControl(output)
+  const scrollCoalescer = useMemo(
+    () => createScrollCoalescer(remote.sendControl, 33),
+    [remote.sendControl],
+  )
+  useEffect(
+    () => () => {
+      moveCoalescer.close()
+      scrollCoalescer.close()
     },
-    [moveCoalescer, remote],
+    [moveCoalescer, scrollCoalescer],
   )
 
-  const mappedPoint = useCallback(
-    (x: number, y: number) => {
-      const surface = surfaceRef.current
-      if (!surface) return
-      const rect = surface.getBoundingClientRect()
-      return mapClientPoint(
-        { x: x - rect.left, y: y - rect.top },
-        { width: rect.width, height: rect.height },
-        videoSize,
-        transformRef.current,
-      )
+  // The local cursor stands in for the Mac's own while in trackpad mode.
+  useEffect(() => {
+    if (remote.connected) remote.send({ type: 'mouse_mode', on: trackpad })
+  }, [remote.connected, remote.send, trackpad])
+
+  const surfaceSize = useCallback(() => {
+    const rect = surfaceRef.current?.getBoundingClientRect()
+    return {
+      left: rect?.left ?? 0,
+      top: rect?.top ?? 0,
+      width: rect?.width ?? 0,
+      height: rect?.height ?? 0,
+    }
+  }, [])
+
+  // Per-frame updates write transforms directly: no React render, no layout.
+  const placeCursor = useCallback(() => {
+    const element = cursorRef.current
+    if (!element) return
+    const point = desktopToSurface(
+      cursor.current,
+      surfaceSize(),
+      videoSize,
+      viewRef.current,
+    )
+    element.style.transform = `translate3d(${point.x}px, ${point.y}px, 0)`
+  }, [surfaceSize, videoSize])
+
+  const applyView = useCallback(
+    (view: View, settled = false) => {
+      viewRef.current = view
+      if (layerRef.current)
+        layerRef.current.style.transform = viewTransform(view)
+      placeCursor()
+      if (settled) {
+        // Measured only when a gesture settles, never per frame.
+        const oneToOne = oneToOneScale(
+          surfaceSize(),
+          pixelSize,
+          window.devicePixelRatio || 1,
+        )
+        setZoom({
+          scale: view.scale,
+          oneToOne: isZoomed(view) && Math.abs(view.scale - oneToOne) < 0.01,
+        })
+        if (!isZoomed(view)) setPanMode(false)
+      }
     },
-    [videoSize],
+    [pixelSize, placeCursor, surfaceSize],
   )
 
-  const sendGestureActions = useCallback(
-    (actions: GestureAction[]) => {
+  // A new picture size (another display or window) starts at fit.
+  useEffect(() => {
+    pinchBase.current = undefined
+    applyView(IDENTITY_VIEW, true)
+  }, [applyView, videoSize])
+
+  useEffect(() => {
+    const surface = surfaceRef.current
+    if (!surface || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() =>
+      applyView(clampView(viewRef.current, surfaceSize(), videoSize), true),
+    )
+    observer.observe(surface)
+    return () => observer.disconnect()
+  }, [applyView, surfaceSize, videoSize])
+
+  useLayoutEffect(() => {
+    if (trackpad) placeCursor()
+  }, [placeCursor, trackpad])
+
+  const handleGestureActions = useCallback(
+    (actions: GestureAction[], mode: GestureMode) => {
+      const size = surfaceSize()
+      const view = () => viewRef.current
+      const toDesktop = (point: { x: number; y: number }) =>
+        surfaceToDesktop(point, size, videoSize, view())
+      const sendPointer = (
+        action: 'click' | 'double' | 'right' | 'drag-start' | 'drag-end',
+        point: { x: number; y: number },
+      ) => remote.sendControl(directPointerEvent(action, point))
       for (const action of actions) {
-        if (action.type === 'scroll') {
-          if (inputMode === 'trackpad')
-            updateTrackpad({
-              type: 'scroll',
-              dx: action.delta.x,
-              dy: action.delta.y,
-            })
-          else {
-            const mapped = mappedPoint(action.point.x, action.point.y)
-            if (mapped?.inside)
-              remote.sendControl({
-                type: 'scroll',
-                x: mapped.x,
-                y: mapped.y,
-                dx: action.delta.x,
-                dy: action.delta.y,
-              })
+        switch (action.type) {
+          case 'haptic':
+            void haptic(action.kind)
+            break
+          case 'pinch': {
+            pinchBase.current ??= view()
+            applyView(
+              pinchView(
+                pinchBase.current,
+                action.startCentroid,
+                action.startDistance,
+                action.centroid,
+                action.distance,
+                size,
+                videoSize,
+              ),
+            )
+            break
           }
-          continue
-        }
-        if (action.type === 'move') {
-          if (inputMode === 'trackpad') {
-            const speed = Math.hypot(action.delta.x, action.delta.y)
-            updateTrackpad({
-              type: 'move',
-              dx: action.delta.x,
-              dy: action.delta.y,
-              sensitivity: 0.0015 * Math.min(2.4, 1 + speed / 18),
+          case 'pinch-end':
+            pinchBase.current = undefined
+            applyView(settleView(view(), size, videoSize), true)
+            break
+          case 'reset-zoom':
+            pinchBase.current = undefined
+            applyView(IDENTITY_VIEW, true)
+            break
+          case 'pan':
+            applyView(panView(view(), action.delta, size, videoSize))
+            break
+          case 'cursor': {
+            const delta = surfaceDeltaToDesktop(
+              action.delta,
+              size,
+              videoSize,
+              view(),
+            )
+            cursor.current = {
+              x: Math.min(1, Math.max(0, cursor.current.x + delta.x)),
+              y: Math.min(1, Math.max(0, cursor.current.y + delta.y)),
+            }
+            // Zoomed in, the view follows the cursor near its edges.
+            const at = desktopToSurface(cursor.current, size, videoSize, view())
+            applyView(keepPointVisible(view(), at, size, videoSize))
+            moveCoalescer.push({
+              type: 'pointer',
+              action: 'move',
+              ...cursor.current,
             })
-          } else {
-            const mapped = mappedPoint(action.point.x, action.point.y)
-            if (mapped?.inside)
+            break
+          }
+          case 'hover': {
+            // Dragging into an edge while zoomed eases the view along.
+            if (gestureState.current.phase === 'dragging') {
+              const target = keepPointVisible(
+                view(),
+                action.point,
+                size,
+                videoSize,
+              )
+              if (target !== view())
+                applyView({
+                  scale: target.scale,
+                  x: view().x + (target.x - view().x) * 0.25,
+                  y: view().y + (target.y - view().y) * 0.25,
+                })
+            }
+            const mapped = toDesktop(action.point)
+            if (mapped.inside)
               moveCoalescer.push({
                 type: 'pointer',
                 action: 'move',
                 x: mapped.x,
                 y: mapped.y,
               })
+            break
           }
-          continue
-        }
-        if (action.type === 'drag-end') moveCoalescer.flush()
-        if (inputMode === 'trackpad') {
-          if (action.type === 'drag-start')
-            updateTrackpad({ type: 'drag-start' })
-          else if (action.type === 'drag-end')
-            updateTrackpad({ type: 'drag-end' })
-          else
-            updateTrackpad({
-              type: 'tap',
-              fingers: action.type === 'right' ? 2 : 1,
-              clicks: action.type === 'double' ? 2 : 1,
+          case 'scroll': {
+            const at =
+              mode === 'trackpad' ? cursor.current : toDesktop(action.point)
+            if ('inside' in at && !at.inside) break
+            scrollCoalescer.push({
+              type: 'scroll',
+              x: at.x,
+              y: at.y,
+              dx: action.delta.x / view().scale,
+              dy: action.delta.y / view().scale,
             })
-          continue
+            break
+          }
+          case 'press':
+          case 'release':
+          case 'click':
+          case 'double':
+          case 'right': {
+            moveCoalescer.flush()
+            scrollCoalescer.flush()
+            const mapped =
+              mode === 'trackpad'
+                ? { ...cursor.current, inside: true }
+                : toDesktop(action.point)
+            // A drag that ends outside the picture still lets go.
+            if (!mapped.inside && action.type !== 'release') break
+            sendPointer(
+              action.type === 'press'
+                ? 'drag-start'
+                : action.type === 'release'
+                  ? 'drag-end'
+                  : action.type,
+              { x: mapped.x, y: mapped.y },
+            )
+            break
+          }
         }
-        const mapped = mappedPoint(action.point.x, action.point.y)
-        if (!mapped?.inside) continue
-        remote.sendControl(
-          directPointerEvent(action.type, { x: mapped.x, y: mapped.y }),
-        )
       }
     },
-    [inputMode, mappedPoint, moveCoalescer, remote, updateTrackpad],
+    [applyView, moveCoalescer, remote, scrollCoalescer, surfaceSize, videoSize],
   )
 
   const dispatchGesture = useCallback(
-    (input: GestureInput) => {
-      const result = reducePointerGesture(gestureState.current, input)
+    (input: TouchGestureInput) => {
+      const env = {
+        mode: gestureModeRef.current,
+        zoomed: isZoomed(viewRef.current),
+      }
+      const result = reduceTouchGesture(gestureState.current, input, env)
       gestureState.current = result.state
-      sendGestureActions(result.actions)
+      handleGestureActions(result.actions, env.mode)
       if (gestureTimer.current) clearTimeout(gestureTimer.current)
-      const deadlines = [
-        result.state.pendingTap?.deadline,
-        ...Object.values(result.state.pointers).map(
-          (pointer) => pointer.downAt + GESTURE_HOLD_DELAY,
-        ),
-      ].filter((deadline): deadline is number => deadline !== undefined)
-      if (deadlines.length) {
-        const deadline = Math.min(...deadlines)
+      gestureTimer.current = undefined
+      const deadline = nextGestureDeadline(result.state, env)
+      if (deadline !== undefined)
         gestureTimer.current = setTimeout(
           () => dispatchGesture({ type: 'tick', at: performance.now() }),
-          Math.max(0, deadline - performance.now() + 1),
+          Math.max(0, deadline - performance.now()),
         )
-      }
     },
-    [sendGestureActions],
+    [handleGestureActions],
   )
+
+  // Switching mode starts a fresh gesture so no half-finished one leaks over.
+  useEffect(() => {
+    if (gestureTimer.current) clearTimeout(gestureTimer.current)
+    gestureTimer.current = undefined
+    gestureState.current = createTouchGestureState()
+  }, [gestureMode])
 
   useEffect(
     () => () => {
@@ -396,42 +557,57 @@ export function RemoteScreen() {
     type: 'down' | 'move' | 'up' | 'cancel',
     event: ReactPointerEvent,
   ) => {
-    event.preventDefault()
     if (event.pointerType === 'mouse') return
+    event.preventDefault()
     if (type === 'down') event.currentTarget.setPointerCapture(event.pointerId)
+    const size = surfaceSize()
     dispatchGesture({
       type,
       id: event.pointerId,
-      point: { x: event.clientX, y: event.clientY },
+      point: { x: event.clientX - size.left, y: event.clientY - size.top },
       at: event.timeStamp,
     })
   }
 
-  const onPointerDown = (event: ReactPointerEvent) =>
-    pointerInput('down', event)
-  const onPointerMove = (event: ReactPointerEvent) =>
-    pointerInput('move', event)
-  const onPointerUp = (event: ReactPointerEvent) => pointerInput('up', event)
-  const onPointerCancel = (event: ReactPointerEvent) =>
-    pointerInput('cancel', event)
-
   const onWheel = (event: React.WheelEvent) => {
-    if (!remote.control || inputMode !== 'trackpad') return
+    if (!trackpad) return
     event.preventDefault()
-    updateTrackpad({ type: 'scroll', dx: event.deltaX, dy: event.deltaY })
+    scrollCoalescer.push({
+      type: 'scroll',
+      ...cursor.current,
+      dx: event.deltaX,
+      dy: event.deltaY,
+    })
   }
 
   const screenPointerHandlers = {
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    onPointerCancel,
+    onPointerDown: (event: ReactPointerEvent) => pointerInput('down', event),
+    onPointerMove: (event: ReactPointerEvent) => pointerInput('move', event),
+    onPointerUp: (event: ReactPointerEvent) => pointerInput('up', event),
+    onPointerCancel: (event: ReactPointerEvent) =>
+      pointerInput('cancel', event),
+    onWheel,
     onContextMenu: (event: React.MouseEvent) => event.preventDefault(),
     onClick: (event: React.MouseEvent) => event.preventDefault(),
   }
-  const trackpadPointerHandlers = {
-    ...screenPointerHandlers,
-    onWheel,
+
+  const cycleZoom = () => {
+    const size = surfaceSize()
+    if (zoomed) {
+      applyView(IDENTITY_VIEW, true)
+      return
+    }
+    const target = oneToOneScale(size, pixelSize, window.devicePixelRatio || 1)
+    applyView(
+      zoomAround(
+        viewRef.current,
+        { x: size.width / 2, y: size.height / 2 },
+        target > 1 ? target : 2,
+        size,
+        videoSize,
+      ),
+      true,
+    )
   }
 
   const sendText = (event?: FormEvent) => {
@@ -456,7 +632,6 @@ export function RemoteScreen() {
     }
   }
 
-  const status = remote.message?.type === 'status' ? remote.message : undefined
   const platform = useDesktopPlatform(pairing.id, api)
   const unavailable =
     screenUnavailableFromStatus(status) ??
@@ -508,19 +683,10 @@ export function RemoteScreen() {
       <div
         ref={surfaceRef}
         className={`remote-screen-surface ${remote.control ? 'is-controlling' : ''}`}
-        data-sidebar-swipe-exclude={
-          remote.control && inputMode === 'direct' ? '' : undefined
-        }
-        {...(remote.control && inputMode === 'direct'
-          ? screenPointerHandlers
-          : {})}
+        data-sidebar-swipe-exclude={remote.control || zoomed ? '' : undefined}
+        {...screenPointerHandlers}
       >
-        <div
-          className="remote-screen-transform"
-          style={{
-            transform: `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${transform.scale})`,
-          }}
-        >
+        <div ref={layerRef} className="remote-screen-transform">
           <ScreenMedia
             stream={remote.stream}
             frame={remote.frame}
@@ -529,6 +695,15 @@ export function RemoteScreen() {
             onDark={setDark}
           />
         </div>
+        {trackpad ? (
+          <div
+            ref={cursorRef}
+            className="remote-screen-cursor"
+            aria-hidden="true"
+          >
+            <MousePointer2 size={20} />
+          </div>
+        ) : null}
         {unavailable ? (
           <div
             className="remote-screen-empty remote-screen-asleep"
@@ -596,16 +771,6 @@ export function RemoteScreen() {
         ) : null}
       </div>
 
-      {remote.control && inputMode === 'trackpad' ? (
-        <div
-          className="remote-trackpad"
-          data-sidebar-swipe-exclude
-          {...trackpadPointerHandlers}
-        >
-          <span>{t('screen.trackpad')}</span>
-        </div>
-      ) : null}
-
       <div className="remote-screen-toolbar">
         {remote.control ? (
           <div
@@ -630,6 +795,27 @@ export function RemoteScreen() {
           </span>
         )}
         <div className="remote-screen-tools">
+          {remote.control && zoomed ? (
+            <button
+              className="quiet-icon-button"
+              aria-label={t('screen.panView')}
+              aria-pressed={panMode}
+              onClick={() => setPanMode((value) => !value)}
+            >
+              <Hand size={18} />
+            </button>
+          ) : null}
+          <button
+            className="chip-button remote-zoom-chip"
+            aria-label={zoomed ? t('screen.zoomToFit') : t('screen.zoomActual')}
+            onClick={cycleZoom}
+          >
+            {!zoomed
+              ? t('screen.zoomFit')
+              : zoom.oneToOne
+                ? '1:1'
+                : `${zoomPercent(zoom.scale)}%`}
+          </button>
           <button
             className="quiet-icon-button"
             aria-label={statsOpen ? t('screen.hideStats') : t('screen.stats')}

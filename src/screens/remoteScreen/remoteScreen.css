@@ -3,7 +3,7 @@
   display: grid;
   width: 100%;
   height: 100dvh;
-  grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   overflow: hidden;
   background: var(--background);
   color: var(--foreground);
@@ -19,14 +19,11 @@
 .remote-screen-page > .remote-screen-surface {
   grid-row: 3;
 }
-.remote-screen-page > .remote-trackpad {
+.remote-screen-page > .remote-screen-toolbar {
   grid-row: 4;
 }
-.remote-screen-page > .remote-screen-toolbar {
-  grid-row: 5;
-}
 .remote-screen-page > .remote-keyboard {
-  grid-row: 6;
+  grid-row: 5;
 }
 .remote-screen-header {
   z-index: 3;
@@ -121,8 +118,24 @@
   inset: 0;
   display: grid;
   place-items: center;
-  transform-origin: center;
+  /* viewport.ts maps pointers through translate(x, y) scale(s) from 0 0. */
+  transform-origin: 0 0;
   will-change: transform;
+}
+/* The trackpad cursor sits outside the zoomed layer so it keeps its size.
+   Its tip (about 3px into the glyph) is the hotspot. */
+.remote-screen-cursor {
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  z-index: 1;
+  color: var(--gray-12);
+  pointer-events: none;
+  will-change: transform;
+}
+.remote-screen-cursor svg {
+  display: block;
+  fill: var(--gray-1);
 }
 /* Canvas and video share one cell; video fades in once it has frames. */
 .remote-screen-transform > .remote-screen-media {
@@ -188,27 +201,6 @@
   margin: 0;
   font-variant-numeric: tabular-nums;
 }
-.remote-trackpad {
-  position: relative;
-  display: grid;
-  min-height: 160px;
-  height: clamp(160px, 22dvh, 280px);
-  margin: 10px 12px;
-  place-items: center;
-  overflow: hidden;
-  /* A clearly bounded pad on every theme: solid surface + visible edge. */
-  border: var(--border-hairline) solid var(--gray-7);
-  border-radius: calc(var(--radius-lg) + 4px);
-  background: var(--gray-3);
-  color: var(--muted-foreground);
-  font-size: var(--text-sm);
-  touch-action: none;
-  user-select: none;
-}
-.remote-trackpad span {
-  opacity: 0.72;
-  pointer-events: none;
-}
 .remote-screen-toolbar {
   z-index: 3;
   display: flex;
@@ -262,6 +254,11 @@
 .remote-key-row::-webkit-scrollbar {
   display: none;
 }
+.remote-zoom-chip {
+  min-width: 52px;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
 .remote-key {
   min-width: 42px;
   justify-content: center;
@@ -286,10 +283,6 @@
   .remote-screen-toolbar,
   .remote-keyboard {
     padding-inline: 18px;
-  }
-  .remote-trackpad {
-    height: clamp(180px, 28dvh, 360px);
-    margin-inline: 18px;
   }
   .remote-screen-surface {
     margin: 10px 18px 0;

@@ -262,7 +262,7 @@ export function oneToOneScale(
 
 export const isZoomed = (view: View) => view.scale > MIN_ZOOM
 
-export const zoomPercent = (view: View) => Math.round(view.scale * 100)
+export const zoomPercent = (scale: number) => Math.round(scale * 100)
 
 export const viewTransform = (view: View) =>
   `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale})`

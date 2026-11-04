@@ -308,7 +308,7 @@ describe('oneToOneScale', () => {
 
 describe('labels and CSS', () => {
   it('formats the zoom and the transform', () => {
-    expect(zoomPercent({ scale: 2.456, x: 0, y: 0 })).toBe(246)
+    expect(zoomPercent(2.456)).toBe(246)
     expect(viewTransform({ scale: 2, x: -10, y: 4.5 })).toBe(
       'translate3d(-10px, 4.5px, 0) scale(2)',
     )

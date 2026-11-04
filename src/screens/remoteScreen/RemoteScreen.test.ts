@@ -18,20 +18,30 @@ describe('RemoteScreen desktop switching', () => {
 })
 
 describe('RemoteScreen input surfaces', () => {
-  it('renders a dedicated trackpad only in trackpad mode', () => {
-    expect(source).toContain("inputMode === 'trackpad' ? (")
-    expect(source).toContain('className="remote-trackpad"')
-    expect(source).toContain('data-sidebar-swipe-exclude')
-    expect(source).toContain("{t('screen.trackpad')}")
-  })
-
-  it('keeps pointer handlers on the screen only in direct mode', () => {
+  it('takes every gesture on the screen itself, with no separate pad', () => {
+    expect(source).not.toContain('remote-trackpad')
+    expect(source).toContain('{...screenPointerHandlers}')
     expect(source).toMatch(
-      /inputMode === 'direct'\s*\? screenPointerHandlers\s*:\s*\{\}/,
+      /data-sidebar-swipe-exclude=\{remote\.control \|\| zoomed/,
     )
   })
 
-  it('does not draw a second local cursor over the Mac stream', () => {
-    expect(source).not.toContain('remote-screen-cursor')
+  it('draws a local cursor only in trackpad mode and hides the Mac one', () => {
+    expect(source).toMatch(/\{trackpad \? \(\s*<div\s+ref=\{cursorRef\}/)
+    expect(source).toContain(
+      "remote.send({ type: 'mouse_mode', on: trackpad })",
+    )
+  })
+
+  it('renders zoom and pan with transforms only, outside React renders', () => {
+    expect(source).toContain(
+      'layerRef.current.style.transform = viewTransform(view)',
+    )
+    expect(source).not.toMatch(/style=\{\{\s*transform/)
+  })
+
+  it('maps every desktop pointer position through the view', () => {
+    expect(source).toContain('surfaceToDesktop(point, size, videoSize, view())')
+    expect(source).not.toContain('mapClientPoint')
   })
 })

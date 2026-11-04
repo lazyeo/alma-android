@@ -6,6 +6,7 @@ import {
   type ScreenClientMessage,
   type ScreenFrame,
   type ScreenServerMessage,
+  type ScreenStatus,
 } from './protocol'
 import { isFrameStalled } from './liveness'
 
@@ -29,6 +30,8 @@ export function useRemoteScreen(
   const controlRef = useRef(false)
   const [control, setControlState] = useState(false)
   const [message, setMessage] = useState<ScreenServerMessage>()
+  // The latest status survives the frames that follow it.
+  const [status, setStatus] = useState<ScreenStatus>()
   const [frame, setFrame] = useState<ScreenFrame>()
   const [stream, setStream] = useState<MediaStream>()
   const [connected, setConnected] = useState(false)
@@ -63,6 +66,7 @@ export function useRemoteScreen(
       : '/ws/screen'
     const socket = tunnel.openWebSocket(path)
     socketRef.current = socket
+    setStatus(undefined)
     const stopRtc = () => {
       if (rtcTimer) clearTimeout(rtcTimer)
       rtcTimer = undefined
@@ -78,6 +82,7 @@ export function useRemoteScreen(
       const next = decodeScreenMessage(raw)
       if (!next) return
       setMessage(next)
+      if (next.type === 'status') setStatus(next)
       if (next.type === 'frame') {
         lastFrameAt.current = Date.now()
         setStalled(false)
@@ -192,6 +197,7 @@ export function useRemoteScreen(
     error,
     frame,
     message,
+    status,
     rtcState,
     stream,
     send,

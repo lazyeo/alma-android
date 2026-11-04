@@ -31,11 +31,14 @@ export type ScreenServerMessage =
   | ({ type: 'preview_status' } & Record<string, unknown>)
 
 export type ScreenFrame = Extract<ScreenServerMessage, { type: 'frame' }>
+export type ScreenStatus = Extract<ScreenServerMessage, { type: 'status' }>
 
 export type ScreenClientMessage =
   | ControlEvent
   | { type: 'text'; text: string }
   | { type: 'key'; key: string }
+  /** Hides the Mac's own pointer while the phone draws a trackpad cursor. */
+  | { type: 'mouse_mode'; on: boolean }
   | { type: 'clipboard'; text: string; paste?: boolean }
   | { type: 'rtc_start'; relayOnly?: boolean }
   | { type: 'rtc_answer'; sdp: string }
