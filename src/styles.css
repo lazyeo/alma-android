@@ -10091,6 +10091,13 @@ dialog:focus,
   flex: 0 0 auto;
   overflow: visible;
 }
+/* A registered raster rig: the canvas carries the art's own colours; the
+   round crop matches the vector face's disc. */
+.mascot-rig {
+  display: block;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
 .alma-face-disc {
   fill: var(--gray-3);
 }
