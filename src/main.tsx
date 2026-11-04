@@ -13,10 +13,13 @@ import { configureNativeFoldTransition } from './nativeBridge'
 import { installNativeInsetsBridge } from './nativeInsets'
 import { isNativePlatform, shouldRegisterServiceWorker } from './nativeRuntime'
 import { installTextSelectionGuard } from './textSelection'
+import { registerOfficialMascot } from './alma/rig/officialMascot'
 import './styles.css'
 
 installNativeInsetsBridge()
 installTextSelectionGuard()
+// Draw Alma with the official art when the build bundled it.
+void registerOfficialMascot()
 // Native starts with its compiled defaults; this pushes the saved choices.
 configureNativeFoldTransition(
   foldTransitionNativeConfig(loadFoldTransitionSettings()),
