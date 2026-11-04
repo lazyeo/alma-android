@@ -52,7 +52,9 @@ export function pickerDisplays(status?: ScreenStatus): ScreenDisplay[] {
 export function pickerWindows(windows: ScreenWindow[]): ScreenWindow[] {
   return windows.filter(
     (window) =>
-      window.width > 1 && window.height > 1 && (window.app || window.title),
+      window.width > 1 &&
+      window.height > 1 &&
+      Boolean(windowAppName(window) || window.title),
   )
 }
 

@@ -107,8 +107,14 @@ describe('pickerWindows', () => {
       window({ id: 3, width: 1 }),
       window({ id: 4, height: 0 }),
       window({ id: 5, app: undefined, title: 'Untitled app' }),
+      window({
+        id: 6,
+        app: undefined,
+        title: undefined,
+        bundleId: 'com.microsoft.VSCode',
+      }),
     ]).map((item) => item.id)
-    expect(kept).toEqual([1, 5])
+    expect(kept).toEqual([1, 5, 6])
   })
 })
 
