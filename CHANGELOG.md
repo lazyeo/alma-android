@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Long-pressing a thread, project row, GTD item or message now lifts it slightly above a dimmed screen while its actions are open, then sets it back (or fades it away when the action deletes or moves it). Alma's tab entry is just her face, with no circle behind it. Opening Alma no longer ends with a small jump: her bubbles had extra margin in the full thread, and the full thread now fades in only once it has painted (2026-11-05).
 - Alma's conversation sits closer to the screen edges: her face opens a run on its own line so her bubbles use the full width, and the per-message "did: …" tool line is gone (the header status already shows what she is doing) (2026-11-05).
 - Threads: the pinned Alma row at the top of the list is gone; the center Alma tab replaces it (2026-11-04).
 - Tab bar: two tabs on each side of Alma: Threads and Agents, then GTD and Settings. The side rail uses the same order (2026-11-05).
