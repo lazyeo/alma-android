@@ -121,6 +121,26 @@ export function flightFrames(from: Box, to: Box): Keyframe[] | undefined {
 }
 
 /**
+ * The farthest any corner of the face moves between `from` and `to`: a
+ * progress overshoot of `o` carries that corner `o` times this past its
+ * landing, since translate and scale both interpolate with progress.
+ */
+export function flightTravel(from: Box, to: Box) {
+  const corners = (box: Box) => [
+    [box.left, box.top],
+    [box.left + box.width, box.top],
+    [box.left, box.top + box.height],
+    [box.left + box.width, box.top + box.height],
+  ]
+  const end = corners(to)
+  return Math.max(
+    ...corners(from).map(([x, y], index) =>
+      Math.hypot(end[index][0] - x, end[index][1] - y),
+    ),
+  )
+}
+
+/**
  * Nudges a flight already in the air onto the real landing box once it is
  * known, on the clone's inner layer. The outer layer ends at `endScale`,
  * so the nudge is in its scaled coordinates.

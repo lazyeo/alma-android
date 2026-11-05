@@ -41,11 +41,17 @@ export const ENTRANCE_MS = 250 + 3 * 40
  * 1 + overshoot by `peak` of the run, then a half-cosine settle back to 1.
  * The overshoot is 3%, a noticeable bounce at the end.
  */
-export const EXPAND_CURVE = {
+export interface ExpandCurve {
+  bezier: readonly [number, number, number, number]
+  peak: number
+  overshoot: number
+}
+
+export const EXPAND_CURVE: ExpandCurve = {
   bezier: [0.3, 0, 0.1, 1],
   peak: 0.74,
   overshoot: 0.03,
-} as const
+}
 
 /** A CSS cubic-bezier's progress at time `x`, solved by bisection. */
 export function cubicBezierAt(
@@ -89,6 +95,29 @@ export function expandEasing(samples = 48, curve = EXPAND_CURVE) {
 }
 
 export const EXPAND_EASING = expandEasing()
+
+/**
+ * Her face's flight on open settles on the same curve with the overshoot
+ * capped: 1% of the travel or 4px, whichever is smaller. 3% of a face
+ * crossing the whole phone is a 25px bounce; the circle keeps its own.
+ */
+export const FACE_OVERSHOOT = { ratio: 0.01, maxPx: 4 } as const
+
+/** The expand curve for a face flight travelling `travelPx` at most. */
+export function faceFlightCurve(travelPx: number): ExpandCurve {
+  const overshoot =
+    travelPx > 0
+      ? Math.min(FACE_OVERSHOOT.ratio, FACE_OVERSHOOT.maxPx / travelPx)
+      : 0
+  return { ...EXPAND_CURVE, overshoot }
+}
+
+/** The face flight's easing; `linear()` where supported, else the fade. */
+export function faceFlightEasing(travelPx: number, linear = true) {
+  return linear
+    ? expandEasing(48, faceFlightCurve(travelPx))
+    : EXPAND_EASING_FALLBACK
+}
 
 /** Sampled points of a `linear()` easing string. */
 export function linearPoints(easing: string) {

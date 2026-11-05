@@ -15,6 +15,8 @@ import {
   expandProgress,
   expandTimeline,
   FADE_COVERAGE,
+  faceFlightCurve,
+  faceFlightEasing,
   linearPoints,
   MIN_FADE_MS,
   recedeFrames,
@@ -197,5 +199,34 @@ describe('keyframes', () => {
       opacity: 0,
       transform: 'translateY(8px)',
     })
+  })
+})
+
+describe('face flight curve', () => {
+  const peakOf = (easing: string) => Math.max(...linearPoints(easing)) - 1
+
+  it('caps the overshoot at 1% of the travel or 4px, whichever is smaller', () => {
+    expect(faceFlightCurve(200).overshoot).toBe(0.01)
+    expect(faceFlightCurve(400).overshoot).toBe(0.01)
+    expect(faceFlightCurve(840).overshoot).toBeCloseTo(4 / 840, 10)
+    expect(faceFlightCurve(0).overshoot).toBe(0)
+    for (const travel of [38.5, 400, 839.2, 1200]) {
+      const peak = peakOf(faceFlightEasing(travel))
+      expect(peak * travel, `${travel}px`).toBeLessThanOrEqual(
+        Math.min(0.01 * travel, 4) + 1e-3,
+      )
+      // A gentle settle, never a hard stop.
+      expect(peak, `${travel}px`).toBeGreaterThan(0)
+    }
+    // The circle keeps its own 3% curve and timing.
+    expect(peakOf(EXPAND_EASING)).toBeGreaterThan(0.029)
+  })
+
+  it('keeps the expand shape and lands exactly on 1', () => {
+    const points = linearPoints(faceFlightEasing(839))
+    expect(points[0]).toBe(0)
+    expect(points.at(-1)).toBe(1)
+    expect(points).toHaveLength(49)
+    expect(faceFlightEasing(839, false)).toBe(EXPAND_EASING_FALLBACK)
   })
 })

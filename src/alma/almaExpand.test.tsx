@@ -16,14 +16,21 @@ import {
   startAlmaTransition,
   type AlmaExpandMetrics,
 } from './almaExpand'
-import { avatarBox, clearAvatarBoxes, recordAvatarBox } from './avatarFlight'
+import {
+  avatarBox,
+  clearAvatarBoxes,
+  flightTravel,
+  recordAvatarBox,
+} from './avatarFlight'
 import {
   COLLAPSE_EASING,
   COLLAPSE_MS,
   CROSSFADE_IN_MS,
   ENTRANCE_MS,
+  EXPAND_EASING,
   EXPAND_MS,
   expandTimeline,
+  linearPoints,
   TOP_OUT_MS,
 } from './expandMotion'
 import { MascotRig } from './rig/MascotRig'
@@ -110,6 +117,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.unstubAllGlobals()
   cancelAlmaTransition()
   vi.runOnlyPendingTimers()
   vi.useRealTimers()
@@ -332,6 +340,19 @@ describe('open', () => {
     expect(haptic).toHaveBeenCalledWith('selection')
   })
 
+  it('caps the phone face flight overshoot at 4px over its long travel', () => {
+    vi.stubGlobal('CSS', { supports: () => true })
+    start('open')
+    const flight = on(clone()!)[0]
+    const circle = on(document.querySelector('.alma-expand-circle'))[0]
+    expect(circle.options.easing).toBe(EXPAND_EASING)
+    const travel = flightTravel(navAvatar, headerAvatar)
+    expect(travel).toBeGreaterThan(400)
+    const peak = Math.max(...linearPoints(String(flight.options.easing))) - 1
+    expect(peak).toBeGreaterThan(0)
+    expect(peak * travel).toBeLessThanOrEqual(4.01)
+  })
+
   it('a newer navigation cancels the run and cleans up', () => {
     start('open')
     const started = calls.length
@@ -506,6 +527,17 @@ describe('split layouts', () => {
       transform: 'translate(46px, 4px) scale(1.3)',
     })
     expect(on(clone()!)[0].options.duration).toBe(EXPAND_MS)
+  })
+
+  it('settles the dock flight on the capped face curve, not the circle bounce', () => {
+    vi.stubGlobal('CSS', { supports: () => true })
+    startWide()
+    const easing = String(on(clone()!)[0].options.easing)
+    const circle = on(document.querySelector('.alma-expand-circle'))[0]
+    expect(circle.options.easing).toBe(EXPAND_EASING)
+    expect(easing).not.toBe(EXPAND_EASING)
+    expect(Math.max(...linearPoints(easing))).toBeGreaterThan(1)
+    expect(Math.max(...linearPoints(easing)) - 1).toBeLessThanOrEqual(0.01)
   })
 
   it('flies back from the dock into the rail slot on close', () => {

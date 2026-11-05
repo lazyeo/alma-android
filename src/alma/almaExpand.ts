@@ -22,6 +22,7 @@ import {
   avatarElement,
   correctionFrames,
   flightFrames,
+  flightTravel,
   headerAvatarTarget,
   predictedDockAvatar,
   recordAvatarBox,
@@ -37,6 +38,7 @@ import {
   ENTRANCE_MS,
   expandTimeline,
   FADE_EASING,
+  faceFlightEasing,
   recedeFrames,
   supportsLinearEasing,
   TOP_OUT_MS,
@@ -675,12 +677,8 @@ function runOpen(run: Run, origin: ExpandOrigin, timeline: ExpandTimeline) {
   html.setAttribute(LAYER, 'base')
   const motion = { duration: timeline.duration, easing: timeline.easing }
   const target = landingTarget(run.split)
-  const flight = avatarFlight(
-    run,
-    avatarBox('nav'),
-    target,
-    avatarElement('nav'),
-  )
+  const from = avatarBox('nav')
+  const flight = avatarFlight(run, from, target, avatarElement('nav'))
   const grow = run.animate(circle, circleFrames(timeline), motion)
   run.animate(circle, [{ opacity: 0 }, { opacity: 1 }], {
     duration: CIRCLE_IN_MS,
@@ -691,7 +689,14 @@ function runOpen(run: Run, origin: ExpandOrigin, timeline: ExpandTimeline) {
     easing: FADE_EASING,
   })
   const recede = recedeStage(run, origin, 'open', motion)
-  const fly = flight?.launch(motion)
+  // Her face settles with a capped overshoot; the circle keeps the bounce.
+  const fly = flight?.launch({
+    duration: timeline.duration,
+    easing: faceFlightEasing(
+      from ? flightTravel(from, target) : 0,
+      supportsLinearEasing(),
+    ),
+  })
   run.atTime(grow, timeline.coverAt, () => {
     for (const animation of recede) animation.cancel()
     html.setAttribute(LAYER, 'top')
