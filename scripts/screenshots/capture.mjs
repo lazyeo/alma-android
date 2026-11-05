@@ -23,7 +23,10 @@ const nativeSafeTop =
 if (!Number.isFinite(nativeSafeTop) || nativeSafeTop < 0)
   throw new Error(`invalid --native-safe-top: ${nativeSafeTop}`)
 const outDir = process.env.ALMA_SHOTS_DIR ?? args[0] ?? '/tmp/alma-shots'
-const only = args[1] ? new RegExp(args[1]) : undefined
+// `-- docs/screenshots readme` captures only the README images, under
+// their README names.
+const readmeOnly = args[1] === 'readme'
+const only = args[1] && !readmeOnly ? new RegExp(args[1]) : undefined
 const themeOverride = process.env.ALMA_SHOTS_THEME
 const themeMode = process.env.ALMA_SHOTS_THEME_MODE
 const DESKTOP = '/d/fixture-desktop/threads'
@@ -7140,6 +7143,158 @@ async function assertShareGeometry(page) {
     )
 }
 
+const allShots = [
+  ...updateShots,
+  ...composerAnnotationShots,
+  ...imageAnnotatorShots,
+  ...taskCardsShots,
+  ...screenShots,
+  ...shots,
+  ...herdrShots,
+  ...gtdShots,
+  ...shareShots,
+]
+
+/** A capture above under its README name, with Alma's tab entry present. */
+function readmeShot(source, file, overrides = {}) {
+  const shot = allShots.find((item) => item.file === source)
+  if (!shot) throw new Error(`README source shot missing: ${source}`)
+  return { ...shot, file, fixture: 'alma', ...overrides }
+}
+
+async function waitForThought(page, scope) {
+  await page.locator(`${scope} .alma-thought-bubble`).first().waitFor()
+}
+
+// The README images, regenerated with
+// `npm run screenshots -- docs/screenshots readme`.
+const readmeShots = [
+  {
+    // Floating pill, desktop name in the title, GTD and Settings in the
+    // header, and Alma's thought bubble over her face.
+    file: 'threads.png',
+    viewport: PHONE,
+    route: DESKTOP,
+    fixture: 'alma-working',
+    safeInsets: true,
+    ready: '.thread-tabs[data-tab-ready="true"]',
+    // The bubble holds 3.5 s; the capture follows right after it pops in.
+    act: (page) => waitForThought(page, '.tab-bar'),
+  },
+  {
+    file: 'alma.png',
+    viewport: PHONE,
+    route: '/d/fixture-desktop/alma',
+    fixture: 'alma',
+    safeInsets: true,
+    ready: '.persona-bubble',
+  },
+  readmeShot('long-press-preview-card-phone.png', 'message-actions.png', {
+    viewport: PHONE,
+  }),
+  {
+    ...codeCopyShot({ file: 'thread-code.png', viewport: PHONE }),
+    fixture: 'alma',
+    safeInsets: true,
+  },
+  {
+    ...threadFilesShot({
+      file: 'files-diff.png',
+      viewport: PHONE,
+      stopAtDiff: true,
+    }),
+    fixture: 'alma',
+    safeInsets: true,
+  },
+  readmeShot('zh-settings-360.png', 'settings-zh.png', {
+    viewport: PHONE,
+    safeInsets: true,
+  }),
+  readmeShot('update-newer-en.png', 'updates.png', { safeInsets: true }),
+  readmeShot('agents-board-en-412.png', 'herdr-board.png', {
+    // The source shot reloads, which drops the fixture query under the
+    // Alma router; switch views in the UI instead.
+    ready: '.agent-pane-row',
+    async act(page) {
+      const board = page.getByRole('button', { name: 'Show board view' })
+      if (await board.count()) await board.click()
+      await page.locator('.agents-board .agent-pane-row').first().waitFor()
+    },
+  }),
+  readmeShot('herdr-blocked-en-412.png', 'herdr-blocked.png'),
+  {
+    // Trackpad control zoomed to 1:1, with the zoom chip and the cursor.
+    file: 'mac-screen.png',
+    viewport: PHONE,
+    route: '/d/fixture-desktop/screen',
+    fixture: 'alma',
+    query: 'lang=en&screenState=picker',
+    ready: '.remote-screen-media',
+    safeInsets: true,
+    async act(page) {
+      await page.getByRole('button', { name: 'Control', exact: true }).click()
+      // A new picture size resets to fit, so zoom only once it has drawn.
+      await page.waitForTimeout(800)
+      await page.getByRole('button', { name: 'Zoom to actual size' }).click()
+      await page.getByRole('button', { name: 'Zoom to fit' }).waitFor()
+    },
+    afterCapture: (page) =>
+      assertNoHorizontalOverflow(page, '.remote-screen-page'),
+  },
+  {
+    file: 'screen-picker.png',
+    viewport: PHONE,
+    route: '/d/fixture-desktop/screen',
+    fixture: 'alma',
+    query: 'lang=en&screenState=picker',
+    ready: '.remote-screen-media',
+    safeInsets: true,
+    async act(page) {
+      await page
+        .getByRole('button', { name: 'Choose a screen or window' })
+        .click()
+      await page.getByText('Release checklist').waitFor()
+    },
+  },
+  {
+    // Unfolded: Alma takes everything right of the rail, her face docked
+    // across the rail edge.
+    file: 'foldable-alma.png',
+    viewport: TABLET,
+    route: '/d/fixture-desktop/alma',
+    fixture: 'alma',
+    safeInsets: true,
+    ready: '.persona-bubble',
+  },
+  {
+    file: 'foldable-generating.png',
+    viewport: TABLET,
+    route: `${DESKTOP}/t-gen`,
+    fixture: 'alma',
+    safeInsets: true,
+    ready: '.thread-generating',
+    async act(page) {
+      await page.getByRole('button', { name: 'Hide thread list' }).click()
+      await page.waitForTimeout(500)
+    },
+  },
+  {
+    file: 'foldable-zh.png',
+    viewport: TABLET,
+    route: `${DESKTOP}/t-long`,
+    fixture: 'alma',
+    language: 'zh',
+    colorScheme: 'light',
+    safeInsets: true,
+    ready: '.code-block',
+  },
+  readmeShot('herdr-pane-chat-claude-en-884.png', 'foldable-herdr-chat.png'),
+  readmeShot(
+    'herdr-pane-terminal-grid-en-884.png',
+    'foldable-herdr-terminal.png',
+  ),
+]
+
 const server = await createServer({
   mode: 'screenshots',
   logLevel: 'error',
@@ -7167,17 +7322,9 @@ try {
   await warmup.close()
   const keepGoing = process.env.SCREENSHOTS_KEEP_GOING === '1'
   const failures = []
-  for (const shot of [
-    ...updateShots,
-    ...composerAnnotationShots,
-    ...imageAnnotatorShots,
-    ...taskCardsShots,
-    ...screenShots,
-    ...shots,
-    ...herdrShots,
-    ...gtdShots,
-    ...shareShots,
-  ].filter((item) => !only || only.test(item.file))) {
+  for (const shot of (readmeOnly ? readmeShots : allShots).filter(
+    (item) => !only || only.test(item.file),
+  )) {
     const context = await browser.newContext({
       viewport: shot.viewport,
       deviceScaleFactor: shot.deviceScaleFactor ?? 1,

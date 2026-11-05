@@ -153,6 +153,69 @@ const SCREEN_JPEG = (() => {
     }
   })
 })()
+// Read from the load-time query: `?fixture=alma` runs the app's router,
+// which replaces the URL and drops the query.
+const screenState = () => screenshotParams.get('screenState')
+const SCREEN_DISPLAYS = [
+  {
+    id: 1,
+    name: 'Built-in Display',
+    width: 1280,
+    height: 800,
+    scale: 2,
+    primary: true,
+  },
+  {
+    id: 2,
+    name: 'Studio Display',
+    width: 2560,
+    height: 1440,
+    scale: 2,
+    primary: false,
+  },
+]
+// Plain coloured tiles stand in for app icons: no real app artwork.
+const windowIcon = (color: string, letter: string) =>
+  `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="14" fill="${color}"/><text x="32" y="43" text-anchor="middle" fill="#fff" font-family="system-ui,sans-serif" font-size="30" font-weight="700">${letter}</text></svg>`)}`
+const SCREEN_WINDOWS = [
+  {
+    id: 101,
+    app: 'Alma',
+    title: 'Release checklist',
+    width: 1200,
+    height: 760,
+    displayId: 1,
+    focused: true,
+    icon: windowIcon('#5b7bb5', 'A'),
+  },
+  {
+    id: 102,
+    app: 'Terminal',
+    title: 'build — zsh',
+    width: 900,
+    height: 560,
+    displayId: 1,
+    icon: windowIcon('#2b2f36', '>'),
+  },
+  {
+    id: 103,
+    app: 'Notes',
+    title: 'Mobile polish ideas',
+    width: 820,
+    height: 640,
+    displayId: 2,
+    icon: windowIcon('#d9a93f', 'N'),
+  },
+  {
+    id: 104,
+    app: 'Safari',
+    title: 'Synthetic test page',
+    width: 1280,
+    height: 800,
+    displayId: 2,
+    icon: windowIcon('#3d8fd6', 'S'),
+  },
+]
 const FIXTURE_MARKDOWN = `# Markdown preview
 
 Rendered with the same **safe Markdown** used in messages.
@@ -1140,8 +1203,12 @@ const crystalDetail = (id: string) => {
 /** `?fixture=legacy` simulates a desktop without refs or Crystals routes. */
 const fixtureMode = new URLSearchParams(window.location.search).get('fixture')
 // `alma-busy` is `alma` with one run going and one approval waiting, for
-// the busy tab entry and its badge.
-const almaFixture = fixtureMode === 'alma' || fixtureMode === 'alma-busy'
+// the busy tab entry and its badge; `alma-working` has the run only, so
+// her thought bubble shows her thinking.
+const almaFixture =
+  fixtureMode === 'alma' ||
+  fixtureMode === 'alma-busy' ||
+  fixtureMode === 'alma-working'
 const legacyDesktop = fixtureMode === 'legacy'
 const emptyCrystals = fixtureMode === 'empty-crystals'
 
@@ -1471,7 +1538,10 @@ function route(method: string, path: string, body?: unknown): TunnelResponse {
       ? json(200, {
           threadId: 't-alma',
           today: { spentUsd: 0.42, budgetUsd: 5, over: false },
-          running: fixtureMode === 'alma-busy' ? 1 : 0,
+          running:
+            fixtureMode === 'alma-busy' || fixtureMode === 'alma-working'
+              ? 1
+              : 0,
           pendingApprovals: fixtureMode === 'alma-busy' ? 1 : 0,
         })
       : json(404, { error: 'Not found' })
@@ -2404,7 +2474,23 @@ function mockSocket(path: string): TunnelSocket {
   const listeners = new Set<(data: string | Uint8Array) => void>()
   const socket: TunnelSocket = {
     opened: Promise.resolve(),
-    send: () => undefined,
+    send(data) {
+      // ?screenState=picker answers the screen picker's window list.
+      if (
+        !path.startsWith('/ws/screen') ||
+        screenState() !== 'picker' ||
+        typeof data !== 'string' ||
+        JSON.parse(data)?.type !== 'windows'
+      )
+        return
+      setTimeout(() => {
+        const reply = JSON.stringify({
+          type: 'windows',
+          windows: SCREEN_WINDOWS,
+        })
+        for (const listener of listeners) listener(reply)
+      }, 60)
+    },
     onMessage(listener) {
       listeners.add(listener)
       return () => listeners.delete(listener)
@@ -2475,6 +2561,10 @@ function mockSocket(path: string): TunnelSocket {
               height: 800,
               scale: 2,
               mode: 'jpeg',
+              // ?screenState=picker: two displays and window streaming.
+              ...(screenState() === 'picker'
+                ? { displays: SCREEN_DISPLAYS, windows: true }
+                : {}),
             },
             { type: 'viewport', width: 1280, height: 800 },
             { type: 'frame', data, width: 1280, height: 800, seq: 1 },
