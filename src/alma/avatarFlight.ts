@@ -15,7 +15,10 @@ export interface Box {
   height: number
 }
 
-/** Where the avatar sits: the tab bar or rail, or the /alma header. */
+/**
+ * Where the avatar sits: the tab bar or rail, or the /alma header (on
+ * split layouts her face docked across the rail edge stands in for it).
+ */
 export type AvatarEnd = 'nav' | 'header'
 
 /** Marks each end's real avatar; the clone copies it. */
@@ -65,6 +68,27 @@ export function predictedHeaderAvatar(
     top: insets.top + (HEADER_BAR_PX - HEADER_AVATAR_PX) / 2,
     width: HEADER_AVATAR_PX,
     height: HEADER_AVATAR_PX,
+  }
+}
+
+/** Her docked face on split layouts (`.alma-dock`), clearly over the 40px rail face. */
+export const DOCK_AVATAR_PX = 52
+
+/**
+ * On split layouts /alma has one face, docked across the rail's right
+ * edge and centred on the 60px header row below the safe top (mirrors
+ * `.alma-dock`). `rail` is the rail's box and its top padding (the safe top).
+ */
+export function predictedDockAvatar(rail: {
+  right: number
+  top: number
+  paddingTop: number
+}): Box {
+  return {
+    left: rail.right - DOCK_AVATAR_PX / 2,
+    top: rail.top + rail.paddingTop + (HEADER_BAR_PX - DOCK_AVATAR_PX) / 2,
+    width: DOCK_AVATAR_PX,
+    height: DOCK_AVATAR_PX,
   }
 }
 

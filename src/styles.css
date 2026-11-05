@@ -10716,6 +10716,39 @@ dialog:focus,
   border-radius: var(--radius-md);
   background: var(--sidebar-accent);
 }
+/* On /alma in split layouts her face leaves the rail slot for the dock
+   across the rail edge: the slot keeps its box (nothing below moves) but
+   shows no face, dot, badge or fill, so there is one face on screen. */
+.split-shell.alma-full .alma-nav-rail .alma-nav-avatar {
+  background: none;
+}
+.split-shell.alma-full .alma-nav-rail .alma-avatar,
+.split-shell.alma-full .alma-nav-rail .alma-nav-badge,
+.split-shell.alma-full .alma-nav-rail .alma-nav-busy {
+  opacity: 0;
+}
+/* Her docked face: 52px, centred on the rail's right edge and on the
+   60px header row below the safe top, bridging her tab and her title.
+   Over the rail and the page, under the avatar clone and every sheet.
+   Mirrors predictedDockAvatar. */
+.alma-dock {
+  --alma-face: 52px;
+  --alma-nav-box: 52px;
+  position: fixed;
+  top: calc(var(--safe-top) + (60px - var(--alma-face)) / 2);
+  left: calc(var(--split-rail-width) - var(--alma-face) / 2);
+  z-index: 5;
+  width: var(--alma-face);
+  height: var(--alma-face);
+  pointer-events: none;
+}
+.alma-dock .alma-avatar {
+  width: 100%;
+  height: 100%;
+}
+.alma-dock .alma-nav-busy {
+  bottom: -6px;
+}
 .alma-setup-state {
   display: grid;
   justify-items: center;
@@ -10865,6 +10898,11 @@ html[data-alma-motion] .alma-shell .persona-message {
   flex: 0 0 36px;
   width: 36px;
   height: 36px;
+}
+/* Split layouts: the title starts 10px (the header gap) clear of her
+   docked face, whose right half reaches 26px into the page. */
+.detail-header.alma-header.docked {
+  padding-left: calc(52px / 2 + 10px);
 }
 .alma-heading {
   min-width: 0;

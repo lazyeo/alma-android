@@ -24,6 +24,7 @@ import {
   almaNavSlot,
   useAlmaNavVisible,
 } from '../alma/AlmaNavButton'
+import { AlmaDock } from '../alma/AlmaDock'
 import {
   ALMA_ROUTE,
   desktopAgentPanePath,
@@ -455,6 +456,8 @@ function AppShellLayout() {
       className={`split-shell${collapsed ? ' collapsed' : ''}${almaFull ? ' alma-full' : ''}`}
       {...(almaFull ? {} : sidebarSwipe)}
     >
+      {/* Her one face on /alma, docked across the rail edge (see AlmaDock). */}
+      {almaFull ? <AlmaDock /> : null}
       <div className="split-rail">
         <SplitRailTop />
         <RailNav
