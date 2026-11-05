@@ -157,6 +157,7 @@
   /* viewport.ts maps pointers through translate(x, y) scale(s) from 0 0. */
   transform-origin: 0 0;
   will-change: transform;
+  transition: opacity var(--dur-fast) var(--ease-out);
 }
 /* The trackpad cursor sits outside the zoomed layer so it keeps its size.
    Its tip (about 3px into the glyph) is the hotspot. */
@@ -172,6 +173,24 @@
 .remote-screen-cursor svg {
   display: block;
   fill: var(--gray-1);
+}
+/* Until the new target's first frame, the last picture stays, dimmed. */
+.remote-screen-surface.is-switching .remote-screen-transform {
+  opacity: 0.5;
+}
+.remote-screen-switching {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--gray-2);
+  color: var(--gray-12);
+  pointer-events: none;
 }
 /* Canvas and video share one cell; video fades in once it has frames. */
 .remote-screen-transform > .remote-screen-media {

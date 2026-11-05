@@ -180,6 +180,159 @@ describe('useRemoteScreen', () => {
   })
 })
 
+const frameMessage = (seq: number, data = `/9j/${seq}`, width = 1280) =>
+  JSON.stringify({ type: 'frame', data, width, height: 800, seq })
+
+const windowStatus = (id: number) =>
+  JSON.stringify({
+    type: 'status',
+    bound: true,
+    displayId: 1,
+    width: 640,
+    height: 400,
+    scale: 2,
+    mode: 'jpeg',
+    windows: true,
+    window: { id, app: 'Notes' },
+  })
+
+/** A tunnel handing out a fresh fake socket per open, logging the order. */
+function switchingTunnel() {
+  const log: string[] = []
+  const sockets: ReturnType<typeof fakeSocket>[] = []
+  const openWebSocket = vi.fn((path: string) => {
+    const fake = fakeSocket()
+    const index = sockets.length
+    vi.mocked(fake.socket.close).mockImplementation(() => {
+      log.push(`close ${index}`)
+    })
+    sockets.push(fake)
+    log.push(`open ${index} ${path}`)
+    return fake.socket
+  })
+  return { tunnel: { openWebSocket }, log, sockets }
+}
+
+describe('switching targets', () => {
+  it('closes the old socket and opens the new one in the same step', async () => {
+    vi.useFakeTimers()
+    try {
+      const { tunnel, log } = switchingTunnel()
+      const { rerender } = renderHook(
+        ({ windowId }: { windowId?: number }) =>
+          useRemoteScreen(tunnel, { rtc: true, windowId }),
+        { initialProps: { windowId: 42 } as { windowId?: number } },
+      )
+      rerender({ windowId: 43 })
+      // No timer had to run: a deliberate switch has no backoff.
+      expect(log).toEqual([
+        'open 0 /ws/screen?window=42',
+        'close 0',
+        'open 1 /ws/screen?window=43',
+      ])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("shows the new window's first frame although its seq restarts at 1", async () => {
+    const { tunnel, sockets } = switchingTunnel()
+    const { result, rerender } = renderHook(
+      ({ windowId }: { windowId?: number }) =>
+        useRemoteScreen(tunnel, { rtc: true, windowId }),
+      { initialProps: { windowId: 42 } as { windowId?: number } },
+    )
+    await act(async () => {
+      await sockets[0].socket.opened
+    })
+    act(() => {
+      sockets[0].message(windowStatus(42))
+      // A long-running stream: the desktop's per-socket counter is high.
+      sockets[0].message(frameMessage(4_000, 'old'))
+    })
+    expect(result.current.frame?.data).toBe('old')
+    expect(result.current.switching).toBe(false)
+
+    rerender({ windowId: 43 })
+    await act(async () => {
+      await sockets[1].socket.opened
+    })
+    // The old picture stays, marked as switching, until the new one lands.
+    expect(result.current.frame?.data).toBe('old')
+    expect(result.current.switching).toBe(true)
+    expect(result.current.status).toBeUndefined()
+    // Frames from the closed socket are ignored.
+    act(() => sockets[0].message(frameMessage(4_001, 'stale')))
+    expect(result.current.frame?.data).toBe('old')
+
+    // The desktop answers with status, viewport, then frame seq 1.
+    act(() => sockets[1].message(windowStatus(43)))
+    expect(result.current.status?.window?.id).toBe(43)
+    expect(result.current.switching).toBe(true)
+    act(() => {
+      sockets[1].message(
+        JSON.stringify({ type: 'viewport', width: 1280, height: 800 }),
+      )
+      sockets[1].message(frameMessage(1, 'new'))
+    })
+    expect(result.current.frame?.data).toBe('new')
+    expect(result.current.switching).toBe(false)
+    // Later frames of the same socket still keep the newest.
+    act(() => {
+      sockets[1].message(frameMessage(3, 'newer'))
+      sockets[1].message(frameMessage(2, 'late'))
+    })
+    expect(result.current.frame?.data).toBe('newer')
+    // A window target never asks for video.
+    expect(
+      vi
+        .mocked(sockets[1].socket.send)
+        .mock.calls.some(([raw]) => String(raw).includes('rtc_start')),
+    ).toBe(false)
+  })
+
+  it('holds taps and scrolls until the new picture shows, but not keys', async () => {
+    const { tunnel, sockets } = switchingTunnel()
+    const { result, rerender } = renderHook(
+      ({ windowId }: { windowId?: number }) =>
+        useRemoteScreen(tunnel, { rtc: false, windowId }),
+      { initialProps: { windowId: 42 } as { windowId?: number } },
+    )
+    act(() => sockets[0].message(frameMessage(10)))
+    rerender({ windowId: 43 })
+    act(() => result.current.setControl(true))
+    const sent = () => vi.mocked(sockets[1].socket.send).mock.calls.length
+    act(() => {
+      result.current.sendControl({
+        type: 'pointer',
+        action: 'click',
+        x: 0.5,
+        y: 0.5,
+      })
+      result.current.sendControl({
+        type: 'scroll',
+        x: 0.5,
+        y: 0.5,
+        dx: 0,
+        dy: 4,
+      })
+    })
+    expect(sent()).toBe(0)
+    act(() => result.current.sendControl({ type: 'key', key: 'esc' }))
+    expect(sent()).toBe(1)
+    act(() => sockets[1].message(frameMessage(1)))
+    act(() =>
+      result.current.sendControl({
+        type: 'pointer',
+        action: 'click',
+        x: 0.5,
+        y: 0.5,
+      }),
+    )
+    expect(sent()).toBe(2)
+  })
+})
+
 describe('wantsVideo', () => {
   it('uses video for the whole screen and JPEG frames for a window', () => {
     expect(wantsVideo({ rtc: true })).toBe(true)

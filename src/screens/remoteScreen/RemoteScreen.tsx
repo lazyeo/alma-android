@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   Hand,
   Keyboard,
+  LoaderCircle,
   Monitor,
   MonitorOff,
   MousePointer2,
@@ -745,7 +746,7 @@ export function RemoteScreen() {
 
       <div
         ref={surfaceRef}
-        className={`remote-screen-surface${remote.control ? ' is-controlling' : ''}${trackpad ? ' is-trackpad' : ''}`}
+        className={`remote-screen-surface${remote.control ? ' is-controlling' : ''}${trackpad ? ' is-trackpad' : ''}${remote.switching ? ' is-switching' : ''}`}
         data-sidebar-swipe-exclude={remote.control || zoomed ? '' : undefined}
         {...screenPointerHandlers}
       >
@@ -758,6 +759,15 @@ export function RemoteScreen() {
             onDark={setDark}
           />
         </div>
+        {remote.switching ? (
+          <div
+            className="remote-screen-switching"
+            role="status"
+            aria-label={t('screen.switching')}
+          >
+            <LoaderCircle size={16} className="spinner" aria-hidden="true" />
+          </div>
+        ) : null}
         {trackpad ? (
           <div
             ref={cursorRef}

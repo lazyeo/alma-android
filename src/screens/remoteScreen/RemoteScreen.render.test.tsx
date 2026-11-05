@@ -17,7 +17,11 @@ const sendControl = vi.fn()
 const send = vi.fn()
 const requestFullscreen = vi.fn(async () => undefined)
 const requestWindows = vi.fn()
-const remoteState: { status?: ScreenStatus; windowList?: ScreenWindowList } = {}
+const remoteState: {
+  status?: ScreenStatus
+  windowList?: ScreenWindowList
+  switching?: boolean
+} = {}
 const targets: ScreenTarget[] = []
 
 vi.mock('react-router-dom', async () => {
@@ -62,6 +66,7 @@ vi.mock('./useRemoteScreen', () => ({
     targets.push(target)
     return {
       connected: true,
+      switching: remoteState.switching ?? false,
       markVideoFrame: vi.fn(),
       stalled: false,
       videoLive: false,
@@ -86,6 +91,7 @@ beforeEach(() => {
   requestWindows.mockClear()
   remoteState.status = undefined
   remoteState.windowList = undefined
+  remoteState.switching = undefined
   targets.length = 0
   send.mockClear()
   const values = new Map<string, string>()
@@ -231,6 +237,22 @@ describe('RemoteScreen window target', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('dims the last picture with a spinner until the new one arrives', () => {
+    remoteState.switching = true
+    const { container, rerender } = render(<RemoteScreen />)
+    const surface = container.querySelector('.remote-screen-surface')!
+    expect(surface.classList.contains('is-switching')).toBe(true)
+    expect(
+      screen.getByRole('status', { name: 'screen.switching' }),
+    ).toBeTruthy()
+    remoteState.switching = false
+    rerender(<RemoteScreen />)
+    expect(surface.classList.contains('is-switching')).toBe(false)
+    expect(
+      screen.queryByRole('status', { name: 'screen.switching' }),
+    ).toBeNull()
   })
 
   it('has no picker when there is nothing to choose', () => {

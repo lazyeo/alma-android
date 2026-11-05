@@ -4,6 +4,7 @@ export const screen = {
   openHint: 'View this desktop and optionally control it',
   back: 'Back',
   connecting: 'Connecting to Mac…',
+  switching: 'Loading the new picture…',
   noPicture: 'No picture from the Mac',
   noPictureHint:
     "Wake can turn on an unlocked display. Locked screens still need unlocking at the Mac, and a closed lid can't be woken.",

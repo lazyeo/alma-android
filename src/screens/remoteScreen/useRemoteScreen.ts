@@ -67,6 +67,15 @@ export function useRemoteScreen(
   const [status, setStatus] = useState<ScreenStatus>()
   const [windowList, setWindowList] = useState<ScreenWindowList>()
   const [frame, setFrame] = useState<ScreenFrame>()
+  const frameRef = useRef<ScreenFrame>()
+  // A new socket (another target, or a reconnect) keeps showing the last
+  // picture until its own first frame arrives.
+  const switchingRef = useRef(false)
+  const [switching, setSwitchingState] = useState(false)
+  const setSwitching = useCallback((value: boolean) => {
+    switchingRef.current = value
+    setSwitchingState(value)
+  }, [])
   const [stream, setStream] = useState<MediaStream>()
   const [connected, setConnected] = useState(false)
   const [rtcState, setRtcState] = useState('idle')
@@ -87,7 +96,15 @@ export function useRemoteScreen(
   }, [])
   const sendControl = useCallback(
     (value: ScreenClientMessage) => {
-      if (controlRef.current) send(value)
+      if (!controlRef.current) return
+      // Until the new target's first frame, the picture is the old one: a
+      // tap or scroll would land somewhere else on the new target.
+      if (
+        switchingRef.current &&
+        (value.type === 'pointer' || value.type === 'scroll')
+      )
+        return
+      send(value)
     },
     [send],
   )
@@ -96,9 +113,13 @@ export function useRemoteScreen(
     let disposed = false
     let rtcTimer: ReturnType<typeof setTimeout> | undefined
     let rtcStarted = false
+    // The desktop numbers frames per socket, from 1: the first frame of this
+    // socket replaces whatever an earlier socket showed, whatever its `seq`.
+    let firstFrame = true
     const path = screenPath({ displayId, windowId })
     const socket = tunnel.openWebSocket(path)
     socketRef.current = socket
+    setSwitching(frameRef.current !== undefined)
     setStatus(undefined)
     setWindowList(undefined)
     setRtcState('idle')
@@ -139,7 +160,14 @@ export function useRemoteScreen(
       if (next.type === 'frame') {
         lastFrameAt.current = Date.now()
         setStalled(false)
-        setFrame((current) => latestFrame(current, next))
+        const kept =
+          firstFrame || !frameRef.current
+            ? next
+            : latestFrame(frameRef.current, next)
+        if (firstFrame) setSwitching(false)
+        firstFrame = false
+        frameRef.current = kept
+        setFrame(kept)
       }
       if (next.type === 'error') setError(next.message)
       if (next.type === 'rtc') setRtcState(next.state)
@@ -210,8 +238,11 @@ export function useRemoteScreen(
     // JPEG frames keep coming while the display is on; while video is live
     // the desktop stops sending them, so only judge the JPEG path.
     const stallTimer = setInterval(() => {
-      if (!videoLiveRef.current)
-        setStalled(isFrameStalled(lastFrameAt.current, Date.now()))
+      if (videoLiveRef.current) return
+      const nextStalled = isFrameStalled(lastFrameAt.current, Date.now())
+      setStalled(nextStalled)
+      // The no-picture notice takes over from the switching spinner.
+      if (nextStalled) setSwitching(false)
     }, 1_000)
     return () => {
       disposed = true
@@ -224,7 +255,16 @@ export function useRemoteScreen(
       socket.close()
       if (socketRef.current === socket) socketRef.current = undefined
     }
-  }, [displayId, rtc, rtcTimeoutMs, send, setControl, tunnel, windowId])
+  }, [
+    displayId,
+    rtc,
+    rtcTimeoutMs,
+    send,
+    setControl,
+    setSwitching,
+    tunnel,
+    windowId,
+  ])
 
   /** Asks the desktop for its windows; the answer lands in `windowList`. */
   const requestWindows = useCallback(() => {
@@ -237,9 +277,11 @@ export function useRemoteScreen(
     videoLiveRef.current = true
     setVideoLive(true)
     setStalled(false)
-  }, [])
+    setSwitching(false)
+  }, [setSwitching])
   return {
     connected,
+    switching,
     markVideoFrame,
     stalled,
     videoLive,

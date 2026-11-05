@@ -7,6 +7,7 @@ export const screen: CatalogShape<typeof source> = {
   openHint: '查看这台电脑，并可选择控制',
   back: '返回',
   connecting: '正在连接 Mac…',
+  switching: '正在载入新画面…',
   noPicture: 'Mac 没有画面',
   noPictureHint: '可唤醒未锁定的屏幕；锁屏仍需在 Mac 上解锁，合盖则无法唤醒。',
   wake: '唤醒屏幕',
