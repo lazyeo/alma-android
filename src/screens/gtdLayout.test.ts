@@ -25,8 +25,10 @@ describe('GTD navigation structure', () => {
     expect(phone).not.toContain('nav.gtd')
     expect(phone).not.toContain('nav.settings')
     expect(rail).toMatch(
-      /nav\.threads[\s\S]*<AlmaNavButton placement="rail" \/>[\s\S]*<AgentsNavLink[\s\S]*\{extras\}[\s\S]*\{toggle\}[\s\S]*nav\.gtd[\s\S]*nav\.settings/,
+      /nav\.threads[\s\S]*<AgentsNavLink[\s\S]*\{extras\}[\s\S]*\{toggle\}[\s\S]*nav\.gtd[\s\S]*nav\.settings/,
     )
+    expect(rail).not.toContain('AlmaNavButton')
+    expect(shell).toContain('<AlmaNavButton placement="rail" />')
     expect(shell).not.toContain('NAV_ITEMS')
     expect(shell).not.toContain('includeGtd')
   })
