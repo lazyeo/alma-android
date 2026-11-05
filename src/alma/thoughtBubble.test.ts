@@ -203,7 +203,9 @@ describe('ThoughtRhythm', () => {
     expect(visible()?.cue).toBe('thinking')
     vi.advanceTimersByTime(THOUGHT_TIMING.hold + THOUGHT_TIMING.exit - 1000)
     expect(visible()).toBeNull()
-    vi.advanceTimersByTime(THOUGHT_TIMING.gap - 2380 - 1)
+    vi.advanceTimersByTime(
+      THOUGHT_TIMING.gap - (THOUGHT_TIMING.hold + THOUGHT_TIMING.exit) - 1,
+    )
     expect(visible()).toBeNull()
     vi.advanceTimersByTime(1)
     expect(visible()).toMatchObject({ cue: 'search', phase: 'in' })
