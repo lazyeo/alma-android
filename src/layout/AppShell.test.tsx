@@ -58,7 +58,8 @@ vi.mock('./useLayoutMode', () => ({
 }))
 
 vi.mock('./useSidebarSwipe', () => ({
-  useSidebarSwipe: () => ({}),
+  // A marker attribute stands in for the pointer handlers it returns.
+  useSidebarSwipe: () => ({ 'data-sidebar-swipe': '' }),
 }))
 
 vi.mock('../herdr/HerdrProvider', () => ({
@@ -397,6 +398,43 @@ describe('Alma in the navigation', () => {
     rect.mockRestore()
     vi.unstubAllGlobals()
     clearExpandDisc()
+    cleanup()
+  })
+})
+
+describe('Alma on split layouts', () => {
+  it('fills the content area: the list folds away and swipe is off', () => {
+    mocks.mode = 'split'
+    mocks.personal = readyPersonal
+    const { container } = renderShell('/d/desktop/alma')
+    const shell = container.querySelector('.split-shell')!
+    expect(shell.classList.contains('alma-full')).toBe(true)
+    expect(shell.hasAttribute('data-sidebar-swipe')).toBe(false)
+    const sidebar = container.querySelector('.split-sidebar')!
+    expect(sidebar.getAttribute('aria-hidden')).toBe('true')
+    expect(sidebar.hasAttribute('inert')).toBe(true)
+    const toggle = container.querySelector<HTMLButtonElement>('.split-toggle')!
+    expect(toggle.disabled).toBe(true)
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    cleanup()
+  })
+
+  it.each([
+    ['threads', '/d/desktop/threads'],
+    ['thread detail', '/d/desktop/threads/thread-1'],
+    ['GTD', '/d/desktop/gtd'],
+    ['Herdr', '/d/desktop/agents'],
+    ['settings', '/settings'],
+  ])('keeps the list and its swipe on %s', (_label, route) => {
+    mocks.mode = 'split'
+    mocks.personal = readyPersonal
+    const { container } = renderShell(route)
+    const shell = container.querySelector('.split-shell')!
+    expect(shell.classList.contains('alma-full')).toBe(false)
+    expect(shell.hasAttribute('data-sidebar-swipe')).toBe(true)
+    expect(
+      container.querySelector('.split-sidebar')!.hasAttribute('inert'),
+    ).toBe(false)
     cleanup()
   })
 })
