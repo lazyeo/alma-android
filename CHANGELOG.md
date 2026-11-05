@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Nothing yet.
+
+## [0.1.8] - 2026-11-05
+
+### Added
+
 - Remote screen zoom and pan: pinch zooms the stream 1–4x around your fingers and snaps back to fit just above 1x. A zoom chip shows the percentage and switches between Fit and 1:1, a hand button lets one finger pan the zoomed view without touching the Mac, and a quick double two-finger tap resets the zoom. The cursor, and every tap, drag and scroll made with it, lands where you see it at any zoom (2026-11-05).
 - Remote screen picker: on desktops that report more than one display or can stream single windows (macOS), a button in the header opens a sheet to show a display, the whole screen, or one app window, with app icons and the current choice ticked. A chosen window is streamed on its own as JPEG frames instead of the whole-display video; video resumes for the whole screen or once the window closes. If the streamed window closes, a short notice says so and the picker shows the whole screen as the current choice. After a switch the new picture shows as soon as its first frame arrives; until then the last one stays, dimmed, with a small spinner, and taps and scrolls wait so they cannot land on the new window in the wrong place (2026-11-05).
 - Alma's thought bubble: while she works, a small comic bubble now and then pops up over her face in the tab bar, the rail and the docked face on /alma, holding one emoji for what she is doing or how she feels: 💭 thinking, 🔍 searching, 📖 reading, ⌨️ writing code, ⚙️ running a command, ✋ waiting for your OK, 😵‍💫 a failed reply, ✅ just finished (once), 😪 tired, and sometimes 😊 when she is in a good mood. It shows when her step changes or every 10–15 seconds while she is busy, never while she is idle or while her face flies into Alma, and half as often with reduced motion (2026-11-05).
@@ -27,7 +33,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - On tablets and unfolded phones the thread list can be swiped closed from the page beside it, the same place it swipes open. On GTD, whose list rows keep their own status swipes, the list could be swiped open but not closed (2026-11-05).
 - Remote screen keeps Control when you switch windows or displays, when the connection drops, and when you leave the app and come back; it reconnects by itself (at once on return, otherwise after 1 to 8 seconds). It turns off only when you choose View only, open another desktop, or the desktop stops accepting input, and then a short notice says why (2026-11-05).
 - Switching desktops no longer reshuffles the tab bar: Alma's centre slot is remembered per desktop and held while the next desktop loads, and fades out only once that desktop is confirmed to have no personal agent (2026-11-05).
-
 ## [0.1.7] - 2026-11-05
 
 ### Added
@@ -205,7 +210,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Foldable layouts, a frosted screen transition, optional Shizuku live hinge-angle input, and an estimated fallback.
 - Foreground-lifetime local notifications for completed replies and pending approvals; no push service is used.
 
-[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.8...HEAD
 [0.1.0]: https://github.com/lazyeo/alma-android/releases/tag/v0.1.0
 [0.1.1]: https://github.com/lazyeo/alma-android/compare/v0.1.0...v0.1.1
 [0.1.2]: https://github.com/lazyeo/alma-android/compare/v0.1.1...v0.1.2
@@ -214,3 +219,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.1.5]: https://github.com/lazyeo/alma-android/compare/v0.1.4...v0.1.5
 [0.1.6]: https://github.com/lazyeo/alma-android/compare/v0.1.5...v0.1.6
 [0.1.7]: https://github.com/lazyeo/alma-android/compare/v0.1.6...v0.1.7
+[0.1.8]: https://github.com/lazyeo/alma-android/compare/v0.1.7...v0.1.8
