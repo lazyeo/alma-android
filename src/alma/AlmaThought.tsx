@@ -186,7 +186,7 @@ export function AlmaThought({
     }
   }, [thought?.id, thought?.phase, reduced, fixedAt])
   if (!allowed || !thought) return null
-  const className = `alma-thought alma-thought-${placement}`
+  const className = ['alma-thought', `alma-thought-${placement}`].join(' ')
   const bubble = (
     <span
       ref={ref}
