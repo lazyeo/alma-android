@@ -24,6 +24,7 @@ export const message: CatalogShape<typeof source> = {
     note: '整体备注',
   },
   ranActions: { one: '执行了 {count} 个操作', other: '执行了 {count} 个操作' },
+  previewSkippedSteps: { one: '{count} 个步骤', other: '{count} 个步骤' },
   sending: '发送中…',
   notSent: '未发送',
   version: '消息版本',

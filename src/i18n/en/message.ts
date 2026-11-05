@@ -21,6 +21,7 @@ export const message = {
     note: 'Overall note',
   },
   ranActions: { one: 'Ran {count} action', other: 'Ran {count} actions' },
+  previewSkippedSteps: { one: '{count} step', other: '{count} steps' },
   sending: 'Sending…',
   notSent: 'Not sent',
   version: 'Message version',

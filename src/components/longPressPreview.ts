@@ -8,7 +8,92 @@
  * layout width and is scaled by `scale` about the column's top-left, so the
  * scale also gives the card its side padding. Long copies are clipped to the
  * card from the message's top, and `clipped` asks for the bottom fade.
+ *
+ * An assistant reply that starts with thinking and tool rows shows only its
+ * final summary (`previewTail`), from the summary's top, under a one-row
+ * hint counting the skipped steps; that card pops in above the sheet.
  */
+
+/** The part shape the tail selection needs (a relay message part). */
+export interface PreviewPartLike {
+  type: string
+  text?: unknown
+}
+
+export interface PreviewTail {
+  /** Indices (into the message's parts) of the parts the card shows. */
+  parts: number[]
+  /** Visible parts before the shown ones that the card leaves out. */
+  skipped: number
+}
+
+const isWork = (part: PreviewPartLike) =>
+  part.type === 'reasoning' ||
+  part.type.startsWith('tool-') ||
+  part.type === 'dynamic-tool'
+
+const isBlankText = (part: PreviewPartLike) =>
+  part.type === 'text' && !(typeof part.text === 'string' && part.text.trim())
+
+const hasText = (part: PreviewPartLike) =>
+  part.type === 'text' && !isBlankText(part)
+
+/**
+ * What an assistant reply's preview card shows: its final summary, not the
+ * thinking and tool rows it starts with. That is the run of content parts
+ * after the last tool call or thinking block; when the reply ended on a tool,
+ * its last non-empty text. Undefined keeps the whole message: a reply with
+ * no tool or thinking parts, or one with no text at all.
+ */
+export function previewTail(
+  parts: readonly PreviewPartLike[],
+): PreviewTail | undefined {
+  let lastWork = -1
+  parts.forEach((part, index) => {
+    if (isWork(part)) lastWork = index
+  })
+  if (lastWork < 0) return undefined
+  let shown: number[] = []
+  for (let index = lastWork + 1; index < parts.length; index++) {
+    const part = parts[index]
+    if (part.type !== 'step-start' && !isBlankText(part)) shown.push(index)
+  }
+  if (!shown.some((index) => hasText(parts[index]))) {
+    let last = parts.length - 1
+    while (last >= 0 && !hasText(parts[last])) last--
+    if (last < 0) return undefined
+    shown = [last]
+  }
+  const skipped = parts
+    .slice(0, shown[0])
+    .filter((part) => part.type !== 'step-start' && !isBlankText(part)).length
+  return { parts: shown, skipped }
+}
+
+/**
+ * The tail as data attributes for the message's element, read back by the
+ * long-press lift; each part's wrapper carries `data-message-part`.
+ */
+export function previewTailAttributes(
+  parts: readonly PreviewPartLike[],
+): Record<string, string> {
+  const tail = previewTail(parts)
+  return tail
+    ? {
+        'data-preview-parts': tail.parts.join(' '),
+        'data-preview-skipped': String(tail.skipped),
+      }
+    : {}
+}
+
+/** Reads `previewTailAttributes` back from the message's element. */
+export function readPreviewTail(element: HTMLElement): PreviewTail | undefined {
+  const list = element.dataset.previewParts
+  if (!list) return undefined
+  const parts = list.split(' ').map(Number).filter(Number.isInteger)
+  if (!parts.length) return undefined
+  return { parts, skipped: Number(element.dataset.previewSkipped) || 0 }
+}
 
 /** The copy's scale inside the card; also sets the card's side padding. */
 export const PREVIEW_SCALE = 0.88
@@ -45,6 +130,17 @@ export interface PreviewCardInput {
    * card's padding replaces; it is moved above the clip.
    */
   trimTop?: number
+  /**
+   * Room reserved at the card's top, above the copy, for the skipped-steps
+   * hint (unscaled px).
+   */
+  lead?: number
+  /**
+   * The copy does not start at the message's top (earlier parts skipped):
+   * there is nothing to grow out of, so the card sits right above the sheet
+   * and pops in.
+   */
+  pop?: boolean
   scale?: number
 }
 
@@ -57,8 +153,13 @@ export interface PreviewCard {
   /** Where the copy's top-left sits inside the card, before scaling. */
   contentLeft: number
   contentTop: number
+  /** Where the hint row sits inside the card (when `lead` was given). */
+  leadLeft: number
+  leadTop: number
   /** The copy is taller than the card: clip it and draw the bottom fade. */
   clipped: boolean
+  /** Enter by popping in place, not by growing out of the message. */
+  pop: boolean
 }
 
 export function previewCardRect({
@@ -68,6 +169,8 @@ export function previewCardRect({
   safeTop,
   sheetTop,
   trimTop = 0,
+  lead: leadRaw = 0,
+  pop = false,
   scale: preferredScale = PREVIEW_SCALE,
 }: PreviewCardInput): PreviewCard | undefined {
   // Never narrower than the message itself, never wider than the screen.
@@ -87,7 +190,8 @@ export function previewCardRect({
   const padX = (width * (1 - scale)) / 2
   const padY = Math.min(PAD_Y_MAX_PX, Math.max(PAD_Y_MIN_PX, padX))
   const trim = Math.min(Math.max(0, trimTop), source.height)
-  const natural = (source.height - trim) * scale + padY * 2
+  const lead = Math.max(0, leadRaw)
+  const natural = lead + (source.height - trim) * scale + padY * 2
   const room = sheetTop - safeTop - PREVIEW_MARGIN_PX * 2
   const maxHeight = Math.min(
     viewport.height * PREVIEW_MAX_VIEWPORT_FRACTION,
@@ -96,14 +200,13 @@ export function previewCardRect({
   if (maxHeight < PREVIEW_MIN_HEIGHT_PX) return undefined
   const height = Math.min(natural, maxHeight)
   // Stay where the message starts when that is on screen (clamped into the
-  // free band); a message whose top scrolled away gets its card right above
-  // the sheet, next to its actions.
+  // free band); a message whose top scrolled away, or a copy that does not
+  // start at the message's top, gets its card right above the sheet, next
+  // to its actions.
   const minTop = safeTop + PREVIEW_MARGIN_PX
   const maxTop = sheetTop - PREVIEW_MARGIN_PX - height
-  const top =
-    source.top < safeTop
-      ? maxTop
-      : Math.min(maxTop, Math.max(minTop, source.top))
+  const popIn = pop || source.top < safeTop
+  const top = popIn ? maxTop : Math.min(maxTop, Math.max(minTop, source.top))
   return {
     left,
     top,
@@ -111,8 +214,11 @@ export function previewCardRect({
     height,
     scale,
     contentLeft: padX + (source.left - left) * scale,
-    contentTop: padY - trim * scale,
+    contentTop: padY + lead - trim * scale,
+    leadLeft: padX,
+    leadTop: padY,
     clipped: natural > maxHeight + 0.5,
+    pop: popIn,
   }
 }
 
@@ -127,7 +233,7 @@ export function previewCardFrom(
   source: PreviewRectLike,
   safeTop: number,
 ): { transform: string; opacity: number } {
-  if (source.top < safeTop) {
+  if (card.pop || source.top < safeTop) {
     // Origin is top-left; offset by half the shrink to keep it centred.
     const inset = (1 - PREVIEW_POP_SCALE) / 2
     return {

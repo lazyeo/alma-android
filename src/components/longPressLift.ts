@@ -4,10 +4,13 @@ import {
   FADE_EXIT_MS,
   reducedMotionPreferred,
 } from '../motionTokens'
+import { t } from '../i18n/runtime'
 import {
   previewCardFrom,
   previewCardRect,
+  readPreviewTail,
   type PreviewCard,
+  type PreviewTail,
 } from './longPressPreview'
 
 /**
@@ -26,7 +29,11 @@ import {
  * reduced inside a card between the status bar and the sheet (see
  * longPressPreview.ts), since a long message lifted at full size runs off
  * the screen and under its actions. The message itself stays in place
- * under the dim; the card grows out of it and back.
+ * under the dim; the card grows out of it and back. An assistant reply
+ * that starts with thinking and tool rows is shown from its final summary
+ * instead: the copy keeps only the parts named by `data-preview-parts`
+ * (each part's wrapper carries `data-message-part`), drops anything marked
+ * `data-preview-omit`, and is laid out off screen once to measure it.
  */
 
 /** A long press arms the lift; the overlay it opens must take it this soon. */
@@ -34,6 +41,9 @@ const ARM_TTL_MS = 800
 /** Canvases beyond these limits are replaced by a blank box, not copied. */
 const MAX_CANVASES = 8
 const MAX_CANVAS_PIXELS = 4_000_000
+/** The skipped-steps hint row above a summary copy, with its gap. */
+export const PREVIEW_HINT_PX = 24
+const SVG_NS = 'http://www.w3.org/2000/svg'
 
 export interface LongPressLiftArm {
   source: HTMLElement
@@ -118,6 +128,11 @@ export interface BuiltLift {
 export interface PreviewPlacement {
   card: PreviewCard
   from: { transform: string; opacity: number }
+  /**
+   * A summary copy, already built and measured (its height is `height`);
+   * absent when the card shows the whole message.
+   */
+  summary?: { content: HTMLDivElement; height: number; skipped: number }
 }
 
 /**
@@ -125,7 +140,11 @@ export interface PreviewPlacement {
  * reproduced as `display: contents` wrappers, so selectors scoped to a
  * screen or list still style the copy the way they style the row.
  */
-function appendCopy(source: HTMLElement, parent: HTMLElement) {
+function appendCopy(
+  source: HTMLElement,
+  parent: HTMLElement,
+  tail?: PreviewTail,
+) {
   const chain: HTMLElement[] = []
   for (
     let node = source.parentElement;
@@ -157,7 +176,76 @@ function appendCopy(source: HTMLElement, parent: HTMLElement) {
   clone.classList.add('long-press-lift-clone')
   copyCanvases(source, clone)
   replaceLiveMedia(source, clone)
+  if (tail) pruneToTail(clone, tail)
   parent.append(clone)
+  return clone
+}
+
+/** Keeps only the tail's parts in a message copy (see readPreviewTail). */
+function pruneToTail(clone: HTMLElement, tail: PreviewTail) {
+  const keep = new Set(tail.parts.map(String))
+  clone
+    .querySelectorAll<HTMLElement>('[data-message-part], [data-preview-omit]')
+    .forEach((node) => {
+      const part = node.dataset.messagePart
+      if (part === undefined || !keep.has(part)) node.remove()
+    })
+}
+
+/** The tail to show for `source`, when its part wrappers are rendered. */
+function sourceTail(source: HTMLElement) {
+  const tail = readPreviewTail(source)
+  if (!tail) return undefined
+  const rendered = tail.parts.some((part) =>
+    source.querySelector(`[data-message-part="${part}"]`),
+  )
+  return rendered ? tail : undefined
+}
+
+/**
+ * Builds a summary copy of `source` (its tail parts only) at the source's
+ * width and measures it off screen: with parts removed it no longer lays
+ * out like the original, so its height cannot be read from the original.
+ */
+function buildSummaryCopy(
+  source: HTMLElement,
+  width: number,
+  tail: PreviewTail,
+) {
+  const content = document.createElement('div')
+  content.className = 'long-press-preview-content'
+  content.style.width = `${width}px`
+  const clone = appendCopy(source, content, tail)
+  const probe = document.createElement('div')
+  probe.className = 'long-press-preview-probe'
+  probe.setAttribute('aria-hidden', 'true')
+  probe.append(content)
+  document.body.append(probe)
+  const height = clone.getBoundingClientRect().height
+  probe.remove()
+  content.remove()
+  return { content, height }
+}
+
+/** "N steps" with a chevrons-up icon: earlier work sits above this copy. */
+function buildHint(card: PreviewCard, skipped: number) {
+  const hint = document.createElement('div')
+  hint.className = 'long-press-preview-hint'
+  hint.style.left = `${card.leadLeft}px`
+  hint.style.top = `${card.leadTop}px`
+  hint.style.width = `${card.width - card.leadLeft * 2}px`
+  const icon = document.createElementNS(SVG_NS, 'svg')
+  icon.setAttribute('viewBox', '0 0 24 24')
+  icon.setAttribute('aria-hidden', 'true')
+  for (const points of ['17 11 12 6 7 11', '17 18 12 13 7 18']) {
+    const line = document.createElementNS(SVG_NS, 'polyline')
+    line.setAttribute('points', points)
+    icon.append(line)
+  }
+  const label = document.createElement('span')
+  label.textContent = t('message.previewSkippedSteps', { count: skipped })
+  hint.append(icon, label)
+  return hint
 }
 
 /**
@@ -211,7 +299,7 @@ function buildPreview(
   source: HTMLElement,
   rect: DOMRect,
   lift: HTMLDivElement,
-  { card, from }: PreviewPlacement,
+  { card, from, summary }: PreviewPlacement,
 ) {
   lift.classList.add('preview')
   lift.style.left = `${card.left}px`
@@ -225,15 +313,17 @@ function buildPreview(
   const clip = document.createElement('div')
   clip.className = 'long-press-preview'
   if (card.clipped) clip.dataset.clipped = 'true'
-  const content = document.createElement('div')
+  const content = summary?.content ?? document.createElement('div')
   content.className = 'long-press-preview-content'
   content.style.left = `${card.contentLeft}px`
   content.style.top = `${card.contentTop}px`
   content.style.width = `${rect.width}px`
-  content.style.height = `${rect.height}px`
+  content.style.height = `${summary?.height ?? rect.height}px`
   content.style.transform = `scale(${card.scale})`
-  appendCopy(source, content)
+  if (!summary) appendCopy(source, content)
   clip.append(content)
+  if (summary && summary.skipped > 0)
+    clip.append(buildHint(card, summary.skipped))
   if (card.clipped) {
     const fade = document.createElement('div')
     fade.className = 'long-press-preview-fade'
@@ -278,19 +368,35 @@ export function placeLongPressPreview(
   const unboxed =
     style.backgroundColor === 'rgba(0, 0, 0, 0)' &&
     (Number.parseFloat(style.borderTopWidth) || 0) === 0
+  const tail = sourceTail(source)
+  const copy = tail ? buildSummaryCopy(source, rect.width, tail) : undefined
+  const skipped = tail?.skipped ?? 0
   const card = previewCardRect({
-    source: rect,
+    source: copy
+      ? {
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: copy.height,
+        }
+      : rect,
     column: { left: columnRect.left, right: columnRect.right },
     viewport,
     safeTop,
     sheetTop,
     trimTop: unboxed ? Number.parseFloat(style.paddingTop) || 0 : 0,
+    lead: skipped > 0 ? PREVIEW_HINT_PX : 0,
+    pop: skipped > 0,
   })
   if (!card) return undefined
   const from = reducedMotionPreferred()
     ? { transform: 'none', opacity: 0 }
     : previewCardFrom(card, rect, safeTop)
-  return { card, from }
+  return {
+    card,
+    from,
+    summary: copy && tail ? { ...copy, skipped } : undefined,
+  }
 }
 
 export interface LongPressLiftHandle {

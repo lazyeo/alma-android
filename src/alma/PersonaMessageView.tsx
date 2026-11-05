@@ -1,5 +1,6 @@
 import { RefreshCw } from 'lucide-react'
 import { memo, useMemo, useState } from 'react'
+import { previewTailAttributes } from '../components/longPressPreview'
 import { useLongPress } from '../components/useLongPress'
 import { useT } from '../i18n'
 import { PartView, type PartViewCapabilities } from '../messages/PartView'
@@ -41,11 +42,17 @@ export const PersonaMessageView = memo(function PersonaMessageView({
     [row.message.parts],
   )
   const alma = layout.side === 'alma'
+  // The long-press preview card shows a reply's final summary.
+  const previewTail = useMemo(
+    () => (alma ? previewTailAttributes(row.message.parts) : undefined),
+    [alma, row.message.parts],
+  )
   const status = row.metadata?.optimisticStatus
   const empty = !parts.body.length && !parts.reasoning.length
   return (
     <article
       {...press}
+      {...previewTail}
       className={`persona-message ${layout.side}${layout.first ? ' first' : ''}${layout.last ? ' last' : ''}`}
     >
       {alma ? (
@@ -58,6 +65,7 @@ export const PersonaMessageView = memo(function PersonaMessageView({
           <button
             type="button"
             className="quiet-text-button persona-thinking-toggle"
+            data-preview-omit=""
             aria-expanded={thinkingOpen}
             onClick={() => setThinkingOpen((open) => !open)}
           >
@@ -67,7 +75,7 @@ export const PersonaMessageView = memo(function PersonaMessageView({
           </button>
         ) : null}
         {thinkingOpen ? (
-          <div className="persona-thinking">
+          <div className="persona-thinking" data-preview-omit="">
             {parts.reasoning.map((part, index) => (
               <div key={index}>
                 {capabilities.renderMarkdown(String(part.text ?? ''), false)}
@@ -78,13 +86,17 @@ export const PersonaMessageView = memo(function PersonaMessageView({
         {parts.body.length ? (
           <div className="persona-bubble">
             {parts.body.map((part, index) => (
-              <PartView
+              <div
                 key={`${part.type}-${index}`}
-                part={part}
-                live={false}
-                linkUserFilePaths={alma}
-                capabilities={capabilities}
-              />
+                data-message-part={row.message.parts.indexOf(part)}
+              >
+                <PartView
+                  part={part}
+                  live={false}
+                  linkUserFilePaths={alma}
+                  capabilities={capabilities}
+                />
+              </div>
             ))}
           </div>
         ) : alma && generating && empty ? (

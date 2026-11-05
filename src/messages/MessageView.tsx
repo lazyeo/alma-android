@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import type { HTMLAttributes, ReactNode } from 'react'
 import type { MessagePart } from './index'
+import { previewTailAttributes } from '../components/longPressPreview'
 import { EndResourceCards } from './EndResourceCards'
 import { PartView, type PartViewCapabilities } from './PartView'
 import type { NestedMessageRow } from './ToolPart'
@@ -88,8 +89,17 @@ export function MessageView({
     Boolean(usage) ||
     workedDuration !== undefined ||
     Boolean(endReason)
+  // The long-press preview card shows a reply's final summary.
+  const previewTail =
+    row.message.role === 'assistant'
+      ? previewTailAttributes(row.message.parts)
+      : undefined
   return (
-    <article {...longPressProps} className={`message ${row.message.role}`}>
+    <article
+      {...longPressProps}
+      {...previewTail}
+      className={`message ${row.message.role}`}
+    >
       {groupParts(row.message.parts).map((group) => {
         const content = group.parts.map((part, index) => (
           <PartView
@@ -110,7 +120,11 @@ export function MessageView({
         ))
         const active = group.parts.find((part) => toolState(part) === 'running')
         return group.tools && group.parts.length >= 3 ? (
-          <details className="tool-group" key={group.indices[0]}>
+          <details
+            className="tool-group"
+            key={group.indices[0]}
+            data-message-part={group.indices[0]}
+          >
             <summary>
               {t('message.ranActions', { count: group.parts.length })}{' '}
               {active ? (
@@ -123,7 +137,9 @@ export function MessageView({
             {content}
           </details>
         ) : (
-          <div key={group.indices[0]}>{content}</div>
+          <div key={group.indices[0]} data-message-part={group.indices[0]}>
+            {content}
+          </div>
         )
       })}
       {row.message.role === 'assistant' && !generating ? (
@@ -149,6 +165,7 @@ export function MessageView({
       ) : null}
       <footer
         className={`message-footer${footerHasMetadata ? '' : ' actions-only'}`}
+        data-preview-omit=""
       >
         <div className="message-footer-meta">
           {usage && renderUsage ? renderUsage(usage) : null}
