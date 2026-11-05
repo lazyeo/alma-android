@@ -597,6 +597,26 @@ describe('Alma API safety', () => {
     )
   })
 
+  it('posts a reaction op for the row id', async () => {
+    const fetch = vi.fn().mockResolvedValue({
+      status: 200,
+      json: async () => ({ id: 'thread-1--msg-1' }),
+      text: async () => '',
+      headers: {},
+    })
+    const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)
+
+    await api.setMessageReaction('thread-1--msg-1', '👍', 'remove')
+
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/messages/thread-1--msg-1/reactions',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ emoji: '👍', op: 'remove' }),
+      }),
+    )
+  })
+
   it('rejects raw attachment bodies above the conservative relay cap before sending', async () => {
     const fetch = vi.fn()
     const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)

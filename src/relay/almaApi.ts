@@ -924,6 +924,16 @@ export class AlmaApi {
       { method: 'POST', body: { direction } },
     )
   }
+  /**
+   * Adds or removes the user's emoji on a message (desktop 0.4.434+); returns
+   * the updated row, which the desktop also broadcasts as `message_updated`.
+   */
+  setMessageReaction(messageId: string, emoji: string, op: 'add' | 'remove') {
+    return this.request<MessageRow>(
+      `/api/messages/${encodeURIComponent(messageId)}/reactions`,
+      { method: 'POST', body: { emoji, op } },
+    )
+  }
   private assertRelayUploadSize(bytes: Uint8Array, filename: string) {
     if (bytes.byteLength > MAX_RELAY_UPLOAD_BYTES) {
       throw new Error(
