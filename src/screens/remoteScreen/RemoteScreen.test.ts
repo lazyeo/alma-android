@@ -8,11 +8,14 @@ const source = readFileSync(
 
 describe('RemoteScreen desktop switching', () => {
   it('renders the shared desktop switcher in the header', () => {
-    expect(source).toContain(
-      "import { DesktopSwitcher } from '../../desktops/DesktopSwitcher'",
+    expect(source).toMatch(
+      /import \{\s*DesktopSwitcher,\s*DesktopTransportIndicator,\s*\} from '\.\.\/\.\.\/desktops\/DesktopSwitcher'/,
+    )
+    expect(source).toMatch(
+      /<DesktopSwitcher\s+className="desktop-title-switcher remote-screen-desktop-switcher"\s+variant="title"\s+\/>/,
     )
     expect(source).toContain(
-      '<DesktopSwitcher className="remote-screen-desktop-switcher" />',
+      '<DesktopTransportIndicator className="remote-screen-latency" />',
     )
   })
 })

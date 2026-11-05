@@ -5,7 +5,6 @@ import {
   ArrowRight,
   ArrowUp,
   BarChart3,
-  ChevronLeft,
   Hand,
   Keyboard,
   LoaderCircle,
@@ -28,7 +27,10 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom'
 import { copyText } from '../../clipboard'
 import { useConnection } from '../../desktops/DesktopContext'
-import { DesktopSwitcher } from '../../desktops/DesktopSwitcher'
+import {
+  DesktopSwitcher,
+  DesktopTransportIndicator,
+} from '../../desktops/DesktopSwitcher'
 import { useDesktopPlatform } from '../../desktops/platform'
 import { haptic } from '../../haptics'
 import { useT } from '../../i18n'
@@ -660,10 +662,13 @@ export function RemoteScreen() {
   }, [pairing.id, status])
 
   return (
-    <section className="remote-screen-page">
+    <section className="remote-screen-page" aria-label={t('screen.title')}>
+      {/* One line, like the phone root headers: Back, the desktop switcher
+          as the title, its transport and latency, then the control toggle.
+          The page title stays as the section's label. */}
       <header className="remote-screen-header">
         <button
-          className="quiet-icon-button"
+          className="scoped-root-back"
           aria-label={t('screen.back')}
           onClick={() => {
             const origin = (location.state as { screenOrigin?: string } | null)
@@ -673,14 +678,17 @@ export function RemoteScreen() {
             })
           }}
         >
-          <ChevronLeft size={22} />
+          <ArrowLeft size={20} />
         </button>
         <div className="remote-screen-heading">
-          <strong>{t('screen.title')}</strong>
-          <DesktopSwitcher className="remote-screen-desktop-switcher" />
+          <DesktopSwitcher
+            className="desktop-title-switcher remote-screen-desktop-switcher"
+            variant="title"
+          />
+          <DesktopTransportIndicator className="remote-screen-latency" />
         </div>
         <button
-          className="chip-button"
+          className="chip-button remote-screen-control"
           aria-pressed={remote.control}
           disabled={Boolean(unavailable)}
           onClick={() => remote.setControl(!remote.control)}

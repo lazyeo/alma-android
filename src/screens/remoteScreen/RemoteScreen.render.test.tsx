@@ -50,7 +50,20 @@ vi.mock('../../desktops/DesktopContext', () => ({
 }))
 
 vi.mock('../../desktops/DesktopSwitcher', () => ({
-  DesktopSwitcher: () => <div>Mac</div>,
+  DesktopSwitcher: ({
+    className,
+    variant,
+  }: {
+    className?: string
+    variant?: string
+  }) => (
+    <button className={className} data-variant={variant}>
+      Mac
+    </button>
+  ),
+  DesktopTransportIndicator: ({ className }: { className?: string }) => (
+    <span className={className}>42 ms</span>
+  ),
 }))
 
 vi.mock('../../i18n', () => {
@@ -123,6 +136,33 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+})
+
+describe('RemoteScreen header', () => {
+  it('is one line: Back, the title switcher with its latency, the toggle', () => {
+    const { container } = render(<RemoteScreen />)
+    const page = container.querySelector('.remote-screen-page')!
+    expect(page.getAttribute('aria-label')).toBe('screen.title')
+    const header = page.querySelector('.remote-screen-header')!
+    expect(
+      [...header.children].map((child) => child.className.split(' ')[0]),
+    ).toEqual(['scoped-root-back', 'remote-screen-heading', 'chip-button'])
+    const heading = header.querySelector('.remote-screen-heading')!
+    expect(
+      [...heading.children].map((child) => child.className.split(' ')),
+    ).toEqual([
+      ['desktop-title-switcher', 'remote-screen-desktop-switcher'],
+      ['remote-screen-latency'],
+    ])
+    expect(
+      heading
+        .querySelector('.desktop-title-switcher')!
+        .getAttribute('data-variant'),
+    ).toBe('title')
+    // No separate page title stacked over the switcher.
+    expect(header.querySelector('strong, small, h1, h2')).toBeNull()
+    expect(header.textContent).not.toContain('screen.title')
+  })
 })
 
 describe('RemoteScreen toolbar actions', () => {

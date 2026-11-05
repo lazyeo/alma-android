@@ -21,10 +21,10 @@ describe('remote screen theme tokens', () => {
     expect(rule('.remote-screen-header')).toContain(
       'background: var(--background)',
     )
-    expect(rule('.remote-screen-heading strong')).toContain(
+    expect(rule('.remote-screen-desktop-switcher')).toContain(
       'color: var(--foreground)',
     )
-    expect(rule('.remote-screen-desktop-switcher')).toContain(
+    expect(rule('.remote-screen-latency')).toContain(
       'color: var(--muted-foreground)',
     )
     expect(rule('.remote-control-indicator strong')).toContain(
@@ -38,11 +38,23 @@ describe('remote screen theme tokens', () => {
     )
   })
 
+  it('sizes the header like the phone root headers, on one line', () => {
+    const header = rule('.remote-screen-header')
+    expect(header).toContain('height: calc(60px + var(--safe-top))')
+    expect(header).not.toContain('min-height')
+    expect(header).toContain('white-space: nowrap')
+    // The latency drops onto a clipped line rather than squeezing the name.
+    const heading = rule('.remote-screen-heading')
+    expect(heading).toContain('height: 44px')
+    expect(heading).toContain('flex-wrap: wrap')
+    expect(heading).toContain('overflow: hidden')
+    expect(css).not.toMatch(/\.remote-screen-heading (strong|small)/)
+  })
+
   it('does not hardcode gray text colors in control or status selectors', () => {
     for (const selector of [
-      '.remote-screen-heading strong',
-      '.remote-screen-heading small',
       '.remote-screen-desktop-switcher',
+      '.remote-screen-latency',
       '.remote-control-indicator',
       '.remote-control-indicator strong',
       '.remote-control-indicator span:last-child',
