@@ -101,6 +101,17 @@ export function AnchoredMenu({
   // Declared before placement so the menu can anchor beside the lifted row.
   const lift = useLongPressLift(backdropRef, rendered, closing, { dim: true })
 
+  // An owner that drops an immediate-close menu itself (a header button such
+  // as Mark done) never goes through requestClose, so the menu would stay
+  // "open" though nothing is drawn: still taking Back, and its lifted copy
+  // gone with the portal while the row stays hidden. Finish the close now;
+  // the lift then settles the copy back onto the row from a body layer.
+  useLayoutEffect(() => {
+    if (!immediateClose || open || !rendered) return
+    requestClose()
+    finishClose()
+  }, [finishClose, immediateClose, open, rendered, requestClose])
+
   useLayoutEffect(() => {
     if (!open || !menuRef.current) return
     const triggerBox = triggerRef.current?.getBoundingClientRect()

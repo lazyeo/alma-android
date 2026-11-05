@@ -5,6 +5,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { StrictMode, useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DUR_FAST_MS, FADE_EXIT_MS } from '../motionTokens'
+import { overlayCount, resetOverlayStackForTests } from '../overlayStack'
 import { AnchoredMenu, anchorBesideLift, pointAnchor } from './AnchoredMenu'
 import { BottomSheet } from './BottomSheet'
 import {
@@ -211,6 +212,129 @@ describe('long-press lift with an anchored menu', () => {
       bottom: 80,
     })
     expect(anchor).toEqual({ left: 120, right: 120, top: 14, bottom: 86 })
+  })
+})
+
+/**
+ * The Threads list's row menu: it closes immediately when its owner drops
+ * it (a header button such as Mark done), status changes keep the row in
+ * place and update it at once, and Delete takes the row away.
+ */
+function ThreadMenuHarness() {
+  const [status, setStatus] = useState('To-do')
+  const [present, setPresent] = useState(true)
+  const [menu, setMenu] = useState<{ x: number; y: number }>()
+  const press = useLongPress((point) => setMenu(point))
+  return (
+    <div className="thread-list">
+      {present ? (
+        <div data-testid="row" className="thread-row" {...press}>
+          <span data-testid="status">{status}</span>
+        </div>
+      ) : null}
+      <AnchoredMenu
+        open={Boolean(menu)}
+        onOpenChange={(open) => !open && setMenu(undefined)}
+        anchorRect={menu ? pointAnchor(menu.x, menu.y) : undefined}
+        label="Thread actions"
+        immediateClose
+        header={
+          <button
+            onClick={() => {
+              setMenu(undefined)
+              setStatus('Done')
+            }}
+          >
+            Mark done
+          </button>
+        }
+        items={[
+          {
+            key: 'in-progress',
+            label: 'In progress',
+            onSelect: () => setStatus('In progress'),
+          },
+          {
+            key: 'delete',
+            label: 'Delete',
+            destructive: true,
+            onSelect: () => setPresent(false),
+          },
+        ]}
+      />
+    </div>
+  )
+}
+
+describe('long-press lift on the Threads row menu', () => {
+  beforeEach(() => resetOverlayStackForTests())
+
+  it('settles back onto the row when Mark done closes the menu from its owner', async () => {
+    render(<ThreadMenuHarness />)
+    const row = screen.getByTestId('row')
+    longPress(row)
+    expect(overlayCount()).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Mark done' }))
+    await flush()
+
+    // The row stays and is updated at once, under the settling copy.
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.getByTestId('status').textContent).toBe('Done')
+    const released = layer()!
+    expect(released.parentElement).toBe(document.body)
+    expect(released.dataset.state).toBe('settling')
+    // The closed menu no longer takes a Back press.
+    expect(overlayCount()).toBe(0)
+    act(() => {
+      vi.advanceTimersByTime(FADE_EXIT_MS)
+    })
+    expect(layer()).toBeNull()
+    expect(row.isConnected).toBe(true)
+    expect(row.style.visibility).toBe('')
+  })
+
+  it('settles back onto the row for a status change from the menu', async () => {
+    render(<ThreadMenuHarness />)
+    const row = screen.getByTestId('row')
+    longPress(row)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'In progress' }))
+    expect(screen.getByTestId('status').textContent).toBe('In progress')
+    expect(layer()!.dataset.state).toBe('settling')
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    await flush()
+    expect(layer()).toBeNull()
+    expect(row.style.visibility).toBe('')
+  })
+
+  it('fades the copy when Delete takes the row away', async () => {
+    render(<ThreadMenuHarness />)
+    longPress(screen.getByTestId('row'))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    expect(screen.queryByTestId('row')).toBeNull()
+    expect(layer()!.dataset.state).toBe('fading')
+    act(() => {
+      vi.advanceTimersByTime(1000)
+    })
+    await flush()
+    expect(layer()).toBeNull()
+  })
+
+  it('lifts the next long-pressed row after Mark done', async () => {
+    render(<ThreadMenuHarness />)
+    const row = screen.getByTestId('row')
+    longPress(row)
+    fireEvent.click(screen.getByRole('button', { name: 'Mark done' }))
+    await flush()
+    act(() => {
+      vi.advanceTimersByTime(FADE_EXIT_MS)
+    })
+    longPress(row)
+    expect(layer()!.parentElement?.className).toContain(
+      'anchored-menu-backdrop',
+    )
+    expect(layer()!.dataset.state).toBe('lifted')
   })
 })
 
