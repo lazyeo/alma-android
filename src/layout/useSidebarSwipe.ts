@@ -104,8 +104,10 @@ export function useSidebarSwipe(
     const rail = target?.closest('.split-rail')
     const sidebar = target?.closest('.split-sidebar')
     const main = target?.closest('.split-main')
-    if (!collapsedRef.current) return Boolean(rail || sidebar)
     if (rail) return true
+    if (sidebar) return !collapsedRef.current
+    // Open and close share the page's left 40%: on GTD the list beside it is
+    // all rows that own their swipes, so the page is where a close can start.
     if (!main) return false
     const rect = main.getBoundingClientRect()
     return event.clientX <= rect.left + rect.width * 0.4
