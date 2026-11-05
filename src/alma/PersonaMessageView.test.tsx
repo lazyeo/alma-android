@@ -124,4 +124,32 @@ describe('PersonaMessageView', () => {
     ])
     expect(screen.getByText('Not sent')).toBeTruthy()
   })
+
+  it('shows reactions under the bubble, Alma’s included, and toggles the user’s', () => {
+    const row = message('u1', 'user', [{ type: 'text', text: 'ship it' }], {
+      reactions: [
+        { emoji: '👀', reactedAt: '', by: 'assistant' },
+        { emoji: '👍', reactedAt: '' },
+      ],
+    })
+    const onToggleReaction = vi.fn()
+    const { container } = render(
+      <LanguageProvider>
+        <PersonaMessageView
+          row={row}
+          layout={personaLayout([row])[0]}
+          mood="happy"
+          capabilities={capabilities}
+          onToggleReaction={onToggleReaction}
+        />
+      </LanguageProvider>,
+    )
+    const chips = container.querySelector('.persona-stack .message-reactions')
+    expect(chips?.previousElementSibling?.className).toBe('persona-bubble')
+    expect(screen.getByRole('img', { name: 'Alma reacted 👀' })).toBeTruthy()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Remove your 👍 reaction' }),
+    )
+    expect(onToggleReaction).toHaveBeenCalledWith(row, '👍')
+  })
 })

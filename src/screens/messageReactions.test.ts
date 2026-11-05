@@ -3,13 +3,13 @@ import type { MessageRow } from '../relay'
 import { AlmaHttpError } from '../relay/almaApi'
 import {
   applyReactionOp,
-  isReactionsRouteMissing,
+  canReact,
   parseReactions,
   toggleOp,
-  toggleReaction,
   withReactions,
   type MessageReaction,
 } from './messageReactions'
+import { isReactionsRouteMissing, toggleReaction } from './reactionToggle'
 import { DeltaAccumulator } from './threadDeltas'
 
 const AT = '2026-11-06T10:00:00.000Z'
@@ -169,6 +169,15 @@ describe('toggleReaction', () => {
     expect((await toggleReaction(full, '👍', d)).outcome).toBe('full')
     expect(d.send).not.toHaveBeenCalled()
     expect(d.show).not.toHaveBeenCalled()
+  })
+})
+
+describe('canReact', () => {
+  it('waits until the desktop has stored the message', () => {
+    expect(canReact(userRow())).toBe(true)
+    expect(
+      canReact({ ...userRow(), metadata: { optimisticStatus: 'pending' } }),
+    ).toBe(false)
   })
 })
 

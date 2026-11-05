@@ -247,6 +247,8 @@ describe('stylesheet token enforcement', () => {
       // The activity status word rolling in its one-line slot.
       'status-roll-in',
       'status-roll-out',
+      // A reaction chip arriving under a message already on screen.
+      'reaction-chip-in',
     ]
     const defined = [...css.matchAll(/@keyframes ([\w-]+)/g)].map(
       (match) => match[1],

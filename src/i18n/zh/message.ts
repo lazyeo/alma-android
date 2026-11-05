@@ -38,6 +38,14 @@ export const message: CatalogShape<typeof source> = {
     retry: '重新生成回复',
     resend: '重新发送消息',
   },
+  reactions: {
+    label: '表情回应',
+    quick: '回应',
+    add: '用 {emoji} 回应',
+    remove: '移除你的 {emoji} 回应',
+    yours: '你回应了 {emoji}',
+    alma: 'Alma 回应了 {emoji}',
+  },
   endReason: {
     length: '已达长度上限而停止',
     error: '因错误而结束',

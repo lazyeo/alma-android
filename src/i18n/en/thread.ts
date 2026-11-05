@@ -82,6 +82,7 @@ export const thread = {
     recipe: 'Could not update recipe suggestion',
     retry: 'Could not retry',
     switchVersion: 'Could not switch message version',
+    reaction: 'Could not update the reaction',
     loadInbox: 'Could not load action inbox',
   },
 } as const

@@ -1332,6 +1332,85 @@ dd {
   margin: 12px 4px 4px;
   background: var(--line);
 }
+/* Quick reactions sit above the message actions: one row of equal cells. */
+.quick-reactions {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 8px;
+}
+.quick-reactions button {
+  min-height: 48px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: var(--border-hairline) solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  /* Emoji are glyphs here, sized like an icon, not reading text. */
+  font-size: var(--text-display);
+  line-height: var(--leading-tight);
+}
+.quick-reactions button:active {
+  background: var(--gray-3);
+}
+.quick-reactions button.own {
+  border-color: var(--accent-8);
+  background: var(--accent-3);
+}
+/* Reactions under a message, on the side of its bubble. Chips share one
+   24px line, so a later chip never changes the row's height; it only fades
+   and scales in. */
+.message-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+.message.user + .message-reactions {
+  justify-content: flex-end;
+  margin: -8px 0 12px;
+}
+.message.assistant + .message-reactions {
+  margin: -8px 0 8px;
+  padding-inline: 3px;
+}
+.reaction-chip {
+  position: relative;
+  height: 24px;
+  min-width: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border: var(--border-hairline) solid var(--gray-7);
+  border-radius: var(--radius-full);
+  background: var(--gray-2);
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  line-height: var(--leading-tight);
+}
+.reaction-chip.own {
+  border-color: var(--accent-8);
+  background: var(--accent-3);
+}
+button.reaction-chip::before {
+  content: '';
+  position: absolute;
+  inset: -8px -4px;
+}
+button.reaction-chip:active {
+  background: var(--accent-4);
+}
+.reaction-chip.entering {
+  animation: reaction-chip-in var(--dur-fast) var(--ease-spring) backwards;
+}
+@keyframes reaction-chip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
 .action-sheet .composer-goal-sheet-row small {
   margin-left: auto;
   color: var(--muted-foreground);

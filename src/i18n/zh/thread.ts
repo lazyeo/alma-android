@@ -82,6 +82,7 @@ export const thread: CatalogShape<typeof source> = {
     recipe: '无法更新可复用任务建议',
     retry: '无法重试',
     switchVersion: '无法切换消息版本',
+    reaction: '无法更新表情回应',
     loadInbox: '无法加载操作收件箱',
   },
 }

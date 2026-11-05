@@ -100,6 +100,9 @@ import { MarkdownContent } from './MarkdownContent'
 import { initialThreadOverscan, THREAD_OVERSCAN } from './threadVirtualizer'
 import { MessageView, PartView, type NestedMessageRow } from '../messages'
 import { messageRetry } from '../messages/messageRetry'
+import { QuickReactions, ReactionChips } from '../messages/ReactionChips'
+import { canReact, parseReactions, withReactions } from './messageReactions'
+import { toggleReaction } from './reactionToggle'
 import { presenceFace, useAlmaPresence } from '../alma/AlmaPresence'
 import { PersonaMessageView } from '../alma/PersonaMessageView'
 import { personaLayout } from '../alma/personaLayout'
@@ -344,6 +347,7 @@ type ThreadMessageViewProps = {
   onActions?: (row: MessageRow) => void
   onSwitchVersion?: (row: MessageRow, direction: 'prev' | 'next') => void
   onRetryFailed?: (row: MessageRow) => void
+  onToggleReaction?: (row: MessageRow, emoji: string) => void
 }
 
 function sameUsage(left?: GenerationUsage, right?: GenerationUsage) {
@@ -383,6 +387,7 @@ function sameThreadMessageProps(
     previous.onActions === next.onActions &&
     previous.onSwitchVersion === next.onSwitchVersion &&
     previous.onRetryFailed === next.onRetryFailed &&
+    previous.onToggleReaction === next.onToggleReaction &&
     sameUsage(previous.usage, next.usage) &&
     sameNestedRows(previous.row, previous.nestedByParent, next.nestedByParent)
   )
@@ -397,29 +402,41 @@ export const ThreadMessageView = memo(function ThreadMessageView({
   generating = false,
   usage,
   workspacePath,
+  onToggleReaction,
 }: ThreadMessageViewProps) {
   const press = useLongPress(() => onActions?.(row), { preview: true })
   const { openFile } = useFileLinks()
+  const reactions = useMemo(() => parseReactions(row.metadata), [row.metadata])
   return (
-    <MessageView
-      row={row}
-      workspacePath={workspacePath}
-      generating={generating}
-      usage={usage}
-      nestedByParent={nestedByParent}
-      onActions={onActions ? () => onActions(row) : undefined}
-      onSwitchVersion={
-        onSwitchVersion
-          ? (_message, direction) => onSwitchVersion(row, direction)
-          : undefined
-      }
-      onRetryFailed={onRetryFailed ? () => onRetryFailed(row) : undefined}
-      capabilities={threadPartCapabilities}
-      longPressProps={press}
-      renderUsage={(value) => <UsageFooter usage={value as GenerationUsage} />}
-      onOpenFile={openFile}
-      onOpenWebsite={(target) => void openExternalUrl(target)}
-    />
+    <>
+      <MessageView
+        row={row}
+        workspacePath={workspacePath}
+        generating={generating}
+        usage={usage}
+        nestedByParent={nestedByParent}
+        onActions={onActions ? () => onActions(row) : undefined}
+        onSwitchVersion={
+          onSwitchVersion
+            ? (_message, direction) => onSwitchVersion(row, direction)
+            : undefined
+        }
+        onRetryFailed={onRetryFailed ? () => onRetryFailed(row) : undefined}
+        capabilities={threadPartCapabilities}
+        longPressProps={press}
+        renderUsage={(value) => (
+          <UsageFooter usage={value as GenerationUsage} />
+        )}
+        onOpenFile={openFile}
+        onOpenWebsite={(target) => void openExternalUrl(target)}
+      />
+      <ReactionChips
+        reactions={reactions}
+        onToggle={
+          onToggleReaction ? (emoji) => onToggleReaction(row, emoji) : undefined
+        }
+      />
+    </>
   )
 }, sameThreadMessageProps)
 
@@ -670,6 +687,9 @@ function ThreadView({
   editingQueuedRef.current = editingQueuedItem
   const [uploading, setUploading] = useState(false)
   const [actionRow, setActionRow] = useState<MessageRow>()
+  // Unknown until the first toggle; desktops before 0.4.434 answer 404 and
+  // then only show the reactions their metadata already carries.
+  const [reactionsSupported, setReactionsSupported] = useState(true)
   const [editingMessageId, setEditingMessageId] = useState<string>()
   // While editing an earlier message the composer holds that message, not
   // the draft, so autosave pauses until the edit is sent or cancelled.
@@ -2263,6 +2283,53 @@ function ThreadView({
     [api, load, t],
   )
 
+  const toggleMessageReaction = useCallback(
+    async (row: MessageRow, emoji: string) => {
+      if (!canReact(row)) return
+      void haptic('light')
+      const latest = rowsRef.current.find(
+        (candidate) => candidate.id === row.id,
+      )
+      const result = await toggleReaction(
+        parseReactions((latest ?? row).metadata),
+        emoji,
+        {
+          show: (reactions) =>
+            commitRows(
+              rowsRef.current.map((candidate) =>
+                candidate.id === row.id
+                  ? withReactions(candidate, reactions)
+                  : candidate,
+              ),
+            ),
+          send: (value, op) => api.setMessageReaction(row.id, value, op),
+          confirm: (updated) =>
+            commitRows(
+              accumulatorRef.current.sync(rowsRef.current, [updated], false),
+            ),
+        },
+      )
+      // A 409 (full, or a race with another device) settles on the next
+      // `message_updated`; it is not worth an error line.
+      if (result.outcome === 'unsupported') setReactionsSupported(false)
+      if (result.outcome === 'failed') setError(t('thread.errors.reaction'))
+    },
+    [api, commitRows, t],
+  )
+  const onToggleReaction = reactionsSupported
+    ? toggleMessageReaction
+    : undefined
+  const actionReactions =
+    actionRow && reactionsSupported && canReact(actionRow)
+      ? parseReactions(
+          (
+            rowsRef.current.find(
+              (candidate) => candidate.id === actionRow.id,
+            ) ?? actionRow
+          ).metadata,
+        )
+      : undefined
+
   const runCount = crewRunCount(crew)
   const activeRunCount = activeCrewRunCount(crew)
   const crewCounts = crewHeaderCounts(crew)
@@ -2654,6 +2721,7 @@ function ThreadView({
                             capabilities={threadPartCapabilities}
                             onActions={setActionRow}
                             onRetryFailed={retryFailedUserMessage}
+                            onToggleReaction={onToggleReaction}
                           />
                         ) : (
                         <ThreadMessageView
@@ -2670,6 +2738,7 @@ function ThreadView({
                           onRetryFailed={retryFailedUserMessage}
                           onSwitchVersion={switchVersion}
                           nestedByParent={nestedByParent}
+                          onToggleReaction={onToggleReaction}
                         />
                         )}
                       </MessageBoundary>
@@ -2872,6 +2941,15 @@ function ThreadView({
             className="action-sheet"
             onClose={() => setActionRow(undefined)}
           >
+            {actionReactions ? (
+              <QuickReactions
+                reactions={actionReactions}
+                onToggle={(emoji) => {
+                  setActionRow(undefined)
+                  void toggleMessageReaction(actionRow, emoji)
+                }}
+              />
+            ) : null}
             <button
               onClick={() => {
                 void haptic('light')

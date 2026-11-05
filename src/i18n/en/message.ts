@@ -35,6 +35,14 @@ export const message = {
     retry: 'Retry reply',
     resend: 'Resend message',
   },
+  reactions: {
+    label: 'Reactions',
+    quick: 'React',
+    add: 'React with {emoji}',
+    remove: 'Remove your {emoji} reaction',
+    yours: 'You reacted {emoji}',
+    alma: 'Alma reacted {emoji}',
+  },
   endReason: {
     length: 'Stopped at length limit',
     error: 'Ended with an error',

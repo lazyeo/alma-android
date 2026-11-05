@@ -4,8 +4,10 @@ import { previewTailAttributes } from '../components/longPressPreview'
 import { useLongPress } from '../components/useLongPress'
 import { useT } from '../i18n'
 import { PartView, type PartViewCapabilities } from '../messages/PartView'
+import { ReactionChips } from '../messages/ReactionChips'
 import type { MessageRow } from '../relay'
 import { LoadingOrb } from '../screens/LoadingOrbCanvas'
+import { parseReactions } from '../screens/messageReactions'
 import { AlmaFace } from './AlmaFace'
 import type { FaceMood } from './faceState'
 import { personaParts, type PersonaRowLayout } from './personaLayout'
@@ -18,6 +20,7 @@ export interface PersonaMessageViewProps {
   capabilities: PartViewCapabilities
   onActions?: (row: MessageRow) => void
   onRetryFailed?: (row: MessageRow) => void
+  onToggleReaction?: (row: MessageRow, emoji: string) => void
 }
 
 /**
@@ -33,6 +36,7 @@ export const PersonaMessageView = memo(function PersonaMessageView({
   capabilities,
   onActions,
   onRetryFailed,
+  onToggleReaction,
 }: PersonaMessageViewProps) {
   const t = useT()
   const press = useLongPress(() => onActions?.(row), { preview: true })
@@ -48,6 +52,7 @@ export const PersonaMessageView = memo(function PersonaMessageView({
     [alma, row.message.parts],
   )
   const status = row.metadata?.optimisticStatus
+  const reactions = useMemo(() => parseReactions(row.metadata), [row.metadata])
   const empty = !parts.body.length && !parts.reasoning.length
   return (
     <article
@@ -104,6 +109,14 @@ export const PersonaMessageView = memo(function PersonaMessageView({
             <LoadingOrb size={14} />
           </div>
         ) : null}
+        <ReactionChips
+          reactions={reactions}
+          onToggle={
+            onToggleReaction
+              ? (emoji) => onToggleReaction(row, emoji)
+              : undefined
+          }
+        />
         {status === 'pending' ? (
           <p className="message-delivery-status">{t('message.sending')}</p>
         ) : status === 'failed' ? (
