@@ -29,7 +29,7 @@ export function rigPixelRatio(ratio = window.devicePixelRatio) {
  * soon as the rig loads, so a face mounting mid-transition paints on its
  * first commit.
  */
-export const RIG_FACE_SIZES = [28, 36, 56] as const
+export const RIG_FACE_SIZES = [28, 36, 60] as const
 
 /** The output (device pixel) size a face of `size` CSS pixels draws at. */
 export function rigOutputPixels(size: number, ratio = rigPixelRatio()) {

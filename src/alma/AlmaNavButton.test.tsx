@@ -151,11 +151,11 @@ describe('AlmaNavButton', () => {
     expect(live.container.querySelector('.alma-nav-busy')).toBeTruthy()
   })
 
-  it('draws her face at 56px on the phone tab', () => {
+  it('draws her face at 60px on the phone tab', () => {
     const { container } = renderButton(ready('main'))
     const face = container.querySelector('.alma-avatar svg')!
     expect(face.getAttribute('width')).toBe(String(NAV_FACE_SIZE.tab))
-    expect(NAV_FACE_SIZE).toEqual({ tab: 56, rail: 36 })
+    expect(NAV_FACE_SIZE).toEqual({ tab: 60, rail: 36 })
     expect(RIG_FACE_SIZES).toEqual(
       expect.arrayContaining(Object.values(NAV_FACE_SIZE)),
     )
@@ -179,15 +179,15 @@ describe('AlmaNavButton', () => {
         // The face, not the box around it, is the expand's origin.
         return (
           this.classList.contains('alma-avatar')
-            ? { left: 175, top: 821, width: 56, height: 56 }
+            ? { left: 173, top: 819, width: 60, height: 60 }
             : { left: 167, top: 843, width: 72, height: 47 }
         ) as DOMRect
       })
     renderButton(ready('main'))
     expect(observed).toHaveLength(1)
     observed[0]()
-    expect(lastExpandDisc()).toMatchObject({ left: 175, width: 56 })
-    expect(avatarBox('nav')).toMatchObject({ top: 821, height: 56 })
+    expect(lastExpandDisc()).toMatchObject({ left: 173, width: 60 })
+    expect(avatarBox('nav')).toMatchObject({ top: 819, height: 60 })
     rect.mockClear()
     fireEvent.click(button()!)
     expect(screen.getByTestId('where').textContent).toBe('/d/home/alma')

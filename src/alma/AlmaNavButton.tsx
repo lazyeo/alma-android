@@ -10,7 +10,7 @@ import { recordAvatarBox } from './avatarFlight'
 import { useMeasuredBox } from './measuredBox'
 
 /** CSS size of her face: the phone tab, the split rail. */
-export const NAV_FACE_SIZE = { tab: 56, rail: 36 } as const
+export const NAV_FACE_SIZE = { tab: 60, rail: 36 } as const
 
 /**
  * Her slot: shown while the desktop has a personal agent, held through a
@@ -29,7 +29,7 @@ export function useAlmaNavVisible() {
 }
 
 /**
- * Alma's face: centre of the phone tab bar, top of the split rail.
+ * Alma's face: centre of the phone tab bar, second in the split rail.
  * Opens her conversation; /alma sets it up first when the desktop has none.
  */
 export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {

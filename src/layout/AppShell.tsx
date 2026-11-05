@@ -8,7 +8,7 @@ import {
   PanelLeftOpen,
   Settings,
 } from 'lucide-react'
-import { Fragment, useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import {
   Link,
   NavLink,
@@ -47,12 +47,7 @@ import {
   resolveLastViewedPane,
 } from '../herdr/agentsBoardModel'
 import { useUpdates } from '../updates/UpdateProvider'
-
-const NAV_ITEMS = [
-  { to: '/threads', labelKey: 'nav.threads', Icon: MessagesSquare },
-  { to: '/gtd', labelKey: 'nav.gtd', Icon: ListTodo },
-  { to: '/settings', labelKey: 'nav.settings', Icon: Settings },
-] as const
+import { useSoftKeyboardOpen } from './useSoftKeyboard'
 
 function ActiveDesktopStrip() {
   const { store, desktops } = useDesktops()
@@ -73,59 +68,13 @@ function useActiveThreadsPath() {
   return activeId ? desktopThreadsPath(activeId) : '/threads'
 }
 
-function MainNav({
-  className,
-  compact,
-  extras,
-  beforeSettings,
-}: {
-  className: string
-  compact?: boolean
-  /** Rail-only destinations, after the shared tabs. */
-  extras?: ReactNode
-  beforeSettings?: ReactNode
-}) {
-  const t = useT()
-  const { badge } = useUpdates()
+function useNavState() {
   const { pathname } = useLocation()
   const threadsPath = useActiveThreadsPath()
   const desktopId = decodeURIComponent(threadsPath.split('/')[2] ?? '')
-  // The phone tab bar puts Alma at its geometric centre; the rail shows her
-  // at its top instead (see AppShell).
-  const almaCentre = useAlmaNavVisible() && !compact
-  const link = (
-    { to, labelKey, Icon }: (typeof NAV_ITEMS)[number],
-    destination: string,
-    active: boolean,
-  ) => {
-    const label = t(labelKey)
-    return (
-      <Link
-        key={to}
-        to={destination}
-        replace
-        aria-label={compact ? label : undefined}
-        title={compact ? label : undefined}
-        aria-current={active ? 'page' : undefined}
-        className={active ? 'active' : ''}
-      >
-        <span className="tab-icon">
-          <Icon size={22} />
-          {to === '/settings' && badge ? (
-            <span
-              className="update-badge-dot"
-              aria-label={t('settings.updates.availableDot')}
-            />
-          ) : null}
-        </span>
-        {compact ? null : label}
-      </Link>
-    )
-  }
-  const [threads, gtd, settings] = NAV_ITEMS
   const gtdActive = /^\/d\/[^/]+\/gtd(?:\/|$)/.test(pathname)
   const threadsActive =
-    (pathname === threads.to || pathname.startsWith('/d/')) &&
+    (pathname === '/threads' || pathname.startsWith('/d/')) &&
     !ALMA_ROUTE.test(pathname) &&
     !gtdActive &&
     !pathname.includes('/crystals') &&
@@ -133,38 +82,120 @@ function MainNav({
     !pathname.includes('/references') &&
     !pathname.includes('/agents')
   const settingsActive =
-    pathname === settings.to || pathname.startsWith(`${settings.to}/`)
-  // Same order everywhere: Threads, Agents, GTD, (rail extras), Settings.
-  const items: ReactNode[] = [
-    link(threads, threadsPath, threadsActive),
-    desktopId ? (
-      <AgentsNavLink
-        key="agents"
-        desktopId={desktopId}
-        compact={Boolean(compact)}
-      />
-    ) : null,
-    link(gtd, desktopId ? desktopGtdPath(desktopId) : gtd.to, gtdActive),
-    extras ? <Fragment key="rail-extras">{extras}</Fragment> : null,
-    beforeSettings ? (
-      <Fragment key="before-settings">{beforeSettings}</Fragment>
-    ) : null,
-    link(settings, settings.to, settingsActive),
-  ].filter(Boolean)
-  if (!almaCentre)
-    return (
-      <nav className={className} aria-label={t('nav.main')}>
-        {items}
-      </nav>
-    )
-  // Two equal halves keep the avatar on the bar's centre line: Threads,
-  // Agents | Alma | GTD, Settings. An odd count leaves the extra tab left.
-  const split = Math.ceil(items.length / 2)
+    pathname === '/settings' || pathname.startsWith('/settings/')
+  return { threadsPath, desktopId, threadsActive, gtdActive, settingsActive }
+}
+
+function NavItem({
+  to,
+  label,
+  active,
+  className = '',
+  children,
+}: {
+  to: string
+  label: string
+  active: boolean
+  className?: string
+  children: ReactNode
+}) {
   return (
-    <nav className={`${className} with-alma`} aria-label={t('nav.main')}>
-      <div className="tab-bar-half">{items.slice(0, split)}</div>
-      <AlmaNavButton placement="tab" />
-      <div className="tab-bar-half">{items.slice(split)}</div>
+    <Link
+      to={to}
+      replace
+      aria-label={label}
+      title={label}
+      aria-current={active ? 'page' : undefined}
+      className={`${className}${active ? ' active' : ''}`.trim()}
+    >
+      <span className="tab-icon">{children}</span>
+    </Link>
+  )
+}
+
+/**
+ * The phone's floating tab bar: Threads, Alma at the centre, Herdr. GTD and
+ * Settings open from the Threads header. Children keep their keys across
+ * desktop switches so nothing remounts when her slot comes or goes.
+ */
+function PhoneNav({ hidden }: { hidden: boolean }) {
+  const t = useT()
+  const { threadsPath, desktopId, threadsActive } = useNavState()
+  const alma = useAlmaNavVisible()
+  return (
+    <nav
+      className={`tab-bar floating-nav${alma ? ' with-alma' : ''}`}
+      aria-label={t('nav.main')}
+      data-hidden={hidden ? 'true' : undefined}
+      aria-hidden={hidden ? 'true' : undefined}
+      {...(hidden ? ({ inert: '' } as Record<string, string>) : {})}
+    >
+      <NavItem
+        key="threads"
+        to={threadsPath}
+        label={t('nav.threads')}
+        active={threadsActive}
+        className="threads-entry"
+      >
+        <MessagesSquare size={22} />
+      </NavItem>
+      <AlmaNavButton key="alma" placement="tab" />
+      {desktopId ? <AgentsNavLink key="agents" desktopId={desktopId} /> : null}
+    </nav>
+  )
+}
+
+/**
+ * The split rail: Threads, Alma, Herdr, the Library destinations, then the
+ * sidebar toggle, GTD and Settings at the foot.
+ */
+function RailNav({
+  extras,
+  toggle,
+}: {
+  extras?: ReactNode
+  toggle: ReactNode
+}) {
+  const t = useT()
+  const { badge } = useUpdates()
+  const { threadsPath, desktopId, threadsActive, gtdActive, settingsActive } =
+    useNavState()
+  return (
+    <nav className="split-nav" aria-label={t('nav.main')}>
+      <NavItem
+        to={threadsPath}
+        label={t('nav.threads')}
+        active={threadsActive}
+        className="threads-entry"
+      >
+        <MessagesSquare size={22} />
+      </NavItem>
+      <AlmaNavButton placement="rail" />
+      {desktopId ? <AgentsNavLink desktopId={desktopId} /> : null}
+      {extras}
+      {toggle}
+      <NavItem
+        to={desktopId ? desktopGtdPath(desktopId) : '/gtd'}
+        label={t('nav.gtd')}
+        active={gtdActive}
+        className="gtd-rail-entry"
+      >
+        <ListTodo size={22} />
+      </NavItem>
+      <NavItem
+        to="/settings"
+        label={t('nav.settings')}
+        active={settingsActive}
+        className="settings-rail-entry"
+      >
+        <Settings size={22} />
+        {badge ? (
+          <span
+            className="update-badge-dot"
+            aria-label={t('settings.updates.availableDot')}
+          />
+        ) : null}
+      </NavItem>
     </nav>
   )
 }
@@ -313,14 +344,7 @@ export function AppShell() {
 }
 
 function SplitRailTop() {
-  // With a personal agent the rail's top slot is Alma herself, otherwise
-  // the non-interactive app logo.
-  if (useAlmaNavVisible())
-    return (
-      <div className="split-logo split-alma">
-        <AlmaNavButton placement="rail" />
-      </div>
-    )
+  // The non-interactive app logo; Alma is the rail's second item.
   return (
     <span className="split-logo" aria-hidden="true">
       <img src="/icon-192.png" alt="" />
@@ -334,8 +358,9 @@ function AppShellLayout() {
   const [collapsed, toggleSidebar, setSidebarCollapsed] = useSidebarCollapsed()
   const shellRef = useRef<HTMLDivElement>(null)
   const sidebarSwipe = useSidebarSwipe(shellRef, collapsed, setSidebarCollapsed)
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
   const navigate = useNavigate()
+  const keyboardOpen = useSoftKeyboardOpen()
   const { store } = useDesktops()
   const activeDesktopId =
     store.activeId ?? visiblePairings(store.pairings)[0]?.id
@@ -352,9 +377,16 @@ function AppShellLayout() {
   const agentWorkspaces = agentsDesktopId ? agents(agentsDesktopId) : []
   const screenDetail = /^\/d\/[^/]+\/screen\/?$/.test(pathname)
   const almaDetail = ALMA_ROUTE.test(pathname)
-  // GTD is a phone tab now; its list is a root, its threads are details.
+  // On phones GTD and Settings open from the Threads header like the
+  // Library pages: Back plus a local title, no tab bar.
   const phoneChild =
-    /^\/d\/[^/]+\/(?:crystals|time-clues|references)(?:\/|$)/.test(pathname)
+    /^\/d\/[^/]+\/(?:crystals|time-clues|references)(?:\/|$)/.test(pathname) ||
+    /^\/d\/[^/]+\/gtd\/?$/.test(pathname) ||
+    pathname === '/settings'
+  // The phone new-thread page keeps its composer clear of the floating bar.
+  const newThread =
+    Boolean(thread && !thread.threadId) &&
+    new URLSearchParams(search).has('new')
   const detail =
     Boolean(thread?.threadId) ||
     screenDetail ||
@@ -394,10 +426,10 @@ function AppShellLayout() {
           <Outlet />
         </main>
         {detail ? null : (
-          <>
+          <div className="phone-dock">
             <ActiveDesktopStrip />
-            <MainNav className="tab-bar" />
-          </>
+            {newThread ? null : <PhoneNav hidden={keyboardOpen} />}
+          </div>
         )}
       </div>
     )
@@ -410,10 +442,8 @@ function AppShellLayout() {
     >
       <div className="split-rail">
         <SplitRailTop />
-        <MainNav
-          className="split-nav"
-          compact
-          beforeSettings={
+        <RailNav
+          toggle={
             <button
               className="split-toggle"
               aria-label={

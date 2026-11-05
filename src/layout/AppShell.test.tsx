@@ -150,55 +150,81 @@ function renderShell(route: string) {
   )
 }
 
+const sideLabels = (bar: Element) =>
+  [...bar.querySelectorAll(':scope > a')].map((a) =>
+    a.getAttribute('aria-label'),
+  )
+
 describe('Alma in the navigation', () => {
-  it('leaves the phone tab bar unchanged when the desktop has no personal agent', () => {
+  it('shows Threads and Herdr alone, centred, without a personal agent', () => {
     mocks.mode = 'single'
     mocks.personal = { status: 'unsupported' }
     const { container } = renderShell('/d/desktop/threads')
-    const bar = container.querySelector('.tab-bar')!
+    const bar = container.querySelector('.phone-dock > .tab-bar')!
+    expect(bar.classList.contains('floating-nav')).toBe(true)
     expect(bar.classList.contains('with-alma')).toBe(false)
     expect(bar.querySelector('.alma-nav')).toBeNull()
-    expect(bar.querySelector('.tab-bar-half')).toBeNull()
-    // Threads, Herdr, GTD, Settings, evenly
-    expect(
-      [...bar.querySelectorAll(':scope > a')].map((a) => a.textContent),
-    ).toEqual(['Threads', 'Herdr', 'GTD', 'Settings'])
+    expect(sideLabels(bar)).toEqual(['Threads', 'Herdr'])
+    // Icons only: the label is the accessible name.
+    expect(bar.textContent).toBe('')
     cleanup()
   })
 
-  it('puts the avatar between two halves of the phone tabs', () => {
+  it('puts her face between Threads and Herdr, and nothing else', () => {
     mocks.mode = 'single'
     mocks.personal = readyPersonal
     const { container } = renderShell('/d/desktop/threads')
     const bar = container.querySelector('.tab-bar.with-alma')!
     const children = [...bar.children]
+    expect(children).toHaveLength(3)
     expect(children.map((child) => child.className)).toEqual([
-      'tab-bar-half',
+      'threads-entry active',
       'alma-nav alma-nav-tab',
-      'tab-bar-half',
+      'agents-entry',
     ])
-    // Threads, Herdr | Alma | GTD, Settings: two each side.
+    expect(sideLabels(bar)).toEqual(['Threads', 'Herdr'])
+    expect(bar.querySelector('a[href="/d/desktop/agents"]')).toBeTruthy()
+    // GTD and Settings moved to the Threads header.
+    expect(bar.querySelector('a[href="/d/desktop/gtd"]')).toBeNull()
+    expect(bar.querySelector('a[href="/settings"]')).toBeNull()
     expect(
-      children.map((child) =>
-        [...child.querySelectorAll('a')].map((a) => a.textContent),
-      ),
-    ).toEqual([['Threads', 'Herdr'], [], ['GTD', 'Settings']])
-    expect(bar.querySelector('a[href="/d/desktop/agents"]')?.textContent).toBe(
-      'Herdr',
-    )
+      bar.querySelector('[aria-current="page"]')?.getAttribute('aria-label'),
+    ).toBe('Threads')
     cleanup()
   })
 
-  it('shows GTD as a phone tab root with the tab bar', () => {
+  it.each([
+    ['GTD', '/d/desktop/gtd'],
+    ['Settings', '/settings'],
+  ])('opens %s as a phone child page without the tab bar', (_label, route) => {
     mocks.mode = 'single'
     mocks.personal = readyPersonal
-    const { container } = renderShell('/d/desktop/gtd')
-    const bar = container.querySelector('.tab-bar')!
-    expect(bar).toBeTruthy()
-    expect(bar.querySelector('[aria-current="page"]')?.textContent).toBe('GTD')
+    const { container } = renderShell(route)
+    expect(container.querySelector('.tab-bar')).toBeNull()
+    expect(container.querySelector('.detail-main.phone-child')).toBeTruthy()
     cleanup()
-    const detail = renderShell('/d/desktop/gtd/thread-1')
-    expect(detail.container.querySelector('.tab-bar')).toBeNull()
+  })
+
+  it('keeps GTD conversations full-screen details', () => {
+    mocks.mode = 'single'
+    mocks.personal = readyPersonal
+    const { container } = renderShell('/d/desktop/gtd/thread-1')
+    expect(container.querySelector('.tab-bar')).toBeNull()
+    expect(container.querySelector('.detail-main.phone-child')).toBeNull()
+    cleanup()
+  })
+
+  it('marks Herdr active on its root and keeps the bar there', () => {
+    mocks.mode = 'single'
+    mocks.personal = readyPersonal
+    const { container } = renderShell('/d/desktop/agents')
+    const bar = container.querySelector('.tab-bar')!
+    expect(
+      bar.querySelector('[aria-current="page"]')?.getAttribute('aria-label'),
+    ).toBe('Herdr')
+    expect(
+      bar.querySelector('.active')?.classList.contains('agents-entry'),
+    ).toBe(true)
     cleanup()
   })
 
@@ -211,25 +237,63 @@ describe('Alma in the navigation', () => {
     cleanup()
   })
 
-  it('orders the rail like the phone tabs', () => {
+  it('keeps the new-thread composer clear of the floating bar', () => {
+    mocks.mode = 'single'
+    mocks.personal = readyPersonal
+    const { container } = renderShell('/d/desktop/threads?new=1')
+    expect(container.querySelector('.tab-bar')).toBeNull()
+    cleanup()
+  })
+
+  it('steps the bar aside while a text field has the keyboard', () => {
+    vi.useFakeTimers()
+    mocks.mode = 'single'
+    mocks.personal = readyPersonal
+    const { container } = render(
+      <>
+        <input aria-label="field" />
+        {shell('/d/desktop/threads')}
+      </>,
+    )
+    const bar = container.querySelector('.tab-bar')!
+    expect(bar.getAttribute('data-hidden')).toBeNull()
+    const field = screen.getByRole('textbox', { name: 'field' })
+    act(() => field.focus())
+    expect(bar.getAttribute('data-hidden')).toBe('true')
+    expect(bar.hasAttribute('inert')).toBe(true)
+    act(() => {
+      field.blur()
+      vi.runOnlyPendingTimers()
+    })
+    expect(bar.getAttribute('data-hidden')).toBeNull()
+    cleanup()
+    vi.useRealTimers()
+  })
+
+  it('orders the rail Threads, Alma, Herdr, then GTD and Settings at the foot', () => {
     mocks.mode = 'split'
     mocks.personal = readyPersonal
     const { container } = renderShell('/d/desktop/threads')
     const labels = [
       ...container.querySelectorAll('.split-nav > a, .split-nav > button'),
     ].map((item) => item.getAttribute('aria-label'))
-    expect(labels.slice(0, 3)).toEqual(['Threads', 'Herdr', 'GTD'])
-    expect(labels.at(-1)).toBe('Settings')
+    expect(labels.slice(0, 3)).toEqual([
+      'Threads',
+      'Open Alma main conversation',
+      'Herdr',
+    ])
+    expect(labels.slice(-3)).toEqual(['Hide thread list', 'GTD', 'Settings'])
+    expect(container.querySelector('.tab-bar')).toBeNull()
     cleanup()
   })
 
-  it('replaces the rail logo with the avatar on wide layouts', () => {
+  it('keeps the rail logo and drops her item without a personal agent', () => {
     mocks.mode = 'split'
     mocks.personal = readyPersonal
     const { container } = renderShell('/d/desktop/threads')
     const top = container.querySelector('.split-rail > :first-child')!
-    expect(top.querySelector('.alma-nav-rail')).toBeTruthy()
-    expect(top.querySelector('img')).toBeNull()
+    expect(top.querySelector('img')).toBeTruthy()
+    expect(container.querySelector('.split-nav > .alma-nav-rail')).toBeTruthy()
     cleanup()
     // A desktop never seen with her (a known one fades her out first).
     localStorage.clear()
@@ -238,6 +302,7 @@ describe('Alma in the navigation', () => {
     expect(
       plain.container.querySelector('.split-rail > .split-logo img'),
     ).toBeTruthy()
+    expect(plain.container.querySelector('.alma-nav')).toBeNull()
     cleanup()
   })
 })

@@ -293,23 +293,26 @@ describe('stylesheet token enforcement', () => {
     expect(avatar).toContain('width: var(--alma-nav-box);')
     expect(avatar).toContain('height: var(--alma-nav-box);')
     expect(avatar).not.toMatch(/background|border:|margin/)
-    // 56px face in a column as tall as the other tab items, so the bar
-    // keeps its height; the face rises at most 8px past the bar's top.
+    // 60px face in a column as tall as the other tab items (48px), so the
+    // floating pill keeps its height; the face rises at most 9px past the
+    // pill's top.
     const [tab] = rules('.alma-nav-tab')
-    expect(tab).toContain('--alma-face: 56px;')
-    expect(tab).toContain('height: 47px;')
+    expect(tab).toContain('--alma-face: 60px;')
+    expect(tab).toContain('height: 48px;')
+    expect(css).toMatch(/\n\.tab-bar > a \{[^}]*height: 48px;/)
     const [tabAvatar] = rules('.alma-nav-tab .alma-nav-avatar')
     expect(tabAvatar).toContain('left: calc(50% - var(--alma-nav-box) / 2);')
-    // The 47px column is centred in the 76px bar's 60px content box.
+    // The 48px column is centred in the 64px pill.
+    expect(css).toContain('--floating-nav-height: 64px;')
     const bottom = Number(tabAvatar.match(/bottom: ([\d.]+)px;/)?.[1])
-    const columnTop = 8 + (76 - 16 - 47) / 2
-    expect(56 + bottom - 47 - columnTop).toBeLessThanOrEqual(8)
+    const columnTop = (64 - 48) / 2
+    expect(60 + bottom - 48 - columnTop).toBeLessThanOrEqual(9)
     const pressed = css.match(
       /\.alma-nav-avatar\[data-pressed\]\s*{[^}]*}/,
     )?.[0]
     expect(pressed).toContain('transform: scale(0.92);')
     expect(pressed).not.toContain('background')
-    expect(rules('.tab-bar.with-alma')[0]).toContain('align-items: center;')
+    expect(css).toMatch(/\n\.tab-bar \{[^}]*align-items: center;/)
     // Busy is a centred dot that animates only opacity and transform; no
     // ring outlines her face.
     expect(css).not.toContain('.alma-nav-ring')
