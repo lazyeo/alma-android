@@ -189,8 +189,8 @@ describe('thread list interaction styling', () => {
     expect(messageViewSource).toMatch(
       /<footer[\s\S]*?<div className="message-footer-meta">[\s\S]*?renderUsage\(usage\)/,
     )
-    expect(threadScreenSource).toContain(
-      'renderUsage={(value) => <UsageFooter usage={value as GenerationUsage} />}',
+    expect(threadScreenSource).toMatch(
+      /renderUsage=\{\(value\) => \(?\s*<UsageFooter usage=\{value as GenerationUsage\} \/>/,
     )
     expect(styles).toMatch(
       /\.message-footer-meta \{[^}]*display: flex;[^}]*align-items: center;/s,
