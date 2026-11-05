@@ -610,8 +610,9 @@ const refRows: MessageRow[] = [
   ),
 ]
 
-// `longReply`: one very long reply with tool rows, headings and a wide table,
-// for the long-press preview card.
+// `longReply`: one very long reply that thinks, runs tools, then ends on a
+// summary with headings and a wide table, for the long-press preview card
+// (which shows that summary, not the tool rows).
 const longReplyRows: MessageRow[] = screenshotParams.has('longReply')
   ? [
       row(
@@ -627,6 +628,12 @@ const longReplyRows: MessageRow[] = screenshotParams.has('longReply')
         'assistant',
         [
           {
+            type: 'reasoning',
+            text: 'Run the release check, then read the checklist and match each item.',
+            state: 'done',
+          },
+          text('Checking the release build first.'),
+          {
             type: 'tool-Bash',
             toolCallId: 'call-long-1',
             state: 'output-available',
@@ -640,8 +647,17 @@ const longReplyRows: MessageRow[] = screenshotParams.has('longReply')
             input: { file_path: 'docs/release-checklist.md' },
             output: '# Release checklist',
           },
+          {
+            type: 'tool-Grep',
+            toolCallId: 'call-long-3',
+            state: 'output-available',
+            input: { pattern: 'Open', path: 'docs' },
+            output: '3 matches',
+          },
           text(
             [
+              '**3 items are still open**; everything else is ready to ship.',
+              '',
               '## Release audit',
               '',
               'Every item below was checked against the current build.',

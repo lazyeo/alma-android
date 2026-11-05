@@ -4285,6 +4285,26 @@ const shots = [
           fade: Boolean(clip?.querySelector('.long-press-preview-fade')),
           clipOverflow: clip ? getComputedStyle(clip).overflow : null,
           tables,
+          hint: card?.querySelector('.long-press-preview-hint')?.textContent,
+          hintRect: rect(card?.querySelector('.long-press-preview-hint')),
+          // The first piece of copy the reader sees in the card.
+          firstText: (() => {
+            const content = card?.querySelector('.long-press-preview-content')
+            const block = content?.querySelector(
+              '[data-message-part] p, [data-message-part] h2, [data-message-part] li',
+            )
+            return block?.textContent?.trim().slice(0, 60) ?? null
+          })(),
+          firstTextRect: rect(
+            card?.querySelector(
+              '.long-press-preview-content [data-message-part] p',
+            ),
+          ),
+          workRows: card
+            ? card.querySelectorAll(
+                '.tool-group, .reasoning, [class*="tool-part"], .message-footer',
+              ).length
+            : -1,
           sourceVisible: source
             ? getComputedStyle(source).visibility !== 'hidden'
             : false,
@@ -4307,6 +4327,24 @@ const shots = [
         throw new Error('a table runs outside the preview card')
       if (!geometry.sourceVisible)
         throw new Error('the message was hidden under its preview')
+      // The card shows the reply's summary under a skipped-steps hint.
+      if (!/^\d+ steps$/.test(geometry.hint ?? ''))
+        throw new Error(`skipped-steps hint missing: ${geometry.hint}`)
+      if (!geometry.firstText?.startsWith('3 items are still open'))
+        throw new Error(
+          `card does not lead with the summary: ${geometry.firstText}`,
+        )
+      if (geometry.workRows !== 0)
+        throw new Error('thinking or tool rows are in the preview card')
+      if (
+        !geometry.firstTextRect ||
+        geometry.firstTextRect.top < geometry.hintRect.bottom ||
+        geometry.firstTextRect.top > card.top + 64
+      )
+        throw new Error('the summary does not start at the card top')
+      // A summary card pops in right above the sheet.
+      if (Math.abs(sheet.top - card.bottom - 12) > 2)
+        throw new Error('summary card is not right above the sheet')
     },
   })),
   ...['view', 'quote', 'mention', 'mention-message'].map((step) => ({
