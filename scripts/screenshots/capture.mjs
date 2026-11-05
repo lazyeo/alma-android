@@ -4226,6 +4226,89 @@ const shots = [
         throw new Error(`bottom sheet focus ring: ${outline}`)
     },
   },
+  ...[
+    ['phone', { width: 406, height: 904 }],
+    ['tablet', TABLET],
+  ].map(([name, viewport]) => ({
+    file: `long-press-preview-card-${name}.png`,
+    viewport,
+    reducedMotion: 'no-preference',
+    safeInsets: true,
+    route: `${DESKTOP}/t-refs`,
+    query: 'longReply=1',
+    ready: '.message.assistant',
+    async act(page) {
+      const message = page.locator('.message.assistant').last()
+      await message.scrollIntoViewIfNeeded()
+      const box = await message.boundingBox()
+      if (!box) throw new Error('long reply missing')
+      // A real right click: a pointer context menu lifts, a keyboard one
+      // does not.
+      await page.mouse.click(box.x + box.width / 2, Math.max(box.y, 0) + 120, {
+        button: 'right',
+      })
+      await page.getByRole('dialog', { name: 'Message actions' }).waitFor()
+      await page.waitForTimeout(700)
+      const geometry = await page.evaluate(() => {
+        const rect = (node) => {
+          const r = node?.getBoundingClientRect()
+          return r
+            ? {
+                left: Math.round(r.left),
+                top: Math.round(r.top),
+                right: Math.round(r.right),
+                bottom: Math.round(r.bottom),
+              }
+            : null
+        }
+        const card = document.querySelector('.long-press-lift.preview')
+        const clip = card?.querySelector('.long-press-preview')
+        const source = [...document.querySelectorAll('.message.assistant')]
+          .filter((node) => !node.closest('.long-press-lift-layer'))
+          .at(-1)
+        const probe = document.createElement('div')
+        probe.style.cssText = 'position:fixed;top:var(--safe-top);height:0'
+        document.body.append(probe)
+        const safeTop = probe.getBoundingClientRect().top
+        probe.remove()
+        // Wide tables scroll inside their own box; that box must sit
+        // inside the card.
+        const tables = [...(card?.querySelectorAll('table') ?? [])].map(
+          (table) => rect(table.parentElement),
+        )
+        return {
+          card: rect(card),
+          column: rect(source?.closest('[data-long-press-column]')),
+          sheet: rect(document.querySelector('.bottom-sheet')),
+          safeTop,
+          clipped: clip?.dataset.clipped === 'true',
+          fade: Boolean(clip?.querySelector('.long-press-preview-fade')),
+          clipOverflow: clip ? getComputedStyle(clip).overflow : null,
+          tables,
+          sourceVisible: source
+            ? getComputedStyle(source).visibility !== 'hidden'
+            : false,
+        }
+      })
+      console.log(name, JSON.stringify(geometry))
+      const { card, column, sheet, safeTop, tables } = geometry
+      if (!card || !column || !sheet) throw new Error('preview card missing')
+      if (card.top < safeTop || card.bottom > sheet.top)
+        throw new Error('preview card left the band above the sheet')
+      if (card.left !== column.left || card.right !== column.right)
+        throw new Error('preview card is not the column width')
+      if (
+        !geometry.clipped ||
+        !geometry.fade ||
+        geometry.clipOverflow !== 'hidden'
+      )
+        throw new Error('long preview is not clipped with a fade')
+      if (!tables.length || tables.some((t) => t.right > card.right))
+        throw new Error('a table runs outside the preview card')
+      if (!geometry.sourceVisible)
+        throw new Error('the message was hidden under its preview')
+    },
+  })),
   ...['view', 'quote', 'mention', 'mention-message'].map((step) => ({
     file: `markdown-preview-select-text-${step}.png`,
     viewport: PHONE,

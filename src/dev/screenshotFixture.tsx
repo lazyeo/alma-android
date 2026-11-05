@@ -610,6 +610,69 @@ const refRows: MessageRow[] = [
   ),
 ]
 
+// `longReply`: one very long reply with tool rows, headings and a wide table,
+// for the long-press preview card.
+const longReplyRows: MessageRow[] = screenshotParams.has('longReply')
+  ? [
+      row(
+        't-refs',
+        2,
+        'user',
+        [text('Audit the release checklist and list every open item.')],
+        minutesAgo(4),
+      ),
+      row(
+        't-refs',
+        3,
+        'assistant',
+        [
+          {
+            type: 'tool-Bash',
+            toolCallId: 'call-long-1',
+            state: 'output-available',
+            input: { command: 'npm run release:check' },
+            output: 'All 214 checks passed',
+          },
+          {
+            type: 'tool-Read',
+            toolCallId: 'call-long-2',
+            state: 'output-available',
+            input: { file_path: 'docs/release-checklist.md' },
+            output: '# Release checklist',
+          },
+          text(
+            [
+              '## Release audit',
+              '',
+              'Every item below was checked against the current build.',
+              '',
+              '| Area | Owner | Status | Evidence | Follow-up | Due date | Notes |',
+              '| --- | --- | --- | --- | --- | --- | --- |',
+              ...Array.from(
+                { length: 12 },
+                (_, index) =>
+                  `| Area ${index + 1} | Team ${(index % 3) + 1} | ${index % 4 ? 'Ready' : 'Open'} | build-${4200 + index}.log | ${index % 4 ? 'None' : 'Recheck on device'} | Nov ${10 + index} | Wide cells stay inside their own scroller |`,
+              ),
+              '',
+              '### Device checks',
+              '',
+              ...Array.from(
+                { length: 10 },
+                (_, index) =>
+                  `- Check ${index + 1}: the fold, the rail and the sheet keep their places after rotation.`,
+              ),
+              '',
+              '### Next steps',
+              '',
+              'Ship once the open rows are rechecked on the Fold.',
+            ].join('\n'),
+          ),
+        ],
+        minutesAgo(3),
+      ),
+    ]
+  : []
+
 const threads: Array<Thread & { messages: MessageRow[] }> = [
   {
     id: 't-image-edit',
@@ -677,7 +740,7 @@ const threads: Array<Thread & { messages: MessageRow[] }> = [
     metadata: { gtdStatus: 'inbox' },
     createdAt: minutesAgo(7),
     updatedAt: minutesAgo(5),
-    messages: refRows,
+    messages: [...refRows, ...longReplyRows],
   },
   {
     id: 't-alma',
