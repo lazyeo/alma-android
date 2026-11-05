@@ -3698,8 +3698,8 @@ select:focus-visible {
 }
 /* /alma fills the content area right of the rail, the area her expand
    covers. The list pane keeps its box contents (and scroll) at zero width,
-   and swaps with no width transition: it changes only under her covering
-   circle, which must not see it slide. */
+   swaps width instantly, since it changes only under her covering circle,
+   which must not see it slide. */
 .split-shell.alma-full .split-sidebar {
   width: 0;
   visibility: hidden;
