@@ -12,6 +12,10 @@ const mocks = vi.hoisted(() => ({
   mode: 'split' as 'split' | 'single',
   activeId: 'desktop',
   personal: { status: 'unsupported' } as PersonalAgentState,
+  desktops: [] as {
+    pairing: { id: string; name: string }
+    connection?: object
+  }[],
 }))
 
 vi.mock('../desktops/ThreadActivityProvider', () => ({
@@ -37,8 +41,14 @@ vi.mock('../desktops/DesktopContext', () => ({
         { id: 'other', name: 'Other' },
       ],
     },
-    desktops: [],
+    desktops: mocks.desktops,
   }),
+}))
+
+vi.mock('../desktops/DesktopSwitcher', () => ({
+  DesktopSwitcher: ({ className }: { className?: string }) => (
+    <button className={`desktop-switcher ${className ?? ''}`} />
+  ),
 }))
 
 vi.mock('./useLayoutMode', () => ({
@@ -154,6 +164,26 @@ const sideLabels = (bar: Element) =>
   [...bar.querySelectorAll(':scope > a')].map((a) =>
     a.getAttribute('aria-label'),
   )
+
+describe('desktop switcher placement', () => {
+  const connected = [
+    { pairing: { id: 'desktop', name: 'Desktop' }, connection: {} },
+  ]
+  afterEach(() => {
+    mocks.desktops = []
+    cleanup()
+  })
+
+  it('keeps the phone dock to the pill and the safe area', () => {
+    mocks.mode = 'single'
+    mocks.desktops = connected
+    const { container } = renderShell('/d/desktop/threads')
+    const dock = container.querySelector('.phone-dock')!
+    expect(container.querySelector('.desktop-strip')).toBeNull()
+    expect(dock.children).toHaveLength(1)
+    expect(dock.firstElementChild?.classList.contains('tab-bar')).toBe(true)
+  })
+})
 
 describe('Alma in the navigation', () => {
   it('shows Threads and Herdr alone, centred, without a personal agent', () => {

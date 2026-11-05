@@ -115,13 +115,28 @@ describe('GTD navigation structure', () => {
     )
   })
 
-  it('places one persistent desktop strip above phone navigation and at the sidebar bottom', () => {
+  it('keeps the desktop strip at the sidebar bottom and out of the phone dock', () => {
     expect(shell).toContain('function ActiveDesktopStrip()')
     expect(shell).toContain('<DesktopSwitcher className="desktop-strip" />')
     expect(shell).toMatch(
-      /<div className="phone-dock">\s*<ActiveDesktopStrip \/>\s*\{newThread \? null : <PhoneNav hidden=\{keyboardOpen\} \/>\}/,
+      /<div className="phone-dock">\s*\{newThread \? null : <PhoneNav hidden=\{keyboardOpen\} \/>\}/,
     )
+    expect(shell.match(/<ActiveDesktopStrip \/>/g)).toHaveLength(1)
     expect(shell).toMatch(/<SidebarThreads[\s\S]*<ActiveDesktopStrip \/>/)
+    expect(styles).not.toContain('--phone-dock-strip')
+    expect(styles).not.toContain('.phone-dock > .desktop-strip')
+    // The pill floats 12px over the safe area; insets follow from that.
+    expect(styles).toContain('--floating-nav-lift: 12px;')
+    expect(styles).toMatch(
+      /--floating-nav-top: calc\(\s*var\(--safe-bottom\) \+ var\(--floating-nav-lift\) \+ var\(--floating-nav-height\)\s*\)/,
+    )
+    expect(styles).toMatch(
+      /--floating-nav-clearance: calc\(\s*var\(--floating-nav-lift\) \+ var\(--floating-nav-height\) \+ 16px\s*\)/,
+    )
+    expect(styles).toMatch(/\.desktop-title-switcher \{[^}]*min-height: 44px/)
+    expect(styles).toMatch(
+      /\.desktop-title-switcher \.desktop-switcher-name \{[^}]*flex: 0 1 auto/,
+    )
     expect(styles).toMatch(/\.desktop-strip \{[\s\S]*min-height: 28px/)
     expect(styles).toMatch(/\.desktop-status-marker \{[\s\S]*flex: 0 0 auto/)
     expect(styles).toMatch(

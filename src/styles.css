@@ -280,28 +280,22 @@ button {
 }
 /* Phone navigation: a floating pill that hugs its three items (Threads,
    Alma, Herdr), centred and lifted off the bottom edge. It rides in the
-   phone dock, an in-flow foot that holds the desktop strip and the bottom
-   safe area, and sits --floating-nav-lift above it: 12px off the safe area,
-   or 4px above the strip, whose own band is the breathing room. Root pages
-   scroll under it and pad their scroller by --floating-nav-clearance.
+   phone dock, an in-flow foot that is only the bottom safe area, and sits
+   --floating-nav-lift (12px) above it. The desktop switcher lives in the
+   root-page header, clear of the gesture bar. Root pages scroll under the
+   pill and pad their scroller by --floating-nav-clearance.
    --floating-nav-top is the pill's top edge above the viewport bottom, for
    fixed surfaces (snackbars, errors) that must clear it and Alma's face. */
 .app-shell {
   --floating-nav-height: 64px;
   --floating-nav-lift: 12px;
-  --phone-dock-strip: 0px;
   --floating-nav-clearance: calc(
     var(--floating-nav-lift) + var(--floating-nav-height) + 16px
   );
   --floating-nav-top: calc(
-    var(--safe-bottom) + var(--phone-dock-strip) + var(--floating-nav-lift) +
-      var(--floating-nav-height)
+    var(--safe-bottom) + var(--floating-nav-lift) + var(--floating-nav-height)
   );
   position: relative;
-}
-.app-shell:has(> .phone-dock > .desktop-strip) {
-  --floating-nav-lift: 4px;
-  --phone-dock-strip: 28px;
 }
 .app-shell > .screen .page-body {
   padding-bottom: var(--floating-nav-clearance);

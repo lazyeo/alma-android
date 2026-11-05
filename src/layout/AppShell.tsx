@@ -427,7 +427,6 @@ function AppShellLayout() {
         </main>
         {detail ? null : (
           <div className="phone-dock">
-            <ActiveDesktopStrip />
             {newThread ? null : <PhoneNav hidden={keyboardOpen} />}
           </div>
         )}
