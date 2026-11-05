@@ -8111,6 +8111,11 @@ button:active:not(:disabled),
   visibility: hidden;
   pointer-events: none;
 }
+/* The copy fills its card; while measured it takes its own height. */
+.long-press-preview-probe .long-press-lift-clone {
+  bottom: auto;
+  height: auto;
+}
 /* "N steps" above a reply's summary: the earlier work it leaves out. */
 .long-press-preview-hint {
   position: absolute;
