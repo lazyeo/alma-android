@@ -11,6 +11,8 @@ import {
   armLongPressLift,
   buildLongPressLift,
   mountLongPressLift,
+  placeLongPressPreview,
+  PREVIEW_HINT_PX,
   takeLongPressLiftSource,
 } from './longPressLift'
 import { isPointerContextMenu, useLongPress } from './useLongPress'
@@ -315,5 +317,80 @@ describe('lift building', () => {
       for (const part of transition.split(','))
         expect(part.trim().split(/\s+/)[0]).toMatch(/^(transform|opacity)$/)
     }
+  })
+})
+
+describe('summary preview card', () => {
+  function reply({ tail = '3 4', skipped = '3' } = {}) {
+    const article = document.createElement('article')
+    article.className = 'message assistant'
+    article.dataset.previewParts = tail
+    article.dataset.previewSkipped = skipped
+    article.innerHTML = `
+      <div data-message-part="0"><p>Thinking it over</p></div>
+      <details class="tool-group" data-message-part="1"><summary>Ran 2 actions</summary></details>
+      <div data-message-part="3"><p>Summary first line</p></div>
+      <div data-message-part="4"><table><tr><td>cell</td></tr></table></div>
+      <footer class="message-footer" data-preview-omit=""><time>Worked for 3s</time></footer>`
+    document.body.append(article)
+    return article
+  }
+
+  beforeEach(() => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(16, 200, 380, 120),
+    )
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    document.body.replaceChildren()
+  })
+
+  it('copies only the summary parts, under a skipped-steps hint', () => {
+    const source = reply()
+    const preview = placeLongPressPreview(source)!
+    expect(preview.summary?.skipped).toBe(3)
+    expect(preview.card.pop).toBe(true)
+    expect(preview.from.transform).toContain('scale(0.96)')
+    const { lift } = buildLongPressLift(source, { preview })
+    const clone = lift.querySelector('.long-press-lift-clone')!
+    expect(
+      [...clone.querySelectorAll('[data-message-part]')].map(
+        (node) => (node as HTMLElement).dataset.messagePart,
+      ),
+    ).toEqual(['3', '4'])
+    expect(clone.querySelector('footer, details')).toBeNull()
+    expect(clone.querySelector('table')).not.toBeNull()
+    const hint = lift.querySelector<HTMLElement>('.long-press-preview-hint')!
+    expect(hint.textContent).toBe('3 steps')
+    expect(hint.querySelector('svg')).not.toBeNull()
+    // The copy sits under the hint row; the original message is untouched.
+    expect(
+      Number.parseFloat(
+        lift.querySelector<HTMLElement>('.long-press-preview-content')!.style
+          .top,
+      ),
+    ).toBeCloseTo(preview.card.leadTop + PREVIEW_HINT_PX)
+    expect(source.querySelectorAll('[data-message-part]')).toHaveLength(4)
+    expect(document.querySelector('.long-press-preview-probe')).toBeNull()
+  })
+
+  it('shows no hint and grows out of the message when nothing came before', () => {
+    const source = reply({ tail: '0', skipped: '0' })
+    const preview = placeLongPressPreview(source)!
+    expect(preview.card.pop).toBe(false)
+    expect(preview.from.opacity).toBe(1)
+    const { lift } = buildLongPressLift(source, { preview })
+    expect(lift.querySelector('.long-press-preview-hint')).toBeNull()
+  })
+
+  it('copies the whole message without a tail', () => {
+    const source = reply()
+    delete source.dataset.previewParts
+    const preview = placeLongPressPreview(source)!
+    expect(preview.summary).toBeUndefined()
+    const { lift } = buildLongPressLift(source, { preview })
+    expect(lift.querySelectorAll('[data-message-part]')).toHaveLength(4)
+    expect(lift.querySelector('footer')).not.toBeNull()
   })
 })

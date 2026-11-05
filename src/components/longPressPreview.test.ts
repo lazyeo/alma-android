@@ -5,6 +5,8 @@ import {
   PREVIEW_SCALE,
   previewCardFrom,
   previewCardRect,
+  previewTail,
+  previewTailAttributes,
   type PreviewCardInput,
   type PreviewRectLike,
 } from './longPressPreview'
@@ -134,5 +136,99 @@ describe('previewCardFrom', () => {
     // Shrunk about the card's centre.
     expect(x).toBeCloseTo(card.width * 0.02, 1)
     expect(y).toBeCloseTo(card.height * 0.02, 1)
+  })
+})
+
+describe('previewTail', () => {
+  const text = (value: string) => ({ type: 'text', text: value })
+  const tool = { type: 'tool-bash', state: 'output-available' }
+  const thinking = { type: 'reasoning', text: 'Considering it.' }
+  const step = { type: 'step-start' }
+
+  it('shows the summary after the thinking and tool rows', () => {
+    expect(
+      previewTail([
+        step,
+        thinking,
+        tool,
+        tool,
+        step,
+        text('Done.'),
+        text('Table'),
+      ]),
+    ).toEqual({ parts: [5, 6], skipped: 3 })
+  })
+
+  it('counts earlier text among the skipped steps', () => {
+    expect(previewTail([text('Checking.'), tool, text('All good.')])).toEqual({
+      parts: [2],
+      skipped: 2,
+    })
+  })
+
+  it('falls back to the last non-empty text when the reply ends on a tool', () => {
+    expect(
+      previewTail([thinking, text('Running it.'), tool, text('  ')]),
+    ).toEqual({ parts: [1], skipped: 1 })
+    expect(previewTail([text('First.'), tool])).toEqual({
+      parts: [0],
+      skipped: 0,
+    })
+  })
+
+  it('keeps the whole message without tool or thinking parts', () => {
+    expect(previewTail([text('Hello'), text('There')])).toBeUndefined()
+    expect(previewTailAttributes([step, text('Hello')])).toEqual({})
+  })
+
+  it('keeps the whole message when there is no text at all', () => {
+    expect(previewTail([])).toBeUndefined()
+    expect(previewTail([thinking, tool, text('')])).toBeUndefined()
+  })
+
+  it('skips blank text inside the summary run', () => {
+    expect(
+      previewTail([tool, text(''), text('Summary'), step, text('More')]),
+    ).toEqual({ parts: [2, 4], skipped: 1 })
+    expect(previewTailAttributes([tool, text('Summary')])).toEqual({
+      'data-preview-parts': '1',
+      'data-preview-skipped': '1',
+    })
+  })
+})
+
+describe('summary cards', () => {
+  it('reserves the hint row above the copy', () => {
+    const plain = previewCardRect(base())!
+    const card = previewCardRect(base({}, { lead: 24 }))!
+    expect(card.height).toBeCloseTo(plain.height + 24)
+    expect(card.contentTop).toBeCloseTo(plain.contentTop + 24)
+    expect(card.leadTop).toBe(plain.contentTop)
+    expect(card.leadLeft).toBeCloseTo(plain.contentLeft)
+  })
+
+  it('pops in right above the sheet when earlier parts were skipped', () => {
+    const card = previewCardRect(base({}, { lead: 24, pop: true }))!
+    expect(card.pop).toBe(true)
+    expect(card.top + card.height).toBeCloseTo(600 - PREVIEW_MARGIN_PX)
+    const from = previewCardFrom(card, base().source, 40)
+    expect(from.opacity).toBe(0)
+    expect(from.transform).toContain('scale(0.96)')
+  })
+
+  it('still grows out of the message when nothing before was skipped', () => {
+    const card = previewCardRect(base())!
+    expect(card.pop).toBe(false)
+    const from = previewCardFrom(card, base().source, 40)
+    expect(from.opacity).toBe(1)
+    expect(parseTransform(from.transform).scale).toBeGreaterThan(1)
+  })
+
+  it('starts a tall summary at its top and fades the bottom', () => {
+    const card = previewCardRect(
+      base({ height: 1200 }, { lead: 24, pop: true }),
+    )!
+    expect(card.clipped).toBe(true)
+    expect(card.contentTop).toBe(card.leadTop + 24)
   })
 })
