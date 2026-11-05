@@ -132,7 +132,7 @@ export function thoughtCue(
 /** Rhythm, in ms. Reduced motion shows bubbles half as often. */
 export const THOUGHT_TIMING = {
   /** How long a bubble stays up before it fades. */
-  hold: 2200,
+  hold: 3500,
   /** Mirrors the bubble's fade out (`--dur-fast` and its slack). */
   exit: FADE_EXIT_MS,
   /** Mirrors the pop in (`--dur-panel`). */
@@ -141,7 +141,7 @@ export const THOUGHT_TIMING = {
   period: 10_000,
   jitter: 5_000,
   /** Changes never stack closer than this. */
-  gap: 4_000,
+  gap: 5_000,
   reducedScale: 2,
 } as const
 
