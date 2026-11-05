@@ -155,7 +155,7 @@ describe('AlmaNavButton', () => {
     const { container } = renderButton(ready('main'))
     const face = container.querySelector('.alma-avatar svg')!
     expect(face.getAttribute('width')).toBe(String(NAV_FACE_SIZE.tab))
-    expect(NAV_FACE_SIZE).toEqual({ tab: 60, rail: 36 })
+    expect(NAV_FACE_SIZE).toEqual({ tab: 60, rail: 40 })
     expect(RIG_FACE_SIZES).toEqual(
       expect.arrayContaining(Object.values(NAV_FACE_SIZE)),
     )

@@ -3607,6 +3607,19 @@ select:focus-visible {
   height: 60px;
   border-radius: 0;
 }
+/* The logo and Alma's face share the slot's one grid cell; only their
+   opacity changes when she comes or goes. */
+.split-logo > * {
+  grid-area: 1 / 1;
+}
+.split-logo-mark {
+  display: grid;
+  place-items: center;
+  transition: opacity var(--dur-panel) var(--ease-out);
+}
+.split-logo[data-alma] .split-logo-mark {
+  opacity: 0;
+}
 .split-logo img {
   width: 28px;
   height: 28px;
@@ -10663,10 +10676,20 @@ dialog:focus,
   background: var(--red-9);
   outline: 2px solid var(--background);
 }
-/* On the rail she is a 36px face in the rail's 44px item box. Active is the
-   rail's own cue: the same rounded sidebar-accent fill as every rail item.
-   The phone bar has no active cue because /alma hides the bar. Busy is the
-   same dot, under the item box so it clears the active fill. */
+/* On the rail she fills its top slot: a 40px face in a 44px box centred in
+   the 44x60 slot, fading in over the logo. Active is the rail's own cue:
+   the same rounded sidebar-accent fill as every rail item. The phone bar
+   has no active cue because /alma hides the bar. Busy is the same dot,
+   under the box so it clears the active fill. */
+.alma-nav-rail {
+  --alma-face: 40px;
+  animation: alma-slot-in var(--dur-panel) var(--ease-out);
+}
+@keyframes alma-slot-in {
+  from {
+    opacity: 0;
+  }
+}
 .alma-nav-rail .alma-nav-badge {
   outline-color: var(--sidebar);
 }
@@ -10692,6 +10715,9 @@ dialog:focus,
   .alma-nav-busy {
     animation: none;
     opacity: 0.9;
+  }
+  .alma-nav-rail {
+    animation: none;
   }
 }
 

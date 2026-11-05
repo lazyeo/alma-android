@@ -18,8 +18,12 @@ import {
 } from 'react-router-dom'
 import { ConnectionContext, useDesktops } from '../desktops/DesktopContext'
 import { DesktopSwitcher } from '../desktops/DesktopSwitcher'
-import { AlmaPresenceProvider } from '../alma/AlmaPresence'
-import { AlmaNavButton, useAlmaNavVisible } from '../alma/AlmaNavButton'
+import { AlmaPresenceProvider, useAlmaPresence } from '../alma/AlmaPresence'
+import {
+  AlmaNavButton,
+  almaNavSlot,
+  useAlmaNavVisible,
+} from '../alma/AlmaNavButton'
 import {
   ALMA_ROUTE,
   desktopAgentPanePath,
@@ -146,8 +150,8 @@ function PhoneNav({ hidden }: { hidden: boolean }) {
 }
 
 /**
- * The split rail: Threads, Alma, Herdr, the Library destinations, then the
- * sidebar toggle, GTD and Settings at the foot.
+ * The split rail under its top slot: Threads, Herdr, the Library
+ * destinations, then the sidebar toggle, GTD and Settings at the foot.
  */
 function RailNav({
   extras,
@@ -170,7 +174,6 @@ function RailNav({
       >
         <MessagesSquare size={22} />
       </NavItem>
-      <AlmaNavButton placement="rail" />
       {desktopId ? <AgentsNavLink desktopId={desktopId} /> : null}
       {extras}
       {toggle}
@@ -343,12 +346,20 @@ export function AppShell() {
   )
 }
 
+/**
+ * The rail's top slot: Alma's face while the desktop has (or may have) her,
+ * otherwise the non-interactive app logo. Both share one fixed box and
+ * crossfade on opacity, so nothing below moves when she comes or goes.
+ */
 function SplitRailTop() {
-  // The non-interactive app logo; Alma is the rail's second item.
+  const alma = almaNavSlot(useAlmaPresence()) === 'shown'
   return (
-    <span className="split-logo" aria-hidden="true">
-      <img src="/icon-192.png" alt="" />
-    </span>
+    <div className="split-logo" data-alma={alma ? 'true' : undefined}>
+      <span className="split-logo-mark" aria-hidden="true">
+        <img src="/icon-192.png" alt="" />
+      </span>
+      <AlmaNavButton placement="rail" />
+    </div>
   )
 }
 

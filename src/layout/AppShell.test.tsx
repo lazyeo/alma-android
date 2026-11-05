@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LanguageProvider } from '../i18n'
 import { SLOT_FADE_MS } from '../alma/AlmaPresence'
+import { clearExpandDisc, lastExpandDisc } from '../alma/almaExpand'
 import type { PersonalAgentState } from '../screens/personalAgent'
 import { AgentsNavLink, AppShell } from './AppShell'
 
@@ -300,39 +301,102 @@ describe('Alma in the navigation', () => {
     vi.useRealTimers()
   })
 
-  it('orders the rail Threads, Alma, Herdr, then GTD and Settings at the foot', () => {
+  it('orders the rail Threads, Herdr, then GTD and Settings at the foot', () => {
     mocks.mode = 'split'
     mocks.personal = readyPersonal
     const { container } = renderShell('/d/desktop/threads')
     const labels = [
       ...container.querySelectorAll('.split-nav > a, .split-nav > button'),
     ].map((item) => item.getAttribute('aria-label'))
-    expect(labels.slice(0, 3)).toEqual([
-      'Threads',
-      'Open Alma main conversation',
-      'Herdr',
-    ])
+    expect(labels.slice(0, 2)).toEqual(['Threads', 'Herdr'])
     expect(labels.slice(-3)).toEqual(['Hide thread list', 'GTD', 'Settings'])
+    // She is in the top slot only, never a second time in the list.
+    expect(container.querySelector('.split-nav .alma-nav')).toBeNull()
+    expect(container.querySelectorAll('.split-rail .alma-nav')).toHaveLength(1)
     expect(container.querySelector('.tab-bar')).toBeNull()
     cleanup()
   })
 
-  it('keeps the rail logo and drops her item without a personal agent', () => {
+  it('puts her face in the rail top slot over the logo', () => {
     mocks.mode = 'split'
     mocks.personal = readyPersonal
     const { container } = renderShell('/d/desktop/threads')
     const top = container.querySelector('.split-rail > :first-child')!
-    expect(top.querySelector('img')).toBeTruthy()
-    expect(container.querySelector('.split-nav > .alma-nav-rail')).toBeTruthy()
+    expect(top.classList.contains('split-logo')).toBe(true)
+    expect(top.getAttribute('data-alma')).toBe('true')
+    const alma = top.querySelector(':scope > .alma-nav-rail')!
+    expect(alma.getAttribute('aria-label')).toBe('Open Alma main conversation')
+    expect(alma.querySelector('.alma-avatar svg')?.getAttribute('width')).toBe(
+      '40',
+    )
+    // The logo stays mounted under her and only fades, so the slot keeps
+    // one size in both states.
+    const mark = top.querySelector(':scope > .split-logo-mark')!
+    expect(mark.getAttribute('aria-hidden')).toBe('true')
+    expect(mark.querySelector('img')).toBeTruthy()
+    expect(top.hasAttribute('aria-hidden')).toBe(false)
     cleanup()
+  })
+
+  it('shows the logo in the top slot without a personal agent', () => {
+    mocks.mode = 'split'
     // A desktop never seen with her (a known one fades her out first).
     localStorage.clear()
     mocks.personal = { status: 'unsupported' }
-    const plain = renderShell('/d/desktop/threads')
-    expect(
-      plain.container.querySelector('.split-rail > .split-logo img'),
-    ).toBeTruthy()
-    expect(plain.container.querySelector('.alma-nav')).toBeNull()
+    const { container } = renderShell('/d/desktop/threads')
+    const top = container.querySelector('.split-rail > .split-logo')!
+    expect(top.hasAttribute('data-alma')).toBe(false)
+    expect(top.querySelector('.split-logo-mark img')).toBeTruthy()
+    expect(container.querySelector('.alma-nav')).toBeNull()
+    const labels = [
+      ...container.querySelectorAll('.split-nav > a, .split-nav > button'),
+    ].map((item) => item.getAttribute('aria-label'))
+    expect(labels.slice(0, 2)).toEqual(['Threads', 'Herdr'])
+    cleanup()
+  })
+
+  it('marks the top slot active on her screen and nothing else', () => {
+    mocks.mode = 'split'
+    mocks.personal = readyPersonal
+    const { container } = renderShell('/d/desktop/alma')
+    const current = container.querySelectorAll(
+      '.split-rail [aria-current="page"]',
+    )
+    expect(current).toHaveLength(1)
+    expect(current[0].closest('.split-logo')).toBeTruthy()
+    expect(current[0].classList.contains('active')).toBe(true)
+    cleanup()
+  })
+
+  it('starts the expand from her face in the top slot', () => {
+    mocks.mode = 'split'
+    mocks.personal = readyPersonal
+    const observed: Array<() => void> = []
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private callback: () => void) {}
+        observe() {
+          observed.push(this.callback)
+        }
+        disconnect() {}
+      },
+    )
+    const rect = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        return (
+          this.matches('.split-logo .alma-avatar')
+            ? { left: 12, top: 10, width: 40, height: 40 }
+            : { left: 0, top: 0, width: 0, height: 0 }
+        ) as DOMRect
+      })
+    renderShell('/d/desktop/threads')
+    for (const callback of observed) callback()
+    expect(lastExpandDisc()).toMatchObject({ left: 12, top: 10, width: 40 })
+    rect.mockRestore()
+    vi.unstubAllGlobals()
+    clearExpandDisc()
     cleanup()
   })
 })

@@ -239,6 +239,8 @@ describe('stylesheet token enforcement', () => {
       'alma-glance',
       'alma-glint',
       'alma-busy-pulse',
+      // Her face fading in over the logo in the rail's top slot.
+      'alma-slot-in',
       // Her messages rising in once the /alma expand lands (the expand
       // itself is WAAPI: transform and opacity only, no keyframes here).
       'alma-persona-rise',
