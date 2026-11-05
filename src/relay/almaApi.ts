@@ -1360,6 +1360,16 @@ export class ThreadsSocket {
       source: 'mobile',
     })
   }
+  /** A fresh reply from the end of the conversation, with no new message. */
+  regenerateResponse(threadId: string, options: GenerationOptions = {}) {
+    this.send('generate_response', {
+      threadId,
+      userMessage: null,
+      regenerate: true,
+      ...options,
+      source: 'mobile',
+    })
+  }
   replaceMessage(
     threadId: string,
     userMessageId: string,

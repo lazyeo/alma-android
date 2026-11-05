@@ -68,6 +68,30 @@ describe('ThreadsSocket generation options', () => {
     })
   })
 
+  it('regenerates from the end of the conversation without a message', () => {
+    const send = vi.fn()
+    const socket = new ThreadsSocket({
+      opened: Promise.resolve(),
+      send,
+      close: vi.fn(),
+      onMessage: vi.fn(),
+      onClose: vi.fn(),
+    })
+
+    socket.regenerateResponse('thread-1', { model: 'openai:gpt-fast' })
+
+    expect(JSON.parse(send.mock.calls[0][0])).toEqual({
+      type: 'generate_response',
+      data: {
+        threadId: 'thread-1',
+        userMessage: null,
+        regenerate: true,
+        model: 'openai:gpt-fast',
+        source: 'mobile',
+      },
+    })
+  })
+
   it('edits and resends with the user row id and replacement parts', () => {
     const send = vi.fn()
     const socket = new ThreadsSocket({
