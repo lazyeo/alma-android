@@ -3696,6 +3696,19 @@ select:focus-visible {
 .split-shell.collapsed .split-sidebar-content {
   transform: translateX(-12px);
 }
+/* /alma fills the content area right of the rail, the area her expand
+   covers. The list pane keeps its box contents (and scroll) at zero width,
+   and swaps with no width transition: it changes only under her covering
+   circle, which must not see it slide. */
+.split-shell.alma-full .split-sidebar {
+  width: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.split-shell.alma-full .split-sidebar,
+html[data-alma-motion] .split-sidebar {
+  transition: none;
+}
 .split-shell.sidebar-swiping .split-sidebar {
   width: var(--sidebar-swipe-width);
   opacity: var(--sidebar-swipe-progress);

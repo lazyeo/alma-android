@@ -444,11 +444,16 @@ function AppShellLayout() {
       </div>
     )
 
+  // Alma takes the whole content area right of the rail, as her expand
+  // promises; the list pane stays mounted (state and scroll kept) but folds
+  // away while she is open and returns when she is left.
+  const almaFull = almaDetail
+  const sidebarHidden = collapsed || almaFull
   return (
     <div
       ref={shellRef}
-      className={`split-shell${collapsed ? ' collapsed' : ''}`}
-      {...sidebarSwipe}
+      className={`split-shell${collapsed ? ' collapsed' : ''}${almaFull ? ' alma-full' : ''}`}
+      {...(almaFull ? {} : sidebarSwipe)}
     >
       <div className="split-rail">
         <SplitRailTop />
@@ -459,7 +464,8 @@ function AppShellLayout() {
               aria-label={
                 collapsed ? t('nav.showThreadList') : t('nav.hideThreadList')
               }
-              aria-expanded={!collapsed}
+              aria-expanded={!sidebarHidden}
+              disabled={almaFull}
               onClick={toggleSidebar}
             >
               {collapsed ? (
@@ -489,8 +495,8 @@ function AppShellLayout() {
               ? t('nav.gtd')
               : t('nav.threads')
         }
-        aria-hidden={collapsed}
-        {...(collapsed ? ({ inert: '' } as Record<string, string>) : {})}
+        aria-hidden={sidebarHidden}
+        {...(sidebarHidden ? ({ inert: '' } as Record<string, string>) : {})}
       >
         <div className="split-sidebar-content">
           {sidebarSection === 'agents' ? (
