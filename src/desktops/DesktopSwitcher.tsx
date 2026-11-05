@@ -31,7 +31,14 @@ const STATUS_LABELS = {
  * Lists paired desktops in an anchored switcher. Thread ids are desktop-specific,
  * so switching always opens the selected desktop's thread list.
  */
-export function DesktopSwitcher({ className = '' }: { className?: string }) {
+export function DesktopSwitcher({
+  className = '',
+  variant = 'strip',
+}: {
+  className?: string
+  /** `title` is the phone root-page heading: dot, name and chevron only. */
+  variant?: 'strip' | 'title'
+}) {
   const t = useT()
   const { pairing, status, transport, latency } = useConnection()
   const { desktops } = useDesktops()
@@ -51,7 +58,7 @@ export function DesktopSwitcher({ className = '' }: { className?: string }) {
     pathForDesktop,
     pathname,
   )
-  // The bottom strip is a full-width button with centred content; anchoring
+  // The sidebar strip is a full-width button with centred content; anchoring
   // to the button would pin the menu to the screen edge, so anchor to what
   // is visible: the name plus the chevron after it.
   const openChange = (next: boolean) => {
@@ -67,7 +74,12 @@ export function DesktopSwitcher({ className = '' }: { className?: string }) {
       trigger={
         <button
           className={`desktop-switcher${className ? ` ${className}` : ''}${swipe.className}`}
-          aria-label={t('connection.switcher.trigger', { name: pairing.name })}
+          aria-label={t(
+            variant === 'title'
+              ? 'connection.switcher.titleTrigger'
+              : 'connection.switcher.trigger',
+            { name: pairing.name },
+          )}
           aria-description={t('connection.switcher.hint')}
           style={swipe.style}
           {...swipe.handlers}
@@ -82,7 +94,7 @@ export function DesktopSwitcher({ className = '' }: { className?: string }) {
               <span className="desktop-switcher-name">{pairing.name}</span>
               {/* Like iOS: Wi-Fi glyph for LAN direct, globe for the relay. The icon
                   carries the transport (aria-label); no text label beside it. */}
-              {status === 'online' ? (
+              {status === 'online' && variant === 'strip' ? (
                 <span className="desktop-transport-indicator">
                   {transport === 'direct' ? (
                     <Wifi
@@ -120,7 +132,7 @@ export function DesktopSwitcher({ className = '' }: { className?: string }) {
               </span>
             ) : null}
           </span>
-          <ChevronDown size={14} strokeWidth={2} />
+          <ChevronDown size={variant === 'title' ? 16 : 14} strokeWidth={2} />
         </button>
       }
       items={[

@@ -78,6 +78,7 @@ function AgentsScreenContent({
     <section className="root-page agents-page">
       <ScopedRootHeader
         title={t('agents.title')}
+        desktopTitle
         actions={
           <>
             <button

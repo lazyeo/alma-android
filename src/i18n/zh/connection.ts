@@ -22,6 +22,7 @@ export const connection: CatalogShape<typeof source> = {
   switcher: {
     label: '切换桌面端',
     trigger: '桌面端：{name}。切换桌面端',
+    titleTrigger: '切换桌面端，当前：{name}',
     hint: '轻点选择桌面端，或上下滑动切换',
     item: '{name}，{status}',
     add: '添加桌面端',

@@ -68,6 +68,11 @@ vi.mock('react-router-dom', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
   useNavigate: () => navigate,
 }))
+vi.mock('../desktops/DesktopTitleSwitcher', () => ({
+  DesktopTitleSwitcher: ({ fallback }: { fallback: string }) => (
+    <span className="desktop-title-stub">{fallback}</span>
+  ),
+}))
 vi.mock('../desktops/DesktopContext', () => ({
   useConnection: () => ({ api, pairing: { id: 'd1' } }),
 }))

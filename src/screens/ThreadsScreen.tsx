@@ -296,6 +296,7 @@ export function ThreadsScreen({
     <section className="root-page threads-page">
       <ScopedRootHeader
         title={t('nav.threads')}
+        desktopTitle
         className={searchOpen ? 'searching' : ''}
         actions={
           <>

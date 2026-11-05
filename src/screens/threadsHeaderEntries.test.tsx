@@ -5,6 +5,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LanguageProvider } from '../i18n'
 import { ThreadsScreen } from './ThreadsScreen'
 
+vi.mock('../desktops/DesktopTitleSwitcher', () => ({
+  DesktopTitleSwitcher: ({ fallback }: { fallback: string }) => (
+    <span className="desktop-title-stub">{fallback}</span>
+  ),
+}))
 vi.mock('../desktops/DesktopContext', () => ({
   useConnection: () => ({
     api: { searchThreads: vi.fn() },
@@ -99,6 +104,13 @@ if (!document.fonts)
   })
 
 describe('Threads header entries', () => {
+  it('makes the phone heading the desktop switcher', () => {
+    renderThreads()
+    const h1 = document.querySelector('.scoped-root-title h1')!
+    expect(h1.classList.contains('desktop-title')).toBe(true)
+    expect(h1.querySelector('.desktop-title-stub')).toBeTruthy()
+  })
+
   it('carries GTD and Settings as icon buttons that open their pages', () => {
     renderThreads()
     const actions = document.querySelector('.thread-header-actions')!

@@ -19,6 +19,7 @@ export const connection = {
   switcher: {
     label: 'Switch desktop',
     trigger: 'Desktop: {name}. Switch desktop',
+    titleTrigger: 'Switch desktop, current: {name}',
     hint: 'Tap to choose a desktop, or swipe vertically to switch',
     item: '{name}, {status}',
     add: 'Add desktop',

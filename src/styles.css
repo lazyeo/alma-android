@@ -6009,6 +6009,48 @@ button:focus-visible,
   align-items: center;
   gap: 2px;
 }
+/* Phone root pages: the heading is the desktop switcher. It is a control
+   naming the desktop, so it sets at --text-md rather than the display size,
+   which would truncate ordinary names beside the Threads header's five
+   icons. The name truncates so the icons keep their room; the button is a
+   44px hit area. */
+.scoped-root-title h1.desktop-title {
+  display: flex;
+  min-width: 0;
+  margin-left: 0;
+}
+.desktop-title-switcher {
+  min-width: 0;
+  max-width: 100%;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  gap: 6px;
+  border-radius: var(--radius-full);
+  color: var(--foreground);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+.desktop-title-switcher .desktop-switcher-window,
+.desktop-title-switcher .desktop-switcher-slide {
+  height: 44px;
+}
+.desktop-title-switcher .desktop-switcher-neighbor {
+  transform: translateY(
+    calc(var(--desktop-swipe-y, 0px) + 44px * var(--desktop-swipe-direction, 1))
+  );
+}
+.desktop-title-switcher .desktop-status-marker {
+  width: 8px;
+  height: 8px;
+}
+.desktop-title-switcher .desktop-switcher-name {
+  flex: 0 1 auto;
+}
+.desktop-title-switcher > svg {
+  flex: 0 0 auto;
+}
 .scoped-child-header {
   overflow: visible;
 }
