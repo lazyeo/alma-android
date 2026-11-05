@@ -10731,7 +10731,10 @@ dialog:focus,
    - data-alma-expand: overlay while the circle runs;
    - data-alma-expand-layer: base|top, where #root sits against the circle;
    - data-alma-avatar-flight: her avatar clone is in the air;
-   - --alma-expand-x/y: the disc centre, the origin of the recede. */
+   - --alma-expand-x/y: the disc centre, the origin of the recede.
+   On split layouts the rail stays put: the circle and scrim are clipped to
+   the area right of it, and the panes there recede and fade instead of
+   #root. */
 html[data-alma-expand] #root {
   position: relative;
   z-index: 0;
@@ -10742,9 +10745,17 @@ html[data-alma-expand] #root {
 html[data-alma-expand-layer='top'] #root {
   z-index: 3;
 }
+/* The clip is the area the expand covers: the viewport on a phone, right
+   of the rail on split layouts. It sits between #root's base and top. */
+.alma-expand-clip {
+  position: fixed;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
 .alma-expand-circle,
 .alma-expand-dim {
-  position: fixed;
+  position: absolute;
   pointer-events: none;
 }
 .alma-expand-circle {

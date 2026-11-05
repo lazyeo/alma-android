@@ -68,12 +68,44 @@ export interface ExpandOrigin {
  */
 export type ExpandMode = 'overlay' | 'crossfade'
 
-/** Circle origin for a disc box; the radius always reaches every corner. */
-export function expandOrigin(disc: Box, viewport: Viewport): ExpandOrigin {
+/**
+ * What the expand covers and her page fills: the whole viewport on a phone;
+ * on split layouts everything right of the rail (`railRight`), which stays
+ * in place with her face in its top slot.
+ */
+export function expandArea(viewport: Viewport, railRight = 0): Box {
+  const left = Math.min(Math.max(0, railRight), viewport.width)
+  return { left, top: 0, width: viewport.width - left, height: viewport.height }
+}
+
+/** The area for the current layout: right of `.split-rail` when shown. */
+function currentExpandArea(viewport: Viewport): Box {
+  const rail =
+    typeof document === 'undefined'
+      ? null
+      : document.querySelector('.split-rail')
+  return expandArea(viewport, rail?.getBoundingClientRect().right ?? 0)
+}
+
+/**
+ * Circle origin for a disc box; the radius always reaches every corner of
+ * `area` (the viewport unless given).
+ */
+export function expandOrigin(
+  disc: Box,
+  viewport: Viewport,
+  area: Box = expandArea(viewport),
+): ExpandOrigin {
   const x = disc.left + disc.width / 2
   const y = disc.top + disc.height / 2
-  const dx = Math.max(x, viewport.width - x)
-  const dy = Math.max(y, viewport.height - y)
+  const dx = Math.max(
+    Math.abs(x - area.left),
+    Math.abs(area.left + area.width - x),
+  )
+  const dy = Math.max(
+    Math.abs(y - area.top),
+    Math.abs(area.top + area.height - y),
+  )
   return { x, y, radius: Math.ceil(Math.hypot(dx, dy)) }
 }
 
@@ -237,6 +269,8 @@ export interface AlmaTransitionOptions {
   /** Clears `data-nav-motion`: no View Transition style applies to Alma. */
   setNavMotion(motion: 'none'): void
   viewport?: Viewport
+  /** What the circle covers; measured from the split rail when omitted. */
+  area?: Box
   html?: HTMLElement
 }
 
@@ -245,8 +279,11 @@ const EXPAND = 'data-alma-expand'
 const LAYER = 'data-alma-expand-layer'
 const ORIGIN_X = '--alma-expand-x'
 const ORIGIN_Y = '--alma-expand-y'
+const CLIP = 'alma-expand-clip'
 const CIRCLE = 'alma-expand-circle'
 const DIM = 'alma-expand-dim'
+/** On split layouts the panes right of the rail recede and fade, not #root. */
+const STAGE = '.split-shell > .split-sidebar, .split-shell > .split-main'
 /** Open: shortest fade of her page in over the covering circle. */
 const MIN_TOP_IN_MS = 160
 
@@ -283,14 +320,27 @@ function layerElement(className: string) {
   return element
 }
 
-function circleElement(origin: ExpandOrigin) {
+/** Placed in the clip, whose top-left corner is the area's. */
+function circleElement(origin: ExpandOrigin, area: Box) {
   const element = layerElement(CIRCLE)
   const size = `${origin.radius * 2}px`
   Object.assign(element.style, {
-    left: `${origin.x - origin.radius}px`,
-    top: `${origin.y - origin.radius}px`,
+    left: `${origin.x - area.left - origin.radius}px`,
+    top: `${origin.y - area.top - origin.radius}px`,
     width: size,
     height: size,
+  })
+  return element
+}
+
+/** A fixed box over exactly the area: the circle and scrim never leave it. */
+function clipElement(area: Box) {
+  const element = layerElement(CLIP)
+  Object.assign(element.style, {
+    left: `${area.left}px`,
+    top: `${area.top}px`,
+    width: `${area.width}px`,
+    height: `${area.height}px`,
   })
   return element
 }
@@ -299,6 +349,15 @@ function circleElement(origin: ExpandOrigin) {
 interface Run {
   html: HTMLElement
   root: HTMLElement
+  /** What the circle covers and her page fills. */
+  area: Box
+  /**
+   * What recedes and fades: #root on a phone; on split layouts the panes
+   * right of the rail, queried when called, so the rail never moves.
+   */
+  stage(): HTMLElement[]
+  /** Pins each stage element's transform origin on the disc centre. */
+  pinOrigin(elements: HTMLElement[], origin: ExpandOrigin): void
   isDone(): boolean
   animate(
     element: HTMLElement,
@@ -335,6 +394,8 @@ export function startAlmaTransition(
     width: window.innerWidth,
     height: window.innerHeight,
   }
+  const area = options.area ?? currentExpandArea(viewport)
+  const split = area.left > 0
   const box = lastExpandDisc()
   const mode = expandMode({ reduced: options.reduced, hasOrigin: Boolean(box) })
   const { direction } = options
@@ -377,9 +438,26 @@ export function startAlmaTransition(
     const timer = setTimeout(callback, ms)
     cleanups.push(() => clearTimeout(timer))
   }
+  const pinned = new Set<HTMLElement>()
+  cleanups.push(() => {
+    for (const element of pinned)
+      element.style.removeProperty('transform-origin')
+  })
   const run: Run = {
     html,
     root,
+    area,
+    stage: () =>
+      split ? [...document.querySelectorAll<HTMLElement>(STAGE)] : [root],
+    pinOrigin(elements, origin) {
+      // #root uses --alma-expand-x/y; the panes need it in their own box.
+      if (!split) return
+      for (const element of elements) {
+        const box = element.getBoundingClientRect()
+        element.style.transformOrigin = `${origin.x - box.left}px ${origin.y - box.top}px`
+        pinned.add(element)
+      }
+    },
     isDone: () => done,
     animate(element, frames, timing) {
       const animation = element.animate(frames, { fill: 'both', ...timing })
@@ -436,13 +514,14 @@ export function startAlmaTransition(
     return mode
   }
 
-  const origin = expandOrigin(box, viewport)
+  const origin = expandOrigin(box, viewport, area)
   const timeline = expandTimeline({
     direction,
-    centre: origin,
+    // Coverage is measured over the area, in its own coordinates.
+    centre: { x: origin.x - area.left, y: origin.y - area.top },
     radius: origin.radius,
     discRadius: box.width / 2,
-    viewport,
+    viewport: { width: area.width, height: area.height },
     linear: supportsLinearEasing(),
   })
   html.style.setProperty(ORIGIN_X, `${origin.x}px`)
@@ -455,36 +534,58 @@ export function startAlmaTransition(
 
 /** Old page out, swap on a blank frame, new page in: opacity only. */
 function runCrossfade(run: Run) {
-  const out = run.animate(run.root, [{ opacity: 1 }, { opacity: 0 }], {
-    duration: TOP_OUT_MS,
-    easing: FADE_EASING,
-  })
-  run.onFinished([out], () => {
+  const out = run.stage().map((element) =>
+    run.animate(element, [{ opacity: 1 }, { opacity: 0 }], {
+      duration: TOP_OUT_MS,
+      easing: FADE_EASING,
+    }),
+  )
+  run.onFinished(out, () => {
     run.swap()
     // Created before `out` is dropped, so no frame shows the page at 1.
-    const fadeIn = run.animate(run.root, [{ opacity: 0 }, { opacity: 1 }], {
-      duration: CROSSFADE_IN_MS,
-      easing: FADE_EASING,
-    })
-    out.cancel()
-    run.onFinished([fadeIn], () => run.finish(true))
+    const fadeIn = run.stage().map((element) =>
+      run.animate(element, [{ opacity: 0 }, { opacity: 1 }], {
+        duration: CROSSFADE_IN_MS,
+        easing: FADE_EASING,
+      }),
+    )
+    for (const animation of out) animation.cancel()
+    run.onFinished(fadeIn, () => run.finish(true))
   })
 }
 
-/** Circle and scrim as real elements, promoted only for the run. */
+/**
+ * Circle and scrim as real elements in a clip over the area, promoted only
+ * for the run. The clip sits between #root's base and top layers.
+ */
 function overlayLayers(run: Run, origin: ExpandOrigin) {
-  const circle = circleElement(origin)
+  const clip = clipElement(run.area)
+  const circle = circleElement(origin, run.area)
   const dim = layerElement(DIM)
   dim.style.opacity = '0'
-  const promoted = [run.root, circle, dim]
+  clip.append(dim, circle)
+  const promoted = [...run.stage(), circle, dim]
   for (const layer of promoted) layer.style.willChange = 'transform, opacity'
-  document.body.append(dim, circle)
+  document.body.append(clip)
   run.onCleanup(() => {
     for (const layer of promoted) layer.style.removeProperty('will-change')
-    circle.remove()
-    dim.remove()
+    clip.remove()
   })
   return { circle, dim }
+}
+
+/** The stage receding (open) or returning (close) about the disc centre. */
+function recedeStage(
+  run: Run,
+  origin: ExpandOrigin,
+  direction: ExpandDirection,
+  timing: KeyframeAnimationOptions,
+) {
+  const stage = run.stage()
+  run.pinOrigin(stage, origin)
+  return stage.map((element) =>
+    run.animate(element, recedeFrames(direction), timing),
+  )
 }
 
 interface AvatarFlight {
@@ -541,7 +642,7 @@ function avatarFlight(
  * page then fades and rises in above the circle.
  */
 function runOpen(run: Run, origin: ExpandOrigin, timeline: ExpandTimeline) {
-  const { html, root } = run
+  const { html } = run
   const { circle, dim } = overlayLayers(run, origin)
   html.setAttribute(LAYER, 'base')
   const motion = { duration: timeline.duration, easing: timeline.easing }
@@ -561,24 +662,26 @@ function runOpen(run: Run, origin: ExpandOrigin, timeline: ExpandTimeline) {
     duration: timeline.duration,
     easing: FADE_EASING,
   })
-  const recede = run.animate(root, recedeFrames('open'), motion)
+  const recede = recedeStage(run, origin, 'open', motion)
   const fly = flight?.launch(motion)
   run.atTime(grow, timeline.coverAt, () => {
-    recede.cancel()
+    for (const animation of recede) animation.cancel()
     html.setAttribute(LAYER, 'top')
     run.swap()
-    // The header exists now and #root is untransformed: its box is exact
+    // The header exists now and the stage is untransformed: its box is exact
     // (the layout is the one the next frame needs anyway).
     const header = avatarElement('header')?.getBoundingClientRect()
     if (header?.width) {
       recordAvatarBox('header', header)
       flight?.retarget(header)
     }
-    const fadeIn = run.animate(root, topFrames('open'), {
-      duration: Math.max(timeline.duration - timeline.coverAt, MIN_TOP_IN_MS),
-      easing: FADE_EASING,
-    })
-    run.onFinished([grow, dimIn, fly, fadeIn], () => run.finish(true))
+    const fadeIn = run.stage().map((element) =>
+      run.animate(element, topFrames('open'), {
+        duration: Math.max(timeline.duration - timeline.coverAt, MIN_TOP_IN_MS),
+        easing: FADE_EASING,
+      }),
+    )
+    run.onFinished([grow, dimIn, fly, ...fadeIn], () => run.finish(true))
   })
 }
 
@@ -589,7 +692,7 @@ function runOpen(run: Run, origin: ExpandOrigin, timeline: ExpandTimeline) {
  * page returns from its recede and the clone flies back to the disc.
  */
 function runClose(run: Run, origin: ExpandOrigin, timeline: ExpandTimeline) {
-  const { html, root } = run
+  const { html } = run
   const { circle, dim } = overlayLayers(run, origin)
   html.setAttribute(LAYER, 'base')
   const to = avatarBox('nav')
@@ -616,9 +719,10 @@ function runClose(run: Run, origin: ExpandOrigin, timeline: ExpandTimeline) {
         easing: FADE_EASING,
       })
       const dimOut = run.animate(dim, dimFrames('close'), motion)
-      const back = run.animate(root, recedeFrames('close'), motion)
+      // Measured after the swap: the list pane is back beside the page.
+      const back = recedeStage(run, origin, 'close', motion)
       const fly = flight?.launch(motion)
-      run.onFinished([shrink, dimOut, back, fly], () => run.finish(true))
+      run.onFinished([shrink, dimOut, ...back, fly], () => run.finish(true))
     })
   })
 }
