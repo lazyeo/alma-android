@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../desktops/ThreadActivityProvider', () => ({
   useGeneratingIds: () => new Set<string>(),
+  useDesktopThreadEvents: () => undefined,
 }))
 
 vi.mock('../screens/usePersonalAgent', () => ({

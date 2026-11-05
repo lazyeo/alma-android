@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { AlmaFace } from './AlmaFace'
 import { useAlmaPresence } from './AlmaPresence'
 import { almaNavSlot } from './AlmaNavButton'
+import { AlmaThought } from './AlmaThought'
 import { DOCK_AVATAR_PX, recordAvatarBox } from './avatarFlight'
 import { useMeasuredBox } from './measuredBox'
 
@@ -39,6 +40,7 @@ export function AlmaDock() {
       </span>
       {pendingApprovals > 0 ? <span className="alma-nav-badge" /> : null}
       {busy ? <span className="alma-nav-busy" /> : null}
+      <AlmaThought placement="dock" faceSize={DOCK_AVATAR_PX} />
     </div>
   )
 }

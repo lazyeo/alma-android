@@ -19,6 +19,7 @@ import {
 import { ConnectionContext, useDesktops } from '../desktops/DesktopContext'
 import { DesktopSwitcher } from '../desktops/DesktopSwitcher'
 import { AlmaPresenceProvider, useAlmaPresence } from '../alma/AlmaPresence'
+import { AlmaThoughtProvider } from '../alma/AlmaThought'
 import {
   AlmaNavButton,
   almaNavSlot,
@@ -342,7 +343,9 @@ function SidebarThreads({
 export function AppShell() {
   return (
     <AlmaPresenceProvider>
-      <AppShellLayout />
+      <AlmaThoughtProvider>
+        <AppShellLayout />
+      </AlmaThoughtProvider>
     </AlmaPresenceProvider>
   )
 }

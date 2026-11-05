@@ -5,6 +5,7 @@ import { haptic } from '../haptics'
 import { useT } from '../i18n'
 import { AlmaFace } from './AlmaFace'
 import { useAlmaPresence, type AlmaPresence } from './AlmaPresence'
+import { AlmaThought } from './AlmaThought'
 import { recordExpandDisc } from './almaExpand'
 import { recordAvatarBox } from './avatarFlight'
 import { useMeasuredBox } from './measuredBox'
@@ -144,6 +145,13 @@ export function AlmaNavButton({ placement }: { placement: 'tab' | 'rail' }) {
             aria-label={t('threads.personal.needsYou')}
           />
         ) : null}
+        {/* On /alma her face is the header's or the dock's, not this one. */}
+        {here ? null : (
+          <AlmaThought
+            placement={placement}
+            faceSize={NAV_FACE_SIZE[placement]}
+          />
+        )}
       </span>
       {/* Busy is a small dot centred under her face, never an outline: the
           drawn face is not centred in its box, so a ring looks lopsided. */}
