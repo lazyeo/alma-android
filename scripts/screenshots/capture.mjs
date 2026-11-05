@@ -254,6 +254,49 @@ async function assertNoHorizontalOverflow(page, selector) {
     throw new Error(`${selector} overflows horizontally by ${overflow}px`)
 }
 
+/**
+ * The remote screen header is one line with the phone root headers' box:
+ * 60px plus the safe top, every label on a single line, and the screen
+ * starting right under it.
+ */
+async function assertRemoteScreenHeader(page) {
+  const geometry = await page.evaluate(() => {
+    const header = document.querySelector('.remote-screen-header')
+    const surface = document.querySelector('.remote-screen-surface')
+    const box = header.getBoundingClientRect()
+    const wrapped = []
+    const walker = document.createTreeWalker(header, NodeFilter.SHOW_TEXT)
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!node.textContent.trim()) continue
+      const range = document.createRange()
+      range.selectNodeContents(node)
+      const tops = new Set(
+        [...range.getClientRects()]
+          .filter((rect) => rect.width > 0)
+          .map((rect) => Math.round(rect.top)),
+      )
+      if (tops.size > 1) wrapped.push(node.textContent.trim())
+    }
+    return {
+      height: box.height,
+      bottom: box.bottom,
+      surfaceTop: surface.getBoundingClientRect().top,
+      safeTop: Number.parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          '--safe-top',
+        ),
+      ),
+      wrapped,
+    }
+  })
+  if (
+    Math.abs(geometry.height - (60 + geometry.safeTop)) > 0.5 ||
+    Math.abs(geometry.surfaceTop - geometry.bottom) > 0.5 ||
+    geometry.wrapped.length
+  )
+    throw new Error(`remote screen header: ${JSON.stringify(geometry)}`)
+}
+
 async function waitForProjectGroupSettled(page) {
   await page.waitForFunction(() => {
     const group = document.querySelector('.project-group.open')
@@ -1545,8 +1588,10 @@ const screenShots = [
     query: 'lang=en',
     ready: '.remote-screen-media',
     safeInsets: true,
-    afterCapture: (page) =>
-      assertNoHorizontalOverflow(page, '.remote-screen-page'),
+    afterCapture: async (page) => {
+      await assertNoHorizontalOverflow(page, '.remote-screen-page')
+      await assertRemoteScreenHeader(page)
+    },
   },
   {
     file: 'screen-asleep-zh-412.png',
@@ -1577,7 +1622,6 @@ const screenShots = [
     safeInsets: true,
     act: async (page) => {
       await page.getByRole('button', { name: '控制', exact: true }).click()
-      await page.getByRole('button', { name: '触控板', exact: true }).click()
       await page.getByRole('button', { name: '键盘', exact: true }).click()
     },
     afterCapture: (page) =>
@@ -1592,7 +1636,6 @@ const screenShots = [
     safeInsets: true,
     act: async (page) => {
       await page.getByRole('button', { name: 'Control', exact: true }).click()
-      await page.getByRole('button', { name: 'Trackpad', exact: true }).click()
       await page.getByRole('button', { name: 'Keyboard', exact: true }).click()
     },
     afterCapture: (page) =>
@@ -1613,7 +1656,6 @@ const screenShots = [
     act: async (page) => {
       await setFixtureTheme(page, theme, mode)
       await page.getByRole('button', { name: 'Control', exact: true }).click()
-      await page.getByRole('button', { name: 'Trackpad', exact: true }).click()
     },
     afterCapture: (page) =>
       assertNoHorizontalOverflow(page, '.remote-screen-page'),
@@ -1644,7 +1686,6 @@ const screenShots = [
     safeInsets: true,
     act: async (page) => {
       await page.getByRole('button', { name: 'Control', exact: true }).click()
-      await page.getByRole('button', { name: 'Trackpad', exact: true }).click()
     },
     afterCapture: (page) =>
       assertNoHorizontalOverflow(page, '.remote-screen-page'),
