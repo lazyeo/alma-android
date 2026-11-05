@@ -32,6 +32,7 @@ export const message = {
     mention: 'Mention message',
     editResend: 'Edit & resend',
     retry: 'Retry reply',
+    resend: 'Resend message',
   },
   endReason: {
     length: 'Stopped at length limit',

@@ -35,6 +35,7 @@ export const message: CatalogShape<typeof source> = {
     mention: '提及消息',
     editResend: '编辑并重新发送',
     retry: '重新生成回复',
+    resend: '重新发送消息',
   },
   endReason: {
     length: '已达长度上限而停止',

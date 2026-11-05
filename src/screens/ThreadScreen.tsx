@@ -99,6 +99,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { MarkdownContent } from './MarkdownContent'
 import { initialThreadOverscan, THREAD_OVERSCAN } from './threadVirtualizer'
 import { MessageView, PartView, type NestedMessageRow } from '../messages'
+import { messageRetry } from '../messages/messageRetry'
 import { presenceFace, useAlmaPresence } from '../alma/AlmaPresence'
 import { PersonaMessageView } from '../alma/PersonaMessageView'
 import { personaLayout } from '../alma/personaLayout'
@@ -2231,11 +2232,20 @@ function ThreadView({
   )
 
   function retryMessage(row: MessageRow) {
-    if (!socketRef.current) return
-    socketRef.current.retryResponse(threadId, row.id, generationOptions)
+    const retry = messageRetry(roots, row)
+    const socket = socketRef.current
+    if (!retry || !socket) return
     setActionRow(undefined)
+    if (retry.kind === 'resend') {
+      retryFailedUserMessage(row)
+      return
+    }
+    if (retry.kind === 'retryReply')
+      socket.retryResponse(threadId, retry.messageId, generationOptions)
+    else socket.regenerateResponse(threadId, generationOptions)
     startGenerating()
   }
+  const actionRetry = actionRow ? messageRetry(roots, actionRow) : undefined
 
   const switchVersion = useCallback(
     async (row: MessageRow, direction: 'prev' | 'next') => {
@@ -2898,7 +2908,8 @@ function ThreadView({
                 <PencilLine size={18} aria-hidden="true" />
                 {t('message.actions.editResend')}
               </button>
-            ) : (
+            ) : null}
+            {actionRetry ? (
               <button
                 onClick={() => {
                   void haptic('light')
@@ -2906,9 +2917,13 @@ function ThreadView({
                 }}
               >
                 <RotateCcw size={18} aria-hidden="true" />
-                {t('message.actions.retry')}
+                {t(
+                  actionRetry.kind === 'resend'
+                    ? 'message.actions.resend'
+                    : 'message.actions.retry',
+                )}
               </button>
-            )}
+            ) : null}
           </BottomSheet>
         ) : null}
         {htmlChooserOpen && workspaceId ? (
