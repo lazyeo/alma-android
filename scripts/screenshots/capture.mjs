@@ -708,11 +708,16 @@ async function assertNavigationWithoutInbox(page, selector) {
   const normalized = labels.map((label) => label.trim())
   if (normalized.includes('Inbox'))
     throw new Error(`Inbox remains in navigation: ${JSON.stringify(labels)}`)
-  // Tab bar and rail share one root order; the rail adds its extras.
-  const expected = ['Threads', 'Herdr', 'GTD', 'Settings']
+  // The phone pill links Threads and Herdr around Alma's face; GTD and
+  // Settings open from the Threads header there. The rail carries all four
+  // roots in one order and adds its extras.
+  const phone = selector === '.tab-bar'
+  const expected = phone
+    ? ['Threads', 'Herdr']
+    : ['Threads', 'Herdr', 'GTD', 'Settings']
   const roots = normalized.filter((label) => expected.includes(label))
   if (
-    (selector === '.tab-bar' && normalized.join('|') !== expected.join('|')) ||
+    (phone && normalized.join('|') !== expected.join('|')) ||
     roots.join('|') !== expected.join('|')
   )
     throw new Error(
@@ -4368,7 +4373,7 @@ const shots = [
   {
     file: 'attachment-review-navigation-phone.png',
     viewport: PHONE,
-    route: '/settings',
+    route: DESKTOP,
     ready: '.tab-bar',
     async act(page) {
       await assertNavigationWithoutInbox(page, '.tab-bar')
@@ -4379,12 +4384,34 @@ const shots = [
     // Short viewport so every root body overflows and would squeeze a
     // shrinkable header.
     viewport: { width: 412, height: 560 },
-    route: '/d/fixture-desktop/crystals',
-    ready: '.crystals-stats',
+    route: DESKTOP,
+    ready: '.thread-list-header',
     async act(page) {
+      // Settings and Crystals open from the Threads header on phones and
+      // come back with Back; every header keeps one height and title line.
+      const open = {
+        Threads: async () => {},
+        Settings: async () => {
+          await page
+            .locator('.thread-header-actions')
+            .getByRole('button', { name: 'Settings', exact: true })
+            .click()
+          await page.locator('.settings-page').waitFor()
+        },
+        Crystals: async () => {
+          await page.getByRole('button', { name: 'Back', exact: true }).click()
+          await page.locator('.thread-list-header').waitFor()
+          await page.getByRole('button', { name: 'Library' }).click()
+          await page
+            .getByRole('menu', { name: 'Library' })
+            .getByRole('menuitem', { name: 'Crystals' })
+            .click()
+          await page.locator('.crystals-stats').waitFor()
+        },
+      }
       const titles = {}
-      for (const name of ['Settings', 'Threads', 'Crystals']) {
-        await page.locator('.tab-bar').getByRole('link', { name }).click()
+      for (const name of ['Threads', 'Settings', 'Crystals']) {
+        await open[name]()
         await page.waitForTimeout(500)
         titles[name] = await page.evaluate(() => {
           const title = document.querySelector(
@@ -6244,12 +6271,12 @@ const phoneGtdNavigationShots = ['en', 'zh'].flatMap((language) => {
   const labels =
     language === 'zh'
       ? {
-          bottom: ['对话', 'Herdr', '设置'],
-          header: ['资料库', 'GTD', '搜索', '新对话'],
+          bottom: ['对话', 'Herdr'],
+          header: ['资料库', 'GTD', '搜索', '新对话', '设置'],
         }
       : {
-          bottom: ['Threads', 'Herdr', 'Settings'],
-          header: ['Library', 'GTD', 'Search', 'New thread'],
+          bottom: ['Threads', 'Herdr'],
+          header: ['Library', 'GTD', 'Search', 'New thread', 'Settings'],
         }
   return [
     {
@@ -6260,7 +6287,12 @@ const phoneGtdNavigationShots = ['en', 'zh'].flatMap((language) => {
       ready: '.thread-list-header',
       safeInsets: true,
       async act(page) {
-        const bottomLabels = await page.locator('.tab-bar a').allTextContents()
+        // Icon-only links: their names are the accessible labels.
+        const bottomLabels = await page
+          .locator('.tab-bar a')
+          .evaluateAll((links) =>
+            links.map((link) => link.getAttribute('aria-label')),
+          )
         if (bottomLabels.join('|') !== labels.bottom.join('|'))
           throw new Error(`phone bottom navigation: ${bottomLabels.join('|')}`)
         const headerLabels = await page
@@ -6285,11 +6317,9 @@ const phoneGtdNavigationShots = ['en', 'zh'].flatMap((language) => {
         await page.locator('.gtd-page .gtd-list .thread-row').first().waitFor()
         if (await page.locator('.threads-page').count())
           throw new Error('Threads root remained after GTD header navigation')
-        // GTD is a phone tab: a root page with the tab bar and no Back.
-        if (!(await page.locator('.tab-bar [aria-current="page"]').count()))
-          throw new Error('phone GTD tab is not selected in the tab bar')
-        if (await page.locator('.gtd-page .scoped-root-back').count())
-          throw new Error('phone GTD tab unexpectedly shows Back')
+        // GTD opens from the Threads header as a child page: Back, no
+        // tab bar.
+        await assertPhoneChildShell(page, '.gtd-page')
         await assertNoHorizontalOverflow(page, '.gtd-page')
       },
     },
