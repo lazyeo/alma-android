@@ -1403,7 +1403,7 @@ button.reaction-chip:active {
   background: var(--accent-4);
 }
 .reaction-chip.entering {
-  animation: reaction-chip-in var(--dur-fast) var(--ease-spring) backwards;
+  animation: reaction-chip-in var(--dur-fast) var(--ease-out) backwards;
 }
 @keyframes reaction-chip-in {
   from {
