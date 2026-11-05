@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LanguageProvider } from '../i18n'
+import type { LayoutMode } from '../layout/splitLayout'
+import { parentRoute } from '../navigation/parentRoute'
+import { closeTopOverlay, resetOverlayStackForTests } from '../overlayStack'
 import { ThreadsScreen } from './ThreadsScreen'
 
 vi.mock('../desktops/DesktopTitleSwitcher', () => ({
@@ -59,8 +62,9 @@ vi.mock('./ThreadOrganize', () => ({
   useThreadOrganize: () => ({ setStatus: vi.fn() }),
 }))
 
+const layout = vi.hoisted(() => ({ mode: 'single' as LayoutMode }))
 vi.mock('../layout/useLayoutMode', () => ({
-  useLayoutMode: () => 'single',
+  useLayoutMode: () => layout.mode,
 }))
 
 function Location() {
@@ -88,7 +92,11 @@ function renderThreads() {
   )
 }
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  resetOverlayStackForTests()
+  layout.mode = 'single'
+})
 
 // The tab row measures itself; jsdom has no layout to observe.
 globalThis.ResizeObserver ??= class {
@@ -134,3 +142,41 @@ describe('Threads header entries', () => {
     expect(screen.getByTestId('location').textContent).toBe('/settings')
   })
 })
+
+// Mirrors the native backButton listener in App: the top overlay consumes
+// Back first, then the route hierarchy decides; no parent means exit.
+function systemBack(mode: LayoutMode) {
+  let outcome: 'consumed' | 'exit' | string = 'consumed'
+  act(() => {
+    if (closeTopOverlay()) return
+    outcome =
+      parentRoute(screen.getByTestId('location').textContent!, mode) ?? 'exit'
+  })
+  return outcome
+}
+
+describe.each<LayoutMode>(['single', 'split'])(
+  'Threads search and system Back (%s)',
+  (mode) => {
+    it('closes open search first, then Back on the root exits as before', () => {
+      layout.mode = mode
+      renderThreads()
+      fireEvent.click(screen.getByRole('button', { name: 'Search' }))
+      const field = screen.getByRole('textbox', {
+        name: 'Search threads and projects',
+      })
+      field.focus()
+      fireEvent.change(field, { target: { value: 'notes' } })
+      const header = document.querySelector('.scoped-root-header')!
+      expect(header.classList.contains('searching')).toBe(true)
+
+      expect(systemBack(mode)).toBe('consumed')
+      expect(header.classList.contains('searching')).toBe(false)
+      expect((field as HTMLInputElement).value).toBe('')
+      expect(document.activeElement).not.toBe(field)
+      expect(screen.getByTestId('location').textContent).toBe('/d/desk/threads')
+
+      expect(systemBack(mode)).toBe('exit')
+    })
+  },
+)

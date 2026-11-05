@@ -32,6 +32,7 @@ import {
   type NavigateOptions,
 } from 'react-router-dom'
 import { BottomSheet } from '../components/BottomSheet'
+import { useOverlayRegistration } from '../components/useOverlayRegistration'
 import { AnchoredMenu, pointAnchor } from '../components/AnchoredMenu'
 import { useConnection } from '../desktops/DesktopContext'
 import { ScopedRootHeader } from '../layout/ScopedRootHeader'
@@ -199,15 +200,23 @@ export function ThreadsScreen({
   useEffect(() => {
     if (searchOpen) requestAnimationFrame(() => searchRef.current?.focus())
   }, [searchOpen])
+  const closeSearch = () => {
+    // Blurring the field is what dismisses the soft keyboard on Android.
+    searchRef.current?.blur()
+    setSearchOpen(false)
+    setQuery('')
+  }
+  // Open search is a transient layer of the root page: system Back closes it
+  // before the route hierarchy decides whether to leave the app.
+  useOverlayRegistration(searchOpen, closeSearch)
   useEffect(() => {
-    const closeSearch = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || !searchOpen) return
-      setSearchOpen(false)
-      setQuery('')
+    if (!searchOpen) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeSearch()
     }
-    window.addEventListener('keydown', closeSearch)
-    return () => window.removeEventListener('keydown', closeSearch)
-  }, [searchOpen])
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
   const create = (
     workspaceId: string | null | undefined = defaultWorkspaceId,
   ) => {
