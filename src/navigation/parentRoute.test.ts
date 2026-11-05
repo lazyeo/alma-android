@@ -16,10 +16,12 @@ describe('parentRoute', () => {
     )
   })
 
-  it('returns non-home phone tabs to Chat and exits from Chat', () => {
+  it('returns Herdr and the Threads-header pages to Chat and exits from Chat', () => {
     expect(parentRoute('/d/desk/agents', 'single')).toBe(home)
+    // GTD and Settings open from the Threads header on phones.
     expect(parentRoute('/d/desk/gtd', 'single')).toBe(home)
     expect(parentRoute('/settings', 'single', home)).toBe(home)
+    expect(parentRoute('/settings', 'single')).toBe('/threads')
     expect(parentRoute(home, 'single')).toBeNull()
   })
 

@@ -149,6 +149,7 @@ export function GtdScreen({
       <ScopedRootHeader
         title={t('nav.gtd')}
         className="gtd-header"
+        childOnPhone
         actions={
           <button
             className="header-icon-button gtd-archive-button"

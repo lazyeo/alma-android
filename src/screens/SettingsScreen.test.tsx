@@ -9,6 +9,10 @@ const { capabilities, angleSource } = vi.hoisted(() => ({
 }))
 
 vi.mock('./UpdateSettings', () => ({ UpdateSettings: () => null }))
+// The shared page header picks its phone or split form; jsdom has no matchMedia.
+vi.mock('../layout/useLayoutMode', () => ({
+  useLayoutMode: () => 'single',
+}))
 vi.mock('../desktops/PlatformIcon', () => ({
   DesktopPlatformIcon: () => null,
 }))

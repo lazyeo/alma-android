@@ -229,3 +229,8 @@ export function useUpdates() {
   if (!value) throw new Error('useUpdates must be used inside UpdateProvider')
   return value
 }
+
+/** The Settings entry's update dot; quiet where no provider is mounted. */
+export function useUpdateBadge() {
+  return Boolean(useContext(UpdateContext)?.badge)
+}

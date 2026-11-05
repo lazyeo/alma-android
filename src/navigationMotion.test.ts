@@ -22,7 +22,7 @@ describe('navigation motion', () => {
     ).toBe('push')
   })
 
-  it('pushes into GTD conversations and fades between Threads and GTD', () => {
+  it('pushes into GTD conversations and pushes GTD above phone Threads', () => {
     expect(
       decideNavigationMotion(
         location('/d/home/gtd'),
@@ -41,15 +41,55 @@ describe('navigation motion', () => {
         'single',
       ),
     ).toBe('pop')
+    // On phones GTD and Settings open from the Threads header and Back
+    // returns there; in split view they stay rail siblings.
+    for (const child of ['/d/home/gtd', '/settings']) {
+      expect(
+        decideNavigationMotion(
+          location('/d/home/threads'),
+          location(child),
+          'PUSH',
+          null,
+          'single',
+        ),
+      ).toBe('push')
+      expect(
+        decideNavigationMotion(
+          location(child),
+          location('/d/home/threads'),
+          'REPLACE',
+          null,
+          'single',
+        ),
+      ).toBe('none')
+      expect(
+        decideNavigationMotion(
+          location(child),
+          location('/d/home/threads'),
+          'PUSH',
+          null,
+          'single',
+        ),
+      ).toBe('pop')
+      expect(
+        decideNavigationMotion(
+          location('/d/home/threads'),
+          location(child),
+          'PUSH',
+          null,
+          'split',
+        ),
+      ).toBe('fade')
+    }
     expect(
       decideNavigationMotion(
-        location('/d/home/threads'),
         location('/d/home/gtd'),
+        location('/d/home/gtd/t-1'),
         'PUSH',
         null,
-        'single',
+        'split',
       ),
-    ).toBe('fade')
+    ).toBe('push')
     expect(
       decideNavigationMotion(
         location('/d/home/gtd/t-1'),
@@ -128,7 +168,7 @@ describe('navigation motion', () => {
         location('/settings'),
         'PUSH',
         null,
-        'single',
+        'split',
       ),
     ).toBe('fade')
     expect(

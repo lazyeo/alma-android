@@ -16,15 +16,19 @@ const references = read('./ReferencesScreen.tsx')
 const header = read('../layout/ScopedRootHeader.tsx')
 
 describe('GTD navigation structure', () => {
-  it('keeps GTD in the shared roots and in the phone bottom bar', () => {
-    const nav = /const NAV_ITEMS = \[([\s\S]*?)\] as const/.exec(shell)?.[1]
-    expect(nav).toBeDefined()
-    expect([...nav!.matchAll(/labelKey: '([^']+)'/g)].map((m) => m[1])).toEqual(
-      ['nav.threads', 'nav.gtd', 'nav.settings'],
+  it('keeps GTD in the split rail and out of the phone bottom bar', () => {
+    const phone = /function PhoneNav\([\s\S]*?\n}\n/.exec(shell)?.[0] ?? ''
+    const rail = /function RailNav\([\s\S]*?\n}\n/.exec(shell)?.[0] ?? ''
+    expect(phone).toContain("label={t('nav.threads')}")
+    expect(phone).toContain('<AlmaNavButton key="alma" placement="tab" />')
+    expect(phone).toContain('<AgentsNavLink')
+    expect(phone).not.toContain('nav.gtd')
+    expect(phone).not.toContain('nav.settings')
+    expect(rail).toMatch(
+      /nav\.threads[\s\S]*<AlmaNavButton placement="rail" \/>[\s\S]*<AgentsNavLink[\s\S]*\{extras\}[\s\S]*\{toggle\}[\s\S]*nav\.gtd[\s\S]*nav\.settings/,
     )
-    expect(shell).toContain('<MainNav className="tab-bar" />')
+    expect(shell).not.toContain('NAV_ITEMS')
     expect(shell).not.toContain('includeGtd')
-    expect(shell).toMatch(/<MainNav\s+className="split-nav"\s+compact/)
   })
 
   it('opens GTD from the Threads header between Library and Search', () => {
@@ -115,7 +119,7 @@ describe('GTD navigation structure', () => {
     expect(shell).toContain('function ActiveDesktopStrip()')
     expect(shell).toContain('<DesktopSwitcher className="desktop-strip" />')
     expect(shell).toMatch(
-      /<ActiveDesktopStrip \/>\s*<MainNav className="tab-bar" \/>/,
+      /<div className="phone-dock">\s*<ActiveDesktopStrip \/>\s*\{newThread \? null : <PhoneNav hidden=\{keyboardOpen\} \/>\}/,
     )
     expect(shell).toMatch(/<SidebarThreads[\s\S]*<ActiveDesktopStrip \/>/)
     expect(styles).toMatch(/\.desktop-strip \{[\s\S]*min-height: 28px/)
@@ -128,9 +132,10 @@ describe('GTD navigation structure', () => {
     )
   })
 
-  it('places Archive in the shared header action area and keeps phone GTD a tab root', () => {
+  it('places Archive in the shared header action area and opens phone GTD as a child page', () => {
     expect(gtd).toContain('<ScopedRootHeader')
-    expect(gtd).not.toContain('childOnPhone')
+    expect(gtd).toContain('childOnPhone')
+    expect(shell).toContain('/^\\/d\\/[^/]+\\/gtd\\/?$/.test(pathname)')
     expect(gtd).toContain('actions={')
     expect(gtd).not.toContain('<h1>GTD</h1>')
   })

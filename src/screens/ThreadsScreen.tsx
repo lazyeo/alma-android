@@ -20,6 +20,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Settings,
   Trash2,
   X,
 } from 'lucide-react'
@@ -65,6 +66,7 @@ import {
   usePersonalThreadIds,
 } from '../alma/personalThread'
 import { usePullToRefresh } from './usePullToRefresh'
+import { useUpdateBadge } from '../updates/UpdateProvider'
 
 export function ThreadsScreen({
   selectedThreadId,
@@ -73,6 +75,7 @@ export function ThreadsScreen({
   selectedThreadId?: string
 } = {}) {
   const t = useT()
+  const updateBadge = useUpdateBadge()
   const { api, pairing } = useConnection(),
     navigate = useNavigate(),
     location = useLocation()
@@ -375,6 +378,22 @@ export function ThreadsScreen({
               aria-label={t('threads.newThread')}
             >
               <Plus size={20} strokeWidth={2} />
+            </button>
+            <button
+              className="header-icon-button settings-entry split-header-hidden"
+              aria-label={t('nav.settings')}
+              onClick={() => {
+                void haptic('light')
+                navigate('/settings')
+              }}
+            >
+              <Settings size={19} />
+              {updateBadge ? (
+                <span
+                  className="update-badge-dot"
+                  aria-label={t('settings.updates.availableDot')}
+                />
+              ) : null}
             </button>
           </>
         }

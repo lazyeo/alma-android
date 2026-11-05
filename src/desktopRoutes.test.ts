@@ -44,8 +44,10 @@ describe('desktop-scoped routes', () => {
 
   it('treats tab roots, including scoped thread lists, as back-exit roots', () => {
     expect(isRootPath('/d/home/threads')).toBe(true)
-    expect(isRootPath('/d/home/gtd')).toBe(true)
     expect(isRootPath('/d/home/agents')).toBe(true)
+    // GTD and Settings are Threads-header children with Back.
+    expect(isRootPath('/d/home/gtd')).toBe(false)
+    expect(isRootPath('/settings')).toBe(false)
     expect(isRootPath('/d/home/gtd/t1')).toBe(false)
     expect(isRootPath('/inbox')).toBe(false)
     expect(isRootPath('/d/home/threads/t1')).toBe(false)

@@ -60,10 +60,13 @@ export function desktopCrystalsPath(desktopId: string, crystalId?: string) {
   return crystalId ? `${base}/${encodeURIComponent(crystalId)}` : base
 }
 
-/** Tab roots where Android back exits instead of popping history. */
+/**
+ * Phone tab roots where Android back exits instead of popping history.
+ * GTD and Settings open from the Threads header, so Back returns there.
+ */
 export function isRootPath(pathname: string) {
   return (
-    ['/', '/threads', '/settings'].includes(pathname) ||
-    /^\/d\/[^/]+\/(?:threads|gtd|agents)\/?$/.test(pathname)
+    ['/', '/threads'].includes(pathname) ||
+    /^\/d\/[^/]+\/(?:threads|agents)\/?$/.test(pathname)
   )
 }

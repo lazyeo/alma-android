@@ -71,6 +71,7 @@ import {
 } from '../backgroundConnection'
 import type { MessageKey } from '../i18n'
 import type { DesktopStatus } from '../relay'
+import { ScopedRootHeader } from '../layout/ScopedRootHeader'
 
 function Switch({
   checked,
@@ -599,9 +600,7 @@ export function SettingsScreen() {
       : undefined
   return (
     <section className="root-page settings-page">
-      <header className="page-header">
-        <h1>{t('settings.title')}</h1>
-      </header>
+      <ScopedRootHeader title={t('settings.title')} childOnPhone />
       <div className="page-body settings-page-body">
         <div className="settings-grid">
           <ThemeSettingsView />

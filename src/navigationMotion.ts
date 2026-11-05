@@ -4,16 +4,33 @@ import type { LayoutMode } from './layout/splitLayout'
 export type NavigationMotion =
   'none' | 'push' | 'pop' | 'fade' | 'shared-composer' | 'alma'
 
-// GTD mirrors Threads: a list root with conversations pushed above it.
+// GTD mirrors Threads: a list with conversations pushed above it.
 const threadList = /^\/d\/[^/]+\/(?:threads|gtd)\/?$/
 const threadDetail = /^\/d\/[^/]+\/(?:threads|gtd)\/[^/]+\/?$/
+const threadsList = /^\/d\/[^/]+\/threads\/?$/
+const gtdList = /^\/d\/[^/]+\/gtd\/?$/
+const gtdDetail = /^\/d\/[^/]+\/gtd\/[^/]+\/?$/
 const crystalList = /^\/d\/[^/]+\/crystals\/?$/
 const crystalDetail = /^\/d\/[^/]+\/crystals\/[^/]+\/?$/
 const almaRoute = /^\/d\/[^/]+\/alma\/?$/
 
-function depth(pathname: string) {
+/**
+ * On phones GTD and Settings open from the Threads header, one level above
+ * it; in split view they are rail roots beside Threads.
+ */
+function headerChild(pathname: string, layoutMode: LayoutMode) {
+  return (
+    layoutMode === 'single' &&
+    (gtdList.test(pathname) || pathname === '/settings')
+  )
+}
+
+function depth(pathname: string, layoutMode: LayoutMode) {
+  const lift = layoutMode === 'single' ? 1 : 0
+  if (gtdDetail.test(pathname)) return 2 + lift
+  if (pathname === '/pair') return 2 + lift
   if (threadDetail.test(pathname) || crystalDetail.test(pathname)) return 2
-  if (pathname === '/pair') return 2
+  if (headerChild(pathname, layoutMode)) return 2
   if (
     threadList.test(pathname) ||
     crystalList.test(pathname) ||
@@ -28,18 +45,24 @@ function desktopId(pathname: string) {
   return pathname.match(/^\/d\/([^/]+)/)?.[1]
 }
 
-function sameHierarchy(from: string, to: string) {
+function sameHierarchy(from: string, to: string, layoutMode: LayoutMode) {
+  const headerPair = (parent: string, child: string) =>
+    (threadsList.test(parent) || parent === '/threads') &&
+    headerChild(child, layoutMode)
   return (
     (threadList.test(from) && threadDetail.test(to)) ||
     (threadDetail.test(from) && threadList.test(to)) ||
     (crystalList.test(from) && crystalDetail.test(to)) ||
     (crystalDetail.test(from) && crystalList.test(to)) ||
+    headerPair(from, to) ||
+    headerPair(to, from) ||
     (from === '/settings' && to === '/pair') ||
     (from === '/pair' && to === '/settings')
   )
 }
 
-function isRootSibling(pathname: string) {
+function isRootSibling(pathname: string, layoutMode: LayoutMode) {
+  if (headerChild(pathname, layoutMode)) return false
   return (
     threadList.test(pathname) ||
     crystalList.test(pathname) ||
@@ -83,13 +106,19 @@ export function decideNavigationMotion(
   )
     return 'fade'
 
-  if (sameHierarchy(from.pathname, to.pathname))
-    return depth(to.pathname) > depth(from.pathname) ? 'push' : 'pop'
+  if (sameHierarchy(from.pathname, to.pathname, layoutMode))
+    return depth(to.pathname, layoutMode) > depth(from.pathname, layoutMode)
+      ? 'push'
+      : 'pop'
 
-  if (isRootSibling(from.pathname) && isRootSibling(to.pathname)) return 'fade'
+  if (
+    isRootSibling(from.pathname, layoutMode) &&
+    isRootSibling(to.pathname, layoutMode)
+  )
+    return 'fade'
 
-  const fromDepth = depth(from.pathname)
-  const toDepth = depth(to.pathname)
+  const fromDepth = depth(from.pathname, layoutMode)
+  const toDepth = depth(to.pathname, layoutMode)
   if (fromDepth && toDepth && fromDepth !== toDepth)
     return toDepth > fromDepth ? 'push' : 'pop'
 
