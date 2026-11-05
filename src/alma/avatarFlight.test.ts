@@ -37,12 +37,15 @@ describe('avatar boxes', () => {
   })
 
   it('predicts the header avatar from the layout tokens until measured', () => {
-    expect(predictedHeaderAvatar()).toEqual(box(66, 12, 36))
+    // 18px page padding + 12px header padding + 40px Back + 10px gap.
+    expect(predictedHeaderAvatar()).toEqual(box(80, 12, 36))
     expect(predictedHeaderAvatar({ top: 40, left: 20 })).toEqual(
-      box(74, 52, 36),
+      box(88, 52, 36),
     )
+    expect(css).toMatch(/\n\.detail-main \{[^}]*padding: 0 18px;/)
+    expect(css).toMatch(/\n\.detail-header > button \{[^}]*width: 40px;/)
     vi.stubGlobal('__almaNativeInsets', { top: 30, left: 0 })
-    expect(headerAvatarTarget()).toEqual(box(66, 42, 36))
+    expect(headerAvatarTarget()).toEqual(box(80, 42, 36))
     recordAvatarBox('header', box(60, 44, 36))
     expect(headerAvatarTarget()).toEqual(box(60, 44, 36))
   })

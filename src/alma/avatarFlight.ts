@@ -47,10 +47,12 @@ export function clearAvatarBoxes() {
   delete boxes.header
 }
 
-/** Mirrors `.detail-header` (60px bar, 12px inline padding, 44px back button). */
+/** Mirrors `.detail-main` (18px inline padding around the phone page). */
+const DETAIL_MAIN_INLINE_PX = 18
+/** Mirrors `.detail-header` (60px bar, 12px inline padding, 40px back button). */
 const HEADER_BAR_PX = 60
 const HEADER_INLINE_PX = 12
-const HEADER_BACK_PX = 44
+const HEADER_BACK_PX = 40
 /** Mirrors `.detail-header.alma-header` gap and `.alma-header > .alma-avatar`. */
 const HEADER_GAP_PX = 10
 export const HEADER_AVATAR_PX = 36
@@ -64,7 +66,10 @@ export function predictedHeaderAvatar(
 ): Box {
   return {
     left:
-      Math.max(HEADER_INLINE_PX, insets.left) + HEADER_BACK_PX + HEADER_GAP_PX,
+      DETAIL_MAIN_INLINE_PX +
+      Math.max(HEADER_INLINE_PX, insets.left) +
+      HEADER_BACK_PX +
+      HEADER_GAP_PX,
     top: insets.top + (HEADER_BAR_PX - HEADER_AVATAR_PX) / 2,
     width: HEADER_AVATAR_PX,
     height: HEADER_AVATAR_PX,
