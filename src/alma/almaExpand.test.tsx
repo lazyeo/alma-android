@@ -6,6 +6,7 @@ import {
   almaMotionState,
   cancelAlmaTransition,
   clearExpandDisc,
+  expandArea,
   expandMode,
   expandOrigin,
   lastExpandDisc,
@@ -385,6 +386,117 @@ describe('close', () => {
     expect(clone()).toBeNull()
     expect(html().hasAttribute('data-alma-avatar-flight')).toBe(false)
     expect(haptic).not.toHaveBeenCalled()
+  })
+})
+
+describe('split layouts', () => {
+  const wide = { width: 1200, height: 900 }
+  const railDisc = { left: 12, top: 10, width: 48, height: 48 }
+  const boxes: Record<string, Partial<DOMRect>> = {
+    '.split-rail': { left: 0, top: 0, right: 72, width: 72, height: 900 },
+    '.split-sidebar': { left: 72, top: 0, right: 392, width: 320 },
+    '.split-main': { left: 392, top: 0, right: 1200, width: 808 },
+  }
+
+  beforeEach(() => {
+    const shell = document.createElement('div')
+    shell.className = 'split-shell'
+    for (const selector of Object.keys(boxes)) {
+      const pane = document.createElement('div')
+      pane.className = selector.slice(1)
+      shell.append(pane)
+    }
+    root().append(shell)
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+      function (this: HTMLElement) {
+        const match = Object.keys(boxes).find((key) => this.matches(key))
+        return {
+          left: 0,
+          top: 0,
+          right: 0,
+          width: 0,
+          height: 0,
+          ...(match ? boxes[match] : {}),
+        } as DOMRect
+      },
+    )
+    recordExpandDisc(railDisc)
+  })
+
+  afterEach(() =>
+    vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockRestore(),
+  )
+
+  const pane = (name: string) =>
+    document.querySelector<HTMLElement>(`.split-shell > .${name}`)!
+  const startWide = (commit = vi.fn()) =>
+    startAlmaTransition({
+      direction: 'open',
+      reduced: false,
+      commit,
+      setNavMotion: vi.fn(),
+      viewport: wide,
+    })
+
+  it('covers everything right of the rail and leaves the rail alone', () => {
+    expect(expandArea(wide, 72)).toEqual({
+      left: 72,
+      top: 0,
+      width: 1128,
+      height: 900,
+    })
+    expect(expandArea(wide)).toEqual({ left: 0, top: 0, ...wide })
+    expect(expandArea(wide, 5000).width).toBe(0)
+  })
+
+  it('reaches every corner of the area, not the viewport, from the rail disc', () => {
+    const area = expandArea(wide, 72)
+    const origin = expandOrigin(railDisc, wide, area)
+    expect(origin).toEqual({
+      x: 36,
+      y: 34,
+      radius: Math.ceil(Math.hypot(1200 - 36, 900 - 34)),
+    })
+    for (const [cx, cy] of [
+      [area.left, 0],
+      [wide.width, 0],
+      [area.left, wide.height],
+      [wide.width, wide.height],
+    ])
+      expect(Math.hypot(cx - origin.x, cy - origin.y)).toBeLessThanOrEqual(
+        origin.radius,
+      )
+  })
+
+  it('clips the circle to the measured area and recedes only the panes', async () => {
+    const commit = vi.fn()
+    expect(startWide(commit)).toBe('overlay')
+    const clip = document.querySelector<HTMLElement>('.alma-expand-clip')!
+    expect(clip.style.left).toBe('72px')
+    expect(clip.style.width).toBe('1128px')
+    expect(clip.style.height).toBe('900px')
+    expect(clip.contains(circle())).toBe(true)
+    const r = Math.ceil(Math.hypot(1200 - 36, 900 - 34))
+    // Circle coordinates are the clip's: the disc centre sits left of it.
+    expect(circle()!.style.left).toBe(`${36 - 72 - r}px`)
+    expect(circle()!.style.top).toBe(`${34 - r}px`)
+
+    expect(on(root())).toHaveLength(0)
+    expect(on(pane('split-rail'))).toHaveLength(0)
+    for (const name of ['split-sidebar', 'split-main'])
+      expect(on(pane(name))[0].frames.at(-1)).toEqual({
+        transform: 'scale(0.94)',
+      })
+    // Each pane recedes about the disc centre, in its own box.
+    expect(pane('split-sidebar').style.transformOrigin).toBe('-36px 34px')
+    expect(pane('split-main').style.transformOrigin).toBe('-356px 34px')
+
+    await advance(openLandsAt() + 1000)
+    expect(commit).toHaveBeenCalledTimes(1)
+    expect(almaMotionState().running).toBe(false)
+    expect(document.querySelector('.alma-expand-clip')).toBeNull()
+    expect(pane('split-main').style.transformOrigin).toBe('')
+    expect(pane('split-main').style.willChange).toBe('')
   })
 })
 
