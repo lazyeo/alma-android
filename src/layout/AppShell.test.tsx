@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
@@ -416,6 +418,49 @@ describe('Alma on split layouts', () => {
     const toggle = container.querySelector<HTMLButtonElement>('.split-toggle')!
     expect(toggle.disabled).toBe(true)
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    cleanup()
+  })
+
+  it('shows one face: docked across the rail edge, the rail slot hidden', () => {
+    mocks.mode = 'split'
+    mocks.personal = readyPersonal
+    const { container } = renderShell('/d/desktop/alma')
+    const docks = container.querySelectorAll('.split-shell > .alma-dock')
+    expect(docks).toHaveLength(1)
+    const dock = docks[0]
+    // Outside the panes that recede and hand off, so there is only one.
+    expect(dock.closest('.split-main, .split-sidebar')).toBeNull()
+    const face = dock.querySelector('[data-alma-avatar="header"]')!
+    expect(face.querySelector('svg')?.getAttribute('width')).toBe('52')
+    expect(dock.classList.contains('alma-avatar-flight')).toBe(true)
+    // The rail slot keeps its box but is no flight end; CSS hides its face.
+    const slot = container.querySelector('.split-rail .alma-nav-rail')!
+    expect(slot.querySelector('[data-alma-avatar]')).toBeNull()
+    expect(slot.querySelector('.alma-avatar')).toBeTruthy()
+    const css = readFileSync(resolve(process.cwd(), 'src/styles.css'), 'utf8')
+    expect(css).toMatch(
+      /\.split-shell\.alma-full \.alma-nav-rail \.alma-avatar,[^{]*\{\s*opacity: 0;/,
+    )
+    const hidden = '.split-shell.alma-full .alma-nav-rail .alma-avatar'
+    const visible = [...container.querySelectorAll('.alma-avatar')].filter(
+      (element) => !element.matches(hidden),
+    )
+    expect(visible).toEqual([face])
+    cleanup()
+  })
+
+  it('keeps her face in the slot off /alma and has no dock on a phone', () => {
+    mocks.mode = 'split'
+    mocks.personal = readyPersonal
+    const { container } = renderShell('/d/desktop/threads')
+    expect(container.querySelector('.alma-dock')).toBeNull()
+    expect(
+      container.querySelector('.alma-nav-rail [data-alma-avatar="nav"]'),
+    ).toBeTruthy()
+    cleanup()
+    mocks.mode = 'single'
+    const phone = renderShell('/d/desktop/alma')
+    expect(phone.container.querySelector('.alma-dock')).toBeNull()
     cleanup()
   })
 

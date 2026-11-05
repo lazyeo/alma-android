@@ -1,12 +1,23 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LanguageProvider } from '../i18n'
 import type { PersonalAgentState } from '../screens/personalAgent'
 import { AlmaHeader } from './AlmaHeader'
 import { AlmaPresenceContext, presenceFace } from './AlmaPresence'
 
-afterEach(cleanup)
+let split = false
+beforeEach(() => {
+  window.matchMedia = vi.fn().mockImplementation(() => ({
+    matches: split,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }))
+})
+afterEach(() => {
+  split = false
+  cleanup()
+})
 
 const ready = (
   pendingApprovals = 0,
@@ -85,5 +96,24 @@ describe('AlmaHeader', () => {
     cleanup()
     renderHeader(ready())
     expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('leaves her face to the dock on split layouts and clears room for it', () => {
+    split = true
+    const { container } = renderHeader(ready(1, 1, 'happy'))
+    const header = container.querySelector('header')!
+    expect(header.classList.contains('docked')).toBe(true)
+    expect(container.querySelector('.alma-avatar')).toBeNull()
+    expect(container.querySelector('[data-alma-avatar]')).toBeNull()
+    expect(screen.getByText('Alma')).toBeTruthy()
+    expect(screen.getByText('1 thing needs your OK')).toBeTruthy()
+  })
+
+  it('keeps her face in the phone header', () => {
+    const { container } = renderHeader(ready())
+    expect(
+      container.querySelector('header')!.classList.contains('docked'),
+    ).toBe(false)
+    expect(container.querySelectorAll('.alma-avatar')).toHaveLength(1)
   })
 })

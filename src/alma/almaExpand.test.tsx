@@ -498,6 +498,44 @@ describe('split layouts', () => {
     expect(pane('split-main').style.transformOrigin).toBe('')
     expect(pane('split-main').style.willChange).toBe('')
   })
+
+  it('flies the rail face to the dock across the rail edge, growing 40 to 52', () => {
+    startWide()
+    // Centred on the rail's right edge (72 - 26) and the 60px header row.
+    expect(on(clone()!)[0].frames.at(-1)).toEqual({
+      transform: 'translate(46px, 4px) scale(1.3)',
+    })
+    expect(on(clone()!)[0].options.duration).toBe(EXPAND_MS)
+  })
+
+  it('flies back from the dock into the rail slot on close', () => {
+    const dock = { left: 46, top: 4, width: 52, height: 52 }
+    recordAvatarBox('header', dock)
+    startAlmaTransition({
+      direction: 'close',
+      reduced: false,
+      commit: vi.fn(),
+      setNavMotion: vi.fn(),
+      viewport: wide,
+    })
+    expect(clone()!.style.width).toBe('52px')
+    expect(clone()!.style.transform).toBe('translate(46px, 4px)')
+  })
+
+  it('crossfades her docked face with the panes under reduced motion', async () => {
+    const dock = document.createElement('div')
+    dock.className = 'alma-dock'
+    document.querySelector('.split-shell')!.append(dock)
+    startAlmaTransition({
+      direction: 'close',
+      reduced: true,
+      commit: vi.fn(),
+      setNavMotion: vi.fn(),
+      viewport: wide,
+    })
+    expect(on(dock)[0].frames).toEqual([{ opacity: 1 }, { opacity: 0 }])
+    expect(on(pane('split-rail'))).toHaveLength(0)
+  })
 })
 
 describe('crossfade', () => {
