@@ -1,23 +1,21 @@
 // Touch gestures on the remote screen as a pure state machine.
 //
-// One machine serves three modes:
-// - direct: the finger is the mouse. Tap clicks where it lands, a second tap
-//   double-clicks, a 350ms hold (or tap then drag) presses for a drag, moving
-//   without a press hovers the pointer.
-// - trackpad: the finger moves a local cursor with pointer acceleration; taps,
-//   holds and drags act at the cursor.
+// One machine serves two modes:
+// - trackpad: the finger moves a local cursor with pointer acceleration. A tap
+//   clicks at the cursor, a second tap double-clicks, a 350ms hold then move
+//   (or tap then drag) drags.
 // - pan: no desktop input. One finger pans the zoomed view.
-// In every mode two fingers pinch to zoom (anchored at their centroid). Two
-// fingers dragged together scroll (direct, trackpad) or pan (pan mode). A
-// two-finger tap is a right click; when zoomed, a quick second two-finger tap
-// resets the zoom instead.
+// In both modes two fingers pinch to zoom (anchored at their centroid). Two
+// fingers dragged together scroll (trackpad) or pan (pan mode). A two-finger
+// tap is a right click; when zoomed, a quick second two-finger tap resets the
+// zoom instead.
 //
 // Inputs carry their own timestamps and the caller feeds `tick` at
 // `nextGestureDeadline`, so tests drive it with synthetic sequences.
 
 import type { Point } from './viewport'
 
-export type GestureMode = 'direct' | 'trackpad' | 'pan'
+export type GestureMode = 'trackpad' | 'pan'
 
 export interface GestureEnv {
   mode: GestureMode
@@ -72,14 +70,12 @@ export interface TouchGestureState {
 }
 
 export type GestureAction =
-  /** direct: move the desktop pointer to this surface point. */
-  | { type: 'hover'; point: Point }
-  /** trackpad: move the cursor by this many surface px (accelerated). */
+  /** Move the cursor by this many surface px (accelerated). */
   | { type: 'cursor'; delta: Point }
-  /** Mouse button down / up. `point` is the finger (direct); trackpad uses the cursor. */
+  /** Mouse button down / up at the cursor; `point` is where the finger was. */
   | { type: 'press' | 'release'; point: Point }
   | { type: 'click' | 'double' | 'right'; point: Point }
-  /** Scroll by the centroid movement in surface px at `point` (direct) or the cursor. */
+  /** Scroll at the cursor by the centroid movement in surface px. */
   | { type: 'scroll'; point: Point; delta: Point }
   | {
       type: 'pinch'
@@ -160,8 +156,6 @@ function singleMove(
       state,
       actions: delta.x || delta.y ? [{ type: 'pan', delta }] : [],
     }
-  if (env.mode === 'direct')
-    return { state, actions: [{ type: 'hover', point: to }] }
   const dt = Math.max(1, at - state.lastMoveAt)
   const speed = (Math.hypot(delta.x, delta.y) / dt) * 1000
   const velocity = state.velocity ? 0.5 * state.velocity + 0.5 * speed : speed
@@ -193,10 +187,7 @@ export function reduceTouchGesture(
       input.at - next.downAt >= HOLD_DELAY
     ) {
       actions.push({ type: 'haptic', kind: 'medium' })
-      if (env.mode === 'direct') {
-        actions.push({ type: 'press', point: primary.point })
-        next = { ...next, phase: 'dragging' }
-      } else next = { ...next, phase: 'holding' }
+      next = { ...next, phase: 'holding' }
     }
     if (next.pendingTap && input.at > next.pendingTap.deadline) {
       actions.push({ type: 'click', point: next.pendingTap.point })

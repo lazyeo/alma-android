@@ -3,16 +3,16 @@ import {
   buildKeyCombo,
   createMoveCoalescer,
   createScrollCoalescer,
-  directPointerEvent,
+  pointerAt,
 } from './controls'
 
-describe('directPointerEvent', () => {
+describe('pointerAt', () => {
   it('maps selection drag actions to down, ordinary moves, then up', () => {
     expect([
-      directPointerEvent('drag-start', { x: 0.1, y: 0.2 }),
-      directPointerEvent('move', { x: 0.2, y: 0.25 }),
-      directPointerEvent('move', { x: 0.3, y: 0.4 }),
-      directPointerEvent('drag-end', { x: 0.3, y: 0.4 }),
+      pointerAt('drag-start', { x: 0.1, y: 0.2 }),
+      pointerAt('move', { x: 0.2, y: 0.25 }),
+      pointerAt('move', { x: 0.3, y: 0.4 }),
+      pointerAt('drag-end', { x: 0.3, y: 0.4 }),
     ]).toEqual([
       { type: 'pointer', action: 'down', x: 0.1, y: 0.2 },
       { type: 'pointer', action: 'move', x: 0.2, y: 0.25 },

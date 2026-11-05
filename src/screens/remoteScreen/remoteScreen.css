@@ -113,7 +113,7 @@
   content: '';
   opacity: 0.35;
 }
-/* In trackpad mode the whole surface is the pad: an inset, rounded fill with
+/* In control the whole surface is the trackpad: an inset, rounded fill with
    a hairline edge, so its bounds read on wide screens where the picture is
    letterboxed. */
 .remote-screen-surface.is-trackpad {
@@ -267,13 +267,15 @@
   border-top: var(--border-hairline) solid var(--gray-a5);
   background: var(--background);
 }
-.remote-screen-mode,
 .remote-screen-tools,
 .remote-key-row,
 .remote-view-only {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.remote-screen-tools {
+  margin-left: auto;
 }
 .remote-view-only {
   color: var(--muted-foreground);

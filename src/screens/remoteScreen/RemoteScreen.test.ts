@@ -26,7 +26,7 @@ describe('RemoteScreen input surfaces', () => {
     )
   })
 
-  it('draws a local cursor only in trackpad mode and hides the Mac one', () => {
+  it('draws a local cursor while in control and hides the Mac one', () => {
     expect(source).toMatch(/\{trackpad \? \(\s*<div\s+ref=\{cursorRef\}/)
     expect(source).toContain(
       "remote.send({ type: 'mouse_mode', on: trackpad })",
@@ -40,8 +40,10 @@ describe('RemoteScreen input surfaces', () => {
     expect(source).not.toMatch(/style=\{\{\s*transform/)
   })
 
-  it('maps every desktop pointer position through the view', () => {
-    expect(source).toContain('surfaceToDesktop(point, size, videoSize, view())')
+  it('moves the cursor through the view and acts only at the cursor', () => {
+    expect(source).toContain('surfaceDeltaToDesktop(')
+    expect(source).toContain('pointerAt(action, cursor.current)')
+    expect(source).not.toContain('surfaceToDesktop(')
     expect(source).not.toContain('mapClientPoint')
   })
 })

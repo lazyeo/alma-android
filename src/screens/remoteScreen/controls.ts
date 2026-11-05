@@ -3,7 +3,8 @@ export interface Point {
   y: number
 }
 
-export function directPointerEvent(
+/** A pointer event at a desktop point (0 to 1 on each axis). */
+export function pointerAt(
   action: 'move' | 'click' | 'double' | 'right' | 'drag-start' | 'drag-end',
   point: Point,
 ): ControlEvent {

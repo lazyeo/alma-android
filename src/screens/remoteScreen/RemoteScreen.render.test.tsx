@@ -22,6 +22,7 @@ const remoteState: {
   windowList?: ScreenWindowList
   switching?: boolean
   controlRevoked?: number
+  control?: boolean
 } = {}
 const targets: ScreenTarget[] = []
 
@@ -71,7 +72,7 @@ vi.mock('./useRemoteScreen', () => ({
       markVideoFrame: vi.fn(),
       stalled: false,
       videoLive: false,
-      control: true,
+      control: remoteState.control ?? true,
       controlRevoked: remoteState.controlRevoked ?? 0,
       error: '',
       frame: undefined,
@@ -95,6 +96,7 @@ beforeEach(() => {
   remoteState.windowList = undefined
   remoteState.switching = undefined
   remoteState.controlRevoked = undefined
+  remoteState.control = undefined
   targets.length = 0
   send.mockClear()
   const values = new Map<string, string>()
@@ -131,7 +133,7 @@ describe('RemoteScreen toolbar actions', () => {
   })
 })
 
-describe('RemoteScreen zoom and input mode', () => {
+describe('RemoteScreen zoom and trackpad', () => {
   it('zooms from the chip, offers pan while zoomed, and resets to fit', () => {
     const { container } = render(<RemoteScreen />)
     const chip = screen.getByRole('button', { name: 'screen.zoomActual' })
@@ -152,16 +154,24 @@ describe('RemoteScreen zoom and input mode', () => {
     expect(screen.queryByRole('button', { name: 'screen.panView' })).toBeNull()
   })
 
-  it('shows the local cursor and hides the Mac pointer only in trackpad mode', () => {
+  it('controls as a trackpad, with no mode choice, ignoring an old Direct setting', () => {
+    localStorage.setItem('alma.screen.inputMode.desktop-1', 'direct')
+    const { container } = render(<RemoteScreen />)
+    expect(container.querySelector('.remote-screen-cursor')).not.toBeNull()
+    expect(send).toHaveBeenLastCalledWith({ type: 'mouse_mode', on: true })
+    expect(screen.queryByRole('button', { name: 'screen.direct' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'screen.trackpad' })).toBeNull()
+    expect(container.querySelector('.remote-screen-mode')).toBeNull()
+  })
+
+  it('draws no cursor and keeps the Mac pointer while view only', () => {
+    remoteState.control = false
     const { container } = render(<RemoteScreen />)
     expect(container.querySelector('.remote-screen-cursor')).toBeNull()
     expect(send).toHaveBeenLastCalledWith({ type: 'mouse_mode', on: false })
-    fireEvent.click(screen.getByRole('button', { name: 'screen.trackpad' }))
-    expect(container.querySelector('.remote-screen-cursor')).not.toBeNull()
-    expect(send).toHaveBeenLastCalledWith({ type: 'mouse_mode', on: true })
-    expect(localStorage.getItem('alma.screen.inputMode.desktop-1')).toBe(
-      'trackpad',
-    )
+    expect(
+      screen.getByText('screen.viewOnly', { selector: 'span' }),
+    ).toBeTruthy()
   })
 
   it('marks out the trackpad and fades its hint after the first touch', () => {
@@ -170,9 +180,6 @@ describe('RemoteScreen zoom and input mode', () => {
       '.remote-screen-surface',
     )!
     surface.setPointerCapture = vi.fn()
-    expect(surface.classList.contains('is-trackpad')).toBe(false)
-    expect(container.querySelector('.remote-screen-hint')).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: 'screen.trackpad' }))
     expect(surface.classList.contains('is-trackpad')).toBe(true)
     const hint = container.querySelector('.remote-screen-hint')!
     expect(hint.textContent).toBe('screen.trackpadHint')
@@ -180,6 +187,42 @@ describe('RemoteScreen zoom and input mode', () => {
     fireEvent.pointerDown(surface, { pointerId: 1, pointerType: 'touch' })
     expect(hint.classList.contains('is-seen')).toBe(true)
     expect(localStorage.getItem('alma.screen.trackpadHintSeen')).toBe('1')
+  })
+
+  it('clicks at the cursor on a tap, wherever the finger lands', () => {
+    vi.useFakeTimers()
+    // jsdom stamps events with epoch time; browsers share performance's origin.
+    vi.spyOn(performance, 'now').mockImplementation(() => Date.now())
+    try {
+      const { container } = render(<RemoteScreen />)
+      const surface = container.querySelector<HTMLElement>(
+        '.remote-screen-surface',
+      )!
+      surface.setPointerCapture = vi.fn()
+      fireEvent.pointerDown(surface, {
+        pointerId: 1,
+        pointerType: 'touch',
+        clientX: 5,
+        clientY: 5,
+      })
+      fireEvent.pointerUp(surface, {
+        pointerId: 1,
+        pointerType: 'touch',
+        clientX: 5,
+        clientY: 5,
+      })
+      act(() => {
+        vi.advanceTimersByTime(1_000)
+      })
+      expect(sendControl).toHaveBeenCalledWith({
+        type: 'pointer',
+        action: 'click',
+        x: 0.5,
+        y: 0.5,
+      })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

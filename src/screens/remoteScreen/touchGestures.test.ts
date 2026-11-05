@@ -15,7 +15,6 @@ import {
 
 type Step = TouchGestureInput | { type: 'wait'; until: number }
 
-const DIRECT: GestureEnv = { mode: 'direct', zoomed: false }
 const TRACKPAD: GestureEnv = { mode: 'trackpad', zoomed: false }
 const PAN: GestureEnv = { mode: 'pan', zoomed: true }
 
@@ -77,36 +76,14 @@ const wait = (until: number): Step => ({ type: 'wait', until })
 const without = (actions: GestureAction[], type: GestureAction['type']) =>
   actions.filter((action) => action.type !== type)
 
-describe('direct mode', () => {
-  it('clicks a tap once the double-tap window has passed', () => {
-    const { actions } = run(
-      [down(1, 20, 30, 0), up(1, 22, 31, 80), wait(1000)],
-      DIRECT,
-    )
-    expect(actions).toEqual([{ type: 'click', point: { x: 22, y: 31 } }])
-  })
-
+describe('taps and drags', () => {
   it('does not click before the double-tap window ends', () => {
     const { actions, state } = run(
       [down(1, 20, 30, 0), up(1, 22, 31, 80), wait(80 + DOUBLE_TAP_DELAY)],
-      DIRECT,
+      TRACKPAD,
     )
     expect(actions).toEqual([])
-    expect(nextGestureDeadline(state, DIRECT)).toBe(80 + DOUBLE_TAP_DELAY + 1)
-  })
-
-  it('turns a second tap into one double click', () => {
-    const { actions } = run(
-      [
-        down(1, 20, 30, 0),
-        up(1, 20, 30, 90),
-        down(2, 22, 31, 180),
-        up(2, 22, 31, 250),
-        wait(900),
-      ],
-      DIRECT,
-    )
-    expect(actions).toEqual([{ type: 'double', point: { x: 22, y: 31 } }])
+    expect(nextGestureDeadline(state, TRACKPAD)).toBe(80 + DOUBLE_TAP_DELAY + 1)
   })
 
   it('clicks the first tap at once when the next touch lands far away', () => {
@@ -118,7 +95,7 @@ describe('direct mode', () => {
         up(2, 200, 300, 140),
         wait(900),
       ],
-      DIRECT,
+      TRACKPAD,
     )
     expect(actions).toEqual([
       { type: 'click', point: { x: 20, y: 30 } },
@@ -126,57 +103,7 @@ describe('direct mode', () => {
     ])
   })
 
-  it('hovers while a finger moves and never clicks', () => {
-    const { actions } = run(
-      [
-        down(1, 10, 10, 0),
-        move(1, 13, 12, 20),
-        move(1, 30, 20, 80),
-        move(1, 40, 25, 120),
-        up(1, 40, 25, 140),
-        wait(900),
-      ],
-      DIRECT,
-    )
-    // The sub-slop move is swallowed.
-    expect(actions).toEqual([
-      { type: 'hover', point: { x: 30, y: 20 } },
-      { type: 'hover', point: { x: 40, y: 25 } },
-    ])
-  })
-
-  it('presses after a 350ms hold, drags and releases', () => {
-    const { actions } = run(
-      [
-        down(1, 10, 10, 0),
-        wait(HOLD_DELAY),
-        move(1, 20, 15, 380),
-        move(1, 28, 20, 410),
-        up(1, 28, 20, 440),
-      ],
-      DIRECT,
-    )
-    expect(actions).toEqual([
-      { type: 'haptic', kind: 'medium' },
-      { type: 'press', point: { x: 10, y: 10 } },
-      { type: 'hover', point: { x: 20, y: 15 } },
-      { type: 'hover', point: { x: 28, y: 20 } },
-      { type: 'release', point: { x: 28, y: 20 } },
-    ])
-  })
-
-  it('a held finger that never moves is a long press, not a click', () => {
-    const { actions } = run(
-      [down(1, 10, 10, 0), up(1, 10, 10, 600), wait(2000)],
-      DIRECT,
-    )
-    expect(without(actions, 'haptic')).toEqual([
-      { type: 'press', point: { x: 10, y: 10 } },
-      { type: 'release', point: { x: 10, y: 10 } },
-    ])
-  })
-
-  it('tap then drag selects from the second touch', () => {
+  it('tap then drag drags from the second touch', () => {
     const { actions } = run(
       [
         down(1, 10, 10, 0),
@@ -186,12 +113,12 @@ describe('direct mode', () => {
         move(2, 34, 22, 210),
         up(2, 34, 22, 240),
       ],
-      DIRECT,
+      TRACKPAD,
     )
     expect(actions).toEqual([
       { type: 'press', point: { x: 12, y: 11 } },
-      { type: 'hover', point: { x: 26, y: 18 } },
-      { type: 'hover', point: { x: 34, y: 22 } },
+      { type: 'cursor', delta: { x: 14, y: 7 } },
+      { type: 'cursor', delta: { x: 8, y: 4 } },
       { type: 'release', point: { x: 34, y: 22 } },
     ])
   })
@@ -204,7 +131,7 @@ describe('direct mode', () => {
         move(1, 40, 10, 400),
         cancel(1, 40, 10, 420),
       ],
-      DIRECT,
+      TRACKPAD,
     )
     expect(actions.at(-1)).toEqual({ type: 'release', point: { x: 40, y: 10 } })
     expect(state.phase).toBe('idle')
@@ -215,18 +142,20 @@ describe('direct mode', () => {
       [
         down(1, 10, 10, 0),
         wait(HOLD_DELAY),
-        down(2, 100, 100, 400),
-        move(2, 150, 150, 420),
-        move(1, 30, 10, 430),
-        up(2, 150, 150, 440),
-        up(1, 30, 10, 450),
+        move(1, 30, 10, 400),
+        down(2, 100, 100, 420),
+        move(2, 150, 150, 430),
+        move(1, 40, 10, 440),
+        up(2, 150, 150, 450),
+        up(1, 40, 10, 460),
       ],
-      DIRECT,
+      TRACKPAD,
     )
     expect(without(actions, 'haptic')).toEqual([
       { type: 'press', point: { x: 10, y: 10 } },
-      { type: 'hover', point: { x: 30, y: 10 } },
-      { type: 'release', point: { x: 30, y: 10 } },
+      { type: 'cursor', delta: { x: 20, y: 0 } },
+      { type: 'cursor', delta: { x: 10, y: 0 } },
+      { type: 'release', point: { x: 40, y: 10 } },
     ])
   })
 })
@@ -241,7 +170,7 @@ describe('two fingers', () => {
         up(2, 31, 11, 190),
         wait(900),
       ],
-      DIRECT,
+      TRACKPAD,
     )
     expect(actions).toEqual([
       { type: 'haptic', kind: 'light' },
@@ -258,7 +187,7 @@ describe('two fingers', () => {
         up(2, 30, 10, 410),
         wait(900),
       ],
-      DIRECT,
+      TRACKPAD,
     )
     expect(actions).toEqual([])
   })
@@ -272,7 +201,7 @@ describe('two fingers', () => {
         up(2, 30, 10, 260),
         wait(900),
       ],
-      DIRECT,
+      TRACKPAD,
     )
     expect(actions).toEqual([])
   })
@@ -309,7 +238,7 @@ describe('two fingers', () => {
         up(1, 80, 100, 400),
         up(2, 240, 100, 410),
       ],
-      DIRECT,
+      TRACKPAD,
     )
     expect(actions).toEqual([
       {
@@ -340,7 +269,7 @@ describe('two fingers', () => {
         move(1, 150, 140, 60),
         move(2, 280, 140, 70),
       ],
-      DIRECT,
+      TRACKPAD,
     )
     expect(actions.map((action) => action.type)).toEqual([
       'pinch',
@@ -358,14 +287,14 @@ describe('two fingers', () => {
         down(3, 150, 200, 60),
         move(1, 50, 100, 80),
       ],
-      DIRECT,
+      TRACKPAD,
     )
     expect(actions.map((action) => action.type)).toEqual(['pinch', 'pinch-end'])
     expect(state.phase).toBe('done')
   })
 
   it('waits for a second two-finger tap when zoomed, then resets the zoom', () => {
-    const zoomed = { ...DIRECT, zoomed: true }
+    const zoomed = { ...TRACKPAD, zoomed: true }
     const { actions } = run(
       [
         down(1, 10, 10, 0),
@@ -599,19 +528,19 @@ describe('pan mode', () => {
 describe('nextGestureDeadline', () => {
   it('schedules the hold only while a single finger is pending', () => {
     let state = createTouchGestureState()
-    expect(nextGestureDeadline(state, DIRECT)).toBeUndefined()
+    expect(nextGestureDeadline(state, TRACKPAD)).toBeUndefined()
     state = reduceTouchGesture(
       state,
       { type: 'down', id: 1, point: { x: 0, y: 0 }, at: 10 },
-      DIRECT,
+      TRACKPAD,
     ).state
-    expect(nextGestureDeadline(state, DIRECT)).toBe(10 + HOLD_DELAY)
+    expect(nextGestureDeadline(state, TRACKPAD)).toBe(10 + HOLD_DELAY)
     expect(nextGestureDeadline(state, PAN)).toBeUndefined()
     state = reduceTouchGesture(
       state,
       { type: 'move', id: 1, point: { x: 30, y: 0 }, at: 20 },
-      DIRECT,
+      TRACKPAD,
     ).state
-    expect(nextGestureDeadline(state, DIRECT)).toBeUndefined()
+    expect(nextGestureDeadline(state, TRACKPAD)).toBeUndefined()
   })
 })

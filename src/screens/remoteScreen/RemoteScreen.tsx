@@ -36,7 +36,7 @@ import {
   buildKeyCombo,
   createMoveCoalescer,
   createScrollCoalescer,
-  directPointerEvent,
+  pointerAt,
   type ControlEvent,
   type KeyModifiers,
 } from './controls'
@@ -47,12 +47,9 @@ import {
   unavailableCopy,
 } from './availability'
 import {
-  recallInputMode,
   recallTrackpadHintSeen,
-  rememberInputMode,
   rememberTrackpadHintSeen,
-  type InputMode,
-} from './inputMode'
+} from './trackpadHint'
 import {
   createTouchGestureState,
   nextGestureDeadline,
@@ -74,7 +71,6 @@ import {
   pinchView,
   settleView,
   surfaceDeltaToDesktop,
-  surfaceToDesktop,
   viewTransform,
   zoomAround,
   zoomPercent,
@@ -250,14 +246,6 @@ export function RemoteScreen() {
     }),
     [pixelScale, videoSize],
   )
-  const [inputMode, setInputModeState] = useState<InputMode>(() =>
-    recallInputMode(pairing.id),
-  )
-  useEffect(() => setInputModeState(recallInputMode(pairing.id)), [pairing.id])
-  const setInputMode = (mode: InputMode) => {
-    setInputModeState(mode)
-    rememberInputMode(pairing.id, mode)
-  }
   // The trackpad's hint fades after its first touch and stays gone.
   const [trackpadHintSeen, setTrackpadHintSeen] = useState(
     recallTrackpadHintSeen,
@@ -285,9 +273,10 @@ export function RemoteScreen() {
   const [fps, setFps] = useState(0)
   const [frameAge, setFrameAge] = useState(0)
 
-  const trackpad = remote.control && inputMode === 'trackpad'
+  // Control is always the trackpad: the finger moves a cursor drawn here.
+  const trackpad = remote.control
   const gestureMode: GestureMode =
-    !remote.control || panMode ? 'pan' : inputMode
+    !remote.control || panMode ? 'pan' : 'trackpad'
   const gestureModeRef = useRef(gestureMode)
   gestureModeRef.current = gestureMode
 
@@ -345,7 +334,7 @@ export function RemoteScreen() {
     [moveCoalescer, scrollCoalescer],
   )
 
-  // The local cursor stands in for the Mac's own while in trackpad mode.
+  // The local cursor stands in for the Mac's own while in control.
   useEffect(() => {
     if (remote.connected) remote.send({ type: 'mouse_mode', on: trackpad })
   }, [remote.connected, remote.send, trackpad])
@@ -417,15 +406,12 @@ export function RemoteScreen() {
   }, [placeCursor, trackpad])
 
   const handleGestureActions = useCallback(
-    (actions: GestureAction[], mode: GestureMode) => {
+    (actions: GestureAction[]) => {
       const size = surfaceSize()
       const view = () => viewRef.current
-      const toDesktop = (point: { x: number; y: number }) =>
-        surfaceToDesktop(point, size, videoSize, view())
       const sendPointer = (
         action: 'click' | 'double' | 'right' | 'drag-start' | 'drag-end',
-        point: { x: number; y: number },
-      ) => remote.sendControl(directPointerEvent(action, point))
+      ) => remote.sendControl(pointerAt(action, cursor.current))
       for (const action of actions) {
         switch (action.type) {
           case 'haptic':
@@ -478,40 +464,10 @@ export function RemoteScreen() {
             })
             break
           }
-          case 'hover': {
-            // Dragging into an edge while zoomed eases the view along.
-            if (gestureState.current.phase === 'dragging') {
-              const target = keepPointVisible(
-                view(),
-                action.point,
-                size,
-                videoSize,
-              )
-              if (target !== view())
-                applyView({
-                  scale: target.scale,
-                  x: view().x + (target.x - view().x) * 0.25,
-                  y: view().y + (target.y - view().y) * 0.25,
-                })
-            }
-            const mapped = toDesktop(action.point)
-            if (mapped.inside)
-              moveCoalescer.push({
-                type: 'pointer',
-                action: 'move',
-                x: mapped.x,
-                y: mapped.y,
-              })
-            break
-          }
           case 'scroll': {
-            const at =
-              mode === 'trackpad' ? cursor.current : toDesktop(action.point)
-            if ('inside' in at && !at.inside) break
             scrollCoalescer.push({
               type: 'scroll',
-              x: at.x,
-              y: at.y,
+              ...cursor.current,
               dx: action.delta.x / view().scale,
               dy: action.delta.y / view().scale,
             })
@@ -524,19 +480,12 @@ export function RemoteScreen() {
           case 'right': {
             moveCoalescer.flush()
             scrollCoalescer.flush()
-            const mapped =
-              mode === 'trackpad'
-                ? { ...cursor.current, inside: true }
-                : toDesktop(action.point)
-            // A drag that ends outside the picture still lets go.
-            if (!mapped.inside && action.type !== 'release') break
             sendPointer(
               action.type === 'press'
                 ? 'drag-start'
                 : action.type === 'release'
                   ? 'drag-end'
                   : action.type,
-              { x: mapped.x, y: mapped.y },
             )
             break
           }
@@ -554,7 +503,7 @@ export function RemoteScreen() {
       }
       const result = reduceTouchGesture(gestureState.current, input, env)
       gestureState.current = result.state
-      handleGestureActions(result.actions, env.mode)
+      handleGestureActions(result.actions)
       if (gestureTimer.current) clearTimeout(gestureTimer.current)
       gestureTimer.current = undefined
       const deadline = nextGestureDeadline(result.state, env)
@@ -859,23 +808,7 @@ export function RemoteScreen() {
       </div>
 
       <div className="remote-screen-toolbar">
-        {remote.control ? (
-          <div
-            className="remote-screen-mode"
-            aria-label={t('screen.inputMode')}
-          >
-            {(['direct', 'trackpad'] as const).map((mode) => (
-              <button
-                key={mode}
-                className="chip-button"
-                aria-pressed={inputMode === mode}
-                onClick={() => setInputMode(mode)}
-              >
-                {t(`screen.${mode}`)}
-              </button>
-            ))}
-          </div>
-        ) : (
+        {remote.control ? null : (
           <span className="remote-view-only">
             <Monitor size={15} />
             {t('screen.viewOnly')}
