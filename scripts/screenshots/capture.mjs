@@ -3905,6 +3905,71 @@ const shots = [
       await page.locator('.crystal-row').first().waitFor()
     },
   },
+  ...[
+    { file: 'rail-top-slot-alma-884.png', fixture: 'alma' },
+    { file: 'rail-top-slot-logo-884.png' },
+  ].map(({ file, fixture }) => ({
+    file,
+    viewport: TABLET,
+    route: DESKTOP,
+    fixture,
+    ready: fixture ? '.split-logo[data-alma] .alma-nav-rail' : '.split-logo',
+    async act(page) {
+      // Let the logo/face crossfade settle before measuring.
+      await page.waitForTimeout(400)
+      const result = await page.evaluate(() => {
+        const box = (node) => {
+          if (!(node instanceof HTMLElement)) return null
+          const rect = node.getBoundingClientRect()
+          return {
+            left: rect.left,
+            top: rect.top,
+            width: rect.width,
+            height: rect.height,
+            cx: rect.left + rect.width / 2,
+            cy: rect.top + rect.height / 2,
+          }
+        }
+        const slot = document.querySelector('.split-rail > :first-child')
+        const mark = document.querySelector('.split-logo .split-logo-mark')
+        return {
+          isSlot: slot?.classList.contains('split-logo') ?? false,
+          slot: box(slot),
+          face: box(document.querySelector('.split-logo .alma-avatar')),
+          logo: box(mark?.querySelector('img')),
+          logoOpacity: mark ? Number(getComputedStyle(mark).opacity) : null,
+          inList: document.querySelectorAll('.split-nav .alma-nav').length,
+          labels: [
+            ...document.querySelectorAll('.split-nav > a, .split-nav > button'),
+          ].map((item) => item.getAttribute('aria-label')),
+        }
+      })
+      const { slot, face, logo } = result
+      const shown = fixture ? face : logo
+      if (!result.isSlot || !slot || slot.width !== 44 || slot.height !== 60)
+        throw new Error(`rail top slot is not 44x60: ${JSON.stringify(result)}`)
+      if (!shown)
+        throw new Error(`rail top slot is empty: ${JSON.stringify(result)}`)
+      const dx = Math.abs(shown.cx - slot.cx)
+      const dy = Math.abs(shown.cy - slot.cy)
+      if (dx > 0.5 || dy > 0.5)
+        throw new Error(
+          `rail top slot content off centre (${dx}, ${dy}): ${JSON.stringify(result)}`,
+        )
+      if (fixture ? result.logoOpacity !== 0 : result.logoOpacity !== 1)
+        throw new Error(`logo opacity wrong: ${JSON.stringify(result)}`)
+      if (fixture ? face.width !== 40 : face)
+        throw new Error(`rail face wrong: ${JSON.stringify(result)}`)
+      if (
+        result.inList !== 0 ||
+        result.labels.slice(0, 2).join() !== 'Threads,Herdr'
+      )
+        throw new Error(`rail list wrong: ${JSON.stringify(result)}`)
+      console.log(
+        `${file}: slot ${slot.left},${slot.top} ${slot.width}x${slot.height}; ${fixture ? 'face' : 'logo'} ${shown.width}x${shown.height}; dx ${dx} dy ${dy}`,
+      )
+    },
+  })),
   {
     file: 'pending-after-send.png',
     viewport: PHONE,
