@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- Back with search open on the Threads page closes the search, clears it and hides the keyboard, instead of leaving the app; a second Back leaves as before. The same holds on tablets and unfolded phones (2026-11-05).
 - On tablets and unfolded phones the thread list can be swiped closed from the page beside it, the same place it swipes open. On GTD, whose list rows keep their own status swipes, the list could be swiped open but not closed (2026-11-05).
 - Remote screen keeps Control when you switch windows or displays, when the connection drops, and when you leave the app and come back; it reconnects by itself (at once on return, otherwise after 1 to 8 seconds). It turns off only when you choose View only, open another desktop, or the desktop stops accepting input, and then a short notice says why (2026-11-05).
 - Switching desktops no longer reshuffles the tab bar: Alma's centre slot is remembered per desktop and held while the next desktop loads, and fades out only once that desktop is confirmed to have no personal agent (2026-11-05).
