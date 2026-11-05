@@ -23,6 +23,7 @@ import {
   correctionFrames,
   flightFrames,
   headerAvatarTarget,
+  predictedDockAvatar,
   recordAvatarBox,
   type Box,
 } from './avatarFlight'
@@ -85,6 +86,22 @@ function currentExpandArea(viewport: Viewport): Box {
       ? null
       : document.querySelector('.split-rail')
   return expandArea(viewport, rail?.getBoundingClientRect().right ?? 0)
+}
+
+/**
+ * Where her face lands on /alma: on split layouts the dock across the
+ * rail edge (`AlmaDock`), predicted from the rail whose box the area read
+ * already; on a phone the header avatar's last box or its prediction.
+ */
+function landingTarget(split: boolean): Box {
+  const rail = split ? document.querySelector('.split-rail') : null
+  if (!rail) return headerAvatarTarget()
+  const box = rail.getBoundingClientRect()
+  return predictedDockAvatar({
+    right: box.right,
+    top: box.top,
+    paddingTop: parseFloat(getComputedStyle(rail).paddingTop) || 0,
+  })
 }
 
 /**
@@ -284,6 +301,8 @@ const CIRCLE = 'alma-expand-circle'
 const DIM = 'alma-expand-dim'
 /** On split layouts the panes right of the rail recede and fade, not #root. */
 const STAGE = '.split-shell > .split-sidebar, .split-shell > .split-main'
+/** Reduced motion on split layouts: her docked face fades with the panes. */
+const DOCK = '.split-shell > .alma-dock'
 /** Open: shortest fade of her page in over the covering circle. */
 const MIN_TOP_IN_MS = 160
 
@@ -351,6 +370,8 @@ interface Run {
   root: HTMLElement
   /** What the circle covers and her page fills. */
   area: Box
+  /** Split layout: the rail stays and her face docks across its edge. */
+  split: boolean
   /**
    * What recedes and fades: #root on a phone; on split layouts the panes
    * right of the rail, queried when called, so the rail never moves.
@@ -447,6 +468,7 @@ export function startAlmaTransition(
     html,
     root,
     area,
+    split,
     stage: () =>
       split ? [...document.querySelectorAll<HTMLElement>(STAGE)] : [root],
     pinOrigin(elements, origin) {
@@ -534,7 +556,13 @@ export function startAlmaTransition(
 
 /** Old page out, swap on a blank frame, new page in: opacity only. */
 function runCrossfade(run: Run) {
-  const out = run.stage().map((element) =>
+  // Her face crossfades too: the dock fades out with her page on close and
+  // in with it on open, while the rail slot face swaps under the blank.
+  const faded = () =>
+    run.split
+      ? [...run.stage(), ...document.querySelectorAll<HTMLElement>(DOCK)]
+      : run.stage()
+  const out = faded().map((element) =>
     run.animate(element, [{ opacity: 1 }, { opacity: 0 }], {
       duration: TOP_OUT_MS,
       easing: FADE_EASING,
@@ -543,7 +571,7 @@ function runCrossfade(run: Run) {
   run.onFinished(out, () => {
     run.swap()
     // Created before `out` is dropped, so no frame shows the page at 1.
-    const fadeIn = run.stage().map((element) =>
+    const fadeIn = faded().map((element) =>
       run.animate(element, [{ opacity: 0 }, { opacity: 1 }], {
         duration: CROSSFADE_IN_MS,
         easing: FADE_EASING,
@@ -646,7 +674,7 @@ function runOpen(run: Run, origin: ExpandOrigin, timeline: ExpandTimeline) {
   const { circle, dim } = overlayLayers(run, origin)
   html.setAttribute(LAYER, 'base')
   const motion = { duration: timeline.duration, easing: timeline.easing }
-  const target = headerAvatarTarget()
+  const target = landingTarget(run.split)
   const flight = avatarFlight(
     run,
     avatarBox('nav'),
@@ -699,7 +727,7 @@ function runClose(run: Run, origin: ExpandOrigin, timeline: ExpandTimeline) {
   const flight = to
     ? avatarFlight(
         run,
-        avatarBox('header') ?? headerAvatarTarget(),
+        avatarBox('header') ?? landingTarget(run.split),
         to,
         avatarElement('header'),
       )
