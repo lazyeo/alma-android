@@ -21,11 +21,16 @@ import {
 } from '../share/shareShortcuts'
 import { applyThreadTitleEvent } from './threadEvents'
 import { t } from '../i18n/runtime'
+import {
+  excludePersonalThread,
+  usePersonalThreadIds,
+} from '../alma/personalThread'
 
 /**
  * The active desktop's thread list: cached first paint, a fresh load, a
  * catch-up after reconnects, and live updates from the shared `/ws/threads`.
- * Threads and GTD both read it so they always show the same rows.
+ * Threads and GTD both read it so they always show the same rows, neither
+ * of them Alma's main conversation.
  */
 export function useDesktopThreadList() {
   const { api, status, pairing } = useConnection()
@@ -115,8 +120,14 @@ export function useDesktopThreadList() {
       load()
     }
   })
+  // Her main conversation opens from the Alma tab, never from a list.
+  const personalIds = usePersonalThreadIds(pairing.id)
+  const listed = useMemo(
+    () => excludePersonalThread(threads, personalIds),
+    [threads, personalIds],
+  )
   return {
-    threads,
+    threads: listed,
     setThreads,
     workspaces,
     settings,

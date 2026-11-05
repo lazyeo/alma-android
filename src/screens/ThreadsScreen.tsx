@@ -60,6 +60,10 @@ import { useDesktopThreadList } from './useDesktopThreadList'
 import { useT } from '../i18n'
 import { ProjectCardSection } from './ProjectCardSection'
 import { useAlmaPresence } from '../alma/AlmaPresence'
+import {
+  excludePersonalThread,
+  usePersonalThreadIds,
+} from '../alma/personalThread'
 import { usePullToRefresh } from './usePullToRefresh'
 
 export function ThreadsScreen({
@@ -139,6 +143,7 @@ export function ThreadsScreen({
   }, [api, query, tab, searchSupported])
   const { markRead } = useUnreadActivity()
   const almaPresence = useAlmaPresence()
+  const personalIds = usePersonalThreadIds(pairing.id)
   const listBodyRef = useRef<HTMLDivElement>(null)
   const pull = usePullToRefresh(listBodyRef, () =>
     Promise.all([reload(), almaPresence?.refresh()]),
@@ -533,7 +538,11 @@ export function ThreadsScreen({
                     !row.isIncognito &&
                     (row.title || '').toLowerCase().includes(q.toLowerCase()),
                 )
-                const hits = remote.query === q ? remote.hits : []
+                // Content search comes straight from the desktop.
+                const hits = excludePersonalThread(
+                  remote.query === q ? remote.hits : [],
+                  personalIds,
+                )
                 const titles = local.map(
                   (row) =>
                     hits.find((h) => h.id === row.id) || {

@@ -15,7 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- Opening Alma eases in quickly and lands with a noticeable bounce (3% overshoot) in 460 ms, instead of a slight spring in 380 ms (2026-11-05).
+- Opening Alma eases in quickly and lands with a noticeable bounce (3% overshoot) in 460 ms, instead of a slight spring in 380 ms. Her main conversation now lives only behind the Alma tab: it is left out of the Threads list and its filters, project groups and the project card's Recent list, GTD, and thread search, with counts to match, and stays hidden from the first paint using the id this phone last saw. Links and notifications that open it as a thread go to Alma instead. Nothing changes on the desktop (2026-11-05).
 
 ### Fixed
 

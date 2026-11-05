@@ -1,4 +1,5 @@
 import { ExtensionProvider } from './extensions'
+import { PersonalThreadRedirect } from './alma/PersonalThreadRedirect'
 import {
   Fragment,
   Suspense,
@@ -499,9 +500,11 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
                       <Route
                         path="gtd/:threadId"
                         element={
-                          <Suspense fallback={<OpeningThread />}>
-                            <ThreadScreen />
-                          </Suspense>
+                          <PersonalThreadRedirect>
+                            <Suspense fallback={<OpeningThread />}>
+                              <ThreadScreen />
+                            </Suspense>
+                          </PersonalThreadRedirect>
                         }
                       />
                       <Route path="time-clues" element={<TimeCluesScreen />} />
@@ -539,9 +542,11 @@ export default function App({ fixture }: { fixture?: AppFixture } = {}) {
                       <Route
                         path="threads/:threadId"
                         element={
-                          <Suspense fallback={<OpeningThread />}>
-                            <ThreadScreen />
-                          </Suspense>
+                          <PersonalThreadRedirect>
+                            <Suspense fallback={<OpeningThread />}>
+                              <ThreadScreen />
+                            </Suspense>
+                          </PersonalThreadRedirect>
                         }
                       />
                     </Route>
