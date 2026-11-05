@@ -48,6 +48,7 @@ export const screen: CatalogShape<typeof source> = {
   zoomToFit: '缩放至适合屏幕',
   zoomActual: '缩放至实际大小',
   controlWarning: '现在触摸操作会控制 Mac。',
+  controlEnded: 'Mac 已不再接受输入，暂时只能查看。',
   esc: '退出',
   tab: '制表',
   enter: '回车',

@@ -48,6 +48,7 @@ export const screen = {
   zoomToFit: 'Zoom to fit',
   zoomActual: 'Zoom to actual size',
   controlWarning: 'Touches can now control the Mac.',
+  controlEnded: "The Mac stopped accepting input, so it's view only for now.",
   esc: 'esc',
   tab: 'tab',
   enter: 'enter',

@@ -21,6 +21,7 @@ const remoteState: {
   status?: ScreenStatus
   windowList?: ScreenWindowList
   switching?: boolean
+  controlRevoked?: number
 } = {}
 const targets: ScreenTarget[] = []
 
@@ -71,6 +72,7 @@ vi.mock('./useRemoteScreen', () => ({
       stalled: false,
       videoLive: false,
       control: true,
+      controlRevoked: remoteState.controlRevoked ?? 0,
       error: '',
       frame: undefined,
       message: undefined,
@@ -92,6 +94,7 @@ beforeEach(() => {
   remoteState.status = undefined
   remoteState.windowList = undefined
   remoteState.switching = undefined
+  remoteState.controlRevoked = undefined
   targets.length = 0
   send.mockClear()
   const values = new Map<string, string>()
@@ -253,6 +256,14 @@ describe('RemoteScreen window target', () => {
     expect(
       screen.queryByRole('status', { name: 'screen.switching' }),
     ).toBeNull()
+  })
+
+  it('says why when the desktop ends control', () => {
+    const { rerender } = render(<RemoteScreen />)
+    expect(screen.queryByText('screen.controlEnded')).toBeNull()
+    remoteState.controlRevoked = 1
+    rerender(<RemoteScreen />)
+    expect(screen.getByText('screen.controlEnded')).toBeTruthy()
   })
 
   it('has no picker when there is nothing to choose', () => {

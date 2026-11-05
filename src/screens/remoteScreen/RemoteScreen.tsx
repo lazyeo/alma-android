@@ -650,6 +650,11 @@ export function RemoteScreen() {
     if (windowClosed) setNotice(t('screen.picker.windowClosed'))
   }, [windowClosed, t])
 
+  // The desktop ended control (it stopped streaming): say why.
+  useEffect(() => {
+    if (remote.controlRevoked) setNotice(t('screen.controlEnded'))
+  }, [remote.controlRevoked, t])
+
   useEffect(() => {
     if (!notice) return
     const timer = setTimeout(() => setNotice(''), NOTICE_MS)

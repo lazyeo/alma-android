@@ -43,6 +43,15 @@ export function wantsVideo({
   return rtc && (windowId === undefined || windowClosed)
 }
 
+/**
+ * Waits before reopening a socket the desktop or the network closed, by
+ * consecutive failure. A target switch or a return to the app reopens at once.
+ */
+export const RECONNECT_DELAYS_MS = [1_000, 2_000, 4_000, 8_000]
+
+export const reconnectDelay = (failures: number) =>
+  RECONNECT_DELAYS_MS[Math.min(failures, RECONNECT_DELAYS_MS.length - 1)]
+
 export interface ScreenWindowList {
   windows: ScreenWindow[]
   error?: string
@@ -60,8 +69,16 @@ export function useRemoteScreen(
   const socketRef = useRef<TunnelSocket>()
   const peerRef = useRef<RTCPeerConnection>()
   const streamRef = useRef<MediaStream>()
+  // Control is the user's choice for this desktop: it outlives sockets, so
+  // target switches and reconnects keep it. Only the user, another desktop,
+  // or the desktop refusing to stream turns it off.
   const controlRef = useRef(false)
   const [control, setControlState] = useState(false)
+  /** Counts the times the desktop ended control, for a visible notice. */
+  const [controlRevoked, setControlRevoked] = useState(0)
+  // Bumped to reopen the socket for the same target.
+  const [generation, setGeneration] = useState(0)
+  const failures = useRef(0)
   const [message, setMessage] = useState<ScreenServerMessage>()
   // The latest status survives the frames that follow it.
   const [status, setStatus] = useState<ScreenStatus>()
@@ -110,7 +127,16 @@ export function useRemoteScreen(
   )
 
   useEffect(() => {
+    controlRef.current = false
+    setControlState(false)
+    failures.current = 0
+  }, [tunnel])
+
+  useEffect(() => {
     let disposed = false
+    // Closed on purpose while the app is in the background.
+    let paused = false
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
     let rtcTimer: ReturnType<typeof setTimeout> | undefined
     let rtcStarted = false
     // The desktop numbers frames per socket, from 1: the first frame of this
@@ -150,8 +176,13 @@ export function useRemoteScreen(
       const next = decodeScreenMessage(raw)
       if (!next) return
       setMessage(next)
+      failures.current = 0
       if (next.type === 'status') {
         setStatus(next)
+        if (!next.bound && controlRef.current) {
+          setControl(false)
+          setControlRevoked((count) => count + 1)
+        }
         if (wantsVideo({ rtc, windowId, windowClosed: next.windowClosed }))
           startRtc()
       }
@@ -212,10 +243,22 @@ export function useRemoteScreen(
           .addIceCandidate(next.candidate)
           .catch(() => undefined)
     })
+    const reopen = (delay: number) => {
+      if (disposed || paused || retryTimer) return
+      retryTimer = setTimeout(() => {
+        retryTimer = undefined
+        if (!disposed) setGeneration((value) => value + 1)
+      }, delay)
+    }
+    const reconnectLater = () => {
+      if (document.visibilityState !== 'visible') return
+      reopen(reconnectDelay(failures.current++))
+    }
     const removeClose = socket.onClose(() => {
+      if (disposed) return
       setConnected(false)
-      setControl(false)
       stopRtc()
+      reconnectLater()
     })
     void socket.opened
       .then(() => {
@@ -225,13 +268,24 @@ export function useRemoteScreen(
         if (wantsVideo({ rtc, windowId })) startRtc()
       })
       .catch((cause) => {
-        if (!disposed)
-          setError(cause instanceof Error ? cause.message : String(cause))
+        if (disposed) return
+        setError(cause instanceof Error ? cause.message : String(cause))
+        reconnectLater()
       })
+    // The stream stops in the background and resumes on return.
     const onVisibility = () => {
       if (document.visibilityState !== 'visible') {
-        setControl(false)
+        if (paused) return
+        paused = true
+        if (retryTimer) clearTimeout(retryTimer)
+        retryTimer = undefined
+        setConnected(false)
+        stopRtc()
         socket.close()
+      } else if (paused) {
+        paused = false
+        failures.current = 0
+        reopen(0)
       }
     }
     document.addEventListener('visibilitychange', onVisibility)
@@ -246,8 +300,8 @@ export function useRemoteScreen(
     }, 1_000)
     return () => {
       disposed = true
+      if (retryTimer) clearTimeout(retryTimer)
       clearInterval(stallTimer)
-      setControl(false)
       document.removeEventListener('visibilitychange', onVisibility)
       removeMessage()
       removeClose()
@@ -257,6 +311,7 @@ export function useRemoteScreen(
     }
   }, [
     displayId,
+    generation,
     rtc,
     rtcTimeoutMs,
     send,
@@ -286,6 +341,7 @@ export function useRemoteScreen(
     stalled,
     videoLive,
     control,
+    controlRevoked,
     error,
     frame,
     message,

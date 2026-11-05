@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { TunnelSocket } from '../../relay'
-import { useRemoteScreen, wantsVideo } from './useRemoteScreen'
+import { reconnectDelay, useRemoteScreen, wantsVideo } from './useRemoteScreen'
 
 function fakeSocket() {
   let message: (data: string | Uint8Array) => void = () => undefined
@@ -20,7 +20,11 @@ function fakeSocket() {
       return () => undefined
     },
   }
-  return { socket, message: (data: string) => message(data), close }
+  return {
+    socket,
+    message: (data: string) => message(data),
+    close: () => close(),
+  }
 }
 
 describe('useRemoteScreen', () => {
@@ -330,6 +334,139 @@ describe('switching targets', () => {
       }),
     )
     expect(sent()).toBe(2)
+  })
+})
+
+const click = {
+  type: 'pointer',
+  action: 'click',
+  x: 0.5,
+  y: 0.5,
+} as const
+
+const setVisibility = (state: DocumentVisibilityState) => {
+  Object.defineProperty(document, 'visibilityState', {
+    configurable: true,
+    get: () => state,
+  })
+  document.dispatchEvent(new Event('visibilitychange'))
+}
+
+describe('control across sockets', () => {
+  afterEach(() => {
+    setVisibility('visible')
+    vi.useRealTimers()
+  })
+
+  it('stays on through a window switch', async () => {
+    const { tunnel, sockets } = switchingTunnel()
+    const { result, rerender } = renderHook(
+      ({ windowId }: { windowId?: number }) =>
+        useRemoteScreen(tunnel, { rtc: false, windowId }),
+      { initialProps: { windowId: 42 } as { windowId?: number } },
+    )
+    act(() => {
+      sockets[0].message(windowStatus(42))
+      sockets[0].message(frameMessage(5))
+      result.current.setControl(true)
+    })
+    rerender({ windowId: 43 })
+    await act(async () => {
+      await sockets[1].socket.opened
+    })
+    expect(result.current.control).toBe(true)
+    act(() => {
+      sockets[1].message(windowStatus(43))
+      sockets[1].message(frameMessage(1))
+    })
+    expect(result.current.control).toBe(true)
+    act(() => result.current.sendControl(click))
+    expect(sockets[1].socket.send).toHaveBeenLastCalledWith(
+      JSON.stringify(click),
+    )
+  })
+
+  it('stays on when the socket drops, and reopens it after a backoff', () => {
+    vi.useFakeTimers()
+    const { tunnel, sockets, log } = switchingTunnel()
+    const { result } = renderHook(() =>
+      useRemoteScreen(tunnel, { rtc: false, windowId: 42 }),
+    )
+    act(() => {
+      sockets[0].message(frameMessage(5))
+      result.current.setControl(true)
+    })
+    act(() => sockets[0].close())
+    expect(result.current.connected).toBe(false)
+    expect(result.current.control).toBe(true)
+    act(() => {
+      vi.advanceTimersByTime(reconnectDelay(0) - 1)
+    })
+    expect(sockets).toHaveLength(1)
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+    expect(log.at(-1)).toBe('open 1 /ws/screen?window=42')
+    expect(result.current.control).toBe(true)
+    expect(result.current.switching).toBe(true)
+    // A second drop with no message in between waits longer.
+    act(() => sockets[1].close())
+    act(() => {
+      vi.advanceTimersByTime(reconnectDelay(0))
+    })
+    expect(sockets).toHaveLength(2)
+    act(() => {
+      vi.advanceTimersByTime(reconnectDelay(1) - reconnectDelay(0))
+    })
+    expect(sockets).toHaveLength(3)
+  })
+
+  it('stops in the background and resumes at once on return, still in control', () => {
+    vi.useFakeTimers()
+    const { tunnel, sockets, log } = switchingTunnel()
+    const { result } = renderHook(() => useRemoteScreen(tunnel, { rtc: false }))
+    act(() => result.current.setControl(true))
+    act(() => setVisibility('hidden'))
+    expect(log).toEqual(['open 0 /ws/screen', 'close 0'])
+    act(() => {
+      vi.advanceTimersByTime(30_000)
+    })
+    expect(sockets).toHaveLength(1)
+    act(() => setVisibility('visible'))
+    act(() => {
+      vi.advanceTimersByTime(0)
+    })
+    expect(log.at(-1)).toBe('open 1 /ws/screen')
+    expect(result.current.control).toBe(true)
+  })
+
+  it('ends when the desktop refuses to stream, and says so', () => {
+    const { tunnel, sockets } = switchingTunnel()
+    const { result } = renderHook(() => useRemoteScreen(tunnel, { rtc: false }))
+    act(() => result.current.setControl(true))
+    act(() =>
+      sockets[0].message(
+        JSON.stringify({
+          type: 'status',
+          bound: false,
+          error: 'The Alma Computer Use helper is not available',
+        }),
+      ),
+    )
+    expect(result.current.control).toBe(false)
+    expect(result.current.controlRevoked).toBe(1)
+  })
+
+  it('starts in view only on another desktop', () => {
+    const first = switchingTunnel()
+    const second = switchingTunnel()
+    const { result, rerender } = renderHook(
+      ({ tunnel }) => useRemoteScreen(tunnel, { rtc: false }),
+      { initialProps: { tunnel: first.tunnel } },
+    )
+    act(() => result.current.setControl(true))
+    rerender({ tunnel: second.tunnel })
+    expect(result.current.control).toBe(false)
   })
 })
 
