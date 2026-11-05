@@ -63,7 +63,11 @@ export function BottomSheet({
   )
   // A long-pressed message or row stays lifted above the dim while its
   // actions are open; the backdrop fades as a whole, so it hosts the copy.
-  useLongPressLift(backdropRef, rendered, closing, { hostFades: true })
+  // A message's preview card keeps above the sheet.
+  useLongPressLift(backdropRef, rendered, closing, {
+    hostFades: true,
+    avoid: sheetRef,
+  })
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

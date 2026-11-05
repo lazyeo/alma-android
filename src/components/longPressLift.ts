@@ -4,6 +4,11 @@ import {
   FADE_EXIT_MS,
   reducedMotionPreferred,
 } from '../motionTokens'
+import {
+  previewCardFrom,
+  previewCardRect,
+  type PreviewCard,
+} from './longPressPreview'
 
 /**
  * Long-press lift: when a long press opens actions, a copy of the pressed
@@ -16,6 +21,12 @@ import {
  * the original's ancestor classes reproduced as `display: contents`
  * wrappers so scoped selectors still match. Canvases are copied with
  * drawImage; live media becomes an empty box of the same size.
+ *
+ * Messages arm a preview instead (`preview: true`): the copy is drawn
+ * reduced inside a card between the status bar and the sheet (see
+ * longPressPreview.ts), since a long message lifted at full size runs off
+ * the screen and under its actions. The message itself stays in place
+ * under the dim; the card grows out of it and back.
  */
 
 /** A long press arms the lift; the overlay it opens must take it this soon. */
@@ -24,24 +35,38 @@ const ARM_TTL_MS = 800
 const MAX_CANVASES = 8
 const MAX_CANVAS_PIXELS = 4_000_000
 
-let armed: { source: HTMLElement; at: number } | undefined
+export interface LongPressLiftArm {
+  source: HTMLElement
+  /** Show the copy as a reduced preview card (messages). */
+  preview: boolean
+}
+
+let armed: (LongPressLiftArm & { at: number }) | undefined
 
 /** Called by useLongPress when a pointer long press fires on `source`. */
-export function armLongPressLift(source: HTMLElement) {
-  armed = { source, at: performance.now() }
+export function armLongPressLift(
+  source: HTMLElement,
+  { preview = false }: { preview?: boolean } = {},
+) {
+  armed = { source, preview, at: performance.now() }
 }
 
 export function disarmLongPressLift() {
   armed = undefined
 }
 
-/** The element a just-fired long press was on, at most once. */
-export function takeLongPressLiftSource() {
+/** The just-fired long press, at most once. */
+export function takeLongPressLiftArm(): LongPressLiftArm | undefined {
   const pending = armed
   armed = undefined
   if (!pending || !pending.source.isConnected) return undefined
   if (performance.now() - pending.at > ARM_TTL_MS) return undefined
-  return pending.source
+  return { source: pending.source, preview: pending.preview }
+}
+
+/** The element a just-fired long press was on, at most once. */
+export function takeLongPressLiftSource() {
+  return takeLongPressLiftArm()?.source
 }
 
 function blankBox(of: Element) {
@@ -85,43 +110,22 @@ function replaceLiveMedia(source: HTMLElement, clone: HTMLElement) {
 export interface BuiltLift {
   /** The whole layer: optional scrim plus the lifted copy. */
   layer: HTMLDivElement
-  /** The element that scales; it carries the source's rect. */
+  /** The element that moves; it carries the source's (or the card's) rect. */
   lift: HTMLDivElement
   rect: DOMRect
 }
 
-/** Builds the lifted copy of `source`; does not insert or animate it. */
-export function buildLongPressLift(
-  source: HTMLElement,
-  { dim = false }: { dim?: boolean } = {},
-): BuiltLift {
-  const rect = source.getBoundingClientRect()
-  const radius = getComputedStyle(source).borderRadius
-  const layer = document.createElement('div')
-  layer.className = 'long-press-lift-layer'
-  layer.setAttribute('aria-hidden', 'true')
-  layer.setAttribute('inert', '')
-  layer.dataset.state = 'resting'
-  if (reducedMotionPreferred()) layer.dataset.reduced = 'true'
-  if (dim) {
-    const scrim = document.createElement('div')
-    scrim.className = 'long-press-lift-scrim'
-    layer.append(scrim)
-  }
-  const lift = document.createElement('div')
-  lift.className = 'long-press-lift'
-  lift.style.left = `${rect.left}px`
-  lift.style.top = `${rect.top}px`
-  lift.style.width = `${rect.width}px`
-  lift.style.height = `${rect.height}px`
-  const surface = document.createElement('div')
-  surface.className = 'long-press-lift-surface'
-  if (radius && radius !== '0px') surface.style.borderRadius = radius
-  lift.append(surface)
+export interface PreviewPlacement {
+  card: PreviewCard
+  from: { transform: string; opacity: number }
+}
 
-  // Reproduce the ancestor chain without its boxes, so selectors scoped to
-  // a screen or list still style the copy the way they style the row.
-  let parent: HTMLElement = lift
+/**
+ * Appends a copy of `source` to `parent`, with the source's ancestor chain
+ * reproduced as `display: contents` wrappers, so selectors scoped to a
+ * screen or list still style the copy the way they style the row.
+ */
+function appendCopy(source: HTMLElement, parent: HTMLElement) {
   const chain: HTMLElement[] = []
   for (
     let node = source.parentElement;
@@ -154,8 +158,139 @@ export function buildLongPressLift(
   copyCanvases(source, clone)
   replaceLiveMedia(source, clone)
   parent.append(clone)
+}
+
+/**
+ * Builds the lifted copy of `source`; does not insert or animate it. With
+ * `preview`, the copy is laid out reduced inside a card at `preview.card`.
+ */
+export function buildLongPressLift(
+  source: HTMLElement,
+  { dim = false, preview }: { dim?: boolean; preview?: PreviewPlacement } = {},
+): BuiltLift {
+  const rect = source.getBoundingClientRect()
+  const radius = getComputedStyle(source).borderRadius
+  const layer = document.createElement('div')
+  layer.className = 'long-press-lift-layer'
+  layer.setAttribute('aria-hidden', 'true')
+  layer.setAttribute('inert', '')
+  layer.dataset.state = 'resting'
+  if (reducedMotionPreferred()) layer.dataset.reduced = 'true'
+  if (dim) {
+    const scrim = document.createElement('div')
+    scrim.className = 'long-press-lift-scrim'
+    layer.append(scrim)
+  }
+  const lift = document.createElement('div')
+  lift.className = 'long-press-lift'
+  if (preview) {
+    buildPreview(source, rect, lift, preview)
+    layer.append(lift)
+    return { layer, lift, rect }
+  }
+  lift.style.left = `${rect.left}px`
+  lift.style.top = `${rect.top}px`
+  lift.style.width = `${rect.width}px`
+  lift.style.height = `${rect.height}px`
+  const surface = document.createElement('div')
+  surface.className = 'long-press-lift-surface'
+  if (radius && radius !== '0px') surface.style.borderRadius = radius
+  lift.append(surface)
+  appendCopy(source, lift)
   layer.append(lift)
   return { layer, lift, rect }
+}
+
+/**
+ * The card: a pre-drawn surface (border and shadow, outside the clip), a
+ * clip holding the copy at its own size scaled by `card.scale`, and, when
+ * clipped, a pre-drawn bottom fade. Only the card's transform and opacity
+ * and the surface's and fade's opacity change per frame.
+ */
+function buildPreview(
+  source: HTMLElement,
+  rect: DOMRect,
+  lift: HTMLDivElement,
+  { card, from }: PreviewPlacement,
+) {
+  lift.classList.add('preview')
+  lift.style.left = `${card.left}px`
+  lift.style.top = `${card.top}px`
+  lift.style.width = `${card.width}px`
+  lift.style.height = `${card.height}px`
+  lift.style.setProperty('--preview-from', from.transform)
+  lift.style.setProperty('--preview-from-opacity', String(from.opacity))
+  const surface = document.createElement('div')
+  surface.className = 'long-press-lift-surface'
+  const clip = document.createElement('div')
+  clip.className = 'long-press-preview'
+  if (card.clipped) clip.dataset.clipped = 'true'
+  const content = document.createElement('div')
+  content.className = 'long-press-preview-content'
+  content.style.left = `${card.contentLeft}px`
+  content.style.top = `${card.contentTop}px`
+  content.style.width = `${rect.width}px`
+  content.style.height = `${rect.height}px`
+  content.style.transform = `scale(${card.scale})`
+  appendCopy(source, content)
+  clip.append(content)
+  if (card.clipped) {
+    const fade = document.createElement('div')
+    fade.className = 'long-press-preview-fade'
+    clip.append(fade)
+  }
+  lift.append(surface, clip)
+}
+
+/** Bottom of the status bar, as the app's `--safe-top` resolves. */
+function safeTopPx() {
+  const probe = document.createElement('div')
+  probe.style.cssText =
+    'position:fixed;top:var(--safe-top,0px);height:0;visibility:hidden'
+  document.body.append(probe)
+  const top = probe.getBoundingClientRect().top
+  probe.remove()
+  return Number.isFinite(top) ? top : 0
+}
+
+/**
+ * Where the preview card for `source` goes: in the source's content column
+ * (`[data-long-press-column]`, else the source itself), above `avoid` (the
+ * actions sheet; its layout top, not its entry transform).
+ */
+export function placeLongPressPreview(
+  source: HTMLElement,
+  avoid?: HTMLElement | null,
+): PreviewPlacement | undefined {
+  const rect = source.getBoundingClientRect()
+  const column =
+    source.closest<HTMLElement>('[data-long-press-column]') ?? source
+  const columnRect = column.getBoundingClientRect()
+  const viewport = { width: window.innerWidth, height: window.innerHeight }
+  const parent = avoid?.offsetParent
+  const sheetTop =
+    avoid && parent
+      ? parent.getBoundingClientRect().top + avoid.offsetTop
+      : viewport.height
+  const safeTop = safeTopPx()
+  // An unboxed message's own top padding would double the card's.
+  const style = getComputedStyle(source)
+  const unboxed =
+    style.backgroundColor === 'rgba(0, 0, 0, 0)' &&
+    (Number.parseFloat(style.borderTopWidth) || 0) === 0
+  const card = previewCardRect({
+    source: rect,
+    column: { left: columnRect.left, right: columnRect.right },
+    viewport,
+    safeTop,
+    sheetTop,
+    trimTop: unboxed ? Number.parseFloat(style.paddingTop) || 0 : 0,
+  })
+  if (!card) return undefined
+  const from = reducedMotionPreferred()
+    ? { transform: 'none', opacity: 0 }
+    : previewCardFrom(card, rect, safeTop)
+  return { card, from }
 }
 
 export interface LongPressLiftHandle {
@@ -186,21 +321,31 @@ export interface LongPressLiftOptions {
    * closing starts, so the row never blinks out under the fading layer.
    */
   hostFades?: boolean
+  /** A preview card keeps above this element (the actions sheet). */
+  avoid?: RefObject<HTMLElement | null>
 }
 
 export function mountLongPressLift(
   source: HTMLElement,
   host: HTMLElement,
-  { dim = false, hostFades = false }: LongPressLiftOptions = {},
+  {
+    dim = false,
+    hostFades = false,
+    preview,
+  }: Omit<LongPressLiftOptions, 'avoid'> & {
+    preview?: PreviewPlacement
+  } = {},
 ): LongPressLiftHandle {
   const start = performance.now()
-  const { layer, lift, rect } = buildLongPressLift(source, { dim })
+  const { layer, lift, rect } = buildLongPressLift(source, { dim, preview })
   host.insertBefore(layer, host.firstChild)
   const previous = source.style.visibility
   let hideTimer: ReturnType<typeof setTimeout> | undefined
   let shown = true
   const hide = () => {
     hideTimer = undefined
+    // A preview card moves away from the message; the message stays put.
+    if (preview) return
     source.style.visibility = 'hidden'
     shown = false
   }
@@ -279,9 +424,19 @@ export function useLongPressLift(
     let lift = leaving.current
     leaving.current = undefined
     if (!lift || lift.state === 'removed') {
-      const source = takeLongPressLiftSource()
-      if (!source) return
-      lift = mountLongPressLift(source, host.current, optionsRef.current)
+      const arm = takeLongPressLiftArm()
+      if (!arm) return
+      const { avoid, ...options } = optionsRef.current
+      let preview: PreviewPlacement | undefined
+      if (arm.preview) {
+        preview = placeLongPressPreview(arm.source, avoid?.current)
+        // No room for a card (a very tall sheet): show no copy at all.
+        if (!preview) return
+      }
+      lift = mountLongPressLift(arm.source, host.current, {
+        ...options,
+        preview,
+      })
     }
     handle.current = lift
     return () => {

@@ -34,7 +34,7 @@ export const PersonaMessageView = memo(function PersonaMessageView({
   onRetryFailed,
 }: PersonaMessageViewProps) {
   const t = useT()
-  const press = useLongPress(() => onActions?.(row))
+  const press = useLongPress(() => onActions?.(row), { preview: true })
   const [thinkingOpen, setThinkingOpen] = useState(false)
   const parts = useMemo(
     () => personaParts(row.message.parts),

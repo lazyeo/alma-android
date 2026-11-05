@@ -36,21 +36,29 @@ export function isPointerContextMenu(event: {
   return event.clientX > 0 || event.clientY > 0
 }
 
+/**
+ * `preview`: the pressed element is a message, shown as a reduced preview
+ * card while its actions are open (see longPressLift.ts).
+ */
 export function useLongPress(
   action: (point: { x: number; y: number }) => void,
+  { preview = false }: { preview?: boolean } = {},
 ) {
   const latest = useRef(action),
     fired = useRef(false),
     point = useRef({ x: 0, y: 0 }),
-    source = useRef<HTMLElement | null>(null)
+    source = useRef<HTMLElement | null>(null),
+    previewRef = useRef(preview)
   latest.current = action
+  previewRef.current = preview
   const press = useMemo(
     () =>
       createLongPress(() => {
         fired.current = true
         // The lift that follows reuses this tick; it never adds its own.
         void haptic('medium')
-        if (source.current) armLongPressLift(source.current)
+        if (source.current)
+          armLongPressLift(source.current, { preview: previewRef.current })
         latest.current(point.current)
       }),
     [],
@@ -94,7 +102,10 @@ export function useLongPress(
       press.cancel()
       if (!fired.current) {
         void haptic('medium')
-        if (isPointerContextMenu(event)) armLongPressLift(event.currentTarget)
+        if (isPointerContextMenu(event))
+          armLongPressLift(event.currentTarget, {
+            preview: previewRef.current,
+          })
         else disarmLongPressLift()
         latest.current(contextMenuPoint(event, point.current))
       }

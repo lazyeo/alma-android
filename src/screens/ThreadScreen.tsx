@@ -398,7 +398,7 @@ export const ThreadMessageView = memo(function ThreadMessageView({
   usage,
   workspacePath,
 }: ThreadMessageViewProps) {
-  const press = useLongPress(() => onActions?.(row))
+  const press = useLongPress(() => onActions?.(row), { preview: true })
   const { openFile } = useFileLinks()
   return (
     <MessageView
@@ -2632,6 +2632,7 @@ function ThreadView({
                       ref={virtualizer.measureElement}
                       data-index={item.index}
                       data-row-id={row.id}
+                      data-long-press-column=""
                       className={
                         flashRow === row.id ? 'search-row-flash' : undefined
                       }

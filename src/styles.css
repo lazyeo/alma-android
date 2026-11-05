@@ -8072,8 +8072,52 @@ button:active:not(:disabled),
 .long-press-lift-blank {
   display: block;
 }
+/* A message's preview card (longPressPreview.ts): sits between the status
+   bar and the sheet, grows out of the message (--preview-from) and back.
+   The copy is scaled once at build time; the clip, surface and bottom fade
+   are pre-drawn, so per frame only the card's transform and opacity and
+   the surface's and fade's opacity change. */
+.long-press-lift.preview {
+  transform-origin: 0 0;
+  transform: var(--preview-from);
+  opacity: var(--preview-from-opacity);
+}
+.long-press-lift.preview .long-press-lift-surface {
+  border: var(--border-hairline) solid var(--gray-7);
+}
+.long-press-preview {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+.long-press-preview-content {
+  position: absolute;
+  transform-origin: 0 0;
+}
+.long-press-preview-fade {
+  position: absolute;
+  inset: auto 0 0;
+  height: 48px;
+  background: linear-gradient(to bottom, transparent, var(--gray-3));
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
 .long-press-lift-layer[data-state='lifted'] .long-press-lift {
   transform: translateY(-2px) scale(1.02);
+}
+.long-press-lift-layer[data-state='lifted'] .long-press-lift.preview {
+  transform: none;
+  opacity: 1;
+}
+.long-press-lift-layer[data-state='lifted'] .long-press-preview-fade {
+  opacity: 1;
+}
+.long-press-lift-layer[data-state='settling'] .long-press-lift.preview {
+  opacity: 0;
+}
+.long-press-lift-layer[data-state='fading'] .long-press-lift.preview {
+  transform: none;
 }
 .long-press-lift-layer[data-state='lifted'] .long-press-lift-scrim,
 .long-press-lift-layer[data-state='lifted'] .long-press-lift-surface {
