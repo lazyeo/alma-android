@@ -2733,9 +2733,9 @@ const shots = [
     file: 'anchored-menus-desktop-menu.png',
     viewport: PHONE,
     route: DESKTOP,
-    ready: '.desktop-strip',
+    ready: '.desktop-title-switcher',
     async act(page) {
-      await page.locator('.desktop-strip').click()
+      await page.locator('.desktop-title-switcher').click()
       await page.getByRole('menu', { name: 'Switch desktop' }).waitFor()
     },
   },
@@ -5025,9 +5025,9 @@ const shots = [
     hasTouch: true,
     reducedMotion: 'no-preference',
     route: DESKTOP,
-    ready: '.desktop-strip',
+    ready: '.desktop-title-switcher',
     async act(page) {
-      await touchDrag(page, '.desktop-strip', 0, -14, false)
+      await touchDrag(page, '.desktop-title-switcher', 0, -14, false)
       const visible = await page
         .locator('.desktop-switcher-name')
         .allTextContents()
