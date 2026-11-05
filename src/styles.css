@@ -10753,6 +10753,65 @@ dialog:focus,
 .alma-dock .alma-nav-busy {
   bottom: -6px;
 }
+/* Her thought bubble: now and then while she works, one emoji in a small
+   raised bubble up and to the right of her face, two dots trailing back
+   to it (see alma/AlmaThought.tsx). Placed in the face's own box, so it
+   moves no layout and the bar and rail never clip it. Its pop and fade
+   are WAAPI transform and opacity; the shadow is static. On the rail and
+   the dock it sits beside her face, clear of the status bar above. */
+.alma-thought {
+  position: absolute;
+  z-index: 2;
+  left: calc(var(--alma-nav-box) * 0.86);
+  bottom: calc(var(--alma-nav-box) * 0.8);
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+}
+.alma-thought-rail,
+.alma-thought-dock {
+  top: -2px;
+  bottom: auto;
+}
+.alma-thought-anchor {
+  visibility: hidden;
+}
+/* The rail's bubble, lifted into the body at its anchor's box. */
+.alma-thought-lifted {
+  position: fixed;
+  z-index: var(--z-floating);
+}
+.alma-thought-bubble,
+.alma-thought-dot {
+  position: absolute;
+  border: var(--border-hairline) solid var(--gray-7);
+  border-radius: var(--radius-full);
+  background: var(--gray-2);
+}
+.alma-thought-bubble {
+  top: 0;
+  right: 0;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-popover);
+  font-size: var(--text-md);
+  line-height: var(--leading-tight);
+  transform-origin: 0 100%;
+}
+.alma-thought-dot:nth-child(1) {
+  left: 0;
+  bottom: 0;
+  width: 5px;
+  height: 5px;
+}
+.alma-thought-dot:nth-child(2) {
+  left: 5px;
+  bottom: 6px;
+  width: 8px;
+  height: 8px;
+}
 .alma-setup-state {
   display: grid;
   justify-items: center;
