@@ -10722,10 +10722,14 @@ dialog:focus,
 .split-shell.alma-full .alma-nav-rail .alma-nav-avatar {
   background: none;
 }
-.split-shell.alma-full .alma-nav-rail .alma-avatar,
+.split-shell.alma-full .alma-nav-rail .alma-avatar {
+  opacity: 0;
+}
+/* The busy dot's pulse animates opacity, which would win over a static
+   opacity: 0, so the dot and badge are hidden outright. */
 .split-shell.alma-full .alma-nav-rail .alma-nav-badge,
 .split-shell.alma-full .alma-nav-rail .alma-nav-busy {
-  opacity: 0;
+  visibility: hidden;
 }
 /* Her docked face: 52px, centred on the rail's right edge and on the
    60px header row below the safe top, bridging her tab and her title.

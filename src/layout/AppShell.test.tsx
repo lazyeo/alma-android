@@ -439,7 +439,10 @@ describe('Alma on split layouts', () => {
     expect(slot.querySelector('.alma-avatar')).toBeTruthy()
     const css = readFileSync(resolve(process.cwd(), 'src/styles.css'), 'utf8')
     expect(css).toMatch(
-      /\.split-shell\.alma-full \.alma-nav-rail \.alma-avatar,[^{]*\{\s*opacity: 0;/,
+      /\.split-shell\.alma-full \.alma-nav-rail \.alma-avatar \{\s*opacity: 0;/,
+    )
+    expect(css).toMatch(
+      /\.split-shell\.alma-full \.alma-nav-rail \.alma-nav-busy \{\s*visibility: hidden;/,
     )
     const hidden = '.split-shell.alma-full .alma-nav-rail .alma-avatar'
     const visible = [...container.querySelectorAll('.alma-avatar')].filter(
