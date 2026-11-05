@@ -10,31 +10,37 @@ An unofficial Android client for [Alma Desktop](https://alma.now). Pair it with 
 
 ## Screenshots
 
-| Threads                                                             | Conversation                                                        |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| ![Threads list](docs/screenshots/threads.png)                       | ![Conversation with a code block](docs/screenshots/thread-code.png) |
-| Settings (简体中文)                                                 | Files and diffs                                                     |
-| ![Settings in Simplified Chinese](docs/screenshots/settings-zh.png) | ![Thread files and diff](docs/screenshots/files-diff.png)           |
+| Threads and the floating tab bar                                                                 | Alma                                                                                                   |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| ![Thread list with the floating tab bar and Alma's thought bubble](docs/screenshots/threads.png) | ![Alma's conversation with her face in the header](docs/screenshots/alma.png)                          |
+| Conversation                                                                                     | Long-press preview and actions                                                                         |
+| ![Conversation with a code block](docs/screenshots/thread-code.png)                              | ![Reply preview card above the message actions with Retry reply](docs/screenshots/message-actions.png) |
+| Files and diffs                                                                                  | Settings (简体中文)                                                                                    |
+| ![Thread files and diff](docs/screenshots/files-diff.png)                                        | ![Settings in Simplified Chinese](docs/screenshots/settings-zh.png)                                    |
 
-### Herdr agents, Mac screen and updates
+### Herdr agents, remote desktop and updates
 
-| Herdr sessions                                                              | Answer an agent's menu                                                        |
-| --------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| ![Herdr board of workspaces and sessions](docs/screenshots/herdr-board.png) | ![Agent permission menu in the chat view](docs/screenshots/herdr-blocked.png) |
-| Mac screen                                                                  | In-app updates                                                                |
-| ![Controlling the Mac screen](docs/screenshots/mac-screen.png)              | ![Update panel with release notes](docs/screenshots/updates.png)              |
+| Herdr sessions                                                                | Answer an agent's menu                                                             |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| ![Herdr board of workspaces and sessions](docs/screenshots/herdr-board.png)   | ![Agent permission menu in the chat view](docs/screenshots/herdr-blocked.png)      |
+| Remote desktop, trackpad control at 1:1                                       | Choose a display or window                                                         |
+| ![Controlling the Mac screen, zoomed to 1:1](docs/screenshots/mac-screen.png) | ![Screen picker with displays and app windows](docs/screenshots/screen-picker.png) |
+| In-app updates                                                                |                                                                                    |
+| ![Update panel with release notes](docs/screenshots/updates.png)              |                                                                                    |
 
 ### Foldables
 
-Unfolded, the app switches to a two-pane layout with a navigation rail, the thread list and the open conversation side by side; the thread list can be collapsed to give the conversation the full width. Folding and unfolding plays a frosted transition between the cover and inner screens.
+Unfolded, the app switches to a two-pane layout with a navigation rail, the thread list and the open conversation side by side; the thread list can be collapsed to give the conversation the full width. Alma's face sits in the rail's top corner; opening her takes everything right of the rail, with her face docked across the rail edge. Folding and unfolding plays a frosted transition between the cover and inner screens.
 
-| Unfolded, thread list collapsed                                                                                            | Unfolded, 简体中文                                                                                 |
-| -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| ![Unfolded layout with the thread list collapsed to the rail, reply in progress](docs/screenshots/foldable-generating.png) | ![Two-pane layout in Simplified Chinese](docs/screenshots/foldable-zh.png)                         |
-| Herdr, chat view                                                                                                           | Herdr, terminal with scrollback                                                                    |
-| ![Herdr sessions beside an agent's chat](docs/screenshots/foldable-herdr-chat.png)                                         | ![Herdr terminal in grid layout with earlier output](docs/screenshots/foldable-herdr-terminal.png) |
+| Alma, docked on the rail                                                                           | Unfolded, thread list collapsed                                                                                            |
+| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| ![Alma's conversation beside the rail with her face docked](docs/screenshots/foldable-alma.png)    | ![Unfolded layout with the thread list collapsed to the rail, reply in progress](docs/screenshots/foldable-generating.png) |
+| Unfolded, 简体中文                                                                                 | Herdr, chat view                                                                                                           |
+| ![Two-pane layout in Simplified Chinese](docs/screenshots/foldable-zh.png)                         | ![Herdr sessions beside an agent's chat](docs/screenshots/foldable-herdr-chat.png)                                         |
+| Herdr, terminal with scrollback                                                                    |                                                                                                                            |
+| ![Herdr terminal in grid layout with earlier output](docs/screenshots/foldable-herdr-terminal.png) |                                                                                                                            |
 
-Screenshots use synthetic fixture data and contain no real desktop content or pairing credentials.
+Screenshots use synthetic fixture data and contain no real desktop content or pairing credentials. They show the official Alma mascot art, © yetone / Alma (see [Third-party assets](#third-party-assets)). Regenerate them with `npm run screenshots -- docs/screenshots readme`.
 
 ## Install
 
@@ -53,7 +59,7 @@ The package name is `club.a_dobe.alma`. Settings › Updates can check, verify, 
 
 1. In Alma Desktop, open remote access and display its pairing link or QR code.
 2. In Alma Android, scan the QR code or paste the pairing link.
-3. Repeat to add another desktop; use the desktop switcher to move between them.
+3. Repeat to add another desktop. On phones, tap the desktop name in the Threads or Herdr title to switch; on tablets and unfolded phones the switcher sits at the foot of the thread list.
 
 The pairing link grants full access to that desktop. Treat it like a password: do not share it, paste it into an issue, or include it in logs.
 
@@ -61,23 +67,24 @@ The app connects through Alma's official relay and, when the phone and desktop s
 
 ## Features
 
-- Threads, projects, and GTD views
+- **Alma, your personal agent:** on Alma desktop 0.4.407+, Alma's face sits in the middle of the tab bar (and in the rail's top corner on wide screens). She opens as her own messenger-style conversation, with a status line for what she is doing, and while she works a small thought bubble now and then shows an emoji for her current step. Her face uses the official Alma mascot art wearing this app's glasses, with a vector face as the fallback.
+- **Floating tab bar:** on phones a capsule with Threads, Alma and Herdr; GTD and Settings are icon buttons in the Threads header, and the current desktop's name in the page title opens the desktop switcher.
+- Threads, projects (with project cards and Recent threads), and GTD views
 - Streaming replies, tool calls, approvals, and user questions
+- Long-press a message for a reduced preview card above its actions; retry a reply or resend a failed message from there
 - Composer controls for model, reasoning effort, goals, and loops
 - Thread file panel with diffs, plus HTML and Markdown previews
+- Rich previews: KaTeX math, Mermaid diagrams, audio and video, PDF, CSV/XLSX and DOCX
 - Code-block copy, Android Share-to-Alma, and an image gallery
+- **Herdr coding agents:** for desktops running Herdr, board and list views of workspaces and sessions. Each session has a Chat view drawn with the same message components as threads, and a Terminal view with Fit/Grid layouts, on-demand scrollback and virtual keys. Answer an agent's permission menu from the chat or the session list, use slash commands, follow subagents, mute noisy workspaces, and get an "Agent needs you" alert.
+- **Remote desktop:** watch a paired desktop's screen and control it as a trackpad (tap to click, hold then move to drag, two fingers to scroll or right-click), type text, and wake a sleeping display. Pinch to zoom 1–4x or switch between Fit and 1:1, pan with one finger, and on macOS pick another display or a single app window to stream.
+- **LAN direct:** on the same Wi-Fi the app talks to the desktop directly instead of through the relay; the switcher shows a Wi-Fi icon for LAN or a globe for the relay.
+- Multiple desktops with macOS, Windows or Linux icons and live latency
 - Desktop Base46 theme palettes
 - English and 简体中文, following the system language with a user override
 - Foldable layouts and a frosted screen-transition effect; optional live hinge angle through Shizuku, with estimation as the fallback
-- Local alerts when a reply finishes or an approval needs attention
-- **New in 0.1.3 — Herdr coding agents:** for desktops running Herdr, a Herdr tab with board and list views of workspaces and sessions. Each session has a Chat view drawn with the same message components as threads, and a Terminal view with Fit/Grid layouts, on-demand scrollback, virtual keys you can hide, and Enter-to-terminal input. Answer an agent's permission menu from the chat or straight from the session list, mute noisy workspaces, and get an "Agent needs you" alert.
-- **New in 0.1.3 — Mac screen:** watch a paired desktop's screen, take control with direct touch or trackpad mode, type text, switch desktops, and wake a sleeping display.
-- **New in 0.1.3 — In-app updates:** check GitHub Releases, read the notes, and install a SHA-256-verified APK without leaving the app.
-- **New in 0.1.3 — Background connection:** an optional foreground service keeps desktop connections and local alerts alive while the app is in the background.
-- **New in 0.1.4 — LAN direct:** on the same Wi-Fi the app talks to the desktop directly instead of through the relay, and the desktop switcher shows a Wi-Fi icon for LAN or a globe for the relay.
-- **New in 0.1.4 — Better Mac control:** a dedicated trackpad area; taps click, slides only move, two-finger tap right-clicks, two-finger slide scrolls, and long-press or double-tap-hold drags to select text.
-- **New in 0.1.4 — Desktop OS icons:** paired desktops show a macOS, Windows or Linux icon, and Mac screen explains when a desktop cannot share its screen.
-- Rich previews: KaTeX math, Mermaid diagrams, audio and video, PDF, CSV/XLSX and DOCX
+- Local alerts when a reply finishes or an approval needs attention, and an optional foreground service that keeps connections alive in the background
+- **In-app updates:** check GitHub Releases, read the notes, and install a SHA-256-verified APK without leaving the app
 
 ### Notification limitation
 
