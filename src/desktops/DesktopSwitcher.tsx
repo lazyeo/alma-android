@@ -40,7 +40,7 @@ export function DesktopSwitcher({
   variant?: 'strip' | 'title'
 }) {
   const t = useT()
-  const { pairing, status, transport, latency } = useConnection()
+  const { pairing, status } = useConnection()
   const { desktops } = useDesktops()
   const visibleDesktops = desktops.filter(
     ({ pairing: candidate }) => !isDesktopHidden(candidate),
@@ -92,31 +92,8 @@ export function DesktopSwitcher({
                 aria-label={t(STATUS_LABELS[status])}
               />
               <span className="desktop-switcher-name">{pairing.name}</span>
-              {/* Like iOS: Wi-Fi glyph for LAN direct, globe for the relay. The icon
-                  carries the transport (aria-label); no text label beside it. */}
               {status === 'online' && variant === 'strip' ? (
-                <span className="desktop-transport-indicator">
-                  {transport === 'direct' ? (
-                    <Wifi
-                      className="desktop-transport-icon"
-                      size={12}
-                      aria-label={t('connection.transport.lan')}
-                    />
-                  ) : (
-                    <Globe
-                      className="desktop-transport-icon"
-                      size={12}
-                      aria-label={t('connection.transport.relay')}
-                    />
-                  )}
-                  {latency.ms !== null ? (
-                    <span
-                      className={isLatencyStale(latency) ? 'stale' : undefined}
-                    >
-                      {`${Math.round(latency.ms)} ms`}
-                    </span>
-                  ) : null}
-                </span>
+                <DesktopTransportIndicator />
               ) : null}
             </span>
             {swipe.neighbor ? (
@@ -168,6 +145,45 @@ export function DesktopSwitcher({
         },
       ]}
     />
+  )
+}
+
+/**
+ * Like iOS: Wi-Fi glyph for LAN direct, globe for the relay, then the
+ * latency. The icon carries the transport (aria-label); no text label beside
+ * it. Renders nothing while the desktop is not online.
+ */
+export function DesktopTransportIndicator({
+  className = '',
+}: {
+  className?: string
+}) {
+  const t = useT()
+  const { status, transport, latency } = useConnection()
+  if (status !== 'online') return null
+  return (
+    <span
+      className={`desktop-transport-indicator${className ? ` ${className}` : ''}`}
+    >
+      {transport === 'direct' ? (
+        <Wifi
+          className="desktop-transport-icon"
+          size={12}
+          aria-label={t('connection.transport.lan')}
+        />
+      ) : (
+        <Globe
+          className="desktop-transport-icon"
+          size={12}
+          aria-label={t('connection.transport.relay')}
+        />
+      )}
+      {latency.ms !== null ? (
+        <span className={isLatencyStale(latency) ? 'stale' : undefined}>
+          {`${Math.round(latency.ms)} ms`}
+        </span>
+      ) : null}
+    </span>
   )
 }
 
