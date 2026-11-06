@@ -536,6 +536,8 @@ function ThreadView({
       threadRouteMatch(location.pathname)?.section ?? 'threads',
     )
   const link = useRealtimeLink(api, status)
+  const linkOnlineRef = useRef(link.online)
+  linkOnlineRef.current = link.online
   const {
     approvals,
     questions,
@@ -1065,6 +1067,7 @@ function ThreadView({
     if (link.epoch > 1) {
       void load()
       void loadLiveSubagents()
+      void loadContextUsageRef.current()
     }
     const handleEvent = (event: RealtimeEvent) => {
       const data = event.data
@@ -1228,6 +1231,7 @@ function ThreadView({
         // reload runs from the socketIsReady flip, so don't load twice.
         if (!foregroundReloadPending.current) void load()
         void loadLiveSubagents()
+        void loadContextUsageRef.current()
       },
       onLost: release,
     })
@@ -1469,14 +1473,25 @@ function ThreadView({
     const observeForeground = () => {
       if (document.visibilityState !== 'visible') return
       foregroundedAt.current = Date.now()
-      foregroundReloadPending.current = true
       window.clearTimeout(foregroundRetryTimer.current)
+      setIdleConfirmed(true)
+      void loadContextUsageRef.current()
+      // A socket that survived the background still looks ready, so neither
+      // the reconnect nor the socketIsReady flip will reload. Frames it missed
+      // are never replayed by /ws/threads: catch up now, not after the grace.
+      if (
+        shouldReloadAfterForeground(linkOnlineRef.current, socketReady.current)
+      ) {
+        foregroundReloadPending.current = false
+        void load()
+        return
+      }
+      foregroundReloadPending.current = true
       foregroundRetryTimer.current = window.setTimeout(() => {
         if (!foregroundReloadPending.current) return
         foregroundReloadPending.current = false
         void load()
       }, FOREGROUND_RECONNECT_GRACE_MS)
-      setIdleConfirmed(true)
     }
     document.addEventListener('visibilitychange', observeForeground)
     window.addEventListener('pageshow', observeForeground)
