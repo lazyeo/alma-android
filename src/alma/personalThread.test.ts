@@ -6,7 +6,9 @@ import { selectProjectRecentThreads } from '../screens/projectRecent'
 import { filterProjects, filterThreadList } from '../screens/threadListModel'
 import type { SearchHit } from '../screens/threadSearch'
 import {
+  excludePersonalRunThreads,
   excludePersonalThread,
+  isPersonalRunThread,
   personalThreadIds,
   readCachedPersonalThread,
   rememberPersonalThread,
@@ -83,6 +85,68 @@ describe('excludePersonalThread', () => {
     expect(excludePersonalThread(threads, null)).toBe(threads)
     expect(excludePersonalThread(threads, [])).toBe(threads)
     expect(excludePersonalThread(threads, 'missing')).toBe(threads)
+  })
+})
+
+describe('excludePersonalRunThreads', () => {
+  const run = (id: string, kind = 'dispatch') =>
+    ({
+      id,
+      title: 'herdr · cairn',
+      workspaceId: 'p1',
+      updatedAt: '2026-11-06T00:00:00Z',
+      metadata: {
+        personalRun: { runId: `r-${id}`, kind, parentThreadId: 'alma' },
+      },
+    }) as Thread
+  const withRuns = [run('run1'), ...threads, run('run2', 'other')]
+
+  it('spots any thread the desktop tagged with metadata.personalRun', () => {
+    expect(isPersonalRunThread(run('run1'))).toBe(true)
+    expect(isPersonalRunThread(run('run2', 'review'))).toBe(true)
+    expect(isPersonalRunThread(threads[1])).toBe(false)
+    expect(isPersonalRunThread({ metadata: { pinned: true } })).toBe(false)
+    expect(isPersonalRunThread({ metadata: { personalRun: null } })).toBe(false)
+  })
+
+  it('drops them from the main list and every filter', () => {
+    const listed = excludePersonalRunThreads(withRuns)
+    expect(ids(filterThreadList(listed, workspaces, '', 'all'))).toEqual([
+      'alma',
+      't1',
+      't2',
+    ])
+    expect(ids(filterThreadList(listed, workspaces, 'herdr', 'all'))).toEqual(
+      [],
+    )
+  })
+
+  it('leaves them out of project groups, their counts and Recent', () => {
+    const listed = excludePersonalRunThreads(
+      excludePersonalThread(withRuns, 'alma'),
+    )
+    expect(filterProjects(listed, workspaces, '')).toMatchObject([
+      { id: 'p1', count: 2 },
+    ])
+    expect(ids(filterThreadList(listed, workspaces, '', 'p1'))).toEqual([
+      't1',
+      't2',
+    ])
+    const { recent, total } = selectProjectRecentThreads(listed)
+    expect(ids(recent)).toEqual(['t1', 't2'])
+    expect(total).toBe(2)
+  })
+
+  it('leaves them out of GTD lists and their counts', () => {
+    const source = gtdSourceThreads(
+      excludePersonalRunThreads(excludePersonalThread(withRuns, 'alma')),
+    )
+    expect(ids(source)).toEqual(['t1', 't2'])
+    expect(gtdStatusCounts(source).inbox).toBe(2)
+  })
+
+  it('returns the same list when there are none', () => {
+    expect(excludePersonalRunThreads(threads)).toBe(threads)
   })
 })
 

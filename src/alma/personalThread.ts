@@ -21,6 +21,30 @@ export function excludePersonalThread<T extends { id: string }>(
 }
 
 /**
+ * A background thread her personal agent started for a run (a dispatch
+ * such as a herdr follow-up). The desktop tags these with
+ * `metadata.personalRun = { runId, kind, parentThreadId }`; any kind counts.
+ */
+export function isPersonalRunThread(thread: {
+  metadata?: Record<string, unknown>
+}) {
+  return thread.metadata?.personalRun != null
+}
+
+/**
+ * Her run threads would bury the conversations you started, so the
+ * browsing lists (Threads, projects, the project card, GTD) leave them out.
+ * Search still finds them and `/threads/:id` still opens them.
+ */
+export function excludePersonalRunThreads<
+  T extends { metadata?: Record<string, unknown> },
+>(threads: readonly T[]): T[] {
+  return threads.some(isPersonalRunThread)
+    ? threads.filter((thread) => !isPersonalRunThread(thread))
+    : (threads as T[])
+}
+
+/**
  * Which thread is hers on `desktopId`:
  *
  * - the desktop's answer once it has one (presence ready with a thread);
