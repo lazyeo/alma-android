@@ -16,6 +16,7 @@ import { files } from './files'
 import { share } from './share'
 import { agents } from './agents'
 import { screen } from './screen'
+import { browser } from './browser'
 import type { KeyOf } from '../core'
 
 export const en = {
@@ -35,6 +36,7 @@ export const en = {
   share,
   agents,
   screen,
+  browser,
 } as const
 
 export type Messages = typeof en

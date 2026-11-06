@@ -1,0 +1,75 @@
+/* The computer browser view lays itself out with remoteScreen.css (header,
+   surface, toolbar, keyboard) and opens over the conversation. */
+.iab-page {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-fullscreen);
+  padding: 0 var(--safe-right) 0 var(--safe-left);
+  animation: fullscreen-overlay-in var(--dur-fast) var(--ease-out) both;
+}
+.iab-page.closing {
+  animation: fullscreen-overlay-out var(--dur-fast) var(--ease-out) both;
+}
+.iab-header {
+  gap: 6px;
+}
+/* The address bar takes the header's remaining width. */
+.iab-address {
+  display: flex;
+  min-width: 0;
+  height: 38px;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: var(--border-hairline) solid var(--gray-6);
+  border-radius: var(--radius-full);
+  background: var(--gray-2);
+  color: var(--muted-foreground);
+}
+.iab-address:focus-within {
+  border-color: var(--accent-8);
+}
+.iab-address-icon {
+  flex: none;
+}
+.iab-address input {
+  min-width: 0;
+  height: 100%;
+  flex: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  outline: none;
+  text-overflow: ellipsis;
+}
+.iab-tabs-chip {
+  min-width: 34px;
+  flex: none;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+/* A page is touched directly: no trackpad inset, the picture fills the box. */
+.iab-surface {
+  background: var(--gray-2);
+}
+.iab-toolbar {
+  padding-bottom: calc(6px + var(--safe-bottom));
+}
+.iab-toolbar .remote-key-row {
+  gap: 2px;
+}
+.iab-page > .remote-keyboard {
+  padding-bottom: calc(8px + var(--safe-bottom));
+}
+.iab-tab-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.iab-tab-row .sheet-row {
+  min-width: 0;
+  flex: 1;
+}

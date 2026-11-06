@@ -283,6 +283,21 @@ GET /api/system/site-icon?url=<encoded absolute http(s) URL>
 
 A successful response is `{ "dataUrl": "data:image/png;base64,..." }`. Older desktops and lookup failures are treated as no icon. The mobile client caches positive and negative results by origin for the app run.
 
+### Computer browser (in-app browser)
+
+**Verified** against Alma Desktop 0.4.467's main bundle (static reading; not yet exercised on a device). Each thread can view and drive the desktop's in-app browser for its workspace (the artifact workspace when the thread keeps artifacts):
+
+```text
+GET /api/iab/status          -> { targets: [{ workspaceId, url, ... }] }
+WS  /ws/iab/<threadId>
+```
+
+`/api/iab/status` gates the entry: a `404` hides it, and a target whose `workspaceId` matches the thread's workspace shows the "Alma is using the browser" shortcut. The client polls it only while a reply is generating, and once when it ends.
+
+On the socket the desktop sends `status { bound, url, title, loading, error? }` at once (an open socket that stays silent marks the desktop unsupported for the session), then `page`, `tabs { tabs[], activeId }`, `viewport { width, height }`, `frame { data (base64 JPEG), width, height, seq }` (about 15 fps at most, only when the page paints), `error { message }`, and WebRTC signalling (`rtc`, `rtc_offer`, `rtc_ice`). Frame and viewport sizes are the page's CSS pixels.
+
+The client sends `tap`/`double_tap { x, y }`, `scroll { x, y, dx, dy }` (CSS pixels, wheel deltas), `text { text }`, `key { key }` (`Enter`, `Backspace`, `Tab`, `Escape`, arrows), `navigate { url }` (the desktop turns words into a search and bare hosts into https, and opens a browser for the thread if none is bound), `tab { action: view|close|new, id?, url? }`, `back`, `forward`, `reload`. After the first frame it sends `rtc_start { relayOnly: false }`; once the desktop's `input` data channel is open, page input goes over it instead of the socket. Every other `/api/iab/*` route (the agent's browser tools, including `eval` and raw CDP) and `/ws/iab-rtc-bridge` stay blocked.
+
 ### References, crystals, and time clues
 
 **Verified.** The read-oriented reference browser uses:
@@ -373,7 +388,7 @@ Pairing secrets, desktop names, preferences, queues, and limited list caches are
 
 ## Client-side route restrictions
 
-**Verified.** The API layer allowlists required operations and blocks dangerous or unrelated routes, including command execution, terminal access, computer-use control, data import/export, provider/settings writes, and batch deletion. New endpoints must be reviewed and added narrowly; never replace the allowlist with unrestricted relay access.
+**Verified.** The API layer allowlists required operations and blocks dangerous or unrelated routes, including command execution, terminal access, computer-use control, the in-app browser's agent tools, data import/export, provider/settings writes, and batch deletion. New endpoints must be reviewed and added narrowly; never replace the allowlist with unrestricted relay access.
 
 ## Compatibility guidance
 

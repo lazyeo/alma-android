@@ -8,7 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Nothing yet.
+- Computer browser: a conversation can show the in-app browser of Alma on the computer, live, and drive it. Open it from the thread menu (Computer browser), or from the globe that appears in the header while Alma has a browser open for that thread. Tap to click, double-tap, drag to scroll, pinch to zoom; type into the page or press Enter, Tab, Esc, Delete and the arrows; go back, forward or reload; and see, switch, close or open the computer's tabs, including the ones Alma opened. The address bar opens any address or search on the computer, even when no browser is open yet, and pages only the computer can reach, such as `localhost` dev servers, work too. The picture is the desktop's JPEG screencast, upgraded to WebRTC video when the desktop can, with input then sent over its data channel. Desktops without the browser view show neither entry (2026-11-06).
+
+### Changed
+
+- The Mac screen and the computer browser share their WebRTC receiver, reconnect backoff, picture and zoom code; the Mac screen behaves as before (2026-11-06).
 
 ## [0.1.8] - 2026-11-05
 
@@ -33,6 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - On tablets and unfolded phones the thread list can be swiped closed from the page beside it, the same place it swipes open. On GTD, whose list rows keep their own status swipes, the list could be swiped open but not closed (2026-11-05).
 - Remote screen keeps Control when you switch windows or displays, when the connection drops, and when you leave the app and come back; it reconnects by itself (at once on return, otherwise after 1 to 8 seconds). It turns off only when you choose View only, open another desktop, or the desktop stops accepting input, and then a short notice says why (2026-11-05).
 - Switching desktops no longer reshuffles the tab bar: Alma's centre slot is remembered per desktop and held while the next desktop loads, and fades out only once that desktop is confirmed to have no personal agent (2026-11-05).
+
 ## [0.1.7] - 2026-11-05
 
 ### Added

@@ -14,6 +14,7 @@ import {
 } from '../screens/crystals'
 import { parseTimeClues, type TimeClueResponse } from '../screens/timeClues'
 import { parseAgentCrew, type AgentCrew } from '../screens/agentCrew'
+import { iabSocketPath } from '../screens/iab/protocol'
 import {
   parseAlmaVitals,
   parsePersonalAgent,
@@ -255,6 +256,8 @@ const denied = [
   /^\/api\/data\/(?:import|export)(?:\/|$)/,
   /^\/api\/threads\/batch-delete(?:\/|$)/,
   /^\/ws\/terminal(?:\/|$)/,
+  // The desktop's own WebRTC helper for the in-app browser, not for clients.
+  /^\/ws\/iab-rtc-bridge(?:\/|$)/,
 ]
 export function assertSafePath(path: string, method = 'GET') {
   const clean = new URL(path, 'https://local.invalid').pathname
@@ -287,6 +290,10 @@ export function assertSafePath(path: string, method = 'GET') {
   // helper presence) is reachable, to label desktops and gate the screen.
   const computerUseAllowed =
     clean === '/api/computer-use/status' && verb === 'GET'
+  // `/api/iab/*` is the agent's browser toolset (eval, raw CDP, fetch with
+  // the page's cookies); the phone drives the browser only through
+  // `/ws/iab/<threadId>`, so just the read-only target list is reachable.
+  const iabAllowed = clean === '/api/iab/status' && verb === 'GET'
   if (
     (/^\/api\/activity-recorder(?:\/|$)/.test(clean) &&
       !(verb === 'GET' && clean === '/api/activity-recorder/suggestions')) ||
@@ -295,6 +302,8 @@ export function assertSafePath(path: string, method = 'GET') {
     (loopRoute && !loopAllowed) ||
     (/^\/api\/terminal(?:\/|$)/.test(clean) && !terminalAllowed) ||
     (/^\/api\/computer-use(?:\/|$)/.test(clean) && !computerUseAllowed) ||
+    (/^\/api\/iab(?:\/|$)/.test(clean) && !iabAllowed) ||
+    (/^\/ws\/iab(?:\/|$)/.test(clean) && !/^\/ws\/iab\/[^/]+$/.test(clean)) ||
     (/^\/api\/gallery\/cache(?:\/|$)/.test(clean) && verb !== 'GET') ||
     denied.some((pattern) => pattern.test(clean)) ||
     (/^\/api\/settings$/.test(clean) && verb !== 'GET') ||
@@ -498,6 +507,30 @@ export class AlmaApi {
   }
   getComputerUseStatus() {
     return this.request<ComputerUseStatus>('/api/computer-use/status')
+  }
+  /**
+   * `GET /api/iab/status`: the desktop's open in-app browsers (0.4.467,
+   * verified). A desktop without the in-app browser answers 404.
+   */
+  async getIabStatus(): Promise<
+    { supported: false } | { supported: true; status: unknown }
+  > {
+    try {
+      return {
+        supported: true,
+        status: await this.request<unknown>('/api/iab/status'),
+      }
+    } catch (error) {
+      if (error instanceof AlmaHttpError && error.status === 404)
+        return { supported: false }
+      throw error
+    }
+  }
+  /** The live in-app browser of one thread; see screens/iab/protocol.ts. */
+  openIabSocket(threadId: string): TunnelSocket {
+    const path = iabSocketPath(threadId)
+    assertSafePath(path, 'WS')
+    return this.tunnel.openWebSocket(path)
   }
   getHealth() {
     return this.request<DesktopHealth>('/api/health')
