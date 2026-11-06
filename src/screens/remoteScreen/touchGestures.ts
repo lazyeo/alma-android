@@ -1,21 +1,29 @@
 // Touch gestures on the remote screen as a pure state machine.
 //
-// One machine serves two modes:
+// One machine serves three modes:
 // - trackpad: the finger moves a local cursor with pointer acceleration. A tap
 //   clicks at the cursor, a second tap double-clicks, a 350ms hold then move
 //   (or tap then drag) drags.
 // - pan: no desktop input. One finger pans the zoomed view.
-// In both modes two fingers pinch to zoom (anchored at their centroid). Two
-// fingers dragged together scroll (trackpad) or pan (pan mode). A two-finger
-// tap is a right click; when zoomed, a quick second two-finger tap resets the
-// zoom instead.
+// - touch: direct touch on a page (the in-app browser). A tap clicks where the
+//   finger is, a second tap double-clicks, and one finger scrolls the page at
+//   the finger, unaccelerated. There is no hold, drag or right click.
+// In every mode two fingers pinch to zoom (anchored at their centroid). Two
+// fingers dragged together scroll (trackpad) or pan (pan and touch). In
+// trackpad mode a two-finger tap is a right click; when zoomed, a quick second
+// two-finger tap resets the zoom instead.
 //
 // Inputs carry their own timestamps and the caller feeds `tick` at
 // `nextGestureDeadline`, so tests drive it with synthetic sequences.
 
 import type { Point } from './viewport'
 
-export type GestureMode = 'trackpad' | 'pan'
+export type GestureMode = 'trackpad' | 'pan' | 'touch'
+
+/** Taps reach the desktop (and can pair into a double tap). */
+const taps = (env: GestureEnv) => env.mode !== 'pan'
+/** Hold, drag and right click: only the trackpad has a cursor to drive. */
+const drives = (env: GestureEnv) => env.mode === 'trackpad'
 
 export interface GestureEnv {
   mode: GestureMode
@@ -75,7 +83,10 @@ export type GestureAction =
   /** Mouse button down / up at the cursor; `point` is where the finger was. */
   | { type: 'press' | 'release'; point: Point }
   | { type: 'click' | 'double' | 'right'; point: Point }
-  /** Scroll at the cursor by the centroid movement in surface px. */
+  /**
+   * Scroll by this surface-px movement: at the cursor (trackpad, two
+   * fingers) or at `point` under the finger (touch, one finger).
+   */
   | { type: 'scroll'; point: Point; delta: Point }
   | {
       type: 'pinch'
@@ -156,6 +167,11 @@ function singleMove(
       state,
       actions: delta.x || delta.y ? [{ type: 'pan', delta }] : [],
     }
+  if (env.mode === 'touch')
+    return {
+      state: { ...state, lastMoveAt: at },
+      actions: delta.x || delta.y ? [{ type: 'scroll', point: to, delta }] : [],
+    }
   const dt = Math.max(1, at - state.lastMoveAt)
   const speed = (Math.hypot(delta.x, delta.y) / dt) * 1000
   const velocity = state.velocity ? 0.5 * state.velocity + 0.5 * speed : speed
@@ -183,7 +199,7 @@ export function reduceTouchGesture(
     if (
       next.phase === 'pending' &&
       primary &&
-      env.mode !== 'pan' &&
+      drives(env) &&
       input.at - next.downAt >= HOLD_DELAY
     ) {
       actions.push({ type: 'haptic', kind: 'medium' })
@@ -211,7 +227,7 @@ export function reduceTouchGesture(
     if (count === 0) {
       let next = state
       const matches =
-        env.mode !== 'pan' &&
+        taps(env) &&
         next.pendingTap !== undefined &&
         input.at <= next.pendingTap.deadline &&
         distance(input.point, next.pendingTap.point) < DOUBLE_TAP_DISTANCE
@@ -286,7 +302,7 @@ export function reduceTouchGesture(
       case 'pending': {
         if (!isPrimary || distance(current.start, input.point) < TOUCH_SLOP)
           return { state: next, actions }
-        if (state.secondTap && env.mode !== 'pan') {
+        if (state.secondTap && drives(env)) {
           next = { ...next, phase: 'dragging' }
           actions.push({ type: 'press', point: current.start })
         } else next = { ...next, phase: 'moving' }
@@ -328,7 +344,7 @@ export function reduceTouchGesture(
         const stretched = Math.abs(spread - state.pinchStart.distance)
         if (
           (stretched > PINCH_SLOP && stretched > moved) ||
-          (env.mode === 'pan' && moved > TOUCH_SLOP)
+          (!drives(env) && moved > TOUCH_SLOP)
         ) {
           next = { ...next, phase: 'pinching' }
           actions.push({
@@ -391,7 +407,7 @@ export function reduceTouchGesture(
   switch (state.phase) {
     case 'pending': {
       if (!isPrimary) break
-      if (env.mode === 'pan') return { state: endSession(state), actions }
+      if (!taps(env)) return { state: endSession(state), actions }
       if (state.secondTap) {
         actions.push({ type: 'double', point: input.point })
         return { state: endSession(state), actions }
@@ -439,7 +455,7 @@ export function reduceTouchGesture(
           actions,
         }
       }
-      const right = env.mode !== 'pan'
+      const right = drives(env)
       if (env.zoomed)
         return {
           state: {
@@ -484,7 +500,7 @@ export function nextGestureDeadline(
   const deadlines = [
     state.pendingTap ? state.pendingTap.deadline + 1 : undefined,
     state.pendingTwoTap ? state.pendingTwoTap.deadline + 1 : undefined,
-    state.phase === 'pending' && env.mode !== 'pan'
+    state.phase === 'pending' && drives(env)
       ? state.downAt + HOLD_DELAY
       : undefined,
   ].filter((value): value is number => value !== undefined)

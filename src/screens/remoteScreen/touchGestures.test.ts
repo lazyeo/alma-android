@@ -544,3 +544,88 @@ describe('nextGestureDeadline', () => {
     expect(nextGestureDeadline(state, TRACKPAD)).toBeUndefined()
   })
 })
+
+describe('touch mode (direct touch on a page)', () => {
+  const TOUCH: GestureEnv = { mode: 'touch', zoomed: false }
+  const kinds = (actions: GestureAction[]) =>
+    actions.filter((action) => action.type !== 'haptic').map((a) => a.type)
+
+  it('taps where the finger is, after the double-tap window', () => {
+    const { actions } = run(
+      [down(1, 40, 60, 0), up(1, 41, 60, 50), { type: 'wait', until: 400 }],
+      TOUCH,
+    )
+    expect(actions).toEqual([{ type: 'click', point: { x: 41, y: 60 } }])
+  })
+
+  it('pairs two quick taps into a double tap', () => {
+    const { actions } = run(
+      [
+        down(1, 40, 60, 0),
+        up(1, 40, 60, 40),
+        down(1, 42, 61, 40 + DOUBLE_TAP_DELAY - 10),
+        up(1, 42, 61, 40 + DOUBLE_TAP_DELAY + 20),
+        { type: 'wait', until: 1000 },
+      ],
+      TOUCH,
+    )
+    expect(kinds(actions)).toEqual(['double'])
+  })
+
+  it('scrolls under the finger without acceleration, and never taps', () => {
+    const { actions } = run(
+      [
+        down(1, 100, 200, 0),
+        move(1, 100, 150, 16),
+        move(1, 100, 50, 32),
+        up(1, 100, 50, 48),
+        { type: 'wait', until: 1000 },
+      ],
+      TOUCH,
+    )
+    expect(actions).toEqual([
+      { type: 'scroll', point: { x: 100, y: 150 }, delta: { x: 0, y: -50 } },
+      { type: 'scroll', point: { x: 100, y: 50 }, delta: { x: 0, y: -100 } },
+    ])
+  })
+
+  it('has no hold, drag or right click', () => {
+    const held = run(
+      [
+        down(1, 10, 10, 0),
+        { type: 'wait', until: HOLD_DELAY + 100 },
+        move(1, 10, 40, HOLD_DELAY + 120),
+        up(1, 10, 40, HOLD_DELAY + 140),
+      ],
+      TOUCH,
+    )
+    expect(kinds(held.actions)).toEqual(['scroll'])
+    const twoTap = run(
+      [
+        down(1, 10, 10, 0),
+        down(2, 60, 10, 20),
+        up(1, 10, 10, 80),
+        up(2, 60, 10, 90),
+        { type: 'wait', until: 1000 },
+      ],
+      TOUCH,
+    )
+    expect(kinds(twoTap.actions)).toEqual([])
+  })
+
+  it('pinches and pans the view with two fingers', () => {
+    const { actions } = run(
+      [
+        down(1, 100, 100, 0),
+        down(2, 200, 100, 10),
+        move(1, 60, 100, 30),
+        move(2, 240, 100, 30),
+        up(1, 60, 100, 60),
+        up(2, 240, 100, 70),
+      ],
+      TOUCH,
+    )
+    expect(kinds(actions)).toContain('pinch')
+    expect(kinds(actions).at(-1)).toBe('pinch-end')
+  })
+})
