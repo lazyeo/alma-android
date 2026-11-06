@@ -1,3 +1,4 @@
+import { excludePersonalRunThreads } from '../alma/personalThread'
 import { t } from '../i18n/runtime'
 import { updateNativeShareShortcuts } from '../nativeBridge'
 import type { Thread } from '../relay'
@@ -51,11 +52,14 @@ export function desktopShareShortcuts(
 ): ShareShortcutOptions {
   return {
     shortcuts: [
-      ...threads.slice(0, limit).map((thread) => ({
-        id: encodeThreadShortcutId(desktopId, thread.id),
-        label: thread.title || t('common.untitledThread'),
-        desktopName,
-      })),
+      // Her background run threads would take the slots of your own.
+      ...excludePersonalRunThreads(threads)
+        .slice(0, limit)
+        .map((thread) => ({
+          id: encodeThreadShortcutId(desktopId, thread.id),
+          label: thread.title || t('common.untitledThread'),
+          desktopName,
+        })),
       {
         id: encodeNewChatShortcutId(desktopId),
         label: t('share.newChatShortcut', { desktop: desktopName }),
