@@ -25,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A reply that was streaming when the connection to the desktop dropped (Wi-Fi off, a switch between the direct link and the relay) keeps streaming once the app reconnects, instead of freezing at the point of the drop until the reply finished. A reply that ended while the app was disconnected no longer leaves "Thinking" counting on screen. Coming back to the app reloads the open thread at once rather than after 8 seconds, and reconnecting or coming back also refreshes the context ring. If the relay connection drops while Compact is running, the sheet shows an error instead of spinning until it is closed (2026-11-07).
 - Mark done from a long-pressed row's actions on the Threads list no longer leaves an empty gap where the row was: the lifted row settles back into its place, showing its new status, and the closed menu no longer swallows the next Back press. The next long press lifts its row again (2026-11-06).
 - Back with search open on the Threads page closes the search, clears it and hides the keyboard, instead of leaving the app; a second Back leaves as before. The same holds on tablets and unfolded phones (2026-11-05).
 - On tablets and unfolded phones the thread list can be swiped closed from the page beside it, the same place it swipes open. On GTD, whose list rows keep their own status swipes, the list could be swiped open but not closed (2026-11-05).
