@@ -89,6 +89,7 @@ export function ThreadsScreen({
   }
   const {
     threads,
+    searchableThreads,
     setThreads,
     workspaces,
     settings,
@@ -561,7 +562,8 @@ export function ThreadsScreen({
             <div className="search-results" aria-live="polite">
               {(() => {
                 const q = query.trim()
-                const local = threads.filter(
+                // Her run threads stay out of the list but not out of search.
+                const local = searchableThreads.filter(
                   (row) =>
                     !row.parentThreadId &&
                     !row.isIncognito &&

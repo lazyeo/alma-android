@@ -23,6 +23,7 @@ vi.mock('../desktops/DesktopContext', () => ({
 vi.mock('./useDesktopThreadList', () => ({
   useDesktopThreadList: () => ({
     threads: [],
+    searchableThreads: [],
     setThreads: vi.fn(),
     workspaces: [],
     settings: {},

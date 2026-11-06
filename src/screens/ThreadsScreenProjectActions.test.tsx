@@ -61,6 +61,7 @@ vi.mock('./useDesktopThreadList', () => ({
     const [error, setError] = useState<string>()
     return {
       threads,
+      searchableThreads: threads,
       setThreads,
       workspaces,
       settings: {},
