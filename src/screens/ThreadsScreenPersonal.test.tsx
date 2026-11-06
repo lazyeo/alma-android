@@ -62,6 +62,14 @@ const initialThreads = (): Thread[] =>
     { id: 'alma', title: 'Alma notes', updatedAt: '2026-11-04T00:00:00Z' },
     { id: 't1', title: 'Alpha', updatedAt: '2026-11-03T00:00:00Z' },
     { id: 't2', title: 'Beta', updatedAt: '2026-11-02T00:00:00Z' },
+    {
+      id: 'run1',
+      title: 'herdr · cairn',
+      updatedAt: '2026-11-05T00:00:00Z',
+      metadata: {
+        personalRun: { runId: 'r1', kind: 'dispatch', parentThreadId: 'alma' },
+      },
+    },
   ].map((row) => ({ ...row, workspaceId: 'p1' }) as Thread)
 
 vi.mock('react-router-dom', async (importOriginal) => ({
@@ -76,24 +84,32 @@ vi.mock('../desktops/DesktopTitleSwitcher', () => ({
 vi.mock('../desktops/DesktopContext', () => ({
   useConnection: () => ({ api, pairing: { id: 'd1' } }),
 }))
-vi.mock('./useDesktopThreadList', () => ({
-  useDesktopThreadList: () => {
-    const [threads, setThreads] = useState(() =>
-      initialThreads().filter((row) => row.id !== 'alma'),
+// The hook's own filtering is covered in useDesktopThreadList.test.tsx; this
+// mirrors its split so the screen renders the same lists it would get.
+vi.mock('./useDesktopThreadList', async () => {
+  const { excludePersonalRunThreads, excludePersonalThread } =
+    await vi.importActual<typeof import('../alma/personalThread')>(
+      '../alma/personalThread',
     )
-    const [error, setError] = useState<string>()
-    return {
-      threads,
-      setThreads,
-      workspaces,
-      settings: {},
-      loading: false,
-      error,
-      setError,
-      reload: async () => undefined,
-    }
-  },
-}))
+  return {
+    useDesktopThreadList: () => {
+      const [rows, setThreads] = useState(initialThreads)
+      const searchableThreads = excludePersonalThread(rows, 'alma')
+      const [error, setError] = useState<string>()
+      return {
+        threads: excludePersonalRunThreads(searchableThreads),
+        searchableThreads,
+        setThreads,
+        workspaces,
+        settings: {},
+        loading: false,
+        error,
+        setError,
+        reload: async () => undefined,
+      }
+    },
+  }
+})
 vi.mock('../desktops/ThreadActivityProvider', () => ({
   useUnreadActivity: () => stable.unread,
   useGeneratingIds: () => stable.generating,
@@ -173,5 +189,58 @@ describe('ThreadsScreen search and her main conversation', () => {
     })
     expect(results.textContent).not.toContain('Alma notes')
     expect(results.querySelectorAll('.search-result-title').length).toBe(1)
+  })
+})
+
+describe('ThreadsScreen and her background run threads', () => {
+  const renderThreads = () =>
+    render(
+      <MemoryRouter initialEntries={['/d/d1/threads']}>
+        <ThreadsScreen />
+      </MemoryRouter>,
+    )
+  const rowTitles = (selector: string) =>
+    Array.from(document.querySelectorAll<HTMLElement>(selector)).map(
+      (row) => row.firstElementChild?.textContent,
+    )
+
+  it('leaves them out of the thread list', () => {
+    renderThreads()
+    const rows = rowTitles('.thread-row')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toMatch(/^Alpha/)
+    expect(rows[1]).toMatch(/^Beta/)
+    expect(document.body.textContent).not.toContain('herdr · cairn')
+  })
+
+  it('leaves them out of project groups and their counts', () => {
+    renderThreads()
+    fireEvent.click(screen.getByRole('tab', { name: 'Projects' }))
+    expect(screen.getByText('2 threads')).toBeTruthy()
+    expect(rowTitles('.project-threads-inner > .project-thread-row')).toEqual([
+      'Alpha',
+      'Beta',
+    ])
+    expect(document.body.textContent).not.toContain('herdr · cairn')
+  })
+
+  it('still finds them in search and opens them from a result', async () => {
+    navigate.mockClear()
+    renderThreads()
+    fireEvent.change(screen.getByLabelText('Search threads and projects'), {
+      target: { value: 'herdr' },
+    })
+    const title = await waitFor(() => {
+      const match = Array.from(
+        document.querySelectorAll<HTMLElement>('.search-result-title'),
+      ).find((node) => node.textContent?.startsWith('herdr · cairn'))
+      expect(match).toBeTruthy()
+      return match!
+    })
+    fireEvent.click(title)
+    expect(navigate).toHaveBeenCalledWith(
+      expect.stringContaining('/threads/run1'),
+      expect.anything(),
+    )
   })
 })
