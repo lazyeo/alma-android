@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { MessagePart, MessageRow } from '../relay'
 import {
+  DESKTOP_IDLE_GRACE_MS,
   createOptimisticThreadState,
   optimisticThreadReducer,
   pendingStatusText,
@@ -160,6 +161,58 @@ describe('optimistic thread state', () => {
       ),
     })
     expect(state.pending).toBeUndefined()
+  })
+
+  describe('when a catch-up finds the desktop idle', () => {
+    // The turn ended while the socket was down, so its thread_generating and
+    // generation_* events were missed; an error before the first part leaves
+    // no assistant row for sync_rows to clear the placeholder with.
+    const sentAndRegistered = () => {
+      const state = optimisticThreadReducer(createOptimisticThreadState([]), {
+        type: 'sent',
+        threadId: 'thread-1',
+        messageId: 'local-1',
+        parts: textParts('Hello'),
+        sentAt: 100,
+      })
+      return optimisticThreadReducer(state, {
+        type: 'sync_rows',
+        rows: [serverRow('row-1', 'local-1', 'user', 'Hello')],
+      })
+    }
+
+    it('clears the pending placeholder', () => {
+      const state = optimisticThreadReducer(sentAndRegistered(), {
+        type: 'desktop_idle',
+        now: 100 + DESKTOP_IDLE_GRACE_MS,
+      })
+      expect(state.pending).toBeUndefined()
+    })
+
+    it('keeps it while the sent message is not on the desktop yet', () => {
+      const sent = optimisticThreadReducer(createOptimisticThreadState([]), {
+        type: 'sent',
+        threadId: 'thread-1',
+        messageId: 'local-1',
+        parts: textParts('Hello'),
+        sentAt: 100,
+      })
+      const state = optimisticThreadReducer(sent, {
+        type: 'desktop_idle',
+        now: 100 + 60_000,
+      })
+      expect(state.pending).toBeDefined()
+    })
+
+    it('keeps it right after a send, before the desktop registers the turn', () => {
+      // Desktop stores the user message a moment before it marks the thread
+      // generating, so a load in between reads "idle" for a live turn.
+      const state = optimisticThreadReducer(sentAndRegistered(), {
+        type: 'desktop_idle',
+        now: 100 + DESKTOP_IDLE_GRACE_MS - 1,
+      })
+      expect(state.pending).toBeDefined()
+    })
   })
 
   it('keeps one unreconciled optimistic row across fetched-row syncs', () => {

@@ -36,6 +36,14 @@ export type OptimisticThreadAction =
   | { type: 'assistant_started' }
   | { type: 'sync_rows'; rows: MessageRow[] }
   | { type: 'generation_finished' }
+  | { type: 'desktop_idle'; now: number }
+
+/**
+ * Desktop stores a sent message slightly before it marks the thread
+ * generating, so an "idle" read this soon after a send may be a turn that is
+ * still starting.
+ */
+export const DESKTOP_IDLE_GRACE_MS = 10_000
 
 export function createOptimisticThreadState(
   rows: MessageRow[],
@@ -224,6 +232,18 @@ export function optimisticThreadReducer(
     return state.pending
       ? { ...state, pending: { ...state.pending, phase: action.phase } }
       : state
+  }
+
+  // A catch-up (reconnect load or generating_snapshot) found no generation:
+  // the turn ended while we were not listening, so its end events are gone.
+  if (action.type === 'desktop_idle') {
+    if (!state.pending) return state
+    const unsent = state.rows.some(
+      (row) => row.metadata?.optimisticStatus === 'pending',
+    )
+    if (unsent || action.now - state.pending.sentAt < DESKTOP_IDLE_GRACE_MS)
+      return state
+    return { ...state, pending: undefined }
   }
 
   if (

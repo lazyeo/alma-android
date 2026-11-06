@@ -861,10 +861,16 @@ function ThreadView({
       setReasoningEffort(nextMeta.reasoningEffort)
       setFastMode(nextMeta.fastMode)
       const fetchedRows = accumulatorRef.current.sync(rowsRef.current, rows)
-      const synced = optimisticThreadReducer(
+      const fetched = optimisticThreadReducer(
         { rows: rowsRef.current, pending: pendingAssistantRef.current },
         { type: 'sync_rows', rows: fetchedRows },
       )
+      const synced = thread.isGenerating
+        ? fetched
+        : optimisticThreadReducer(fetched, {
+            type: 'desktop_idle',
+            now: Date.now(),
+          })
       pendingAssistantRef.current = synced.pending
       commitRows(synced.rows)
       setPendingAssistant(synced.pending)
@@ -1065,7 +1071,10 @@ function ThreadView({
       if (event.type === 'generating_snapshot') {
         const active = (data?.ids ?? []).includes(threadId)
         setGenerating(active)
-        if (!active) setIdleConfirmed(true)
+        if (!active) {
+          setIdleConfirmed(true)
+          applyOptimistic({ type: 'desktop_idle', now: Date.now() })
+        }
         if (active) {
           applyOptimistic({
             type: 'generating_open',
