@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { AlmaHttpError } from '../relay/almaApi'
+import { TunnelSessionLostError } from '../relay/tunnel'
 import { mapRelayError } from './relayError'
 
 describe('relay error presentation', () => {
@@ -11,6 +12,13 @@ describe('relay error presentation', () => {
         detail: 'It is no longer available on this desktop.',
       },
     )
+  })
+
+  it('treats a request cut off by a dropped tunnel session as offline', () => {
+    // The foreground grace hides offline failures while the link reconnects.
+    expect(
+      mapRelayError(new TunnelSessionLostError('Relay connection lost')).kind,
+    ).toBe('offline')
   })
 
   it('maps auth, offline, timeout, and generic errors without raw bodies', () => {

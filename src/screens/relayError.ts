@@ -1,5 +1,6 @@
 import { t } from '../i18n/runtime'
 import { AlmaHttpError } from '../relay/almaApi'
+import { TunnelSessionLostError } from '../relay/tunnel'
 
 export type RelayErrorPresentation = {
   kind: 'thread-missing' | 'auth' | 'offline' | 'timeout' | 'generic'
@@ -24,7 +25,7 @@ export function mapRelayError(
       title: t('connection.relayError.auth'),
       detail: t('connection.relayError.authDetail'),
     }
-  if (status === 502)
+  if (status === 502 || error instanceof TunnelSessionLostError)
     return {
       kind: 'offline',
       title: t('connection.relayError.offline'),
