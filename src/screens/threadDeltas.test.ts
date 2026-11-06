@@ -206,8 +206,11 @@ describe('DeltaAccumulator', () => {
     }
     append(1, 'abc')
     append(3, 'lost')
-    // The throttled DB row is behind the stream, so local text is kept.
+    // The throttled DB row is behind the stream, so local text is kept, also
+    // when a second lagging snapshot lands before the next delta.
     rows = acc.sync(rows, [assistantRow([{ type: 'text', text: 'a' }])])
+    rows = acc.sync(rows, [assistantRow([{ type: 'text', text: 'a' }])])
+    expect(rows[0].message.parts[0].text).toBe('abc')
     append(4, 'd')
     expect(rows[0].message.parts[0].text).toBe('abcd')
   })

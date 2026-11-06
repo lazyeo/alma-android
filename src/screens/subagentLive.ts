@@ -180,11 +180,14 @@ export class SubagentRuns {
       const known = this.idSet.has(id)
       if (known && this.accumulator.lastSeq(id) >= lastSeq) continue
       this.upsert(toRow(context, snapshot.message ?? {}))
+      // Frames that parked behind a gap while this snapshot was in flight are
+      // newer than it; replay them, or the next one parks and asks again.
+      const behindGap = this.accumulator.takePending(id)
       this.accumulator.seed(id, lastSeq)
       this.streaming.add(id)
-      const parked = this.parked.get(id)
+      const parked = [...(this.parked.get(id) ?? []), ...behindGap]
       this.parked.delete(id)
-      if (parked?.length) this.applyDeltas(id, parked)
+      if (parked.length) this.applyDeltas(id, parked)
       changed = true
     }
     return changed

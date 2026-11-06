@@ -30,6 +30,12 @@ type StreamingOutput = { stdout: string; stderr: string }
 interface RowState {
   lastSeq: number
   pending: Delta[]
+  /**
+   * Set when a snapshot could not fill a seq gap in a row that is otherwise
+   * ahead of it: the next delta applies whatever its seq. lastSeq stays, so
+   * the row still counts as current against later lagging snapshots.
+   */
+  resumeAnySeq?: boolean
 }
 
 const appendStreamTail = (base: string, chunk: string) => {
@@ -172,6 +178,15 @@ export class DeltaAccumulator {
     this.states.set(rowId, { lastSeq, pending: [] })
   }
 
+  /** Removes and returns the deltas parked behind a row's seq gap. */
+  takePending(rowId: string): Delta[] {
+    const state = this.states.get(rowId)
+    if (!state) return []
+    const pending = state.pending
+    state.pending = []
+    return pending
+  }
+
   /**
    * Applies a `message_delta` frame. `needsResync` means the local copy could
    * not absorb every delta (unknown message or stale base); callers should
@@ -209,12 +224,13 @@ export class DeltaAccumulator {
       }
       const seq = seqOf(delta)
       if (seq <= state.lastSeq) continue
-      if (state.lastSeq > 0 && seq > state.lastSeq + 1) {
+      if (state.lastSeq > 0 && seq > state.lastSeq + 1 && !state.resumeAnySeq) {
         state.pending.push(delta)
         continue
       }
       run(delta)
       state.lastSeq = seq
+      state.resumeAnySeq = false
       for (;;) {
         const next = state.pending.findIndex(
           (item) => seqOf(item) === state.lastSeq + 1,
@@ -283,7 +299,7 @@ export class DeltaAccumulator {
     }
     // Local is ahead but has a hole the snapshot cannot fill: drop the parked
     // frames and resume from the next one rather than freezing the row.
-    if (hadGap) state.lastSeq = 0
+    if (hadGap) state.resumeAnySeq = true
 
     const parts = cloneParts(local.message.parts)
     for (const synced of snapshot.message.parts) {
