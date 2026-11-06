@@ -44,6 +44,61 @@ describe('Alma API safety', () => {
       expect(() => assertSafePath(path, method)).not.toThrow()
   })
 
+  it('reaches the in-app browser only through its live socket and status read', () => {
+    for (const [path, method] of [
+      ['/ws/iab/thread-1', 'WS'],
+      ['/api/iab/status', 'GET'],
+    ] as const)
+      expect(() => assertSafePath(path, method)).not.toThrow()
+    // The agent's browser tools (eval, cdp, fetch, …) and the desktop's own
+    // WebRTC bridge stay out of reach.
+    for (const [path, method] of [
+      ['/api/iab/eval', 'POST'],
+      ['/api/iab/cdp', 'POST'],
+      ['/api/iab/navigate', 'POST'],
+      ['/api/iab/status', 'POST'],
+      ['/api/iab', 'GET'],
+      ['/ws/iab-rtc-bridge?token=x', 'WS'],
+      ['/ws/iab', 'WS'],
+      ['/ws/iab/a/b', 'WS'],
+    ] as const)
+      expect(() => assertSafePath(path, method)).toThrow(/blocked/i)
+  })
+
+  it('reports a desktop without the in-app browser status as unsupported', async () => {
+    const fetch = vi.fn(async () => ({
+      status: 404,
+      text: async () => 'Not Found',
+    }))
+    const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)
+    await expect(api.getIabStatus()).resolves.toEqual({ supported: false })
+  })
+
+  it('reads the in-app browser status', async () => {
+    const targets = [{ workspaceId: 'w1', url: 'https://a.test/' }]
+    const fetch = vi.fn(async () => ({
+      status: 200,
+      json: async () => ({ targets }),
+    }))
+    const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)
+    await expect(api.getIabStatus()).resolves.toEqual({
+      supported: true,
+      status: { targets },
+    })
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/iab/status',
+      expect.objectContaining({ method: 'GET' }),
+    )
+  })
+
+  it('opens the in-app browser socket for a thread', () => {
+    const socket = {}
+    const openWebSocket = vi.fn(() => socket)
+    const api = new AlmaApi({ fetch: vi.fn(), openWebSocket } as any)
+    expect(api.openIabSocket('t/1')).toBe(socket)
+    expect(openWebSocket).toHaveBeenCalledWith('/ws/iab/t%2F1')
+  })
+
   it('allows only the Computer Use status read', () => {
     expect(() =>
       assertSafePath('/api/computer-use/status', 'GET'),

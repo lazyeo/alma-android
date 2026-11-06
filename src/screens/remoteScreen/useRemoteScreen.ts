@@ -11,6 +11,10 @@ import {
 } from './protocol'
 import { screenPath } from './screenTargets'
 import { isFrameStalled } from './liveness'
+import { reconnectDelay } from '../liveStream/reconnect'
+import { createRtcViewer } from '../liveStream/rtcViewer'
+
+export { RECONNECT_DELAYS_MS, reconnectDelay } from '../liveStream/reconnect'
 
 interface ScreenTunnel {
   openWebSocket: Pick<RelayTunnel, 'openWebSocket'>['openWebSocket']
@@ -43,15 +47,6 @@ export function wantsVideo({
   return rtc && (windowId === undefined || windowClosed)
 }
 
-/**
- * Waits before reopening a socket the desktop or the network closed, by
- * consecutive failure. A target switch or a return to the app reopens at once.
- */
-export const RECONNECT_DELAYS_MS = [1_000, 2_000, 4_000, 8_000]
-
-export const reconnectDelay = (failures: number) =>
-  RECONNECT_DELAYS_MS[Math.min(failures, RECONNECT_DELAYS_MS.length - 1)]
-
 export interface ScreenWindowList {
   windows: ScreenWindow[]
   error?: string
@@ -67,8 +62,6 @@ export function useRemoteScreen(
   }: RemoteScreenOptions = {},
 ) {
   const socketRef = useRef<TunnelSocket>()
-  const peerRef = useRef<RTCPeerConnection>()
-  const streamRef = useRef<MediaStream>()
   // Control is the user's choice for this desktop: it outlives sockets, so
   // target switches and reconnects keep it. Only the user, another desktop,
   // or the desktop refusing to stream turns it off.
@@ -149,15 +142,28 @@ export function useRemoteScreen(
     setStatus(undefined)
     setWindowList(undefined)
     setRtcState('idle')
-    const stopRtc = () => {
+    const clearVideo = () => {
       if (rtcTimer) clearTimeout(rtcTimer)
       rtcTimer = undefined
-      peerRef.current?.close()
-      peerRef.current = undefined
-      streamRef.current = undefined
       setStream(undefined)
       videoLiveRef.current = false
       setVideoLive(false)
+    }
+    const viewer = createRtcViewer({
+      send,
+      onStream: (nextStream) => {
+        if (!disposed) setStream(nextStream)
+      },
+      onState: (state) => {
+        setRtcState(state)
+        // The viewer has already closed the peer and told the desktop.
+        if (state === 'failed') clearVideo()
+      },
+      onError: setError,
+    })
+    const stopRtc = () => {
+      viewer.close()
+      clearVideo()
     }
     const startRtc = () => {
       if (disposed || rtcStarted) return
@@ -203,45 +209,10 @@ export function useRemoteScreen(
       if (next.type === 'error') setError(next.message)
       if (next.type === 'rtc') setRtcState(next.state)
       if (next.type === 'rtc_offer') {
-        void (async () => {
-          try {
-            stopRtc()
-            const peer = new RTCPeerConnection({
-              iceServers: next.iceServers,
-            })
-            peerRef.current = peer
-            peer.ontrack = (event) => {
-              const nextStream =
-                event.streams[0] ?? new MediaStream([event.track])
-              streamRef.current = nextStream
-              if (!disposed) setStream(nextStream)
-            }
-            peer.onicecandidate = (event) => {
-              if (event.candidate)
-                send({ type: 'rtc_ice', candidate: event.candidate.toJSON() })
-            }
-            peer.onconnectionstatechange = () => {
-              setRtcState(peer.connectionState)
-              if (peer.connectionState === 'failed') {
-                stopRtc()
-                send({ type: 'rtc_stop' })
-              }
-            }
-            await peer.setRemoteDescription({ type: 'offer', sdp: next.sdp })
-            const answer = await peer.createAnswer()
-            await peer.setLocalDescription(answer)
-            send({ type: 'rtc_answer', sdp: answer.sdp ?? '' })
-          } catch (cause) {
-            setRtcState('failed')
-            setError(cause instanceof Error ? cause.message : String(cause))
-            stopRtc()
-          }
-        })()
+        clearVideo()
+        void viewer.acceptOffer(next.sdp, next.iceServers)
       }
-      if (next.type === 'rtc_ice' && peerRef.current)
-        void peerRef.current
-          .addIceCandidate(next.candidate)
-          .catch(() => undefined)
+      if (next.type === 'rtc_ice') viewer.addIce(next.candidate)
     })
     const reopen = (delay: number) => {
       if (disposed || paused || retryTimer) return

@@ -42,6 +42,7 @@ import {
   Copy,
   FileText,
   Folder,
+  Globe,
   ListPlus,
   Info,
   Link,
@@ -80,10 +81,14 @@ import {
   type FileWriteEntry,
 } from './threadFiles'
 import { HtmlFileChooser } from './HtmlFileChooser'
+import { iabWorkspaceKey } from './iab/protocol'
+import { markIabUnsupported, useIabPresence } from './iab/useIabPresence'
 import { extractThreadImages } from './galleryModel'
 import {
   Component,
+  lazy,
   memo,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -476,6 +481,12 @@ type ProjectMove =
   | { workspaceId: string; status: 'moving' | 'moved' }
   | { workspaceId: string; status: 'error'; message: string }
 
+// The live computer browser pulls in the screen-streaming code; load it only
+// when it is opened.
+const IabScreen = lazy(() =>
+  import('./iab/IabScreen').then((module) => ({ default: module.IabScreen })),
+)
+
 export function ThreadScreen() {
   const { threadId = '' } = useParams()
   // Remount per thread so composer drafts, edit mode and message caches can
@@ -596,6 +607,12 @@ function ThreadView({
   const [overflowing, setOverflowing] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [htmlChooserOpen, setHtmlChooserOpen] = useState(false)
+  const [browserOpen, setBrowserOpen] = useState(false)
+  // The desktop keys a thread's browser by its artifact workspace, if any.
+  const [threadArtifacts, setThreadArtifacts] = useState<{
+    enableArtifacts?: unknown
+    artifactWorkspaceId?: unknown
+  }>({})
   const [projectMenuOpen, setProjectMenuOpen] = useState(false)
   const [crewOpen, setCrewOpen] = useState(false)
   const [crew, setCrew] = useState<AgentCrew>({ missions: [] })
@@ -698,6 +715,11 @@ function ThreadView({
       draft.update(composerReferences.content(), attachments)
   }, [draft, text, references, attachments, editingMessageId])
   const [generating, setGenerating] = useState(false)
+  // The desktop binds a thread's browser by workspace; a thread outside any
+  // project has none to show.
+  const browserKey = iabWorkspaceKey({ ...threadArtifacts, workspaceId })
+  const browser = useIabPresence(api, pairing.id, browserKey, generating)
+  useEffect(() => setBrowserOpen(false), [pairing.id, threadId])
   const [idleConfirmed, setIdleConfirmed] = useState(false)
   const [socketIsReady, setSocketIsReady] = useState(false)
   const [generationStart, setGenerationStart] = useState<number>()
@@ -857,6 +879,10 @@ function ThreadView({
       setTitle(nextMeta.title)
       setIsGeneratingTitle(nextMeta.isGeneratingTitle)
       setWorkspaceId(nextMeta.workspaceId)
+      setThreadArtifacts({
+        enableArtifacts: thread.enableArtifacts,
+        artifactWorkspaceId: thread.artifactWorkspaceId,
+      })
       setModel(nextMeta.model)
       setReasoningEffort(nextMeta.reasoningEffort)
       setFastMode(nextMeta.fastMode)
@@ -2562,6 +2588,16 @@ function ThreadView({
             />
           </div>
           <div className="detail-actions">
+            {browser.active ? (
+              <button
+                className="header-action-button"
+                aria-label={t('browser.agentUsing')}
+                onClick={() => setBrowserOpen(true)}
+              >
+                <Globe size={17} strokeWidth={2} aria-hidden="true" />
+                <span className="crew-running-dot" aria-hidden="true" />
+              </button>
+            ) : null}
             {runCount ? (
               <button
                 className="header-action-button"
@@ -2617,6 +2653,16 @@ function ThreadView({
                   icon: <Info size={16} />,
                   onSelect: () => setThreadInfoOpen(true),
                 },
+                ...(browser.supported && browserKey
+                  ? [
+                      {
+                        key: 'browser',
+                        label: t('browser.menu'),
+                        icon: <Globe size={16} />,
+                        onSelect: () => setBrowserOpen(true),
+                      } as const,
+                    ]
+                  : []),
                 ...(workspaceId
                   ? [
                       {
@@ -3004,6 +3050,16 @@ function ThreadView({
               </button>
             ) : null}
           </BottomSheet>
+        ) : null}
+        {browserOpen ? (
+          <Suspense fallback={null}>
+            <IabScreen
+              tunnel={api}
+              threadId={threadId}
+              onClose={() => setBrowserOpen(false)}
+              onUnsupported={() => markIabUnsupported(pairing.id)}
+            />
+          </Suspense>
         ) : null}
         {htmlChooserOpen && workspaceId ? (
           <HtmlFileChooser

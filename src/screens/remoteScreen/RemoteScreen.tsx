@@ -60,24 +60,17 @@ import {
   type GestureMode,
   type TouchGestureInput,
 } from './touchGestures'
-import { BLANK_POSTER, isDarkSample } from './liveness'
+import { ScreenMedia } from '../liveStream/StreamMedia'
 import { useRemoteScreen } from './useRemoteScreen'
 import {
-  clampView,
   desktopToSurface,
-  IDENTITY_VIEW,
   isZoomed,
   keepPointVisible,
-  oneToOneScale,
-  panView,
-  pinchView,
-  settleView,
   surfaceDeltaToDesktop,
-  viewTransform,
-  zoomAround,
   zoomPercent,
   type View,
 } from './viewport'
+import { measureSurface, useStreamZoom } from '../liveStream/useStreamZoom'
 import { ScreenPicker } from './ScreenPicker'
 import {
   canPickTarget,
@@ -112,107 +105,6 @@ const MODIFIERS = [
   ['ctrl', '⌃', 'modifierControl'],
   ['shift', '⇧', 'modifierShift'],
 ] as const
-
-function ScreenCanvas({
-  data,
-  onDark,
-}: {
-  data?: string
-  onDark?: (dark: boolean) => void
-}) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const decodeVersion = useRef(0)
-  useEffect(() => {
-    if (!data) return
-    const version = ++decodeVersion.current
-    let disposed = false
-    const bytes = Uint8Array.from(atob(data), (char) => char.charCodeAt(0))
-    const blob = new Blob([bytes], { type: 'image/jpeg' })
-    void createImageBitmap(blob)
-      .then((bitmap) => {
-        if (disposed || version !== decodeVersion.current) {
-          bitmap.close()
-          return
-        }
-        const canvas = canvasRef.current
-        if (!canvas) return
-        canvas.width = bitmap.width
-        canvas.height = bitmap.height
-        canvas.getContext('2d')?.drawImage(bitmap, 0, 0)
-        if (onDark) {
-          // A sleeping or locked display often captures as a black frame.
-          const probe = document.createElement('canvas')
-          probe.width = 16
-          probe.height = 10
-          const context = probe.getContext('2d', { willReadFrequently: true })
-          context?.drawImage(bitmap, 0, 0, 16, 10)
-          const sample = context?.getImageData(0, 0, 16, 10).data
-          if (sample) onDark(isDarkSample(sample))
-        }
-        bitmap.close()
-      })
-      .catch(() => undefined)
-    return () => {
-      disposed = true
-    }
-    // onDark is a stable state setter.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data])
-  return <canvas ref={canvasRef} className="remote-screen-media" />
-}
-
-function ScreenMedia({
-  stream,
-  frame,
-  videoLive,
-  onVideoFrame,
-  onDark,
-}: {
-  stream?: MediaStream
-  frame?: { data: string }
-  videoLive: boolean
-  onVideoFrame: () => void
-  onDark: (dark: boolean) => void
-}) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  useEffect(() => {
-    const video = videoRef.current
-    if (!video) return
-    video.srcObject = stream ?? null
-    if (!stream) return
-    // `playing` alone can fire before any frame; wait for real dimensions.
-    const check = () => {
-      if (video.videoWidth > 0) onVideoFrame()
-    }
-    video.addEventListener('loadeddata', check)
-    video.addEventListener('playing', check)
-    video.addEventListener('resize', check)
-    return () => {
-      video.removeEventListener('loadeddata', check)
-      video.removeEventListener('playing', check)
-      video.removeEventListener('resize', check)
-    }
-  }, [stream, onVideoFrame])
-  // The last JPEG frame stays underneath until video actually has a picture.
-  return (
-    <>
-      <ScreenCanvas
-        data={frame?.data}
-        onDark={videoLive ? undefined : onDark}
-      />
-      {stream ? (
-        <video
-          ref={videoRef}
-          className={`remote-screen-media remote-screen-video${videoLive ? ' live' : ''}`}
-          poster={BLANK_POSTER}
-          autoPlay
-          playsInline
-          muted
-        />
-      ) : null}
-    </>
-  )
-}
 
 export function RemoteScreen() {
   const t = useT()
@@ -253,8 +145,6 @@ export function RemoteScreen() {
     recallTrackpadHintSeen,
   )
   const [panMode, setPanMode] = useState(false)
-  const [zoom, setZoom] = useState({ scale: 1, oneToOne: false })
-  const zoomed = zoom.scale > 1
   const [statsOpen, setStatsOpen] = useState(false)
   const [dark, setDark] = useState(false)
   const [keyboardOpen, setKeyboardOpen] = useState(false)
@@ -266,8 +156,6 @@ export function RemoteScreen() {
     'loading' | 'ready' | 'pending' | 'success' | 'error'
   >('loading')
   const [modifiers, setModifiers] = useState<KeyModifiers>({})
-  const viewRef = useRef<View>(IDENTITY_VIEW)
-  const pinchBase = useRef<View>()
   const cursor = useRef({ x: 0.5, y: 0.5 })
   const gestureState = useRef(createTouchGestureState())
   const gestureTimer = useRef<ReturnType<typeof setTimeout>>()
@@ -341,71 +229,45 @@ export function RemoteScreen() {
     if (remote.connected) remote.send({ type: 'mouse_mode', on: trackpad })
   }, [remote.connected, remote.send, trackpad])
 
-  const surfaceSize = useCallback(() => {
-    const rect = surfaceRef.current?.getBoundingClientRect()
-    return {
-      left: rect?.left ?? 0,
-      top: rect?.top ?? 0,
-      width: rect?.width ?? 0,
-      height: rect?.height ?? 0,
-    }
-  }, [])
-
   // Per-frame updates write transforms directly: no React render, no layout.
-  const placeCursor = useCallback(() => {
-    const element = cursorRef.current
-    if (!element) return
-    const point = desktopToSurface(
-      cursor.current,
-      surfaceSize(),
-      videoSize,
-      viewRef.current,
-    )
-    element.style.transform = `translate3d(${point.x}px, ${point.y}px, 0)`
-  }, [surfaceSize, videoSize])
-
-  const applyView = useCallback(
-    (view: View, settled = false) => {
-      viewRef.current = view
-      if (layerRef.current)
-        layerRef.current.style.transform = viewTransform(view)
-      placeCursor()
-      if (settled) {
-        // Measured only when a gesture settles, never per frame.
-        const oneToOne = oneToOneScale(
-          surfaceSize(),
-          pixelSize,
-          window.devicePixelRatio || 1,
-        )
-        setZoom({
-          scale: view.scale,
-          oneToOne: isZoomed(view) && Math.abs(view.scale - oneToOne) < 0.01,
-        })
-        if (!isZoomed(view)) setPanMode(false)
-      }
+  const placeCursor = useCallback(
+    (view: View) => {
+      const element = cursorRef.current
+      if (!element) return
+      const point = desktopToSurface(
+        cursor.current,
+        measureSurface(surfaceRef.current),
+        videoSize,
+        view,
+      )
+      element.style.transform = `translate3d(${point.x}px, ${point.y}px, 0)`
     },
-    [pixelSize, placeCursor, surfaceSize],
+    [videoSize],
   )
 
-  // A new picture size (another display or window) starts at fit.
+  const {
+    viewRef,
+    zoom,
+    zoomed,
+    surfaceSize,
+    applyView,
+    zoomGesture,
+    cycleZoom,
+  } = useStreamZoom({
+    surfaceRef,
+    layerRef,
+    content: videoSize,
+    pixels: pixelSize,
+    onView: placeCursor,
+  })
+  // Back at fit there is nothing to pan.
   useEffect(() => {
-    pinchBase.current = undefined
-    applyView(IDENTITY_VIEW, true)
-  }, [applyView, videoSize])
-
-  useEffect(() => {
-    const surface = surfaceRef.current
-    if (!surface || typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(() =>
-      applyView(clampView(viewRef.current, surfaceSize(), videoSize), true),
-    )
-    observer.observe(surface)
-    return () => observer.disconnect()
-  }, [applyView, surfaceSize, videoSize])
+    if (!zoomed) setPanMode(false)
+  }, [zoomed])
 
   useLayoutEffect(() => {
-    if (trackpad) placeCursor()
-  }, [placeCursor, trackpad])
+    if (trackpad) placeCursor(viewRef.current)
+  }, [placeCursor, trackpad, viewRef])
 
   const handleGestureActions = useCallback(
     (actions: GestureAction[]) => {
@@ -419,31 +281,11 @@ export function RemoteScreen() {
           case 'haptic':
             void haptic(action.kind)
             break
-          case 'pinch': {
-            pinchBase.current ??= view()
-            applyView(
-              pinchView(
-                pinchBase.current,
-                action.startCentroid,
-                action.startDistance,
-                action.centroid,
-                action.distance,
-                size,
-                videoSize,
-              ),
-            )
-            break
-          }
+          case 'pinch':
           case 'pinch-end':
-            pinchBase.current = undefined
-            applyView(settleView(view(), size, videoSize), true)
-            break
           case 'reset-zoom':
-            pinchBase.current = undefined
-            applyView(IDENTITY_VIEW, true)
-            break
           case 'pan':
-            applyView(panView(view(), action.delta, size, videoSize))
+            zoomGesture(action)
             break
           case 'cursor': {
             const delta = surfaceDeltaToDesktop(
@@ -494,7 +336,16 @@ export function RemoteScreen() {
         }
       }
     },
-    [applyView, moveCoalescer, remote, scrollCoalescer, surfaceSize, videoSize],
+    [
+      applyView,
+      moveCoalescer,
+      remote,
+      scrollCoalescer,
+      surfaceSize,
+      videoSize,
+      viewRef,
+      zoomGesture,
+    ],
   )
 
   const dispatchGesture = useCallback(
@@ -574,25 +425,6 @@ export function RemoteScreen() {
     onWheel,
     onContextMenu: (event: React.MouseEvent) => event.preventDefault(),
     onClick: (event: React.MouseEvent) => event.preventDefault(),
-  }
-
-  const cycleZoom = () => {
-    const size = surfaceSize()
-    if (zoomed) {
-      applyView(IDENTITY_VIEW, true)
-      return
-    }
-    const target = oneToOneScale(size, pixelSize, window.devicePixelRatio || 1)
-    applyView(
-      zoomAround(
-        viewRef.current,
-        { x: size.width / 2, y: size.height / 2 },
-        target > 1 ? target : 2,
-        size,
-        videoSize,
-      ),
-      true,
-    )
   }
 
   // Once per close: later statuses repeat the flag.

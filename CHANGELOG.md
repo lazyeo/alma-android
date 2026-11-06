@@ -9,10 +9,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Message reactions, matching Alma desktop 0.4.434 and later: emoji reactions show as small chips under each message, in threads and on Alma's page, including the 👀 Alma adds when she starts on your message. Your own are highlighted; tap one to remove it. Long-press a message for a quick row of 👍 ❤️ 😂 👀 🎉 🙏 above its actions. Changes show at once and follow the desktop live; if one fails it is undone, and on a desktop too old for reactions the controls hide while stored reactions still show (2026-11-06).
+- Computer browser: a conversation can show the in-app browser of Alma on the computer, live, and drive it. Open it from the thread menu (Computer browser), or from the globe that appears in the header while Alma has a browser open for that thread. Tap to click, double-tap, drag to scroll, pinch to zoom; type into the page or press Enter, Tab, Esc, Delete and the arrows; go back, forward or reload; and see, switch, close or open the computer's tabs, including the ones Alma opened. The address bar opens any address or search on the computer, even when no browser is open yet, and pages only the computer can reach, such as `localhost` dev servers, work too. The picture is the desktop's JPEG screencast, upgraded to WebRTC video when the desktop can, with input then sent over its data channel. Desktops without the browser view show neither entry (2026-11-06).
+
+### Changed
+
+- The Mac screen and the computer browser share their WebRTC receiver, reconnect backoff, picture and zoom code; the Mac screen behaves as before (2026-11-06).
+
+## [0.1.8] - 2026-11-05
+
+### Added
+
 - Remote screen zoom and pan: pinch zooms the stream 1–4x around your fingers and snaps back to fit just above 1x. A zoom chip shows the percentage and switches between Fit and 1:1, a hand button lets one finger pan the zoomed view without touching the Mac, and a quick double two-finger tap resets the zoom. The cursor, and every tap, drag and scroll made with it, lands where you see it at any zoom (2026-11-05).
 - Remote screen picker: on desktops that report more than one display or can stream single windows (macOS), a button in the header opens a sheet to show a display, the whole screen, or one app window, with app icons and the current choice ticked. A chosen window is streamed on its own as JPEG frames instead of the whole-display video; video resumes for the whole screen or once the window closes. If the streamed window closes, a short notice says so and the picker shows the whole screen as the current choice. After a switch the new picture shows as soon as its first frame arrives; until then the last one stays, dimmed, with a small spinner, and taps and scrolls wait so they cannot land on the new window in the wrong place (2026-11-05).
-- Alma's thought bubble: while she works, a small comic bubble now and then pops up over her face in the tab bar, the rail and the docked face on /alma, holding one emoji for what she is doing or how she feels: 💭 thinking, 🔍 searching, 📖 reading, ⌨️ writing code, ⚙️ running a command, ✋ waiting for your OK, 😵‍💫 a failed reply, ✅ just finished (once), 😪 tired, and sometimes 😊 when she is in a good mood. It shows when her step changes or every 10–15 seconds while she is busy, never while she is idle or while her face flies into Alma, and half as often with reduced motion.
+- Alma's thought bubble: while she works, a small comic bubble now and then pops up over her face in the tab bar, the rail and the docked face on /alma, holding one emoji for what she is doing or how she feels: 💭 thinking, 🔍 searching, 📖 reading, ⌨️ writing code, ⚙️ running a command, ✋ waiting for your OK, 😵‍💫 a failed reply, ✅ just finished (once), 😪 tired, and sometimes 😊 when she is in a good mood. It shows when her step changes or every 10–15 seconds while she is busy, never while she is idle or while her face flies into Alma, and half as often with reduced motion (2026-11-05).
 - Alma's mascot uses the official Alma artwork, wearing this app's own vector glasses. The art is © yetone / Alma: it is not in this repository or under its MIT licence, but downloaded from the official Alma Android release at build time (pinned by SHA-256) and bundled into the APK, and Settings › About credits it. Builds with `ALMA_MASCOT=skip` keep the vector face. See NOTICE.md (2026-11-05).
+- Message actions: long-pressing your own message now offers Retry reply, which asks for a new version of the reply that follows it (the old one stays reachable with the version switcher), or, when the reply never came, asks the desktop for one from the end of the thread. A message that failed to send offers Resend message. Assistant replies keep Retry reply, and nothing is discarded, so none of these asks to confirm (2026-11-05).
 
 ### Changed
 
@@ -207,7 +218,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Foldable layouts, a frosted screen transition, optional Shizuku live hinge-angle input, and an estimated fallback.
 - Foreground-lifetime local notifications for completed replies and pending approvals; no push service is used.
 
-[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.8...HEAD
 [0.1.0]: https://github.com/lazyeo/alma-android/releases/tag/v0.1.0
 [0.1.1]: https://github.com/lazyeo/alma-android/compare/v0.1.0...v0.1.1
 [0.1.2]: https://github.com/lazyeo/alma-android/compare/v0.1.1...v0.1.2
@@ -216,3 +227,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.1.5]: https://github.com/lazyeo/alma-android/compare/v0.1.4...v0.1.5
 [0.1.6]: https://github.com/lazyeo/alma-android/compare/v0.1.5...v0.1.6
 [0.1.7]: https://github.com/lazyeo/alma-android/compare/v0.1.6...v0.1.7
+[0.1.8]: https://github.com/lazyeo/alma-android/compare/v0.1.7...v0.1.8

@@ -9,9 +9,11 @@ const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
 
 describe('thread header actions', () => {
   it('uses one transparent 32px action system without count badges', () => {
-    expect(source.match(/className="header-action-button"/g)).toHaveLength(2)
+    // Crew, the computer browser Alma is using, and the menu.
+    expect(source.match(/className="header-action-button"/g)).toHaveLength(3)
     expect(source).not.toContain('header-action-badge')
     expect(source).toContain('<Network size={17}')
+    expect(source).toContain('<Globe size={17}')
     expect(source).toContain('className="crew-running-dot"')
     expect(source).not.toContain('crew-tree-icon')
     expect(source).not.toContain('crew-tree-child')
@@ -37,6 +39,20 @@ describe('thread header actions', () => {
     )
     expect(styles).toMatch(
       /\.detail-actions \{[^}]*flex: 0 0 auto;[^}]*gap: 6px;/s,
+    )
+  })
+
+  it('offers the computer browser only where the desktop has one', () => {
+    // The menu entry needs a desktop that answered the browser status and a
+    // thread in a project; the header shortcut needs a browser open for it.
+    expect(source).toMatch(
+      /\.\.\.\(browser\.supported && browserKey\s*\?\s*\[\s*\{\s*key: 'browser',\s*label: t\('browser\.menu'\),/s,
+    )
+    expect(source).toMatch(
+      /\{browser\.active \? \(\s*<button\s+className="header-action-button"\s+aria-label=\{t\('browser\.agentUsing'\)\}/s,
+    )
+    expect(source).toMatch(
+      /\{browserOpen \? \(\s*<Suspense fallback=\{null\}>\s*<IabScreen/s,
     )
   })
 
