@@ -37,7 +37,13 @@ describe('RemoteScreen input surfaces', () => {
   })
 
   it('renders zoom and pan with transforms only, outside React renders', () => {
-    expect(source).toContain(
+    // The zoom state lives in the hook shared with the browser view.
+    const zoomSource = readFileSync(
+      new URL('../liveStream/useStreamZoom.ts', import.meta.url),
+      'utf8',
+    )
+    expect(source).toContain('useStreamZoom({')
+    expect(zoomSource).toContain(
       'layerRef.current.style.transform = viewTransform(view)',
     )
     expect(source).not.toMatch(/style=\{\{\s*transform/)
