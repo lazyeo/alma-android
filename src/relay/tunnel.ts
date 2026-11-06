@@ -181,8 +181,12 @@ export class RelayTunnel {
         this.setConnectionState('connected')
         void this.probeLan()
       }
-      if ((state === 'closed' || state === 'failed') && !this.closed)
+      if ((state === 'closed' || state === 'failed') && !this.closed) {
         this.scheduleReconnect()
+        // The next session never answers this one's ids; settle them now so
+        // callers retry instead of hanging, as a lost direct session does.
+        this.failSessionOperations(session, new Error('Relay connection lost'))
+      }
     }
     await session.connect()
   }

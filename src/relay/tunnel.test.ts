@@ -345,6 +345,42 @@ describe('RelayTunnel binary payloads', () => {
 })
 
 describe('RelayTunnel sockets', () => {
+  it('fails pending requests and sockets when the relay session drops', async () => {
+    // Frames of the replacement session never answer the old ids, so without
+    // this a dropped relay left a compact or thread load hanging for good.
+    const sessions: FakeSession[] = []
+    const tunnel = new RelayTunnel(pairing, undefined, {
+      isNative: () => false,
+      createRelaySession: () => {
+        const session = new FakeSession()
+        sessions.push(session)
+        return session
+      },
+    })
+    const socket = tunnel.openWebSocket('/ws/threads')
+    await vi.waitFor(() =>
+      expect(sessions[0]?.sent.some((frame) => frame.t === 'wopen')).toBe(
+        true,
+      ),
+    )
+    const relay = sessions[0]
+    const open = relay.sent.find((frame) => frame.t === 'wopen')
+    relay.emit({ t: 'wopened', id: open.id })
+    await socket.opened
+    const onClose = vi.fn()
+    socket.onClose(onClose)
+    const request = tunnel.fetch('/api/threads/t1/compact', { method: 'POST' })
+    await vi.waitFor(() =>
+      expect(relay.sent.some((frame) => frame.t === 'hreq')).toBe(true),
+    )
+
+    relay.drop()
+
+    await expect(request).rejects.toThrow('Relay connection lost')
+    expect(onClose).toHaveBeenCalledTimes(1)
+    tunnel.close()
+  })
+
   it('closing a socket after the session dropped does not revive that session', async () => {
     const listeners: Record<string, Array<(event: unknown) => void>> = {}
     const factory = vi.fn((): RelayWebSocket => ({
