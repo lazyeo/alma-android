@@ -839,6 +839,9 @@ function ThreadView({
     )
 
   const load = useCallback(async () => {
+    // An idle reading only holds for turns sent before the request left; a
+    // send while it was in flight must keep its Thinking placeholder.
+    const requestedAt = Date.now()
     try {
       // GET /api/threads/:id already embeds the full message rows, so one
       // round trip through the relay is enough for large threads.
@@ -871,7 +874,7 @@ function ThreadView({
         ? fetched
         : optimisticThreadReducer(fetched, {
             type: 'desktop_idle',
-            now: Date.now(),
+            now: requestedAt,
           })
       pendingAssistantRef.current = synced.pending
       commitRows(synced.rows)
