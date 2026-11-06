@@ -79,6 +79,35 @@ describe('cross-desktop thread rows', () => {
     })
   })
 
+  it('leaves out her background run threads', () => {
+    const withRun = [
+      {
+        ...desktops[0],
+        threads: [
+          ...desktops[0].threads,
+          {
+            id: 'run1',
+            title: 'herdr · cairn',
+            updatedAt: 400,
+            metadata: {
+              personalRun: {
+                runId: 'r1',
+                kind: 'dispatch',
+                parentThreadId: 'a',
+              },
+            },
+          },
+        ],
+      },
+      desktops[1],
+    ]
+    expect(mergeSharedThreads(withRun).map((row) => row.threadId)).toEqual([
+      'newer',
+      'design',
+      'older',
+    ])
+  })
+
   it('searches thread and desktop names', () => {
     expect(
       searchSharedThreads(mergeSharedThreads(desktops), 'studio'),

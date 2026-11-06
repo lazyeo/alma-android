@@ -1,3 +1,4 @@
+import { excludePersonalRunThreads } from '../alma/personalThread'
 import { t } from '../i18n/runtime'
 import type { DesktopStatus, Thread } from '../relay'
 
@@ -96,7 +97,8 @@ export function normalizeSharePayload(
 export function mergeSharedThreads(sources: SharedThreadSource[]) {
   return sources
     .flatMap((source) =>
-      source.threads.flatMap((thread) =>
+      // Her background run threads are not somewhere you share into.
+      excludePersonalRunThreads(source.threads).flatMap((thread) =>
         thread.isIncognito || thread.parentThreadId
           ? []
           : [
