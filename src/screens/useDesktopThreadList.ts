@@ -22,6 +22,7 @@ import {
 import { applyThreadTitleEvent } from './threadEvents'
 import { t } from '../i18n/runtime'
 import {
+  excludePersonalRunThreads,
   excludePersonalThread,
   usePersonalThreadIds,
 } from '../alma/personalThread'
@@ -30,7 +31,7 @@ import {
  * The active desktop's thread list: cached first paint, a fresh load, a
  * catch-up after reconnects, and live updates from the shared `/ws/threads`.
  * Threads and GTD both read it so they always show the same rows, neither
- * of them Alma's main conversation.
+ * of them Alma's main conversation nor her background run threads.
  */
 export function useDesktopThreadList() {
   const { api, status, pairing } = useConnection()
@@ -122,12 +123,20 @@ export function useDesktopThreadList() {
   })
   // Her main conversation opens from the Alma tab, never from a list.
   const personalIds = usePersonalThreadIds(pairing.id)
-  const listed = useMemo(
+  const searchable = useMemo(
     () => excludePersonalThread(threads, personalIds),
     [threads, personalIds],
   )
+  // Her run threads are filtered from the same state the rows render from,
+  // so one arriving by thread_created or a refresh never paints first.
+  const listed = useMemo(
+    () => excludePersonalRunThreads(searchable),
+    [searchable],
+  )
   return {
     threads: listed,
+    /** Every thread search may match: her run threads, not her main one. */
+    searchableThreads: searchable,
     setThreads,
     workspaces,
     settings,
