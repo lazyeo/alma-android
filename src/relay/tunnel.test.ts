@@ -359,9 +359,7 @@ describe('RelayTunnel sockets', () => {
     })
     const socket = tunnel.openWebSocket('/ws/threads')
     await vi.waitFor(() =>
-      expect(sessions[0]?.sent.some((frame) => frame.t === 'wopen')).toBe(
-        true,
-      ),
+      expect(sessions[0]?.sent.some((frame) => frame.t === 'wopen')).toBe(true),
     )
     const relay = sessions[0]
     const open = relay.sent.find((frame) => frame.t === 'wopen')
