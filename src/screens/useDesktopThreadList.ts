@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type SetStateAction,
+} from 'react'
 import { useConnection, useDesktops } from '../desktops/DesktopContext'
 import { visiblePairings } from '../desktops/desktopVisibility'
 import {
@@ -20,6 +26,7 @@ import {
   publishShareShortcuts,
 } from '../share/shareShortcuts'
 import { applyThreadTitleEvent } from './threadEvents'
+import { changedThreadIds, mergeThreadList } from './threadListMerge'
 import { t } from '../i18n/runtime'
 import {
   excludePersonalRunThreads,
@@ -44,20 +51,60 @@ export function useDesktopThreadList() {
     () => initialThreadListState(pairing.id, window.localStorage),
     [pairing.id],
   )
-  const [threads, setThreads] = useState<Thread[]>(initial.threads),
+  const [threads, setRows] = useState<Thread[]>(initial.threads),
     [workspaces, setWorkspaces] = useState<Workspace[]>(initial.workspaces),
     [settings, setSettings] = useState<AlmaSettings>(initial.settings),
     [loading, setLoading] = useState(initial.loading),
     [error, setError] = useState('')
+  // Rows as last set, so a load merges into them synchronously.
+  const rowsRef = useRef(threads)
+  // When each row last changed here (a live event or a local edit), so a
+  // fetch that went out earlier cannot paint over it. A counter, not the
+  // wall clock: an event and a request in the same millisecond must order.
+  const clock = useRef(0)
+  const touchedAt = useRef(new Map<string, number>())
+  const requests = useRef({ issued: 0, applied: 0 })
+  const pairingRef = useRef(pairing.id)
+  pairingRef.current = pairing.id
+  const replaceRows = (next: Thread[]) => {
+    rowsRef.current = next
+    setRows(next)
+  }
+  /** Local changes: events and the screens' own edits. */
+  const setThreads = (action: SetStateAction<Thread[]>) => {
+    const before = rowsRef.current
+    const next = typeof action === 'function' ? action(before) : action
+    if (next === before) return
+    const now = ++clock.current
+    for (const id of changedThreadIds(before, next))
+      touchedAt.current.set(id, now)
+    replaceRows(next)
+  }
   const load = async () => {
+    const seq = ++requests.current.issued
+    const requestedAt = ++clock.current
+    const requestedFor = pairing.id
     try {
       setError('')
-      const [nextThreads, nextWorkspaces, nextSettings] = await Promise.all([
+      const [fetched, nextWorkspaces, nextSettings] = await Promise.all([
         api.listThreads(),
         api.listWorkspaces(),
         api.getSettings(),
       ])
-      setThreads(nextThreads)
+      // Thread events fire a load each, and answers can come back out of
+      // order; one older than what is already applied would undo it.
+      if (pairingRef.current !== requestedFor) return
+      if (seq < requests.current.applied) return
+      requests.current.applied = seq
+      const nextThreads = mergeThreadList(
+        rowsRef.current,
+        fetched,
+        requestedAt,
+        touchedAt.current,
+      )
+      for (const [id, at] of touchedAt.current)
+        if (at <= requestedAt) touchedAt.current.delete(id)
+      replaceRows(nextThreads)
       if (!pairing.hidden)
         publishShareShortcuts(
           desktopShareShortcuts(
@@ -82,14 +129,16 @@ export function useDesktopThreadList() {
         nextWorkspaces,
       )
     } catch (e) {
-      setError(e instanceof Error ? e.message : t('threads.errors.load'))
+      if (pairingRef.current === requestedFor)
+        setError(e instanceof Error ? e.message : t('threads.errors.load'))
     } finally {
-      setLoading(false)
+      if (pairingRef.current === requestedFor) setLoading(false)
     }
   }
   useEffect(() => {
     const cached = initialThreadListState(pairing.id, window.localStorage)
-    setThreads(cached.threads)
+    touchedAt.current.clear()
+    replaceRows(cached.threads)
     setWorkspaces(cached.workspaces)
     setSettings(cached.settings)
     setLoading(cached.loading)

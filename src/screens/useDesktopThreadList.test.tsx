@@ -177,3 +177,59 @@ describe('useDesktopThreadList and her background run threads', () => {
     expect(renders.flat()).not.toContain('run1')
   })
 })
+
+describe('useDesktopThreadList and slow list fetches', () => {
+  const deferred = () => {
+    let resolve!: (rows: Thread[]) => void
+    const promise = new Promise<Thread[]>((done) => (resolve = done))
+    return { promise, resolve }
+  }
+
+  it('ignores an answer that comes back after a newer one', async () => {
+    const { result } = listWith({ status: 'unsupported' })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    const slow = deferred(),
+      fast = deferred()
+    api.listThreads
+      .mockImplementationOnce(() => slow.promise)
+      .mockImplementationOnce(() => fast.promise)
+    act(() => stable.onEvent?.({ type: 'thread_updated' }))
+    act(() => stable.onEvent?.({ type: 'thread_created' }))
+    await act(async () => fast.resolve([{ id: 't2' } as Thread, ...rows]))
+    await act(async () => slow.resolve(rows))
+    expect(listedIds(result.current.threads)).toEqual(['t2', 'alma', 't1'])
+  })
+
+  it('keeps a generating flag that arrived while the fetch was out', async () => {
+    const { result } = listWith({ status: 'unsupported' })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    const slow = deferred()
+    api.listThreads.mockImplementationOnce(() => slow.promise)
+    act(() => stable.onEvent?.({ type: 'thread_updated' }))
+    act(() =>
+      stable.onEvent?.({
+        type: 'thread_generating',
+        data: { id: 't1', isGenerating: true },
+      } as { type: string }),
+    )
+    await act(async () => slow.resolve(rows))
+    expect(
+      result.current.threads.find((row) => row.id === 't1')?.isGenerating,
+    ).toBe(true)
+  })
+
+  it('does not bring back a thread deleted while the fetch was out', async () => {
+    const { result } = listWith({ status: 'unsupported' })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    const slow = deferred()
+    api.listThreads.mockImplementationOnce(() => slow.promise)
+    act(() => void result.current.reload())
+    act(() =>
+      result.current.setThreads((list) =>
+        list.filter((row) => row.id !== 't1'),
+      ),
+    )
+    await act(async () => slow.resolve(rows))
+    expect(listedIds(result.current.threads)).toEqual(['alma'])
+  })
+})
