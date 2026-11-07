@@ -81,6 +81,14 @@ const join = (chunks: Uint8Array[]) => {
 }
 const randomId = () => crypto.randomUUID()
 
+/**
+ * The tunnel session carrying a request or socket went away before it was
+ * answered; the tunnel is reconnecting, so callers treat it as offline.
+ */
+export class TunnelSessionLostError extends Error {
+  override name = 'TunnelSessionLostError'
+}
+
 export class RelayTunnel {
   connectionState: ConnectionState = 'offline'
   onConnectionState?: (state: ConnectionState) => void
@@ -181,8 +189,15 @@ export class RelayTunnel {
         this.setConnectionState('connected')
         void this.probeLan()
       }
-      if ((state === 'closed' || state === 'failed') && !this.closed)
+      if ((state === 'closed' || state === 'failed') && !this.closed) {
         this.scheduleReconnect()
+        // The next session never answers this one's ids; settle them now so
+        // callers retry instead of hanging, as a lost direct session does.
+        this.failSessionOperations(
+          session,
+          new TunnelSessionLostError('Relay connection lost'),
+        )
+      }
     }
     await session.connect()
   }
@@ -282,7 +297,7 @@ export class RelayTunnel {
           this.directSession = undefined
           this.failSessionOperations(
             winner,
-            new Error('Direct connection lost'),
+            new TunnelSessionLostError('Direct connection lost'),
           )
           this.setActiveTransport('relay')
         }

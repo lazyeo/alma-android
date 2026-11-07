@@ -8,6 +8,7 @@ import type { SearchHit } from '../screens/threadSearch'
 import {
   excludePersonalRunThreads,
   excludePersonalThread,
+  isCronThread,
   isPersonalRunThread,
   personalThreadIds,
   readCachedPersonalThread,
@@ -143,6 +144,17 @@ describe('excludePersonalRunThreads', () => {
     )
     expect(ids(source)).toEqual(['t1', 't2'])
     expect(gtdStatusCounts(source).inbox).toBe(2)
+  })
+
+  it('drops cron run threads, tagged or titled the way desktop marks them', () => {
+    const cron = { id: 'c1', title: 'Daily', metadata: { isCron: true } }
+    const legacy = { id: 'c2', title: '⏰ Cron: digest' }
+    expect(isCronThread(cron)).toBe(true)
+    expect(isCronThread(legacy)).toBe(true)
+    expect(isCronThread({ title: 'Cron notes', metadata: {} })).toBe(false)
+    expect(
+      ids(excludePersonalRunThreads([cron, legacy, ...threads] as Thread[])),
+    ).toEqual(ids(threads))
   })
 
   it('returns the same list when there are none', () => {

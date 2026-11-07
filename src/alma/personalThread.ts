@@ -32,15 +32,36 @@ export function isPersonalRunThread(thread: {
 }
 
 /**
- * Her run threads would bury the conversations you started, so the
- * browsing lists (Threads, projects, the project card, GTD) leave them out.
- * Search still finds them and `/threads/:id` still opens them.
+ * A thread a scheduled cron job runs in. Desktop tags it with
+ * `metadata.isCron`; threads from before that tag only carry the
+ * "⏰ Cron:" title prefix, which desktop still honours, so both count.
+ */
+export function isCronThread(thread: {
+  title?: string
+  metadata?: Record<string, unknown>
+}) {
+  return (
+    Boolean(thread.metadata?.isCron) ||
+    (typeof thread.title === 'string' && thread.title.startsWith('⏰ Cron:'))
+  )
+}
+
+// Desktop's own "background thread" test is exactly these two.
+const isBackgroundRunThread = (thread: {
+  title?: string
+  metadata?: Record<string, unknown>
+}) => isPersonalRunThread(thread) || isCronThread(thread)
+
+/**
+ * Her run threads and cron runs would bury the conversations you started,
+ * so the browsing lists (Threads, projects, the project card, GTD) leave
+ * them out. Search still finds them and `/threads/:id` still opens them.
  */
 export function excludePersonalRunThreads<
-  T extends { metadata?: Record<string, unknown> },
+  T extends { title?: string; metadata?: Record<string, unknown> },
 >(threads: readonly T[]): T[] {
-  return threads.some(isPersonalRunThread)
-    ? threads.filter((thread) => !isPersonalRunThread(thread))
+  return threads.some(isBackgroundRunThread)
+    ? threads.filter((thread) => !isBackgroundRunThread(thread))
     : (threads as T[])
 }
 

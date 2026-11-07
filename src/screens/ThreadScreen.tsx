@@ -547,6 +547,8 @@ function ThreadView({
       threadRouteMatch(location.pathname)?.section ?? 'threads',
     )
   const link = useRealtimeLink(api, status)
+  const linkOnlineRef = useRef(link.online)
+  linkOnlineRef.current = link.online
   const {
     approvals,
     questions,
@@ -859,6 +861,9 @@ function ThreadView({
     )
 
   const load = useCallback(async () => {
+    // An idle reading only holds for turns sent before the request left; a
+    // send while it was in flight must keep its Thinking placeholder.
+    const requestedAt = Date.now()
     try {
       // GET /api/threads/:id already embeds the full message rows, so one
       // round trip through the relay is enough for large threads.
@@ -887,10 +892,16 @@ function ThreadView({
       setReasoningEffort(nextMeta.reasoningEffort)
       setFastMode(nextMeta.fastMode)
       const fetchedRows = accumulatorRef.current.sync(rowsRef.current, rows)
-      const synced = optimisticThreadReducer(
+      const fetched = optimisticThreadReducer(
         { rows: rowsRef.current, pending: pendingAssistantRef.current },
         { type: 'sync_rows', rows: fetchedRows },
       )
+      const synced = thread.isGenerating
+        ? fetched
+        : optimisticThreadReducer(fetched, {
+            type: 'desktop_idle',
+            now: requestedAt,
+          })
       pendingAssistantRef.current = synced.pending
       commitRows(synced.rows)
       setPendingAssistant(synced.pending)
@@ -1085,13 +1096,17 @@ function ThreadView({
     if (link.epoch > 1) {
       void load()
       void loadLiveSubagents()
+      void loadContextUsageRef.current()
     }
     const handleEvent = (event: RealtimeEvent) => {
       const data = event.data
       if (event.type === 'generating_snapshot') {
         const active = (data?.ids ?? []).includes(threadId)
         setGenerating(active)
-        if (!active) setIdleConfirmed(true)
+        if (!active) {
+          setIdleConfirmed(true)
+          applyOptimistic({ type: 'desktop_idle', now: Date.now() })
+        }
         if (active) {
           applyOptimistic({
             type: 'generating_open',
@@ -1245,6 +1260,7 @@ function ThreadView({
         // reload runs from the socketIsReady flip, so don't load twice.
         if (!foregroundReloadPending.current) void load()
         void loadLiveSubagents()
+        void loadContextUsageRef.current()
       },
       onLost: release,
     })
@@ -1486,14 +1502,25 @@ function ThreadView({
     const observeForeground = () => {
       if (document.visibilityState !== 'visible') return
       foregroundedAt.current = Date.now()
-      foregroundReloadPending.current = true
       window.clearTimeout(foregroundRetryTimer.current)
+      setIdleConfirmed(true)
+      void loadContextUsageRef.current()
+      // A socket that survived the background still looks ready, so neither
+      // the reconnect nor the socketIsReady flip will reload. Frames it missed
+      // are never replayed by /ws/threads: catch up now, not after the grace.
+      if (
+        shouldReloadAfterForeground(linkOnlineRef.current, socketReady.current)
+      ) {
+        foregroundReloadPending.current = false
+        void load()
+        return
+      }
+      foregroundReloadPending.current = true
       foregroundRetryTimer.current = window.setTimeout(() => {
         if (!foregroundReloadPending.current) return
         foregroundReloadPending.current = false
         void load()
       }, FOREGROUND_RECONNECT_GRACE_MS)
-      setIdleConfirmed(true)
     }
     document.addEventListener('visibilitychange', observeForeground)
     window.addEventListener('pageshow', observeForeground)

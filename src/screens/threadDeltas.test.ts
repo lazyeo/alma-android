@@ -138,6 +138,83 @@ describe('DeltaAccumulator', () => {
     expect(rows[0].message.parts[0].text).toBe('abc')
   })
 
+  it('asks for a resync while a seq gap stays open', () => {
+    const acc = new DeltaAccumulator()
+    let rows = [assistantRow([{ type: 'text', text: '' }])]
+    const append = (seq: number, text: string) => {
+      const result = acc.apply(rows, {
+        messageId: ROW_ID,
+        deltas: [
+          delta(seq, {
+            type: 'text_append',
+            partIndex: 0,
+            partType: 'text',
+            text,
+          }),
+        ],
+      })
+      rows = result.rows
+      return result.needsResync
+    }
+    expect(append(1, 'a')).toBe(false)
+    expect(append(3, 'c')).toBe(true)
+    expect(rows[0].message.parts[0].text).toBe('a')
+  })
+
+  it('resumes streaming after a catch-up snapshot that is ahead of the gap', () => {
+    // A reconnect misses seq 2..10; the HTTP snapshot already holds that text
+    // but carries no seq, so the next live delta must apply, not park.
+    const acc = new DeltaAccumulator()
+    let rows = [assistantRow([{ type: 'text', text: '' }])]
+    const append = (seq: number, text: string) => {
+      const result = acc.apply(rows, {
+        messageId: ROW_ID,
+        deltas: [
+          delta(seq, {
+            type: 'text_append',
+            partIndex: 0,
+            partType: 'text',
+            text,
+          }),
+        ],
+      })
+      rows = result.rows
+      return result.needsResync
+    }
+    append(1, '1 ')
+    rows = acc.sync(rows, [assistantRow([{ type: 'text', text: '1 2 3 ' }])])
+    expect(append(11, '11 ')).toBe(false)
+    expect(append(12, '12 ')).toBe(false)
+    expect(rows[0].message.parts[0].text).toBe('1 2 3 11 12 ')
+  })
+
+  it('re-bases a kept local row whose gap a snapshot cannot fill', () => {
+    const acc = new DeltaAccumulator()
+    let rows = [assistantRow([{ type: 'text', text: '' }])]
+    const append = (seq: number, text: string) => {
+      rows = acc.apply(rows, {
+        messageId: ROW_ID,
+        deltas: [
+          delta(seq, {
+            type: 'text_append',
+            partIndex: 0,
+            partType: 'text',
+            text,
+          }),
+        ],
+      }).rows
+    }
+    append(1, 'abc')
+    append(3, 'lost')
+    // The throttled DB row is behind the stream, so local text is kept, also
+    // when a second lagging snapshot lands before the next delta.
+    rows = acc.sync(rows, [assistantRow([{ type: 'text', text: 'a' }])])
+    rows = acc.sync(rows, [assistantRow([{ type: 'text', text: 'a' }])])
+    expect(rows[0].message.parts[0].text).toBe('abc')
+    append(4, 'd')
+    expect(rows[0].message.parts[0].text).toBe('abcd')
+  })
+
   it('flags a stale base instead of failing the whole batch', () => {
     const acc = new DeltaAccumulator()
     const rows = [assistantRow([{ type: 'text', text: 'x' }])]

@@ -119,6 +119,33 @@ describe('SubagentRuns', () => {
     expect(runs.rows[0].message.parts[0].text).toBe('ABCDE')
   })
 
+  it('replays frames that parked behind a gap once the snapshot fills it', () => {
+    const runs = new SubagentRuns()
+    runs.apply(added([{ type: 'text', text: '' }]))
+    runs.apply(append(1, 'A'))
+    // Seq 2 is lost; 3 and 4 park and ask for a snapshot, which the desktop
+    // took at seq 3 while seq 4 was already on its way.
+    expect(runs.apply(append(3, 'C')).needsSnapshot).toBe(true)
+    runs.apply(append(4, 'D'))
+    runs.applySnapshots([
+      {
+        context,
+        lastSeq: 3,
+        message: {
+          id: '',
+          role: 'assistant',
+          parts: [{ type: 'text', text: 'ABC' }],
+        },
+      },
+    ])
+    expect(runs.rows[0].message.parts[0].text).toBe('ABCD')
+    expect(runs.apply(append(5, 'E'))).toEqual({
+      changed: true,
+      needsSnapshot: false,
+    })
+    expect(runs.rows[0].message.parts[0].text).toBe('ABCDE')
+  })
+
   it('keeps a newer streamed copy over an older snapshot', () => {
     const runs = new SubagentRuns()
     runs.apply(added([{ type: 'text', text: '' }]))
