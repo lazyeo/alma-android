@@ -150,6 +150,21 @@ describe('useDesktopThreadList and her background run threads', () => {
     expect(renders.flat()).not.toContain('run1')
   })
 
+  it('never paints a cron run that arrives by thread_updated', async () => {
+    const renders: string[][] = []
+    const { result } = listWith(ready('alma'), renders)
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    api.listThreads.mockImplementation(async () => [
+      { id: 'cron1', title: 'Digest', metadata: { isCron: true } } as Thread,
+      ...rows,
+    ])
+    act(() => stable.onEvent?.({ type: 'thread_updated' }))
+    await waitFor(() =>
+      expect(listedIds(result.current.searchableThreads)).toContain('cron1'),
+    )
+    expect(renders.flat()).not.toContain('cron1')
+  })
+
   it('keeps one cached from an earlier session out of the first paint', async () => {
     threadCache.setThreadList('d1', {
       threads: [runThread('run1'), ...rows],
