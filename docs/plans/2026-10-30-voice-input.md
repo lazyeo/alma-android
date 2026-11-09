@@ -2,12 +2,12 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Dictate into the Alma chat composer and the Herdr agent composer. The recognised text fills the input field and is never sent automatically. Several recognition engines are pluggable: the Android system recogniser, a set of OpenAI-compatible transcription APIs, and Doubao streaming ASR.
+**Goal:** Dictate into the Alma chat composer and the Herdr agent composer. The recognised text fills the input field and is never sent automatically. Several recognition engines are pluggable: Soniox real-time ASR (the default) and a set of OpenAI-compatible transcription APIs. The Android system recogniser and on-device models are deferred and will be tested together later; Doubao streaming ASR moved to Phase 3.
 
 **Architecture:**
 
 - **Native `Speech` plugin.** It records 16 kHz mono PCM with `AudioRecord`. It keeps API keys in Keystore-backed storage, and the WebView can set them but never read them. It runs HTTP and WebSocket requests on the WebView's behalf and substitutes the key itself, which also avoids CORS.
-- **TypeScript engine layer.** It holds the provider-specific logic: building requests, parsing responses, and Doubao frame encoding. Each engine is a pure function so it can be unit-tested with vitest.
+- **TypeScript engine layer.** It holds the provider-specific logic: building requests, parsing responses, and accumulating Soniox token streams. Each engine is a pure function so it can be unit-tested with vitest.
 - **Host binding.** Native refuses to attach a key to any host other than the one bound when the key was saved.
 
 **Tech Stack:** Capacitor 7 plugin (Java, `AudioRecord`, `HttpURLConnection`, `EncryptedSharedPreferences` / Keystore; OkHttp only in Phase 2 for WS), React + TS, vitest, JUnit.
@@ -15,7 +15,7 @@
 **Constraints:**
 
 - Public repo: no bundled keys, no personal endpoints. The user brings their own key.
-- Default engine = system recogniser, which needs no key. The engine name is shown on the mic sheet so the user always knows where audio goes.
+- Default engine = Soniox real-time with the term list (decided from the Phase 0 results). The user brings the key. The engine name is shown on the mic sheet so the user always knows where audio goes.
 - Audio is never written to disk except a temp WAV for batch upload, which is deleted in `finally`.
 - Every UI string goes through i18n (en + zh).
 
@@ -25,12 +25,14 @@
 
 | Engine                                                                  | Adapter           | Mode               | Why                                                                                                                       | Verify before coding                                                                                                                         |
 | ----------------------------------------------------------------------- | ----------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Android system (`SpeechRecognizer`)                                     | `system`          | streaming partials | free, no key; Fold7 = Google speech services                                                                              | zh / mixed quality, `createOnDeviceSpeechRecognizer` availability                                                                            |
+| Soniox `stt-rt-v6`                                                      | `soniox-rt`       | streaming          | **default**; live partials, zh-en code-switching, `context.terms`; ~250 ms release-to-final                               | done (Phase 0)                                                                                                                               |
+| Soniox `stt-async-v6`                                                   | `soniox-async`    | batch              | best batch accuracy with terms after gpt-transcribe; optional second Soniox option                                        | done (Phase 0)                                                                                                                               |
+| Android system (`SpeechRecognizer`)                                     | `system`          | streaming partials | **deferred**: test later together with on-device models                                                                   | zh / mixed quality, `createOnDeviceSpeechRecognizer` availability                                                                            |
 | OpenAI `gpt-transcribe`                                                 | `openai-compat`   | batch              | new recommended file model (~$0.0045/min), takes expected languages and a keyword/context prompt (handles code-switching) | exact param names for language list and context on `/v1/audio/transcriptions`                                                                |
 | Groq `whisper-large-v3-turbo`                                           | `openai-compat`   | batch              | very fast and cheap                                                                                                       | base URL `https://api.groq.com/openai/v1`                                                                                                    |
 | SiliconFlow `FunAudioLLM/SenseVoiceSmall`                               | `openai-compat`   | batch              | strong zh / zh-en, China-reachable, cheap                                                                                 | `.com` vs `.cn` host; whether a `language` field is accepted                                                                                 |
 | Custom OpenAI-compatible (e.g. a self-hosted faster-whisper / speaches) | `openai-compat`   | batch              | own server, no third party                                                                                                | —                                                                                                                                            |
-| Doubao streaming ASR 2.0 (Volcengine)                                   | `doubao-stream`   | streaming          | best zh, live partials                                                                                                    | resource id for 2.0 apps (`volc.bigasr.sauc.duration` reportedly fails on new 2.0 apps); App Key / Access Key headers; binary frame protocol |
+| Doubao streaming ASR 2.0 (Volcengine)                                   | `doubao-stream`   | streaming          | **Phase 3, optional**; strong zh, live partials                                                                           | resource id for 2.0 apps (`volc.bigasr.sauc.duration` reportedly fails on new 2.0 apps); App Key / Access Key headers; binary frame protocol |
 | OpenAI `gpt-live-transcribe`                                            | `openai-realtime` | streaming          | live partials, multilingual                                                                                               | **Phase 3**, WS session shape                                                                                                                |
 | Gemini / DashScope (Fun-ASR, Qwen-ASR)                                  | new adapters      | batch              | optional                                                                                                                  | **Phase 3**                                                                                                                                  |
 
@@ -62,7 +64,7 @@ CER = character edit distance / reference length, computed after stripping punct
 
 1. Write `cer()` with a vitest test (`scripts/asr-bench/cer.test.ts`): `cer('你好 world','你好world')===0`, `cer('abc','abd')≈0.333`. Run it and watch it fail, implement it, then watch it pass.
 2. Add one runner per engine, reusing the Phase 1 request builders once they exist. Until then use inline `fetch`.
-3. Shaun records about 10 clips (pure zh, zh-en code-switching with words like Herdr/Codex/Alma, numbers, a noisy street, a 30 s ramble).
+3. Record about 10 clips (pure zh, zh-en code-switching with words like Herdr/Codex/Alma, numbers, a noisy street, a 30 s ramble).
 4. Run the bench and paste the table into this plan under **Results**. **The default API engine and preset order are decided from it.**
 5. Commit: `chore(asr): offline bench script`.
 
@@ -79,9 +81,9 @@ CER = character edit distance / reference length, computed after stripping punct
 
 ```ts
 // types.ts
-export type EngineKind = 'system' | 'openai-compat' | 'doubao-stream'
+export type EngineKind = 'soniox-rt' | 'soniox-async' | 'openai-compat'
 export interface EngineConfig {
-  id: string // 'openai', 'groq', 'siliconflow', 'custom-1', 'system', 'doubao'
+  id: string // 'soniox-rt', 'soniox-async', 'openai', 'groq', 'siliconflow', 'custom-1'
   kind: EngineKind
   label: string
   baseUrl?: string // openai-compat only
@@ -96,13 +98,13 @@ export interface TranscribeResult {
 }
 ```
 
-The `presets.ts` file exports `PRESETS: EngineConfig[]` for `system`, `openai`, `groq` and `siliconflow`.
+The `presets.ts` file exports `PRESETS: EngineConfig[]` for `soniox-rt`, `openai`, `groq` and `siliconflow` (`soniox-async` optional).
 
 The test asserts:
 
 - Every preset with `kind:'openai-compat'` has an https `baseUrl` and a `model`.
 - Ids are unique.
-- `system` is first.
+- `soniox-rt` is first (the default).
 
 Steps: write the failing test, implement, make it pass, commit with `feat(speech): engine types and presets`.
 
@@ -204,18 +206,9 @@ The `WavWriterTest` checks that the 44-byte header has correct RIFF/data sizes f
 
 Commit: `feat(speech): native recorder and batch transcription`.
 
-### Task 1.5: Native plugin — system recogniser
+### Task 1.5: Native plugin — system recogniser (deferred)
 
-**File:** `SpeechPlugin.java`
-
-`listenSystem({languages, preferOffline}) → final text`. It emits `partial` events.
-
-- If `SpeechRecognizer.isOnDeviceRecognitionAvailable` and `preferOffline` is set, it uses `createOnDeviceSpeechRecognizer`. Otherwise it uses `createSpeechRecognizer`.
-- `EXTRA_LANGUAGE` is the first language. `EXTRA_PARTIAL_RESULTS` is true.
-
-The system path does not use our own recorder, since the recogniser owns the mic. No JUnit: the logic is all framework calls. It gets verified on the device instead (Task 1.9).
-
-Commit: `feat(speech): system recogniser`.
+Deferred: test it later together with on-device models. This round ships the API engines only, so neither `listenSystem` nor a `system` preset exists yet.
 
 ### Task 1.6: TS bridge + `useDictation` hook
 
@@ -296,18 +289,23 @@ Commit: `feat(speech): voice settings`.
 
 ---
 
-## Phase 2 — Doubao streaming
+## Phase 2 — Soniox real-time (`stt-rt-v6`)
 
-### Task 2.1: Doubao frame codec (TS, pure)
+### Task 2.1: Soniox token stream (TS, pure)
 
 **Files:**
 
-- Create: `src/speech/doubao.ts`
-- Test: `src/speech/doubao.test.ts`
+- Create: `src/speech/soniox.ts`
+- Test: `src/speech/soniox.test.ts`
 
-First, pin down the protocol from the official doc: the 4-byte header (version / header size, message type + flags, serialization + compression), the full-client-request JSON, audio-only frames, the last-packet flag, and the server response with `result.text` / `utterances`. Then implement `encodeFullRequest(cfg)`, `encodeAudio(pcm, last)` and `decodeServer(buf) → {partial|final|error}`. gzip uses `CompressionStream` or `fflate`, whichever check allows.
+Protocol (`wss://stt-rt.soniox.com/transcribe-websocket`):
 
-Tests: round-trip header bits, the last-flag bit, and decoding a recorded sample server frame, which goes into a fixture with keys stripped.
+- First frame: a JSON text config `{api_key, model: "stt-rt-v6", audio_format: "pcm_s16le", sample_rate: 16000, num_channels: 1, language_hints: ["zh","en"], context: {terms: [...]}}`. JS builds it **without** `api_key`; native adds the key.
+- Then binary PCM frames of 100 ms (3200 bytes).
+- End of audio: an empty string frame.
+- Server messages: `tokens[]` with `text` / `is_final`. Tokens whose text starts with `<` are markers (for example `<end>`) and are dropped. Final tokens append to the committed text; non-final tokens are the preview tail and are replaced by every message. `finished: true` ends the session. `error_code` / `error_message` is an error.
+
+Implement `buildSonioxConfig(cfg)`, `parseSonioxMessage(json)` and `applySonioxMessage(state, msg) → state`, all pure. Tests cover marker filtering, final accumulation across messages, tail replacement, `finished` and errors.
 
 ### Task 2.2: Native authenticated WebSocket
 
@@ -315,18 +313,20 @@ Tests: round-trip header bits, the last-flag bit, and decoding a recorded sample
 
 - Modify: `SpeechPlugin.java`, `android/app/build.gradle` (OkHttp)
 
-`openSocket({engineId, url, headers})` injects `{{key}}` into headers using the same host rules. It has `send(base64)`, `close()`, and the events `message(base64)` / `closed(code)`. While a socket is open, the recorder pushes 200 ms PCM chunks as `pcm` events. JS encodes them and sends them back to the socket. That round trip over the bridge is about 6.4 KB per 200 ms. If it lags on the device, move the encoding to native.
-
-Doubao needs two secrets (App Key + Access Key). Store them as one JSON blob per engineId and expand `{{key.app}}` / `{{key.access}}`.
+`startStream({engineId, url, config})` resolves the key with the same host rules, puts `api_key` into the config frame natively, opens the socket with OkHttp, and streams 100 ms PCM chunks from the recorder straight to it (audio never crosses the bridge). Text messages are forwarded verbatim to JS as `streamMessage` events; JS parses them. `stopStream()` sends the empty end frame; `cancelStream()` closes immediately. Close/failure becomes a `streamClosed` event with a code.
 
 ### Task 2.3: Streaming engine in the hook + sheet
 
-Live partials replace the sheet text, and Stop sends the last frame and waits for the final result (timeout 5 s). Tests use a mocked socket that replays fixture frames.
+Live preview in the sheet: final text normally, the non-final tail in a lighter colour. Stop sends the end frame and waits for `finished` (timeout 5 s), then the committed text is inserted. Tests use a mocked plugin that replays fixture messages.
 
----
+### Task 2.4 (optional): Soniox async
+
+`POST /v1/files` → `POST /v1/transcriptions {model: "stt-async-v6", file_id, language_hints, context: {terms}}` → poll → `GET /transcript` → delete the transcription and the file. Second Soniox option for batch mode.
 
 ## Phase 3 — Optional (only if Phase 0/1 results justify it)
 
+- Doubao streaming ASR 2.0 (`doubao-stream`): binary frame codec, two secrets (App Key + Access Key) stored as one JSON blob per engineId.
+- Android system recogniser (former Task 1.5), together with on-device models.
 - `openai-realtime` (`gpt-live-transcribe`) as a second streaming engine.
 - Gemini / DashScope batch adapters.
 - On-device SenseVoice via sherpa-onnx: the model is downloaded on demand, never in the APK.
@@ -336,4 +336,22 @@ Live partials replace the sheet text, and Stop sends the last frame and waits fo
 
 ## Results
 
-(fill in from Task 0.1 and 1.9)
+### Phase 0 (offline bench)
+
+10 clips of mixed Chinese/English speech; mixed error rate = character errors for Chinese plus word errors for English; 22 keywords checked.
+
+| Engine                          | Terms | Mixed error rate | Keywords | Latency                         |
+| ------------------------------- | ----- | ---------------- | -------- | ------------------------------- |
+| OpenAI `gpt-transcribe`         | yes   | 2.1%             | 20/22    | whole result ≈ 0.11× audio      |
+| Soniox `stt-async-v6`           | yes   | 2.2%             | 21/22    | ≈ 0.45× audio                   |
+| Soniox `stt-rt-v6`              | yes   | 3.5%             | 21/22    | release-to-final median ~250 ms |
+| Soniox `stt-rt-v6`              | no    | 5.7%             |          |                                 |
+| OpenAI `gpt-transcribe`         | no    | 7.5%             |          |                                 |
+| OpenAI `gpt-4o-mini-transcribe` | no    | 7.5%             |          |                                 |
+| OpenAI `whisper-1`              | no    | 9.5%             |          |                                 |
+
+**Conclusion:** the term list is the biggest variable (it cuts the error rate to about a third). Default = Soniox real-time + term list; fallback = OpenAI `gpt-transcribe` + prompt built from the same terms.
+
+### Phase 1 (device)
+
+(fill in from Task 1.9)
