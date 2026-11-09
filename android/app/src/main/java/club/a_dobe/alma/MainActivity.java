@@ -52,6 +52,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(BackgroundConnectionPlugin.class);
         registerPlugin(LanWebSocketPlugin.class);
         registerPlugin(AppUpdatePlugin.class);
+        registerPlugin(SpeechPlugin.class);
         super.onCreate(savedInstanceState);
         WebView.setWebContentsDebuggingEnabled(
                 (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
