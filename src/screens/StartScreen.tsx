@@ -26,6 +26,7 @@ import { parseLoopPrompt } from './threadLoop'
 import { RefPicker } from './RefPicker'
 import { highlightSegments } from './references'
 import { useComposerReferences } from './useComposerReferences'
+import { dictationInsertion, MicButton } from '../speech/MicButton'
 import { useThreadDraft } from './useThreadDraft'
 import { useT } from '../i18n'
 
@@ -269,6 +270,19 @@ function StartView() {
             }
             sending={busy}
             textareaRef={textarea}
+            voiceInput={
+              <MicButton
+                onText={(spoken) => {
+                  const next = dictationInsertion(
+                    textarea.current,
+                    references.stateRef.current.text,
+                    spoken,
+                  )
+                  references.changeText(next.value, next.caret, false)
+                  references.placeCaret(next.caret)
+                }}
+              />
+            }
             inputBackdrop={
               references.references.length ? (
                 <div className="composer-highlight" aria-hidden="true">

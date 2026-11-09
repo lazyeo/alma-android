@@ -206,6 +206,7 @@ import {
 } from './references'
 import { RefPicker } from './RefPicker'
 import { useComposerReferences } from './useComposerReferences'
+import { dictationInsertion, MicButton } from '../speech/MicButton'
 import {
   RefCardSheet,
   RefChip,
@@ -2347,6 +2348,23 @@ function ThreadView({
         disabled={uploading || (!text.trim() && !attachments.length)}
         generating={generating}
         textareaRef={textareaRef}
+        voiceInput={
+          <MicButton
+            onText={(spoken) => {
+              const next = dictationInsertion(
+                textareaRef.current,
+                composerStateRef.current.text,
+                spoken,
+              )
+              changeComposerText(next.value, next.caret, false)
+              placeCaret(next.caret)
+              // Typing updates this in onChange; dictation bypasses it.
+              requestAnimationFrame(() =>
+                setOverflowing((textareaRef.current?.scrollHeight ?? 0) > 130),
+              )
+            }}
+          />
+        }
         inputBackdrop={
           references.length ? (
             <div

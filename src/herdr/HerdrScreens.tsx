@@ -48,6 +48,7 @@ import {
   type TerminalKey,
 } from '../terminal/terminal'
 import { useHerdr } from './HerdrProvider'
+import { dictationInsertion, MicButton } from '../speech/MicButton'
 import { createChatResync } from './chatResync'
 import { AgentMark } from './AgentMark'
 import {
@@ -1183,6 +1184,21 @@ export function AgentPaneScreen() {
                 event.preventDefault()
                 void send()
               }
+            }}
+          />
+          <MicButton
+            onText={(spoken) => {
+              const next = dictationInsertion(
+                composerRef.current,
+                composerRef.current?.value ?? draft,
+                spoken,
+              )
+              setDraft(next.value)
+              requestAnimationFrame(() => {
+                const area = composerRef.current
+                area?.focus()
+                area?.setSelectionRange(next.caret, next.caret)
+              })
             }}
           />
           <button

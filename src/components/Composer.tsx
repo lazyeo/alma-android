@@ -44,6 +44,8 @@ type ComposerProps = {
   expanded?: boolean
   inputBackdrop?: ReactNode
   trailing?: ReactNode
+  /** Dictation control, placed right before the send button. */
+  voiceInput?: ReactNode
   textareaRef?: React.RefObject<HTMLTextAreaElement>
   onTextareaKeyDown?(event: KeyboardEvent<HTMLTextAreaElement>): boolean | void
   textareaProps?: React.TextareaHTMLAttributes<HTMLTextAreaElement>
@@ -75,6 +77,7 @@ export function Composer({
   expanded = false,
   inputBackdrop,
   trailing,
+  voiceInput,
   textareaRef,
   onTextareaKeyDown,
   textareaProps,
@@ -168,6 +171,7 @@ export function Composer({
             ) : null}
           </div>
           <span className="composer-spacer" />
+          {voiceInput}
           <button
             className={`send${generating ? ' queue-send' : ''}`}
             aria-label={
@@ -265,7 +269,7 @@ export function Composer({
   )
 }
 
-function OptionRow({
+export function OptionRow({
   label,
   detail,
   selected,
