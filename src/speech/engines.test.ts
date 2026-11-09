@@ -46,14 +46,11 @@ describe('presets', () => {
     expect(soniox.baseUrl.startsWith('wss://')).toBe(true)
   })
 
-  it('accepts https, wss and http only to LAN hosts', () => {
+  it('accepts only https and wss endpoints', () => {
     expect(validBaseUrl('https://api.example.com/v1')).toBe(true)
-    expect(validBaseUrl('http://192.168.1.20:8000/v1')).toBe(true)
-    expect(validBaseUrl('http://10.0.0.2/v1')).toBe(true)
-    expect(validBaseUrl('http://172.16.0.1/v1')).toBe(true)
-    expect(validBaseUrl('http://localhost:9000/v1')).toBe(true)
-    expect(validBaseUrl('http://whisper.local/v1')).toBe(true)
-    expect(validBaseUrl('http://172.32.0.1/v1')).toBe(false)
+    expect(validBaseUrl('https://192.168.1.20:8000/v1')).toBe(true)
+    expect(validBaseUrl('http://192.168.1.20:8000/v1')).toBe(false)
+    expect(validBaseUrl('http://localhost:9000/v1')).toBe(false)
     expect(validBaseUrl('http://api.example.com/v1')).toBe(false)
     expect(validBaseUrl('https://user:pass@api.example.com')).toBe(false)
     expect(validBaseUrl('https://api.example.com/v1?x=1')).toBe(false)

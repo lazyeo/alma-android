@@ -77,13 +77,13 @@ describe('speech settings', () => {
     const settings = {
       ...defaultSpeechSettings(),
       engineId: 'custom',
-      custom: { baseUrl: ' http://192.168.1.5:8000/v1 ', model: 'small' },
+      custom: { baseUrl: ' https://asr.example.test/v1 ', model: 'small' },
     }
     const engine = resolveEngine(settings)
     expect(engine).toMatchObject({
       id: 'custom',
       kind: 'openai-compat',
-      baseUrl: 'http://192.168.1.5:8000/v1',
+      baseUrl: 'https://asr.example.test/v1',
       model: 'small',
     })
     expect(engineReady(engine)).toBe(true)

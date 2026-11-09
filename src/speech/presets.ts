@@ -58,32 +58,17 @@ export function presetById(id: string): EngineConfig | undefined {
 }
 
 /**
- * Base URLs the key may be bound to: https (wss for streaming), or plain
- * http only to a loopback / private LAN / .local host for a self-hosted
- * server. Native enforces the same rule again (SpeechHostRules).
+ * Base URLs the key may be bound to: https, or wss for streaming. No plain
+ * http even on the LAN, because the app's network security config blocks
+ * cleartext. Native enforces the same rule again (SpeechHostRules).
  */
 export function validBaseUrl(value: string): boolean {
   let url: URL
   try {
-    url = new URL(value)
+    url = new URL(value.trim())
   } catch {
     return false
   }
   if (url.username || url.password || url.search || url.hash) return false
-  if (url.protocol === 'https:' || url.protocol === 'wss:') return true
-  return url.protocol === 'http:' && isPrivateHost(url.hostname)
-}
-
-function isPrivateHost(host: string): boolean {
-  if (host === 'localhost' || host.endsWith('.local')) return true
-  const parts = host.split('.').map(Number)
-  if (parts.length !== 4 || parts.some((p) => !Number.isInteger(p) || p > 255))
-    return false
-  const [a, b] = parts
-  return (
-    a === 10 ||
-    a === 127 ||
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168)
-  )
+  return url.protocol === 'https:' || url.protocol === 'wss:'
 }
