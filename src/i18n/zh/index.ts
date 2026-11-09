@@ -36,6 +36,7 @@ import { files } from './files'
 import { share } from './share'
 import { agents } from './agents'
 import { screen } from './screen'
+import { speech } from './speech'
 import type { CatalogShape } from '../core'
 import type { Messages } from '../en'
 
@@ -56,4 +57,5 @@ export const zh: CatalogShape<Messages> = {
   share,
   agents,
   screen,
+  speech,
 }
