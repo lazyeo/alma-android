@@ -5,9 +5,11 @@ import { IabScreen } from './IabScreen'
 import type { IabTab } from './protocol'
 
 const send = vi.fn()
+const retry = vi.fn()
 const state: {
   bound?: boolean
   unsupported?: boolean
+  videoFailed?: boolean
   videoLive?: boolean
   url?: string
   tabs?: IabTab[]
@@ -35,6 +37,8 @@ vi.mock('./useIabStream', () => ({
     videoLive: state.videoLive ?? false,
     markVideoFrame: vi.fn(),
     rtcState: 'idle',
+    videoFailed: state.videoFailed ?? false,
+    retry,
     error: '',
     send,
   }),
@@ -61,6 +65,7 @@ function renderScreen(props: { onUnsupported?: () => void } = {}) {
 
 beforeEach(() => {
   send.mockClear()
+  retry.mockClear()
   for (const key of Object.keys(state)) delete state[key as keyof typeof state]
 })
 
@@ -208,6 +213,23 @@ describe('IabScreen', () => {
     expect(send).toHaveBeenLastCalledWith({ type: 'text', text: 'hello' })
     fireEvent.click(screen.getByRole('button', { name: 'screen.enter' }))
     expect(send).toHaveBeenLastCalledWith({ type: 'key', key: 'Enter' })
+  })
+
+  it('explains failed video with no frames and retries it', () => {
+    state.bound = true
+    state.videoFailed = true
+    renderScreen()
+    expect(screen.getByText('browser.videoFailedTitle')).toBeTruthy()
+    expect(screen.getByText('browser.videoFailedBody')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(retry).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps spinning, not erroring, while video is still on its way', () => {
+    state.bound = true
+    renderScreen()
+    expect(screen.queryByText('browser.videoFailedTitle')).toBeNull()
+    expect(screen.getByText('browser.loading')).toBeTruthy()
   })
 
   it('explains an unsupported desktop and reports it', () => {
