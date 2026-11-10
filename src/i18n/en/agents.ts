@@ -42,6 +42,18 @@ export const agents = {
     notReady: '{name} (connecting)',
     polled: 'Updates every few seconds — this computer has no live connection.',
   },
+  setup: {
+    missing: 'Herdr isn’t installed on this computer.',
+    stopped: 'Herdr isn’t running on this computer.',
+    install: 'Install Herdr',
+    start: 'Start Herdr',
+    installing: 'Installing Herdr… this can take a few minutes.',
+    starting: 'Starting Herdr…',
+    installFailed: 'Herdr couldn’t be installed.',
+    startFailed: 'Herdr couldn’t be started.',
+    notInstalled: 'Herdr isn’t installed, so it can’t be started.',
+    unsupported: 'This computer can’t install Herdr from here.',
+  },
   kind: {
     claude: 'Claude',
     codex: 'Codex',

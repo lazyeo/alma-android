@@ -23,6 +23,8 @@ import { AgentsBoard, AgentsList } from './AgentsBoard'
 import { useHerdr, type DesktopHerdrState } from './HerdrProvider'
 import { AgentsManageProvider, useAgentsManage } from './AgentsManage'
 import { HerdrComputerSwitcher } from './HerdrComputerSwitcher'
+import { HerdrSetupActions } from './HerdrSetupActions'
+import { herdrSetupAction } from './setup'
 
 export function AgentsScreen() {
   const { desktopId = '' } = useParams()
@@ -124,7 +126,11 @@ function AgentsScreenContent({
       />
       <div className="page-body agents-page-body">
         <HerdrComputerSwitcher desktopId={decodedDesktopId} />
-        <AgentsState state={state} onRetry={() => retry(decodedDesktopId)} />
+        <AgentsState
+          state={state}
+          desktopId={decodedDesktopId}
+          onRetry={() => retry(decodedDesktopId)}
+        />
         {!herdrReady(state) ? null : mode === 'board' ? (
           <AgentsBoard
             desktopId={decodedDesktopId}
@@ -159,9 +165,12 @@ function herdrReady(state?: DesktopHerdrState) {
 
 export function AgentsState({
   state,
+  desktopId,
   onRetry,
 }: {
   state?: DesktopHerdrState
+  /** Enables install/start while Herdr is offline. */
+  desktopId?: string
   onRetry(): void
 }) {
   const t = useT()
@@ -176,14 +185,27 @@ export function AgentsState({
     return <p className="empty agents-state">{t('agents.desktopOffline')}</p>
   if (!state.supported)
     return <p className="empty agents-state">{t('agents.unsupported')}</p>
-  if (state.error || !state.online)
+  if (state.error || !state.online) {
+    // A request error isn't "Herdr is off"; only offer setup for the latter.
+    const setup = state.error ? undefined : state.setup
+    const action = herdrSetupAction(setup)
     return (
       <div className="empty agents-state">
-        <p>{t('agents.unreachable')}</p>
+        <p>
+          {action === 'install'
+            ? t('agents.setup.missing')
+            : action === 'start'
+              ? t('agents.setup.stopped')
+              : t('agents.unreachable')}
+        </p>
+        {desktopId && setup ? (
+          <HerdrSetupActions desktopId={desktopId} setup={setup} />
+        ) : null}
         <button className="quiet-text-button" onClick={onRetry}>
           {t('common.tryAgain')}
         </button>
       </div>
     )
+  }
   return null
 }

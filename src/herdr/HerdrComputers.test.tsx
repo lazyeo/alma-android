@@ -86,7 +86,11 @@ function Agents() {
   return (
     <>
       <HerdrComputerSwitcher desktopId="desk" />
-      <AgentsState state={byDesktop.desk} onRetry={() => retry('desk')} />
+      <AgentsState
+        state={byDesktop.desk}
+        desktopId="desk"
+        onRetry={() => retry('desk')}
+      />
       <ul>
         {agents('desk').flatMap((workspace) =>
           workspace.panes.map((pane) => <li key={pane.id}>{pane.title}</li>),
@@ -229,5 +233,76 @@ describe('Herdr computer switcher', () => {
     })
     document.dispatchEvent(new Event('visibilitychange'))
     await waitFor(() => expect(polls()).toBeGreaterThan(before))
+  })
+})
+
+describe('Herdr offline setup', () => {
+  const offline = (setup: Record<string, unknown>) =>
+    desktopApi({
+      ...herdrRoutes('/api/herdr', false),
+      '/api/herdr/setup': () => reply({ online: false, ...setup }),
+    })
+
+  it('offers install when Herdr Core is missing', async () => {
+    const { api } = offline({ phase: 'missing' })
+    renderAgents(api)
+    expect(
+      await screen.findByRole('button', { name: 'Install Herdr' }),
+    ).toBeTruthy()
+    expect(
+      screen.getByText('Herdr isn’t installed on this computer.'),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Start Herdr' })).toBe(null)
+  })
+
+  it('offers start when Herdr Core is installed but not running', async () => {
+    const { api } = offline({ phase: 'stopped' })
+    renderAgents(api)
+    expect(
+      await screen.findByRole('button', { name: 'Start Herdr' }),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Install Herdr' })).toBe(null)
+  })
+
+  it('shows progress while installing and the last failure', async () => {
+    const { api } = offline({ phase: 'installing' })
+    renderAgents(api)
+    expect(
+      await screen.findByText('Installing Herdr… this can take a few minutes.'),
+    ).toBeTruthy()
+    cleanup()
+    renderAgents(offline({ phase: 'stopped', error: 'port 8787 in use' }).api)
+    expect(await screen.findByRole('alert')).toHaveProperty(
+      'textContent',
+      'port 8787 in use',
+    )
+  })
+
+  it('offers no setup on a desktop without the setup route', async () => {
+    const { api } = desktopApi(herdrRoutes('/api/herdr', false))
+    renderAgents(api)
+    expect(
+      await screen.findByText('Start herdr on the Mac, then try again.'),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Herdr$/ })).toBe(null)
+  })
+
+  it('starts Herdr and reports a failure from the desktop', async () => {
+    const { api, fetch } = desktopApi({
+      ...herdrRoutes('/api/herdr', false),
+      '/api/herdr/setup': () => reply({ online: false, phase: 'stopped' }),
+      '/api/herdr/setup/start': () =>
+        reply(
+          { online: false, phase: 'stopped', error: 'herdr-core exited 1' },
+          502,
+        ),
+    })
+    renderAgents(api)
+    fireEvent.click(await screen.findByRole('button', { name: 'Start Herdr' }))
+    expect(await screen.findByText('herdr-core exited 1')).toBeTruthy()
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/herdr/setup/start',
+      expect.objectContaining({ method: 'POST' }),
+    )
   })
 })

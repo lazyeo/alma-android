@@ -9480,6 +9480,24 @@ dialog:focus,
   color: var(--muted-foreground);
   font-size: var(--text-xs);
 }
+.herdr-setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+}
+.herdr-setup-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.herdr-setup-error {
+  margin: 0;
+  max-width: 32em;
+  overflow-wrap: anywhere;
+}
 .agent-project-switcher {
   display: flex;
   gap: 8px;

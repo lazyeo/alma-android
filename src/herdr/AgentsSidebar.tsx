@@ -126,7 +126,11 @@ function AgentsSidebarContent({
       </header>
       <div className="agents-sidebar-body">
         <HerdrComputerSwitcher desktopId={decodedDesktopId} />
-        <AgentsState state={state} onRetry={() => retry(decodedDesktopId)} />
+        <AgentsState
+          state={state}
+          desktopId={decodedDesktopId}
+          onRetry={() => retry(decodedDesktopId)}
+        />
         {mode === 'board' ? (
           <AgentsBoard
             desktopId={decodedDesktopId}

@@ -41,6 +41,18 @@ export const agents = {
     notReady: '{name}（连接中）',
     polled: '每隔几秒刷新：这台电脑没有实时连接。',
   },
+  setup: {
+    missing: '这台电脑还没有安装 Herdr。',
+    stopped: '这台电脑上的 Herdr 没有运行。',
+    install: '安装 Herdr',
+    start: '启动 Herdr',
+    installing: '正在安装 Herdr…可能需要几分钟。',
+    starting: '正在启动 Herdr…',
+    installFailed: 'Herdr 安装失败。',
+    startFailed: 'Herdr 启动失败。',
+    notInstalled: 'Herdr 未安装，无法启动。',
+    unsupported: '这台电脑无法从这里安装 Herdr。',
+  },
   kind: {
     claude: 'Claude 助手',
     codex: 'Codex 助手',
