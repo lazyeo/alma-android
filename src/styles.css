@@ -5246,6 +5246,9 @@ button:focus-visible,
 .composer-input textarea {
   position: relative;
   z-index: 1;
+  /* Block, so the box is exactly the textarea: an inline one leaves a
+     baseline gap below it, and the voice bar matches this height. */
+  display: block;
 }
 /* Mirrors the textarea box exactly; only the token backgrounds are visible. */
 .composer-highlight {
@@ -11179,6 +11182,17 @@ html[data-alma-motion] .alma-shell .persona-message {
 .composer-entry > .composer-input {
   flex: 1 1 auto;
 }
+/* The full-screen editor's text box fills the height, entry row and all. */
+.fullscreen-editor .composer-entry {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+/* Same height as the one-line text box it replaces (the textarea's
+   min-height), so switching modes does not resize the composer. */
+.composer-entry > .voice-hold-bar {
+  min-height: 32px;
+}
 .voice-mode-toggle {
   flex: 0 0 auto;
   width: 32px;
@@ -11193,7 +11207,6 @@ html[data-alma-motion] .alma-shell .persona-message {
 .voice-hold-bar {
   flex: 1 1 auto;
   min-width: 0;
-  min-height: 40px;
   padding: 0 12px;
   border: 0;
   border-radius: var(--radius-md);
