@@ -77,6 +77,12 @@ export const speech: CatalogShape<typeof source> = {
       denied: '麦克风权限已关闭，请在 Android 设置中允许 Alma 使用麦克风。',
       failed: '无法请求麦克风权限。',
     },
+    test: {
+      title: '测试',
+      hint: '录 {seconds} 秒，显示识别结果。',
+      recording: '正在录 {seconds} 秒，请说一句话。',
+      result: '识别结果',
+    },
     saveFailed: '无法保存语音设置。',
   },
 }

@@ -29,6 +29,7 @@ import {
 import { PRESETS, validBaseUrl } from '../speech/presets'
 import { DEFAULT_TERMS, formatTerms, parseTerms } from '../speech/terms'
 import type { EngineConfig } from '../speech/types'
+import { useVoiceTest } from '../speech/VoiceTest'
 
 type Sheet = 'engine' | 'key' | 'model' | 'custom' | 'terms'
 
@@ -45,6 +46,7 @@ function VoiceSettingsSection() {
   const [notice, setNotice] = useState('')
   const [keyStatus, setKeyStatus] = useState<KeyStatus>()
   const [mic, setMic] = useState<MicPermission>()
+  const test = useVoiceTest()
   const engine = resolveEngine(settings)
   const engineName = (candidate: EngineConfig) =>
     candidate.custom ? t('speech.engine.custom') : candidate.label
@@ -196,7 +198,9 @@ function VoiceSettingsSection() {
             trailing={chevron}
           />
         ) : null}
+        {test.row}
       </div>
+      {test.output}
       {error ? <p className="settings-error">{error}</p> : null}
       {notice ? <p className="settings-section-note">{notice}</p> : null}
 

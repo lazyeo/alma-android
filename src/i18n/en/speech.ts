@@ -82,6 +82,12 @@ export const speech = {
         'Microphone access is off. Allow it for Alma in Android settings.',
       failed: 'Couldn’t ask for microphone access.',
     },
+    test: {
+      title: 'Test',
+      hint: 'Records {seconds} seconds and shows what was recognised.',
+      recording: 'Recording for {seconds} seconds. Say a sentence.',
+      result: 'Recognised',
+    },
     saveFailed: 'Couldn’t save voice settings.',
   },
 } as const

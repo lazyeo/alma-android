@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -12,10 +13,15 @@ import {
   loadSpeechSettings,
   saveSpeechSettings,
 } from '../speech/engineStore'
+import { TEST_RECORD_MS } from '../speech/VoiceTest'
 import { VoiceSettings } from './VoiceSettings'
 
 const fake = vi.hoisted(() => ({
   available: { value: true },
+  listeners: new Map<string, Set<(event: unknown) => void>>(),
+  fire(name: string, event: unknown) {
+    for (const listener of fake.listeners.get(name) ?? []) listener(event)
+  },
   speech: {
     checkMicPermission: vi.fn(async () => ({ mic: 'granted' as string })),
     requestMicPermission: vi.fn(async () => ({ mic: 'granted' as string })),
@@ -26,6 +32,25 @@ const fake = vi.hoisted(() => ({
       }),
     ),
     deleteKey: vi.fn(async (_options: object) => undefined),
+    startRecording: vi.fn(async () => undefined),
+    stopRecording: vi.fn(async () => ({ durationMs: 3000 })),
+    cancelRecording: vi.fn(async () => undefined),
+    transcribe: vi.fn(async (_spec: object) => ({
+      status: 200,
+      body: '{"text":"hello"}',
+    })),
+    request: vi.fn(async () => ({ status: 200, body: '{}' })),
+    startStream: vi.fn(async (_options: object) => undefined),
+    stopStream: vi.fn(async () => undefined),
+    cancelStream: vi.fn(async () => undefined),
+    addListener: vi.fn(
+      async (name: string, listener: (event: unknown) => void) => {
+        const set = fake.listeners.get(name) ?? new Set()
+        set.add(listener)
+        fake.listeners.set(name, set)
+        return { remove: async () => void set.delete(listener) }
+      },
+    ),
   },
 }))
 
@@ -51,6 +76,7 @@ beforeEach(() => {
   storage = memoryStorage()
   vi.stubGlobal('localStorage', storage)
   vi.clearAllMocks()
+  fake.listeners.clear()
   fake.available.value = true
   fake.speech.keyStatus.mockImplementation(async () => ({ set: false }))
 })
@@ -190,5 +216,46 @@ describe('VoiceSettings', () => {
       expect(screen.queryByRole('button', { name: /microphone/ })).toBeNull(),
     )
     expect(fake.speech.requestMicPermission).toHaveBeenCalled()
+  })
+
+  it('Test records a few seconds and shows what was recognised', async () => {
+    fake.speech.keyStatus.mockImplementation(async () => ({ set: true }))
+    render(<VoiceSettings />)
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      fireEvent.click(row(/^Test/))
+      await waitFor(() => expect(fake.speech.startStream).toHaveBeenCalled())
+      await screen.findByText(/Recording for 3 seconds/)
+      act(() =>
+        fake.fire('streamMessage', {
+          data: '{"tokens":[{"text":"你好","is_final":true}]}',
+        }),
+      )
+      expect(fake.speech.stopStream).not.toHaveBeenCalled()
+      await act(async () => {
+        vi.advanceTimersByTime(TEST_RECORD_MS)
+      })
+      await waitFor(() => expect(fake.speech.stopStream).toHaveBeenCalled())
+      act(() =>
+        fake.fire('streamMessage', {
+          data: '{"tokens":[{"text":" Alma","is_final":true}],"finished":true}',
+        }),
+      )
+      expect(await screen.findByText('你好 Alma')).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('Test explains a missing key without recording', async () => {
+    saveSpeechSettings({ ...defaultSpeechSettings(), engineId: 'openai' })
+    render(<VoiceSettings />)
+    fireEvent.click(row(/^Test/))
+    expect(
+      await screen.findByText(
+        'Voice input needs an API key for OpenAI. Add one in voice settings.',
+      ),
+    ).toBeTruthy()
+    expect(fake.speech.startRecording).not.toHaveBeenCalled()
   })
 })

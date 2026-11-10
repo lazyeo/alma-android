@@ -14,6 +14,18 @@ const SETTINGS_TOO: ReadonlySet<DictationErrorKind> = new Set([
   'host_not_allowed',
 ])
 
+/** The user-facing copy for a failed (or unconfigured) dictation. */
+export function dictationErrorText(
+  t: ReturnType<typeof useT>,
+  kind: DictationErrorKind | 'setup',
+  engineLabel: string,
+): string {
+  if (kind === 'setup') return t('speech.errors.setup')
+  if (kind === 'needs_key')
+    return t('speech.errors.needs_key', { engine: engineLabel })
+  return t(`speech.errors.${kind}`)
+}
+
 export function DictationSheet({
   state,
   engine,
@@ -96,13 +108,7 @@ export function DictationSheet({
       </div>
       {error ? (
         <div className="dictation-error" role="alert">
-          <p>
-            {error.kind === 'setup'
-              ? t('speech.errors.setup')
-              : error.kind === 'needs_key'
-                ? t('speech.errors.needs_key', { engine: engineLabel })
-                : t(`speech.errors.${error.kind}`)}
-          </p>
+          <p>{dictationErrorText(t, error.kind, engineLabel)}</p>
           {error.detail ? (
             <small className="dictation-error-detail">{error.detail}</small>
           ) : null}

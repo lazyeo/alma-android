@@ -11324,6 +11324,24 @@ html[data-alma-motion] .alma-shell .persona-message {
 .voice-sheet-actions {
   margin-top: 12px;
 }
+.voice-test-result,
+.voice-test-error {
+  display: grid;
+  gap: 4px;
+  margin: 8px 4px 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.voice-test-result {
+  color: var(--foreground);
+}
+.voice-test-label {
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}
+.voice-test-error {
+  color: var(--destructive);
+}
 .sheet-footer > .voice-sheet-primary {
   width: 100%;
   min-height: 48px;
