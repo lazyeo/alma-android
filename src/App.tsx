@@ -119,7 +119,7 @@ function OpeningThread() {
   return <p className="empty">{t('thread.opening')}</p>
 }
 
-function DesktopScope() {
+export function DesktopScope() {
   const t = useT()
   const { desktopId = '' } = useParams()
   const { store, desktops, activate } = useDesktops()
