@@ -26,6 +26,7 @@ export const agents = {
   renamePlaceholder: '输入名称',
   workspaceLabelPlaceholder: '工作区名称（可选）',
   optionalAgent: '启动 Agent（可选）',
+  defaultAgent: '桌面默认',
   noAgent: '不启动 Agent',
   starting: '正在启动…',
   newTabFailed: '无法创建 Agent 标签页',

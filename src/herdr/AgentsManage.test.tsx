@@ -29,13 +29,18 @@ const workspace: AgentWorkspaceModel = {
   panes: [pane],
 }
 
-function Harness({ action }: { action: 'pane' | 'workspace' | 'new-agent' }) {
+function Harness({
+  action,
+}: {
+  action: 'pane' | 'workspace' | 'new-agent' | 'new-workspace'
+}) {
   const manage = useAgentsManage()
   return (
     <button
       onClick={() => {
         if (action === 'pane') manage.openPane(pane)
         else if (action === 'workspace') manage.openWorkspace(workspace)
+        else if (action === 'new-workspace') manage.openNewWorkspace()
         else manage.openNewAgentTab(workspace)
       }}
     >
@@ -46,12 +51,13 @@ function Harness({ action }: { action: 'pane' | 'workspace' | 'new-agent' }) {
 
 function renderManage(
   api: Partial<AlmaApi>,
-  action: 'pane' | 'workspace' | 'new-agent',
+  action: 'pane' | 'workspace' | 'new-agent' | 'new-workspace',
 ) {
   const fullApi = {
     getHerdrInfo: vi.fn(async () => ({ online: true })),
     getHerdrMutes: vi.fn(async () => ({ workspaces: [] })),
     listHerdrComputers: vi.fn(async () => ({ status: 'unsupported' })),
+    getDefaultHerdrAgent: vi.fn(async () => undefined),
     forHerdrComputer() {
       return this
     },
@@ -144,5 +150,51 @@ describe('Herdr management sheets', () => {
     expect(
       vi.mocked(api.herdrCreateTab).mock.invocationCallOrder[0],
     ).toBeLessThan(vi.mocked(api.herdrStartAgent).mock.invocationCallOrder[0])
+  })
+
+  it('preselects the desktop default agent for a new workspace', async () => {
+    const api = renderManage(
+      { getDefaultHerdrAgent: vi.fn(async () => 'codex' as const) },
+      'new-workspace',
+    )
+    await waitFor(() => expect(api.getDefaultHerdrAgent).toHaveBeenCalled())
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    fireEvent.click(screen.getByRole('button', { name: 'Open actions' }))
+    expect(
+      screen
+        .getByRole('button', { name: 'Codex' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true')
+    expect(
+      screen.getByRole('button', { name: 'No agent' }).className,
+    ).not.toContain('selected')
+  })
+
+  it('keeps no agent preselected when the desktop default is unknown', async () => {
+    const api = renderManage({}, 'new-workspace')
+    await waitFor(() => expect(api.getDefaultHerdrAgent).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: 'Open actions' }))
+    expect(
+      screen.getByRole('button', { name: 'No agent' }).className,
+    ).toContain('selected')
+    for (const name of ['Claude', 'Codex', 'Pi'])
+      expect(
+        screen.getByRole('button', { name }).getAttribute('aria-pressed'),
+      ).toBe('false')
+  })
+
+  it('lists the desktop default first in the new tab picker', async () => {
+    const api = renderManage(
+      { getDefaultHerdrAgent: vi.fn(async () => 'pi' as const) },
+      'new-agent',
+    )
+    await waitFor(() => expect(api.getDefaultHerdrAgent).toHaveBeenCalled())
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    fireEvent.click(screen.getByRole('button', { name: 'Open actions' }))
+    const rows = screen
+      .getAllByRole('button')
+      .filter((button) => button.classList.contains('sheet-row'))
+      .map((button) => button.textContent)
+    expect(rows).toEqual(['PiDesktop default', 'Claude', 'Codex'])
   })
 })

@@ -1742,6 +1742,11 @@ button.reaction-chip:active {
 .sheet-row.selected {
   background: var(--accent-3);
 }
+.sheet-row-note {
+  margin-left: auto;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}
 .sheet-row-copy {
   flex: 1;
   min-width: 0;

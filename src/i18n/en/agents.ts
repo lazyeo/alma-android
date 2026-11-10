@@ -26,6 +26,7 @@ export const agents = {
   renamePlaceholder: 'Enter a name',
   workspaceLabelPlaceholder: 'Workspace name (optional)',
   optionalAgent: 'Start an agent (optional)',
+  defaultAgent: 'Desktop default',
   noAgent: 'No agent',
   starting: 'Starting…',
   newTabFailed: 'Could not create the agent tab.',
