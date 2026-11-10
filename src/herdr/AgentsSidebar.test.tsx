@@ -88,6 +88,7 @@ describe('AgentsSidebar project selection', () => {
       getHerdrInfo: vi.fn(async () => ({ online: true })),
       getHerdrMutes: vi.fn(async () => ({ workspaces: [] })),
       listHerdrComputers: vi.fn(async () => ({ status: 'unsupported' })),
+      getDefaultHerdrAgent: vi.fn(async () => undefined),
       forHerdrComputer() {
         return this
       },
@@ -183,6 +184,7 @@ describe('AgentsSidebar project selection', () => {
       getHerdrInfo: vi.fn(async () => ({ online: false })),
       getHerdrMutes: vi.fn(async () => ({ workspaces: [] })),
       listHerdrComputers: vi.fn(async () => ({ status: 'unsupported' })),
+      getDefaultHerdrAgent: vi.fn(async () => undefined),
       forHerdrComputer() {
         return this
       },

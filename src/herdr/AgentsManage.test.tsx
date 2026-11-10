@@ -197,4 +197,19 @@ describe('Herdr management sheets', () => {
       .map((button) => button.textContent)
     expect(rows).toEqual(['PiDesktop default', 'Claude', 'Codex'])
   })
+
+  it('keeps the plain tab picker when the desktop default cannot be read', async () => {
+    const api = renderManage(
+      { getDefaultHerdrAgent: vi.fn(async () => undefined) },
+      'new-agent',
+    )
+    await waitFor(() => expect(api.getDefaultHerdrAgent).toHaveBeenCalled())
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    fireEvent.click(screen.getByRole('button', { name: 'Open actions' }))
+    const rows = screen
+      .getAllByRole('button')
+      .filter((button) => button.classList.contains('sheet-row'))
+      .map((button) => button.textContent)
+    expect(rows).toEqual(['Claude', 'Codex', 'Pi'])
+  })
 })
