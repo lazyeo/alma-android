@@ -115,6 +115,7 @@ export function MessageView({
               part.toolCallId ? nestedByParent?.get(part.toolCallId) : undefined
             }
             linkUserFilePaths={row.message.role === 'assistant'}
+            math={row.message.role !== 'user'}
             capabilities={capabilities}
           />
         ))

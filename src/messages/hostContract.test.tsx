@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MarkdownContent } from '../screens/MarkdownContent'
 import { toMessageRows, type HerdrChatItem } from '../herdr/toMessageParts'
 import { MessageView, type MessageRowView } from './MessageView'
@@ -179,5 +179,26 @@ describe('shared message host contract', () => {
     expect(herdr.querySelector('.message-actions-button')).toBeNull()
     expect(herdr.querySelector('.version-switcher')).toBeNull()
     expect(herdr.querySelector('.usage-footer')).toBeNull()
+  })
+  it('renders user text without math and assistant text with it', () => {
+    const renderMarkdown = vi.fn((text: string) => <p>{text}</p>)
+    for (const role of ['user', 'assistant'])
+      render(
+        <MessageView
+          row={{
+            id: role,
+            message: { role, parts: [{ type: 'text', text: `${role} $$x$$` }] },
+          }}
+          capabilities={{ renderMarkdown }}
+        />,
+      )
+    expect(renderMarkdown).toHaveBeenCalledWith(
+      'user $$x$$',
+      expect.objectContaining({ math: false }),
+    )
+    expect(renderMarkdown).toHaveBeenCalledWith(
+      'assistant $$x$$',
+      expect.objectContaining({ math: true }),
+    )
   })
 })

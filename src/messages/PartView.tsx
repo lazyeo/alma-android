@@ -7,8 +7,14 @@ import { parseAlmaImageEdit } from '../components/imageAnnotatorModel'
 import { ImageEditCard } from './ImageEditCard'
 import { TeammateMessagePart } from './TeammateMessagePart'
 
+export interface MarkdownRenderOptions {
+  linkUserFilePaths?: boolean
+  /** False for user-authored text, which is never rendered as formulas. */
+  math?: boolean
+}
+
 export interface PartViewCapabilities {
-  renderMarkdown: (text: string, linkUserFilePaths?: boolean) => ReactNode
+  renderMarkdown: (text: string, options?: MarkdownRenderOptions) => ReactNode
   renderImage?: (source: string, name: string) => ReactNode
   renderNestedRuns?: (
     rows: readonly NestedMessageRow[],
@@ -23,6 +29,7 @@ export const PartView = memo(function PartView({
   duration,
   nested,
   linkUserFilePaths = false,
+  math = true,
   capabilities,
 }: {
   part: MessagePart
@@ -30,6 +37,7 @@ export const PartView = memo(function PartView({
   duration?: number
   nested?: readonly NestedMessageRow[]
   linkUserFilePaths?: boolean
+  math?: boolean
   capabilities: PartViewCapabilities
 }) {
   const t = useT()
@@ -67,7 +75,10 @@ export const PartView = memo(function PartView({
     // The card carries the same numbered requests as the visible text, so
     // the phone shows only the card.
     if (parsed.request) return <ImageEditCard request={parsed.request} />
-    return capabilities.renderMarkdown(parsed.visibleText, linkUserFilePaths)
+    return capabilities.renderMarkdown(parsed.visibleText, {
+      linkUserFilePaths,
+      math,
+    })
   }
   if (part.type.startsWith('tool-') || part.type === 'dynamic-tool') {
     return (

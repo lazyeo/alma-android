@@ -103,7 +103,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { MarkdownContent } from './MarkdownContent'
 import { initialThreadOverscan, THREAD_OVERSCAN } from './threadVirtualizer'
-import { MessageView, PartView, type NestedMessageRow } from '../messages'
+import {
+  MessageView,
+  PartView,
+  type MarkdownRenderOptions,
+  type NestedMessageRow,
+} from '../messages'
 import { messageRetry } from '../messages/messageRetry'
 import { QuickReactions, ReactionChips } from '../messages/ReactionChips'
 import { canReact, parseReactions, withReactions } from './messageReactions'
@@ -288,9 +293,11 @@ const renderMessageLink = ({
 function MessageMarkdownContent({
   text,
   linkUserFilePaths = false,
+  math = true,
 }: {
   text: string
   linkUserFilePaths?: boolean
+  math?: boolean
 }) {
   const { api } = useConnection()
   const getSiteIcon = useCallback((url: string) => api.getSiteIcon(url), [api])
@@ -298,6 +305,7 @@ function MessageMarkdownContent({
     <MarkdownContent
       text={text}
       linkUserFilePaths={linkUserFilePaths}
+      math={math}
       getSiteIcon={getSiteIcon}
       renderReference={renderMessageReference}
       renderLink={renderMessageLink}
@@ -306,8 +314,12 @@ function MessageMarkdownContent({
 }
 
 const threadPartCapabilities = {
-  renderMarkdown: (text: string, linkUserFilePaths?: boolean) => (
-    <MessageMarkdownContent text={text} linkUserFilePaths={linkUserFilePaths} />
+  renderMarkdown: (text: string, options?: MarkdownRenderOptions) => (
+    <MessageMarkdownContent
+      text={text}
+      linkUserFilePaths={options?.linkUserFilePaths}
+      math={options?.math}
+    />
   ),
   renderImage: (source: string, name: string) => (
     <RelayImage source={source} name={name} />
@@ -3037,7 +3049,10 @@ function ThreadView({
               if (caret !== undefined) placeCaret(caret)
             }}
           >
-            <MessageMarkdownContent text={messageText(selectableRow.message.parts)} />
+            <MessageMarkdownContent
+              text={messageText(selectableRow.message.parts)}
+              math={selectableRow.message.role !== 'user'}
+            />
           </SelectableTextView>
         ) : null}
         {actionRow ? (

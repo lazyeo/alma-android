@@ -236,7 +236,9 @@ function SubagentDetail({
               row={row}
               generating={!finished && item === items.at(-1)}
               capabilities={{
-                renderMarkdown: (text) => <MarkdownContent text={text} />,
+                renderMarkdown: (text, options) => (
+                  <MarkdownContent text={text} math={options?.math} />
+                ),
                 renderImage: (source, name) => (
                   <RelayImage source={source} name={name} />
                 ),

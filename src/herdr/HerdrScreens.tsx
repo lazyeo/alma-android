@@ -841,7 +841,9 @@ export function AgentPaneScreen() {
                   key={row.id}
                   row={row}
                   capabilities={{
-                    renderMarkdown: (text) => <MarkdownContent text={text} />,
+                    renderMarkdown: (text, options) => (
+                      <MarkdownContent text={text} math={options?.math} />
+                    ),
                     renderImage: (source, name) => (
                       <RelayImage source={source} name={name} />
                     ),
