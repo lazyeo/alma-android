@@ -215,6 +215,7 @@ import {
 import { RefPicker } from './RefPicker'
 import { useComposerReferences } from './useComposerReferences'
 import { dictationInsertion, MicButton } from '../speech/MicButton'
+import { useAfterNextRender } from '../speech/useAfterNextRender'
 import {
   RefCardSheet,
   RefChip,
@@ -1924,6 +1925,25 @@ function ThreadView({
   const detectReference = composerReferences.detect
   const changeComposerText = composerReferences.changeText
   const pickReference = composerReferences.pick
+  // A voice send fills the composer, then sends from the next render.
+  const afterRender = useAfterNextRender()
+  const sendRef = useRef(send)
+  sendRef.current = send
+
+  function insertDictated(spoken: string, at: 'caret' | 'end') {
+    const next = dictationInsertion(
+      textareaRef.current,
+      composerStateRef.current.text,
+      spoken,
+      at,
+    )
+    changeComposerText(next.value, next.caret, false)
+    placeCaret(next.caret)
+    // Typing updates this in onChange; dictation bypasses it.
+    requestAnimationFrame(() =>
+      setOverflowing((textareaRef.current?.scrollHeight ?? 0) > 130),
+    )
+  }
 
   async function uploadForSend(current: ComposerAttachment[]) {
     setUploading(true)
@@ -2470,18 +2490,12 @@ function ThreadView({
         textareaRef={textareaRef}
         voiceInput={
           <MicButton
-            onText={(spoken) => {
-              const next = dictationInsertion(
-                textareaRef.current,
-                composerStateRef.current.text,
-                spoken,
-              )
-              changeComposerText(next.value, next.caret, false)
-              placeCaret(next.caret)
-              // Typing updates this in onChange; dictation bypasses it.
-              requestAnimationFrame(() =>
-                setOverflowing((textareaRef.current?.scrollHeight ?? 0) > 130),
-              )
+            surface="alma"
+            draft={() => composerStateRef.current.text}
+            onInsert={insertDictated}
+            onSend={(spoken) => {
+              changeComposerText(spoken, spoken.length, false)
+              afterRender(() => void sendRef.current())
             }}
           />
         }

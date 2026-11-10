@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { DictationSession, type DictationState } from './dictationSession'
-import { loadSpeechSettings, resolveEngine } from './engineStore'
+import { engineChain, loadSpeechSettings, resolveEngine } from './engineStore'
 import { Speech } from './nativeSpeech'
 import type { EngineConfig } from './types'
 
 export interface Dictation {
   state: DictationState
-  /** The engine the next or current dictation uses (for the sheet label). */
+  /** The primary engine as of the last Start (the state names the active one). */
   engine: EngineConfig
   start(): void
   stop(): void
@@ -40,9 +40,9 @@ export function useDictation(): Dictation {
   }, [])
   const start = useCallback(() => {
     const settings = loadSpeechSettings()
-    const next = resolveEngine(settings)
-    setEngine(next)
-    void sessionRef.current?.start(next, settings.terms)
+    const chain = engineChain(settings)
+    setEngine(chain[0] ?? resolveEngine(settings))
+    void sessionRef.current?.start(chain, settings.terms)
   }, [])
   const stop = useCallback(() => void sessionRef.current?.stop(), [])
   const cancel = useCallback(() => void sessionRef.current?.cancel(), [])

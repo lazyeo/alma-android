@@ -1,6 +1,11 @@
 import type { PluginListenerHandle } from '@capacitor/core'
 import type { SpeechPlugin } from './nativeSpeech'
-import { buildTranscriptionRequest, parseTranscription } from './openaiCompat'
+import {
+  buildTranscriptionRequest,
+  parseTranscription,
+  type TranscriptionOutcome,
+} from './openaiCompat'
+import { keyIdOf } from './presets'
 import {
   applySonioxTokens,
   buildSonioxConfig,
@@ -9,31 +14,74 @@ import {
   transcriptText,
   type SonioxTranscript,
 } from './soniox'
-import { keyIdOf } from './presets'
 import { transcribeSonioxAsync } from './sonioxAsync'
-import type { DictationError, EngineConfig } from './types'
+import type { DictationError, DictationErrorKind, EngineConfig } from './types'
 
 /** How long Stop waits for Soniox's `finished` before giving up. */
 export const FINISH_TIMEOUT_MS = 5000
 /** Shorter batch clips are almost always an accidental tap. */
 export const MIN_BATCH_MS = 300
 
+/**
+ * Failures the next engine may not share. Others (a refused request, a
+ * missing key, the mic, the user cancelling) would fail the same way or
+ * are not failures of the engine at all.
+ */
+export const FALLBACK_KINDS = [
+  'network',
+  'auth',
+  'timeout',
+  'server',
+  'empty',
+  'rate_limited',
+] as const
+export type FallbackKind = (typeof FALLBACK_KINDS)[number]
+
+function isFallbackKind(kind: DictationErrorKind): kind is FallbackKind {
+  return (FALLBACK_KINDS as readonly string[]).includes(kind)
+}
+
+/**
+ * The last engine switch, for the sheet's "X failed, now using Y" line.
+ * needs_key: the first enabled engine had no key, so it was skipped.
+ */
+export interface FallbackNote {
+  from: EngineConfig
+  to: EngineConfig
+  reason: FallbackKind | 'needs_key'
+}
+
 export type DictationState =
   | { phase: 'idle' }
   | { phase: 'starting' }
   | {
       phase: 'recording'
+      /** The engine that will produce the result. */
+      engine: EngineConfig
       startedAt: number
       level: number
       transcript: SonioxTranscript
+      fallback?: FallbackNote
     }
-  | { phase: 'finishing'; transcript: SonioxTranscript }
-  | { phase: 'done'; text: string }
+  | {
+      phase: 'finishing'
+      engine: EngineConfig
+      transcript: SonioxTranscript
+      fallback?: FallbackNote
+    }
+  | {
+      phase: 'done'
+      engine: EngineConfig
+      text: string
+      fallback?: FallbackNote
+    }
   | {
       phase: 'error'
+      engine?: EngineConfig
       error: DictationError
       /** What was already recognised, so the user can still keep it. */
       partial: string
+      fallback?: FallbackNote
     }
 
 export interface SessionDeps {
@@ -66,9 +114,14 @@ export function nativeError(error: unknown): DictationError {
   return kind === 'unknown' && message ? { kind, detail: message } : { kind }
 }
 
+const realtime = (engine: EngineConfig) => engine.kind === 'soniox-rt'
+
 /**
- * One dictation from Start to an inserted result. Every async step checks
- * its generation, so Cancel (or a new Start) makes late native results inert.
+ * One dictation from Start to a result, across the user's engine chain:
+ * the first engine with a key records, and on a FALLBACK_KINDS failure the
+ * next batch engine transcribes the same in-memory audio. Every async step
+ * checks its generation, so Cancel (or a new Start) makes late native
+ * results inert.
  */
 export class DictationSession {
   private state: DictationState = { phase: 'idle' }
@@ -76,7 +129,12 @@ export class DictationSession {
   private handles: Promise<PluginListenerHandle>[] = []
   private finishTimer: unknown
   private settle?: () => void
-  private engine?: EngineConfig
+  /** Engines with a key, in the user's order. */
+  private engines: EngineConfig[] = []
+  private active?: EngineConfig
+  private fallback?: FallbackNote
+  /** Why the stream ended while finishing, when it failed. */
+  private streamError?: DictationError
   private terms: readonly string[] = []
 
   constructor(
@@ -88,13 +146,22 @@ export class DictationSession {
     return this.state
   }
 
-  async start(engine: EngineConfig, terms: readonly string[]): Promise<void> {
-    if (this.state.phase === 'starting' || this.state.phase === 'recording')
+  async start(
+    chain: readonly EngineConfig[],
+    terms: readonly string[],
+  ): Promise<void> {
+    if (
+      this.state.phase === 'starting' ||
+      this.state.phase === 'recording' ||
+      this.state.phase === 'finishing'
+    )
       return
-    if (this.state.phase === 'finishing') return
     const generation = ++this.generation
     const live = () => generation === this.generation
-    this.engine = engine
+    this.engines = []
+    this.active = chain[0]
+    this.fallback = undefined
+    this.streamError = undefined
     this.terms = terms
     this.set({ phase: 'starting' })
     const { speech } = this.deps
@@ -103,11 +170,21 @@ export class DictationSession {
       if (mic !== 'granted') ({ mic } = await speech.requestMicPermission())
       if (!live()) return
       if (mic !== 'granted') return this.fail({ kind: 'mic_denied' })
-      const key = await speech.keyStatus({ engineId: keyIdOf(engine) })
-      if (!live()) return
-      if (!key.set) return this.fail({ kind: 'needs_key' })
-      this.listen(engine)
-      if (engine.kind === 'soniox-rt') {
+      const keyed = new Map<string, boolean>()
+      for (const engine of chain) {
+        const keyId = keyIdOf(engine)
+        if (!keyed.has(keyId))
+          keyed.set(keyId, (await speech.keyStatus({ engineId: keyId })).set)
+        if (!live()) return
+        if (keyed.get(keyId)) this.engines.push(engine)
+      }
+      const engine = this.engines[0]
+      if (!engine) return this.fail({ kind: 'needs_key' })
+      this.active = engine
+      if (engine !== chain[0])
+        this.fallback = { from: chain[0], to: engine, reason: 'needs_key' }
+      this.listen()
+      if (realtime(engine)) {
         await speech.startStream({
           engineId: keyIdOf(engine),
           url: engine.baseUrl,
@@ -117,14 +194,16 @@ export class DictationSession {
         await speech.startRecording()
       }
       if (!live()) {
-        await this.stopNative(engine)
+        await this.discardNative()
         return
       }
       this.set({
         phase: 'recording',
+        engine,
         startedAt: this.deps.now(),
         level: 0,
         transcript: EMPTY_TRANSCRIPT,
+        fallback: this.fallback,
       })
     } catch (error) {
       if (live()) this.fail(nativeError(error))
@@ -132,15 +211,20 @@ export class DictationSession {
   }
 
   async stop(): Promise<void> {
-    if (this.state.phase !== 'recording' || !this.engine) return
-    const engine = this.engine
+    if (this.state.phase !== 'recording' || !this.active) return
+    const engine = this.active
     const generation = this.generation
     const live = () => generation === this.generation
     const transcript = this.state.transcript
-    this.set({ phase: 'finishing', transcript })
+    this.set({
+      phase: 'finishing',
+      engine,
+      transcript,
+      fallback: this.fallback,
+    })
     const { speech } = this.deps
     try {
-      if (engine.kind === 'soniox-rt') {
+      if (realtime(engine)) {
         const finished = new Promise<void>((resolve) => {
           this.settle = resolve
           this.finishTimer = this.deps.setTimeout(resolve, FINISH_TIMEOUT_MS)
@@ -150,52 +234,40 @@ export class DictationSession {
         // Re-read: listeners moved the state on while this call awaited.
         const settled = this.current
         if (!live() || settled.phase !== 'finishing') return
-        const { transcript: result } = settled
-        if (!result.finished) {
-          await speech.cancelStream().catch(() => undefined)
-          const text = transcriptText(result)
-          return text
-            ? this.finish(text)
-            : this.fail({ kind: 'timeout' }, result)
+        const result = settled.transcript
+        const text = transcriptText(result)
+        if (result.finished && text) return this.finish(text)
+        const failure: DictationError =
+          this.streamError ??
+          (result.finished ? { kind: 'empty' } : { kind: 'timeout' })
+        const next = this.nextEngine(failure.kind)
+        if (!next) {
+          // Without a fallback, what was heard beats an error.
+          if (failure.kind === 'timeout' && text) return this.finish(text)
+          return this.fail(failure, text)
         }
-        return this.finish(transcriptText(result))
+        // The recorder already stopped; the whole dictation is in memory.
+        await speech.cancelStream().catch(() => undefined)
+        if (!live()) return
+        this.switchTo(next, failure.kind, result)
+        return this.transcribeFrom(next, text, live)
       }
       const { durationMs } = await speech.stopRecording()
       if (!live()) return
-      if (durationMs < MIN_BATCH_MS) {
-        await speech.cancelRecording().catch(() => undefined)
-        return this.fail({ kind: 'empty' })
-      }
-      const outcome =
-        engine.kind === 'soniox-async'
-          ? await transcribeSonioxAsync(engine, this.terms, {
-              speech,
-              live,
-              sleep: (ms) =>
-                new Promise((resolve) => this.deps.setTimeout(resolve, ms)),
-            })
-          : await this.transcribeOnce(engine)
-      if (!live()) return
-      return outcome.ok ? this.finish(outcome.text) : this.fail(outcome.error)
+      if (durationMs < MIN_BATCH_MS) return this.fail({ kind: 'empty' })
+      return this.transcribeFrom(engine, transcriptText(transcript), live)
     } catch (error) {
-      if (live()) this.fail(nativeError(error))
+      if (live()) this.fail(nativeError(error), transcriptText(transcript))
     }
-  }
-
-  private async transcribeOnce(engine: EngineConfig) {
-    const response = await this.deps.speech.transcribe(
-      buildTranscriptionRequest(engine, this.terms),
-    )
-    return parseTranscription(response.status, response.body)
   }
 
   /** Abandons the dictation; nothing is inserted. */
   async cancel(): Promise<void> {
-    const engine = this.engine
     this.generation++
     this.release()
+    const wasActive = this.state.phase !== 'idle'
     this.set({ phase: 'idle' })
-    if (engine) await this.stopNative(engine)
+    if (wasActive) await this.discardNative()
   }
 
   /** Clears a finished or failed dictation back to idle. */
@@ -208,11 +280,101 @@ export class DictationSession {
     void this.cancel()
   }
 
-  private listen(engine: EngineConfig) {
+  /** Batch engines from `engine` on, until one returns text. */
+  private async transcribeFrom(
+    first: EngineConfig,
+    partial: string,
+    live: () => boolean,
+  ) {
+    let engine = first
+    for (;;) {
+      let outcome: TranscriptionOutcome
+      try {
+        outcome = await this.transcribeOnce(engine, live)
+      } catch (error) {
+        outcome = { ok: false, error: nativeError(error) }
+      }
+      if (!live()) return
+      if (outcome.ok) return this.finish(outcome.text)
+      const next = this.nextEngine(outcome.error.kind)
+      if (!next) return this.fail(outcome.error, partial)
+      this.switchTo(next, outcome.error.kind)
+      engine = next
+    }
+  }
+
+  private transcribeOnce(engine: EngineConfig, live: () => boolean) {
+    const { speech } = this.deps
+    if (engine.kind === 'soniox-async')
+      return transcribeSonioxAsync(engine, this.terms, {
+        speech,
+        live,
+        sleep: (ms) =>
+          new Promise<void>((resolve) => this.deps.setTimeout(resolve, ms)),
+      })
+    return speech
+      .transcribe(buildTranscriptionRequest(engine, this.terms))
+      .then((response) => parseTranscription(response.status, response.body))
+  }
+
+  /** The next batch engine after the active one, if `kind` warrants one. */
+  private nextEngine(kind: DictationErrorKind): EngineConfig | undefined {
+    if (!isFallbackKind(kind) || !this.active) return undefined
+    const from = this.engines.indexOf(this.active)
+    return this.engines.slice(from + 1).find((engine) => !realtime(engine))
+  }
+
+  private switchTo(
+    next: EngineConfig,
+    reason: DictationErrorKind,
+    transcript?: SonioxTranscript,
+  ) {
+    // nextEngine only offers an engine for a fallback kind.
+    if (!isFallbackKind(reason)) return
+    const from = this.active!
+    this.active = next
+    this.fallback = { from, to: next, reason }
+    const state = this.state
+    if (state.phase === 'recording')
+      this.set({ ...state, engine: next, fallback: this.fallback })
+    else
+      this.set({
+        phase: 'finishing',
+        engine: next,
+        transcript:
+          transcript ??
+          (state.phase === 'finishing' ? state.transcript : EMPTY_TRANSCRIPT),
+        fallback: this.fallback,
+      })
+  }
+
+  /** The stream failed mid-dictation: carry on recording for a fallback. */
+  private streamFailed(error: DictationError) {
+    const state = this.state
+    if (state.phase === 'finishing') {
+      this.streamError = error
+      return this.settle?.()
+    }
+    if (state.phase !== 'recording') return
+    const next = this.nextEngine(error.kind)
+    if (!next) {
+      this.fail(error, transcriptText(state.transcript))
+      return
+    }
+    // Native keeps the recorder running into memory (a closed socket
+    // already handed it over; this covers an error message on an open one).
+    void this.deps.speech
+      .cancelStream({ keepAudio: true })
+      .catch(() => undefined)
+    this.switchTo(next, error.kind)
+  }
+
+  private listen() {
     this.release()
     const generation = this.generation
     const live = () => generation === this.generation
     const { speech } = this.deps
+    const streaming = () => Boolean(this.active && realtime(this.active))
     this.handles = [
       speech.addListener('level', ({ rms }) => {
         if (live() && this.state.phase === 'recording')
@@ -223,45 +385,49 @@ export class DictationSession {
         if (reason === 'limit') void this.stop()
         else this.fail({ kind: 'unknown', detail: 'microphone' })
       }),
-    ]
-    if (engine.kind !== 'soniox-rt') return
-    this.handles.push(
       speech.addListener('streamMessage', ({ data }) => {
-        if (!live()) return
+        if (!live() || !streaming()) return
         const state = this.state
         if (state.phase !== 'recording' && state.phase !== 'finishing') return
         const message = parseSonioxMessage(data)
-        if (message.type === 'error') {
-          void speech.cancelStream().catch(() => undefined)
-          return this.fail(message.error, state.transcript)
-        }
+        if (message.type === 'error') return this.streamFailed(message.error)
         const transcript = applySonioxTokens(state.transcript, message)
         this.set({ ...state, transcript })
         if (transcript.finished) this.settle?.()
       }),
       speech.addListener('streamClosed', ({ error }) => {
-        if (!live()) return
+        if (!live() || !streaming()) return
         const state = this.state
-        if (state.phase === 'finishing') return this.settle?.()
-        if (state.phase === 'recording')
-          this.fail(
-            error ? { kind: 'network', detail: error } : { kind: 'network' },
-            state.transcript,
-          )
+        if (state.phase === 'finishing' && !error) return this.settle?.()
+        this.streamFailed(
+          error ? { kind: 'network', detail: error } : { kind: 'network' },
+        )
       }),
-    )
+    ]
   }
 
   private finish(text: string) {
-    this.release()
     if (!text) return this.fail({ kind: 'empty' })
-    this.set({ phase: 'done', text })
+    this.release()
+    this.set({
+      phase: 'done',
+      engine: this.active!,
+      text,
+      fallback: this.fallback,
+    })
+    void this.discardNative()
   }
 
-  private fail(error: DictationError, transcript?: SonioxTranscript) {
+  private fail(error: DictationError, partial = '') {
     this.release()
-    const partial = transcript ? transcriptText(transcript) : ''
-    this.set({ phase: 'error', error, partial })
+    this.set({
+      phase: 'error',
+      engine: this.active,
+      error,
+      partial,
+      fallback: this.fallback,
+    })
+    void this.discardNative()
   }
 
   private release() {
@@ -276,13 +442,13 @@ export class DictationSession {
       void handle.then((h) => h.remove()).catch(() => undefined)
   }
 
-  private async stopNative(engine: EngineConfig) {
+  /** Closes any socket, stops any recorder and frees the in-memory audio. */
+  private async discardNative() {
     const { speech } = this.deps
-    const stop =
-      engine.kind === 'soniox-rt'
-        ? speech.cancelStream()
-        : speech.cancelRecording()
-    await stop.catch(() => undefined)
+    await Promise.all([
+      speech.cancelStream().catch(() => undefined),
+      speech.cancelRecording().catch(() => undefined),
+    ])
   }
 
   private set(state: DictationState) {

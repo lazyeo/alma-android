@@ -35,9 +35,14 @@ export interface SpeechPlugin {
 
   /** Batch: records 16 kHz mono s16le in memory (hard cap 5 min). */
   startRecording(): Promise<void>
+  /** Stops the batch recorder (or one a failed stream handed over). */
   stopRecording(): Promise<{ durationMs: number }>
+  /**
+   * Stops any recorder and discards the dictation's audio, batch or
+   * stream. Audio otherwise stays in memory so a fallback engine can use it.
+   */
   cancelRecording(): Promise<void>
-  /** Uploads the last recording as WAV with the bound key, then drops it. */
+  /** Uploads the current audio as WAV with the bound key; keeps the audio. */
   transcribe(spec: NativeHttpSpec): Promise<{ status: number; body: string }>
   /**
    * A JSON call to the bound host with the key (Soniox async's job, status,
@@ -48,7 +53,9 @@ export interface SpeechPlugin {
   /**
    * Real-time: opens the socket with the bound key, sends `config` (JSON,
    * without api_key; native adds it) as the first frame, then streams 100 ms
-   * PCM frames from the recorder. Resolves once the socket is open.
+   * PCM frames from the recorder, also keeping them in memory. Resolves once
+   * the socket is open. If the socket fails while recording, the recorder
+   * carries on as a batch recording (stopRecording ends it).
    */
   startStream(options: {
     engineId: string
@@ -57,8 +64,11 @@ export interface SpeechPlugin {
   }): Promise<void>
   /** Stops the recorder and sends the empty end-of-audio frame. */
   stopStream(): Promise<void>
-  /** Stops everything and closes the socket without waiting. */
-  cancelStream(): Promise<void>
+  /**
+   * Closes the socket without waiting. `keepAudio` keeps the mic recording
+   * into memory as a batch recording, for a fallback engine.
+   */
+  cancelStream(options?: { keepAudio?: boolean }): Promise<void>
 
   addListener(
     eventName: 'level',

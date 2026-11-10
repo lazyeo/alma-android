@@ -1,23 +1,32 @@
 import {
   AudioLines,
   ChevronRight,
+  GripVertical,
   KeyRound,
   ListChecks,
   Mic,
+  Send,
   Server,
   SlidersHorizontal,
   Trash2,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BottomSheet } from '../components/BottomSheet'
 import { OptionRow } from '../components/Composer'
 import { SettingsRow } from '../components/SettingsRow'
 import { haptic } from '../haptics'
 import { useT } from '../i18n'
 import {
+  engineEnabled,
+  engineReady,
   loadSpeechSettings,
+  moveEngine,
+  primaryEngineId,
   resolveEngine,
   saveSpeechSettings,
+  setEngineEnabled,
+  type DictationSurface,
+  type ReleaseAction,
   type SpeechSettings,
 } from '../speech/engineStore'
 import {
@@ -31,7 +40,15 @@ import { DEFAULT_TERMS, formatTerms, parseTerms } from '../speech/terms'
 import type { EngineConfig } from '../speech/types'
 import { useVoiceTest } from '../speech/VoiceTest'
 
-type Sheet = 'engine' | 'key' | 'model' | 'custom' | 'terms'
+/** Sheets that configure one engine carry which one. */
+type Sheet =
+  | { kind: 'engines' }
+  | { kind: 'engine' | 'key' | 'model' | 'custom'; id: string }
+  | { kind: 'terms' }
+  | { kind: 'release'; surface: DictationSurface }
+
+/** Unique key ids, so the shared Soniox key is asked for once. */
+const KEY_IDS = [...new Set(PRESETS.map(keyIdOf))]
 
 /** Settings → Voice input. Hidden where there is no native recorder. */
 export function VoiceSettings() {
@@ -44,25 +61,32 @@ function VoiceSettingsSection() {
   const [sheet, setSheet] = useState<Sheet>()
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [keyStatus, setKeyStatus] = useState<KeyStatus>()
+  /** Per key id; missing while loading. */
+  const [keys, setKeys] = useState<Record<string, KeyStatus>>({})
   const [mic, setMic] = useState<MicPermission>()
   const test = useVoiceTest()
   const engine = resolveEngine(settings)
-  // Both Soniox engines share a key, so they share this status too.
-  const keyId = keyIdOf(engine)
+  const target =
+    sheet && 'id' in sheet ? resolveEngine(settings, sheet.id) : engine
+  const keyOf = (candidate: EngineConfig) => keys[keyIdOf(candidate)]
+  const setKeyStatus = (candidate: EngineConfig, status: KeyStatus) =>
+    setKeys((current) => ({ ...current, [keyIdOf(candidate)]: status }))
   const engineName = (candidate: EngineConfig) =>
     candidate.custom ? t('speech.engine.custom') : candidate.label
 
   useEffect(() => {
     let current = true
-    setKeyStatus(undefined)
-    Speech.keyStatus({ engineId: keyId })
-      .then((status) => current && setKeyStatus(status))
-      .catch(() => current && setError(t('speech.settings.key.statusFailed')))
+    for (const keyId of KEY_IDS)
+      Speech.keyStatus({ engineId: keyId })
+        .then(
+          (status) =>
+            current && setKeys((known) => ({ ...known, [keyId]: status })),
+        )
+        .catch(() => current && setError(t('speech.settings.key.statusFailed')))
     return () => {
       current = false
     }
-  }, [keyId, t])
+  }, [t])
 
   useEffect(() => {
     let current = true
@@ -90,12 +114,74 @@ function VoiceSettingsSection() {
     setSheet(undefined)
     persist(next)
   }
+  const open = (next: Sheet) => {
+    void haptic('selection')
+    setNotice('')
+    setSheet(next)
+  }
   const chevron = <ChevronRight className="settings-chevron" size={16} />
   const value = (text: string) => (
     <span className="desktop-row-trailing">
       <span className="settings-value">{text}</span>
       {chevron}
     </span>
+  )
+  const keyTrailing = (status?: KeyStatus) => (
+    <span className="desktop-row-trailing">
+      {status ? (
+        <span className="voice-key-status">
+          <span className="settings-value">
+            {status.set
+              ? t('speech.settings.key.set')
+              : t('speech.settings.key.notSet')}
+          </span>
+          {status.set && status.last4 ? (
+            <span className="settings-value voice-key-last4">
+              {'••••'}
+              {status.last4}
+            </span>
+          ) : null}
+        </span>
+      ) : null}
+      {chevron}
+    </span>
+  )
+  const enabledChain = settings.order
+    .filter((id) => engineEnabled(settings, id))
+    .map((id) => engineName(resolveEngine(settings, id)))
+  const releaseLabel = (action: ReleaseAction) =>
+    t(`speech.settings.release.${action}`)
+  /** Rows that configure one engine: endpoint, key and model. */
+  const engineRows = (candidate: EngineConfig) => (
+    <>
+      {candidate.custom ? (
+        <SettingsRow
+          icon={<Server size={17} />}
+          title={t('speech.settings.custom.title')}
+          secondary={
+            candidate.baseUrl
+              ? hostOf(candidate.baseUrl)
+              : t('speech.settings.custom.notSet')
+          }
+          onClick={() => open({ kind: 'custom', id: candidate.id })}
+          trailing={chevron}
+        />
+      ) : null}
+      <SettingsRow
+        icon={<KeyRound size={17} />}
+        title={t('speech.settings.key.title')}
+        onClick={() => open({ kind: 'key', id: candidate.id })}
+        trailing={keyTrailing(keyOf(candidate))}
+      />
+      {!candidate.custom && candidate.models.length > 1 ? (
+        <SettingsRow
+          icon={<SlidersHorizontal size={17} />}
+          title={t('speech.settings.model')}
+          onClick={() => open({ kind: 'model', id: candidate.id })}
+          trailing={value(candidate.model)}
+        />
+      ) : null}
+    </>
   )
 
   return (
@@ -108,80 +194,29 @@ function VoiceSettingsSection() {
         <SettingsRow
           icon={<AudioLines size={17} />}
           title={t('speech.settings.engine')}
-          onClick={() => {
-            void haptic('selection')
-            setSheet('engine')
-          }}
-          trailing={value(engineName(engine))}
+          secondary={enabledChain.join(' → ')}
+          onClick={() => open({ kind: 'engines' })}
+          trailing={chevron}
         />
-        {engine.custom ? (
-          <SettingsRow
-            icon={<Server size={17} />}
-            title={t('speech.settings.custom.title')}
-            secondary={
-              engine.baseUrl
-                ? hostOf(engine.baseUrl)
-                : t('speech.settings.custom.notSet')
-            }
-            onClick={() => {
-              void haptic('selection')
-              setNotice('')
-              setSheet('custom')
-            }}
-            trailing={chevron}
-          />
-        ) : null}
-        <SettingsRow
-          icon={<KeyRound size={17} />}
-          title={t('speech.settings.key.title')}
-          onClick={() => {
-            void haptic('selection')
-            setSheet('key')
-          }}
-          trailing={
-            <span className="desktop-row-trailing">
-              {keyStatus ? (
-                <span className="voice-key-status">
-                  <span className="settings-value">
-                    {keyStatus.set
-                      ? t('speech.settings.key.set')
-                      : t('speech.settings.key.notSet')}
-                  </span>
-                  {keyStatus.set && keyStatus.last4 ? (
-                    <span className="settings-value voice-key-last4">
-                      {'••••'}
-                      {keyStatus.last4}
-                    </span>
-                  ) : null}
-                </span>
-              ) : null}
-              {chevron}
-            </span>
-          }
-        />
-        {!engine.custom && engine.models.length > 1 ? (
-          <SettingsRow
-            icon={<SlidersHorizontal size={17} />}
-            title={t('speech.settings.model')}
-            onClick={() => {
-              void haptic('selection')
-              setSheet('model')
-            }}
-            trailing={value(engine.model)}
-          />
-        ) : null}
+        {engineRows(engine)}
         <SettingsRow
           icon={<ListChecks size={17} />}
           title={t('speech.settings.terms.title')}
           secondary={t('speech.settings.terms.count', {
             count: settings.terms.length,
           })}
-          onClick={() => {
-            void haptic('selection')
-            setSheet('terms')
-          }}
+          onClick={() => open({ kind: 'terms' })}
           trailing={chevron}
         />
+        {(['alma', 'herdr'] as const).map((surface) => (
+          <SettingsRow
+            key={surface}
+            icon={<Send size={17} />}
+            title={t(`speech.settings.release.${surface}`)}
+            onClick={() => open({ kind: 'release', surface })}
+            trailing={value(releaseLabel(settings.release[surface]))}
+          />
+        ))}
         {mic && mic !== 'granted' ? (
           <SettingsRow
             icon={<Mic size={17} />}
@@ -206,42 +241,43 @@ function VoiceSettingsSection() {
       {error ? <p className="settings-error">{error}</p> : null}
       {notice ? <p className="settings-section-note">{notice}</p> : null}
 
-      {sheet === 'engine' ? (
+      {sheet?.kind === 'engines' ? (
+        <EngineOrderSheet
+          settings={settings}
+          keys={keys}
+          engineName={engineName}
+          onChange={persist}
+          onConfigure={(id) => open({ kind: 'engine', id })}
+          onClose={() => setSheet(undefined)}
+        />
+      ) : null}
+      {sheet?.kind === 'engine' ? (
         <BottomSheet
-          title={t('speech.settings.engine')}
+          title={engineName(target)}
+          onBack={() => setSheet({ kind: 'engines' })}
           onClose={() => setSheet(undefined)}
         >
-          <div className="sheet-list">
-            {PRESETS.map((preset) => {
-              const resolved = resolveEngine(settings, preset.id)
-              return (
-                <OptionRow
-                  key={preset.id}
-                  label={engineName(preset)}
-                  detail={resolved.model || undefined}
-                  selected={preset.id === engine.id}
-                  onClick={() => pick({ ...settings, engineId: preset.id })}
-                />
-              )
-            })}
-          </div>
+          <div className="settings-group">{engineRows(target)}</div>
         </BottomSheet>
       ) : null}
-      {sheet === 'model' ? (
+      {sheet?.kind === 'release' ? (
         <BottomSheet
-          title={t('speech.settings.model')}
+          title={t(`speech.settings.release.${sheet.surface}`)}
           onClose={() => setSheet(undefined)}
         >
+          <p className="settings-section-note voice-sheet-note">
+            {t('speech.settings.release.hint')}
+          </p>
           <div className="sheet-list">
-            {engine.models.map((model) => (
+            {(['send', 'insert'] as const).map((action) => (
               <OptionRow
-                key={model}
-                label={model}
-                selected={model === engine.model}
+                key={action}
+                label={releaseLabel(action)}
+                selected={settings.release[sheet.surface] === action}
                 onClick={() =>
                   pick({
                     ...settings,
-                    models: { ...settings.models, [engine.id]: model },
+                    release: { ...settings.release, [sheet.surface]: action },
                   })
                 }
               />
@@ -249,34 +285,57 @@ function VoiceSettingsSection() {
           </div>
         </BottomSheet>
       ) : null}
-      {sheet === 'key' ? (
-        <KeySheet
-          engine={engine}
-          engineName={engineName(engine)}
-          status={keyStatus}
+      {sheet?.kind === 'model' ? (
+        <BottomSheet
+          title={t('speech.settings.model')}
           onClose={() => setSheet(undefined)}
-          onStatus={setKeyStatus}
+        >
+          <div className="sheet-list">
+            {target.models.map((model) => (
+              <OptionRow
+                key={model}
+                label={model}
+                selected={model === target.model}
+                onClick={() =>
+                  pick({
+                    ...settings,
+                    models: { ...settings.models, [target.id]: model },
+                  })
+                }
+              />
+            ))}
+          </div>
+        </BottomSheet>
+      ) : null}
+      {sheet?.kind === 'key' ? (
+        <KeySheet
+          engine={target}
+          engineName={engineName(target)}
+          status={keyOf(target)}
+          onClose={() => setSheet(undefined)}
+          onStatus={(status) => setKeyStatus(target, status)}
         />
       ) : null}
-      {sheet === 'custom' ? (
+      {sheet?.kind === 'custom' ? (
         <CustomEndpointSheet
           settings={settings}
           onClose={() => setSheet(undefined)}
           onSave={async (custom) => {
+            const status = keyOf(target)
             const changed =
               custom.baseUrl !== settings.custom.baseUrl.trim() &&
               Boolean(settings.custom.baseUrl.trim())
             // A key is bound to the host it was saved for; a new host needs
             // the user to enter (and so re-bind) the key deliberately.
-            if (changed && keyStatus?.set !== false) {
+            if (changed && status?.set !== false) {
               try {
                 await Speech.deleteKey({ engineId: 'custom' })
               } catch {
                 return t('speech.settings.key.deleteFailed')
               }
-              setKeyStatus({ set: false })
+              setKeyStatus(target, { set: false })
               setNotice(
-                keyStatus?.set ? t('speech.settings.custom.keyCleared') : '',
+                status?.set ? t('speech.settings.custom.keyCleared') : '',
               )
             }
             if (!persist({ ...settings, custom }))
@@ -287,7 +346,7 @@ function VoiceSettingsSection() {
           }}
         />
       ) : null}
-      {sheet === 'terms' ? (
+      {sheet?.kind === 'terms' ? (
         <TermsSheet
           terms={settings.terms}
           onClose={() => setSheet(undefined)}
@@ -301,6 +360,174 @@ function VoiceSettingsSection() {
         />
       ) : null}
     </section>
+  )
+}
+
+function Switch({
+  checked,
+  disabled,
+  label,
+  onChange,
+}: {
+  checked: boolean
+  disabled?: boolean
+  label: string
+  onChange(checked: boolean): void
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-label={label}
+      aria-checked={checked}
+      disabled={disabled}
+      className="settings-switch"
+      onClick={() => onChange(!checked)}
+    >
+      <span />
+    </button>
+  )
+}
+
+/**
+ * The engine list: the first enabled engine is the primary, the enabled
+ * ones after it are tried in order when it fails. Reorder by dragging the
+ * handle, or with the arrow keys on it.
+ */
+function EngineOrderSheet({
+  settings,
+  keys,
+  engineName,
+  onChange,
+  onConfigure,
+  onClose,
+}: {
+  settings: SpeechSettings
+  keys: Record<string, KeyStatus>
+  engineName(engine: EngineConfig): string
+  onChange(settings: SpeechSettings): void
+  onConfigure(id: string): void
+  onClose(): void
+}) {
+  const t = useT()
+  const drag = useRef<{ id: string; lastY: number; rowHeight: number }>()
+  const [dragging, setDragging] = useState<string>()
+  const primary = primaryEngineId(settings)
+  const enabledIds = settings.order.filter((id) => engineEnabled(settings, id))
+  const move = (id: string, to: number) => {
+    if (to < 0 || to >= settings.order.length) return
+    void haptic('selection')
+    onChange(moveEngine(settings, id, to))
+  }
+  return (
+    <BottomSheet title={t('speech.settings.engines.title')} onClose={onClose}>
+      <p className="settings-section-note voice-sheet-note">
+        {t('speech.settings.engines.hint')}
+      </p>
+      <ol className="voice-engine-list">
+        {settings.order.map((id, index) => {
+          const engine = resolveEngine(settings, id)
+          const name = engineName(engine)
+          const enabled = engineEnabled(settings, id)
+          const status = keys[keyIdOf(engine)]
+          const role = !enabled
+            ? t('speech.settings.engines.off')
+            : id === primary
+              ? t('speech.settings.engines.primary')
+              : t('speech.settings.engines.fallback', {
+                  position: enabledIds.indexOf(id),
+                })
+          const problem = !engineReady(engine)
+            ? t('speech.settings.engines.notSetUp')
+            : status && !status.set
+              ? t('speech.settings.engines.noKey')
+              : ''
+          return (
+            <li
+              key={id}
+              className="voice-engine-row"
+              data-dragging={dragging === id}
+              data-enabled={enabled}
+            >
+              <button
+                type="button"
+                className="voice-engine-handle"
+                aria-label={t('speech.settings.engines.reorder', {
+                  engine: name,
+                })}
+                onKeyDown={(event) => {
+                  if (event.key === 'ArrowUp') {
+                    event.preventDefault()
+                    move(id, index - 1)
+                  } else if (event.key === 'ArrowDown') {
+                    event.preventDefault()
+                    move(id, index + 1)
+                  }
+                }}
+                onPointerDown={(event) => {
+                  const row = event.currentTarget.closest('li')
+                  drag.current = {
+                    id,
+                    lastY: event.clientY,
+                    rowHeight: row?.getBoundingClientRect().height || 56,
+                  }
+                  event.currentTarget.setPointerCapture?.(event.pointerId)
+                  setDragging(id)
+                }}
+                onPointerMove={(event) => {
+                  const current = drag.current
+                  if (!current || current.id !== id) return
+                  const rows = Math.trunc(
+                    (event.clientY - current.lastY) / current.rowHeight,
+                  )
+                  if (!rows) return
+                  const to = Math.max(
+                    0,
+                    Math.min(settings.order.length - 1, index + rows),
+                  )
+                  current.lastY += rows * current.rowHeight
+                  if (to !== index) move(id, to)
+                }}
+                onPointerUp={() => {
+                  drag.current = undefined
+                  setDragging(undefined)
+                }}
+                onPointerCancel={() => {
+                  drag.current = undefined
+                  setDragging(undefined)
+                }}
+              >
+                <GripVertical size={18} />
+              </button>
+              <button
+                type="button"
+                className="voice-engine-main"
+                onClick={() => onConfigure(id)}
+              >
+                <span className="voice-engine-name">{name}</span>
+                <small className="voice-engine-meta">
+                  <span>{role}</span>
+                  {engine.model ? <span>{engine.model}</span> : null}
+                  {problem ? (
+                    <span className="voice-engine-problem">{problem}</span>
+                  ) : null}
+                </small>
+              </button>
+              <Switch
+                checked={enabled}
+                // The last enabled engine stays on (setEngineEnabled).
+                disabled={enabled && enabledIds.length === 1}
+                label={t('speech.settings.engines.toggle', { engine: name })}
+                onChange={(on) => {
+                  void haptic('selection')
+                  onChange(setEngineEnabled(settings, id, on))
+                }}
+              />
+            </li>
+          )
+        })}
+      </ol>
+    </BottomSheet>
   )
 }
 
