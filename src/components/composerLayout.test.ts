@@ -14,8 +14,12 @@ const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
 describe('shared composer layout', () => {
   it('renders the attachment tray above the textarea and outside the toolbar', () => {
     expect(composerSource).toContain('{attachmentTray}')
+    // The text box (in voice mode, its entry row) renders after the tray.
     expect(composerSource.indexOf('{attachmentTray}')).toBeLessThan(
-      composerSource.indexOf('<div className="composer-input">'),
+      composerSource.indexOf('<div className="composer-entry">'),
+    )
+    expect(composerSource.indexOf('{attachmentTray}')).toBeLessThan(
+      composerSource.indexOf('input(false)'),
     )
     expect(startSource).toContain('attachmentTray=')
   })

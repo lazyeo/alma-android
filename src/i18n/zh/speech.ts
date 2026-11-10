@@ -2,24 +2,15 @@ import type { CatalogShape } from '../core'
 import type { speech as source } from '../en/speech'
 
 export const speech: CatalogShape<typeof source> = {
-  mic: '语音输入',
   engine: {
     custom: '自定义接口',
   },
   sheet: {
     title: '语音输入',
     starting: '正在准备…',
-    speakNow: '请开始说话',
-    listening: '正在听',
     transcribing: '正在识别…',
-    finishing: '正在收尾…',
-    elapsed: '录音时长',
-    level: '输入音量',
-    stop: '停止',
     openSettings: '打开语音设置',
     insertHeard: '插入已识别的内容',
-    send: '发送',
-    edit: '编辑',
     fallback: {
       network: '{from} 连接失败，已改用 {to}',
       auth: '{from} 鉴权失败，已改用 {to}',
@@ -30,13 +21,22 @@ export const speech: CatalogShape<typeof source> = {
       needs_key: '{from} 未设置 key，已改用 {to}',
     },
   },
+  toggle: {
+    voice: '切换到语音输入',
+    keyboard: '切换到键盘',
+  },
   hold: {
-    send: '松手发送',
-    insert: '松手放进输入框',
-    cancel: '上滑取消',
-    edit: '左滑编辑',
+    bar: '按住 说话',
+    send: '松手 发送',
+    insert: '松手 填入',
+    cancel: '松手 取消',
+    edit: '松手 编辑',
+    cancelZone: '取消',
+    editZone: '滑到这里 转文字',
+    editHint: '松手后转成文字，放进输入框',
   },
   notice: {
+    tooShort: '说话时间太短',
     short: '内容太短，没有发送，已放进输入框。',
     draft: '已追加到输入框里已有的文字之后，确认后再发送。',
   },

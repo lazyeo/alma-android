@@ -44,8 +44,11 @@ type ComposerProps = {
   expanded?: boolean
   inputBackdrop?: ReactNode
   trailing?: ReactNode
-  /** Dictation control, placed right before the send button. */
-  voiceInput?: ReactNode
+  /**
+   * Voice mode: a switch left of the input and, in voice mode, the
+   * hold-to-talk bar shown in place of the text box.
+   */
+  voice?: { toggle: ReactNode; bar: ReactNode | null }
   textareaRef?: React.RefObject<HTMLTextAreaElement>
   onTextareaKeyDown?(event: KeyboardEvent<HTMLTextAreaElement>): boolean | void
   textareaProps?: React.TextareaHTMLAttributes<HTMLTextAreaElement>
@@ -77,7 +80,7 @@ export function Composer({
   expanded = false,
   inputBackdrop,
   trailing,
-  voiceInput,
+  voice,
   textareaRef,
   onTextareaKeyDown,
   textareaProps,
@@ -87,39 +90,53 @@ export function Composer({
   const selected = models.find((candidate) => candidate.id === model)
   const groups = useMemo(() => groupModelsByProvider(models), [models])
   const project = projects.find((candidate) => candidate.id === projectId)
+  // Hidden rather than unmounted in voice mode, so its ref, caret and
+  // draft survive the switch.
+  const input = (hidden: boolean) => (
+    <div className="composer-input" hidden={hidden}>
+      {inputBackdrop}
+      <textarea
+        {...textareaProps}
+        ref={textareaRef}
+        rows={1}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) =>
+          onChange(
+            event.target.value,
+            event.target,
+            (event.nativeEvent as InputEvent).isComposing,
+          )
+        }
+        onKeyDown={(event) => {
+          if (onTextareaKeyDown?.(event) === true) return
+          if (
+            event.key === 'Enter' &&
+            !event.nativeEvent.isComposing &&
+            (event.metaKey || event.ctrlKey)
+          ) {
+            event.preventDefault()
+            onSend()
+          }
+        }}
+      />
+    </div>
+  )
   return (
     <>
       <div className={`composer${expanded ? ' expanded' : ''}`}>
         {leading}
         {attachmentTray}
-        <div className="composer-input">
-          {inputBackdrop}
-          <textarea
-            {...textareaProps}
-            ref={textareaRef}
-            rows={1}
-            value={value}
-            placeholder={placeholder}
-            onChange={(event) =>
-              onChange(
-                event.target.value,
-                event.target,
-                (event.nativeEvent as InputEvent).isComposing,
-              )
-            }
-            onKeyDown={(event) => {
-              if (onTextareaKeyDown?.(event) === true) return
-              if (
-                event.key === 'Enter' &&
-                !event.nativeEvent.isComposing &&
-                (event.metaKey || event.ctrlKey)
-              ) {
-                event.preventDefault()
-                onSend()
-              }
-            }}
-          />
-        </div>
+        {voice ? (
+          // One wrapper in every mode, so the textarea is never remounted.
+          <div className="composer-entry">
+            {expanded ? null : voice.toggle}
+            {expanded ? null : voice.bar}
+            {input(!expanded && Boolean(voice.bar))}
+          </div>
+        ) : (
+          input(false)
+        )}
         {trailing}
         <div className="composer-controls">
           {attachmentControl}
@@ -171,7 +188,6 @@ export function Composer({
             ) : null}
           </div>
           <span className="composer-spacer" />
-          {voiceInput}
           <button
             className={`send${generating ? ' queue-send' : ''}`}
             aria-label={

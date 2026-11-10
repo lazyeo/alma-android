@@ -194,6 +194,16 @@ export function mapBase46ToCSS(theme: Base46Theme): Record<string, string> {
     tokens[`--${alias}`] = tokens[`--${step}`]
   tokens['--chart-2'] = p.purple
   tokens['--overlay-backdrop'] = '#00000066'
+  // The hold-to-talk overlay dims the screen to near-black in every theme,
+  // so its surfaces are fixed light-on-dark tones, not theme grays. They
+  // are opaque so the composer under the arc does not show through.
+  tokens['--voice-scrim'] = '#000000c7'
+  tokens['--voice-surface'] = '#2c2c31'
+  tokens['--voice-arc-active'] = '#5b5b62'
+  tokens['--voice-surface-active'] = '#f2f2f2'
+  tokens['--voice-on-surface'] = '#ffffffeb'
+  tokens['--voice-on-active'] = '#1c1c1c'
+  tokens['--voice-muted'] = '#ffffff99'
   tokens['--shadow-popover'] =
     theme.type === 'dark' ? 'none' : '0 8px 24px #00000026'
   tokens['--shadow-sheet'] =

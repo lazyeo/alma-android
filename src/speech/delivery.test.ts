@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  CANCEL_SLIDE_PX,
-  decideDelivery,
-  EDIT_SLIDE_PX,
-  holdZone,
-} from './delivery'
+import { decideDelivery, MIN_HOLD_MS, releaseOutcome } from './delivery'
 
 describe('decideDelivery', () => {
   it('sends a real result into an empty composer', () => {
@@ -45,14 +40,20 @@ describe('decideDelivery', () => {
   })
 })
 
-describe('holdZone', () => {
-  it('maps the slide to release, cancel or edit', () => {
-    expect(holdZone(0, 0)).toBe('release')
-    expect(holdZone(-20, -CANCEL_SLIDE_PX + 1)).toBe('release')
-    expect(holdZone(0, -CANCEL_SLIDE_PX)).toBe('cancel')
-    expect(holdZone(-EDIT_SLIDE_PX, 0)).toBe('edit')
-    expect(holdZone(-EDIT_SLIDE_PX - 40, -CANCEL_SLIDE_PX)).toBe('edit')
-    expect(holdZone(-EDIT_SLIDE_PX, -CANCEL_SLIDE_PX - 40)).toBe('cancel')
-    expect(holdZone(200, 200)).toBe('release')
+describe('releaseOutcome', () => {
+  it('cancels in the cancel capsule, however long the hold', () => {
+    expect(releaseOutcome('cancel', 10, 'send')).toBe('cancel')
+    expect(releaseOutcome('cancel', 60_000, 'send')).toBe('cancel')
+  })
+
+  it('drops a hold too short to be speech', () => {
+    expect(releaseOutcome('release', MIN_HOLD_MS - 1, 'send')).toBe('too_short')
+    expect(releaseOutcome('edit', MIN_HOLD_MS - 1, 'send')).toBe('too_short')
+  })
+
+  it('inserts from the edit capsule and follows the setting elsewhere', () => {
+    expect(releaseOutcome('edit', MIN_HOLD_MS, 'send')).toBe('insert')
+    expect(releaseOutcome('release', MIN_HOLD_MS, 'send')).toBe('send')
+    expect(releaseOutcome('release', MIN_HOLD_MS, 'insert')).toBe('insert')
   })
 })

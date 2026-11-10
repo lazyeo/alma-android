@@ -38,3 +38,23 @@ export function insertDictation(
 function clamp(index: number, length: number) {
   return Number.isFinite(index) ? Math.max(0, Math.min(index, length)) : length
 }
+
+/**
+ * Where dictated text lands in a composer: at its caret, replacing any
+ * selection, or after everything already typed.
+ */
+export function dictationInsertion(
+  area: HTMLTextAreaElement | null,
+  value: string,
+  text: string,
+  at: 'caret' | 'end' = 'caret',
+): Insertion {
+  if (at === 'end')
+    return insertDictation(value, value.length, value.length, text)
+  return insertDictation(
+    value,
+    area?.selectionStart ?? value.length,
+    area?.selectionEnd ?? value.length,
+    text,
+  )
+}

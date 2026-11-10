@@ -1,6 +1,8 @@
 // What happens to a finished dictation: sent through the composer's own
 // send path, or put into the composer. Pure, so the guards are testable.
 
+import type { HoldZone } from './holdLayout'
+
 export type DictationAction = 'send' | 'insert'
 
 /** Fewer characters than this (ignoring spaces) is too little to send. */
@@ -40,17 +42,22 @@ export function decideDelivery(
   return { kind: 'send', text: spoken }
 }
 
-export type HoldZone = 'release' | 'cancel' | 'edit'
+/** A hold shorter than this was a tap or a slip, not speech. */
+export const MIN_HOLD_MS = 1000
 
-/** Slide this far up to cancel, or this far left to edit instead. */
-export const CANCEL_SLIDE_PX = 80
-export const EDIT_SLIDE_PX = 80
+export type ReleaseOutcome = DictationAction | 'cancel' | 'too_short'
 
-/** Where a held finger is, from its movement since the press. */
-export function holdZone(dx: number, dy: number): HoldZone {
-  const up = -dy
-  const left = -dx
-  if (up >= CANCEL_SLIDE_PX && up >= left) return 'cancel'
-  if (left >= EDIT_SLIDE_PX) return 'edit'
-  return 'release'
+/**
+ * What letting go of a hold does: the cancel capsule abandons it, a hold
+ * too short to be speech is dropped, the edit capsule always inserts, and
+ * anywhere else follows the composer's "after release" setting.
+ */
+export function releaseOutcome(
+  zone: HoldZone,
+  heldMs: number,
+  release: DictationAction,
+): ReleaseOutcome {
+  if (zone === 'cancel') return 'cancel'
+  if (heldMs < MIN_HOLD_MS) return 'too_short'
+  return zone === 'edit' ? 'insert' : release
 }

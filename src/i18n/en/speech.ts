@@ -1,23 +1,14 @@
 // Voice input: the composer mic, the dictation sheet and Settings → Voice input.
 export const speech = {
-  mic: 'Voice input',
   engine: {
     custom: 'Custom endpoint',
   },
   sheet: {
     title: 'Voice input',
     starting: 'Getting ready…',
-    speakNow: 'Start speaking',
-    listening: 'Listening',
     transcribing: 'Transcribing…',
-    finishing: 'Finishing…',
-    elapsed: 'Recording time',
-    level: 'Input level',
-    stop: 'Stop',
     openSettings: 'Open voice settings',
     insertHeard: 'Insert what was heard',
-    send: 'Send',
-    edit: 'Edit',
     fallback: {
       network: '{from} couldn’t connect, now using {to}',
       auth: '{from} rejected the key, now using {to}',
@@ -28,13 +19,22 @@ export const speech = {
       needs_key: '{from} has no key set, now using {to}',
     },
   },
+  toggle: {
+    voice: 'Switch to voice input',
+    keyboard: 'Switch to keyboard',
+  },
   hold: {
+    bar: 'Hold to talk',
     send: 'Release to send',
-    insert: 'Release to put it in the input box',
-    cancel: 'Slide up to cancel',
-    edit: 'Slide left to edit',
+    insert: 'Release to fill in',
+    cancel: 'Release to cancel',
+    edit: 'Release to edit',
+    cancelZone: 'Cancel',
+    editZone: 'Slide here to edit',
+    editHint: 'Release and the text goes into the input box',
   },
   notice: {
+    tooShort: 'Too short. Hold while you speak.',
     short: 'Too short to send, so it went into the input box.',
     draft: 'Added after what you had typed. Send it when ready.',
   },

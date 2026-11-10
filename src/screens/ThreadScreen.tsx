@@ -214,7 +214,8 @@ import {
 } from './references'
 import { RefPicker } from './RefPicker'
 import { useComposerReferences } from './useComposerReferences'
-import { dictationInsertion, MicButton } from '../speech/MicButton'
+import { dictationInsertion } from '../speech/insertText'
+import { useVoiceInput } from '../speech/VoiceInput'
 import { useAfterNextRender } from '../speech/useAfterNextRender'
 import {
   RefCardSheet,
@@ -1944,6 +1945,16 @@ function ThreadView({
       setOverflowing((textareaRef.current?.scrollHeight ?? 0) > 130),
     )
   }
+  const voice = useVoiceInput({
+    surface: 'alma',
+    draft: () => composerStateRef.current.text,
+    onInsert: insertDictated,
+    onSend: (spoken) => {
+      changeComposerText(spoken, spoken.length, false)
+      afterRender(() => void sendRef.current())
+    },
+    textareaRef,
+  })
 
   async function uploadForSend(current: ComposerAttachment[]) {
     setUploading(true)
@@ -2488,17 +2499,7 @@ function ThreadView({
         disabled={uploading || (!text.trim() && !attachments.length)}
         generating={generating}
         textareaRef={textareaRef}
-        voiceInput={
-          <MicButton
-            surface="alma"
-            draft={() => composerStateRef.current.text}
-            onInsert={insertDictated}
-            onSend={(spoken) => {
-              changeComposerText(spoken, spoken.length, false)
-              afterRender(() => void sendRef.current())
-            }}
-          />
-        }
+        voice={voice}
         inputBackdrop={
           references.length ? (
             <div

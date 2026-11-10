@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BottomSheet } from '../components/BottomSheet'
 import { useT } from '../i18n'
-import type { DictationAction, HoldZone } from './delivery'
 import type { DictationState } from './dictationSession'
 import type { DictationErrorKind, EngineConfig } from './types'
 
@@ -27,15 +25,15 @@ export function dictationErrorText(
   return t(`speech.errors.${kind}`)
 }
 
+/**
+ * Why a dictation could not finish, and what to do about it. Recording
+ * itself happens in the hold overlay; this sheet only opens on failure.
+ */
 export function DictationSheet({
   state,
   engine: primary,
   setupNeeded,
-  hold,
-  canSend,
-  onFinish,
-  onCancel,
-  onRetry,
+  onClose,
   onInsert,
 }: {
   state: DictationState
@@ -43,99 +41,49 @@ export function DictationSheet({
   engine: EngineConfig
   /** No enabled engine can run (e.g. only an unconfigured Custom). */
   setupNeeded?: boolean
-  /** Set while the mic is held: the footer shows where letting go leads. */
-  hold?: { zone: HoldZone; release: DictationAction }
-  /** The composer can send; otherwise only Edit (insert) is offered. */
-  canSend: boolean
-  /** Stops recording and sends or inserts the result. */
-  onFinish(action: DictationAction): void
-  /** Abandons the dictation and closes the sheet; nothing is inserted. */
-  onCancel(): void
-  onRetry(): void
+  onClose(): void
   /** Inserts recognised text the user chose to keep, then closes. */
   onInsert(text: string): void
 }) {
   const t = useT()
   const navigate = useNavigate()
   const openSettings = () => {
-    onCancel()
+    onClose()
     navigate('/settings')
   }
   const engine = ('engine' in state && state.engine) || primary
   const label = (item: EngineConfig) =>
     item.custom ? t('speech.engine.custom') : item.label
   const engineLabel = label(engine)
-  const realtime = engine.kind === 'soniox-rt'
   const fallback = 'fallback' in state ? state.fallback : undefined
   const error = setupNeeded
     ? { kind: 'setup' as const, detail: undefined, partial: '' }
     : state.phase === 'error'
       ? { ...state.error, partial: state.partial }
       : undefined
-
-  const footer = error ? (
-    <div className="dictation-actions">
-      <button className="secondary" onClick={onCancel}>
-        {t('common.cancel')}
-      </button>
-      {error.kind === 'setup' || SETTINGS_FIRST.has(error.kind) ? (
-        <button className="primary" onClick={openSettings}>
-          {t('speech.sheet.openSettings')}
-        </button>
-      ) : (
-        <button className="primary" onClick={onRetry}>
-          {t('common.tryAgain')}
-        </button>
-      )}
-    </div>
-  ) : hold ? (
-    <div className="dictation-hold" aria-live="polite">
-      {(['cancel', 'edit', 'release'] as const).map((zone) => (
-        <span
-          key={zone}
-          className="dictation-hold-zone"
-          data-zone={zone}
-          data-active={hold.zone === zone}
-        >
-          {zone === 'release'
-            ? t(`speech.hold.${hold.release}`)
-            : t(`speech.hold.${zone}`)}
-        </span>
-      ))}
-    </div>
-  ) : (
-    <div className="dictation-actions">
-      <button className="secondary" onClick={onCancel}>
-        {t('common.cancel')}
-      </button>
-      <button
-        className={canSend ? 'secondary' : 'primary'}
-        disabled={state.phase !== 'recording'}
-        onClick={() => onFinish('insert')}
-      >
-        {t('speech.sheet.edit')}
-      </button>
-      {canSend ? (
-        <button
-          className="primary"
-          disabled={state.phase !== 'recording'}
-          onClick={() => onFinish('send')}
-        >
-          {t('speech.sheet.send')}
-        </button>
-      ) : null}
-    </div>
-  )
+  if (!error) return null
+  const settingsFirst = error.kind === 'setup' || SETTINGS_FIRST.has(error.kind)
 
   return (
     <BottomSheet
       title={t('speech.sheet.title')}
       className="dictation-sheet"
-      onClose={onCancel}
-      // Cancel as the exit starts, so a result that lands during the
-      // exit animation is dropped instead of inserted.
-      onCloseStart={onCancel}
-      footer={footer}
+      onClose={onClose}
+      footer={
+        <div className="dictation-actions">
+          <button
+            className={settingsFirst ? 'secondary' : 'primary'}
+            onClick={onClose}
+          >
+            {t('common.close')}
+          </button>
+          {settingsFirst ? (
+            <button className="primary" onClick={openSettings}>
+              {t('speech.sheet.openSettings')}
+            </button>
+          ) : null}
+        </div>
+      }
     >
       <div className="dictation-engine">
         <span className="dictation-engine-label">{engineLabel}</span>
@@ -151,120 +99,25 @@ export function DictationSheet({
           })}
         </p>
       ) : null}
-      {error ? (
-        <div className="dictation-error" role="alert">
-          <p>{dictationErrorText(t, error.kind, engineLabel)}</p>
-          {error.detail ? (
-            <small className="dictation-error-detail">{error.detail}</small>
-          ) : null}
-          {error.kind !== 'setup' && SETTINGS_TOO.has(error.kind) ? (
-            <button className="quiet-text-button" onClick={openSettings}>
-              {t('speech.sheet.openSettings')}
-            </button>
-          ) : null}
-          {error.partial ? (
-            <button
-              className="quiet-text-button"
-              onClick={() => onInsert(error.partial)}
-            >
-              {t('speech.sheet.insertHeard')}
-            </button>
-          ) : null}
-        </div>
-      ) : (
-        <Progress state={state} realtime={realtime} />
-      )}
-    </BottomSheet>
-  )
-}
-
-function Progress({
-  state,
-  realtime,
-}: {
-  state: DictationState
-  realtime: boolean
-}) {
-  const t = useT()
-  const recording = state.phase === 'recording'
-  const transcript =
-    state.phase === 'recording' || state.phase === 'finishing'
-      ? state.transcript
-      : undefined
-  const status =
-    state.phase === 'recording'
-      ? realtime
-        ? undefined
-        : t('speech.sheet.listening')
-      : state.phase === 'finishing'
-        ? realtime
-          ? t('speech.sheet.finishing')
-          : t('speech.sheet.transcribing')
-        : t('speech.sheet.starting')
-  const showPreview = realtime && transcript
-  const empty = !transcript?.final && !transcript?.tail
-  return (
-    <div className="dictation-progress">
-      <div className="dictation-meter-row">
-        <LevelMeter level={recording ? state.level : 0} />
-        <Elapsed startedAt={recording ? state.startedAt : undefined} />
+      <div className="dictation-error" role="alert">
+        <p>{dictationErrorText(t, error.kind, engineLabel)}</p>
+        {error.detail ? (
+          <small className="dictation-error-detail">{error.detail}</small>
+        ) : null}
+        {!settingsFirst && SETTINGS_TOO.has(error.kind) ? (
+          <button className="quiet-text-button" onClick={openSettings}>
+            {t('speech.sheet.openSettings')}
+          </button>
+        ) : null}
+        {error.partial ? (
+          <button
+            className="quiet-text-button"
+            onClick={() => onInsert(error.partial)}
+          >
+            {t('speech.sheet.insertHeard')}
+          </button>
+        ) : null}
       </div>
-      {showPreview && !empty ? (
-        <p className="dictation-preview" aria-live="polite">
-          <span className="dictation-final">{transcript.final}</span>
-          {transcript.tail ? (
-            <span className="dictation-tail" data-final="false">
-              {transcript.tail}
-            </span>
-          ) : null}
-        </p>
-      ) : (
-        <p className="dictation-status" aria-live="polite">
-          {status ?? t('speech.sheet.speakNow')}
-        </p>
-      )}
-      {showPreview && !empty && status ? (
-        <p className="dictation-status">{status}</p>
-      ) : null}
-    </div>
-  )
-}
-
-function LevelMeter({ level }: { level: number }) {
-  const t = useT()
-  // RMS of speech sits well below 1; the square root spreads it over the bar.
-  const fill = Math.sqrt(Math.max(0, Math.min(1, level || 0)))
-  return (
-    <div
-      className="dictation-level"
-      role="meter"
-      aria-label={t('speech.sheet.level')}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={Math.round(fill * 100)}
-    >
-      <span style={{ transform: `scaleX(${fill})` }} />
-    </div>
-  )
-}
-
-function Elapsed({ startedAt }: { startedAt?: number }) {
-  const t = useT()
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    if (startedAt === undefined) return
-    setNow(Date.now())
-    const timer = window.setInterval(() => setNow(Date.now()), 500)
-    return () => window.clearInterval(timer)
-  }, [startedAt])
-  const seconds =
-    startedAt === undefined
-      ? 0
-      : Math.max(0, Math.floor((now - startedAt) / 1000))
-  const text = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
-  return (
-    <span className="dictation-elapsed" aria-label={t('speech.sheet.elapsed')}>
-      {text}
-    </span>
+    </BottomSheet>
   )
 }
