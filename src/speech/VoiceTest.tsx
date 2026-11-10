@@ -4,7 +4,7 @@ import { SettingsRow } from '../components/SettingsRow'
 import { haptic } from '../haptics'
 import { useT } from '../i18n'
 import { dictationErrorText } from './DictationSheet'
-import { engineReady, loadSpeechSettings, resolveEngine } from './engineStore'
+import { engineChain, loadSpeechSettings } from './engineStore'
 import { transcriptText } from './soniox'
 import { useDictation } from './useDictation'
 
@@ -34,7 +34,7 @@ export function useVoiceTest(): { row: ReactNode; output: ReactNode } {
     void haptic('light')
     if (recording) return stop()
     reset()
-    const ready = engineReady(resolveEngine(loadSpeechSettings()))
+    const ready = engineChain(loadSpeechSettings()).length > 0
     setSetupNeeded(!ready)
     if (ready) start()
   }

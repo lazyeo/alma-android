@@ -16,6 +16,7 @@ import { haptic } from '../haptics'
 import { useT } from '../i18n'
 import {
   loadSpeechSettings,
+  moveEngine,
   resolveEngine,
   saveSpeechSettings,
   type SpeechSettings,
@@ -220,7 +221,7 @@ function VoiceSettingsSection() {
                   label={engineName(preset)}
                   detail={resolved.model || undefined}
                   selected={preset.id === engine.id}
-                  onClick={() => pick({ ...settings, engineId: preset.id })}
+                  onClick={() => pick(moveEngine(settings, preset.id, 0))}
                 />
               )
             })}

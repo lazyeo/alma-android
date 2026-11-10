@@ -9,7 +9,11 @@ import {
 } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { saveSpeechSettings, defaultSpeechSettings } from './engineStore'
+import {
+  defaultSpeechSettings,
+  saveSpeechSettings,
+  setEngineEnabled,
+} from './engineStore'
 import { HOLD_MS, MicButton } from './MicButton'
 
 type Listener = (event: unknown) => void
@@ -21,7 +25,9 @@ const fake = vi.hoisted(() => {
     checkMicPermission: vi.fn(async () => ({ mic: 'granted' as string })),
     requestMicPermission: vi.fn(async () => ({ mic: 'granted' as string })),
     setKey: vi.fn(ok),
-    keyStatus: vi.fn(async () => ({ set: true, last4: 'abcd' }) as object),
+    keyStatus: vi.fn(
+      async (_options?: object) => ({ set: true, last4: 'abcd' }) as object,
+    ),
     deleteKey: vi.fn(ok),
     startRecording: vi.fn(ok),
     stopRecording: vi.fn(async () => ({ durationMs: 2000 })),
@@ -226,6 +232,11 @@ describe('MicButton', () => {
   })
 
   it('offers what was heard when the stream fails', async () => {
+    // Only Soniox real-time is on, so there is nothing to fall back to.
+    let settings = defaultSpeechSettings()
+    for (const id of settings.order)
+      if (id !== 'soniox-rt') settings = setEngineEnabled(settings, id, false)
+    saveSpeechSettings(settings)
     const onText = renderMic()
     await openRecording()
     act(() =>
@@ -250,7 +261,11 @@ describe('MicButton', () => {
   })
 
   it('asks for setup before using an incomplete custom endpoint', async () => {
-    saveSpeechSettings({ ...defaultSpeechSettings(), engineId: 'custom' })
+    // Only an unconfigured Custom endpoint left on: nothing can run.
+    let settings = defaultSpeechSettings()
+    for (const id of settings.order)
+      if (id !== 'custom') settings = setEngineEnabled(settings, id, false)
+    saveSpeechSettings(settings)
     renderMic()
     fireEvent.click(screen.getByRole('button', { name: 'Voice input' }))
     expect(

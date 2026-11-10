@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { haptic } from '../haptics'
 import { useT } from '../i18n'
 import { DictationSheet } from './DictationSheet'
-import { engineReady, loadSpeechSettings, resolveEngine } from './engineStore'
+import { engineChain, loadSpeechSettings, resolveEngine } from './engineStore'
 import { insertDictation, type Insertion } from './insertText'
 import { speechAvailable } from './nativeSpeech'
 import { useDictation } from './useDictation'
@@ -61,9 +61,10 @@ function DictationButton({ onText, disabled, className }: MicButtonProps) {
   const begin = () => {
     stopWhenRecording.current = false
     // Custom has nothing to call until Settings has a base URL and model.
-    const next = resolveEngine(loadSpeechSettings())
-    const ready = engineReady(next)
-    setEngine(next)
+    const settings = loadSpeechSettings()
+    const chain = engineChain(settings)
+    const ready = chain.length > 0
+    setEngine(chain[0] ?? resolveEngine(settings))
     setSetupNeeded(!ready)
     setOpen(true)
     if (ready) start()

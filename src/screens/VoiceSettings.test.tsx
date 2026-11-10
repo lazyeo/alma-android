@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   defaultSpeechSettings,
   loadSpeechSettings,
+  moveEngine,
   saveSpeechSettings,
 } from '../speech/engineStore'
 import { TEST_RECORD_MS } from '../speech/VoiceTest'
@@ -86,6 +87,9 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+/** Default settings with `id` as the primary engine. */
+const first = (id: string) => moveEngine(defaultSpeechSettings(), id, 0)
+
 const row = (name: RegExp) => screen.getByRole('button', { name })
 
 describe('VoiceSettings', () => {
@@ -136,12 +140,16 @@ describe('VoiceSettings', () => {
         : { set: false },
     )
     for (const engineId of ['soniox-rt', 'soniox-async']) {
-      saveSpeechSettings({ ...defaultSpeechSettings(), engineId })
+      saveSpeechSettings({
+        ...first(engineId),
+      })
       render(<VoiceSettings />)
       expect(await screen.findByText('••••abcd')).toBeTruthy()
       cleanup()
     }
-    saveSpeechSettings({ ...defaultSpeechSettings(), engineId: 'openai' })
+    saveSpeechSettings({
+      ...first('openai'),
+    })
     render(<VoiceSettings />)
     expect(await screen.findByText('Not set')).toBeTruthy()
     expect(
@@ -155,7 +163,9 @@ describe('VoiceSettings', () => {
 
   it('names both Soniox hosts and deletes the shared key once', async () => {
     fake.speech.keyStatus.mockImplementation(async () => ({ set: true }))
-    saveSpeechSettings({ ...defaultSpeechSettings(), engineId: 'soniox-async' })
+    saveSpeechSettings({
+      ...first('soniox-async'),
+    })
     render(<VoiceSettings />)
     await screen.findByText('Set')
     fireEvent.click(row(/^API key/))
@@ -185,8 +195,7 @@ describe('VoiceSettings', () => {
 
   it('clears the custom key when the base URL changes', async () => {
     saveSpeechSettings({
-      ...defaultSpeechSettings(),
-      engineId: 'custom',
+      ...first('custom'),
       custom: { baseUrl: 'https://old.example.com/v1', model: 'whisper-1' },
     })
     fake.speech.keyStatus.mockImplementation(async () => ({
@@ -216,7 +225,9 @@ describe('VoiceSettings', () => {
   })
 
   it('rejects a plain http base URL on the public internet', async () => {
-    saveSpeechSettings({ ...defaultSpeechSettings(), engineId: 'custom' })
+    saveSpeechSettings({
+      ...first('custom'),
+    })
     render(<VoiceSettings />)
     fireEvent.click(row(/^Custom endpoint/))
     fireEvent.change(await screen.findByLabelText('Base URL'), {
@@ -295,7 +306,9 @@ describe('VoiceSettings', () => {
   })
 
   it('Test explains a missing key without recording', async () => {
-    saveSpeechSettings({ ...defaultSpeechSettings(), engineId: 'openai' })
+    saveSpeechSettings({
+      ...first('openai'),
+    })
     render(<VoiceSettings />)
     fireEvent.click(row(/^Test/))
     expect(
