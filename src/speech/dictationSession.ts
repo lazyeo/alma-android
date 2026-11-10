@@ -27,19 +27,24 @@ export const MIN_BATCH_MS = 300
  * missing key, the mic, the user cancelling) would fail the same way or
  * are not failures of the engine at all.
  */
-export const FALLBACK_KINDS: ReadonlySet<DictationErrorKind> = new Set([
+export const FALLBACK_KINDS = [
   'network',
   'auth',
   'timeout',
   'server',
   'empty',
-])
+] as const
+export type FallbackKind = (typeof FALLBACK_KINDS)[number]
+
+function isFallbackKind(kind: DictationErrorKind): kind is FallbackKind {
+  return (FALLBACK_KINDS as readonly string[]).includes(kind)
+}
 
 /** The last engine switch, for the sheet's "X failed, now using Y" line. */
 export interface FallbackNote {
   from: EngineConfig
   to: EngineConfig
-  reason: DictationErrorKind
+  reason: FallbackKind
 }
 
 export type DictationState =
@@ -307,7 +312,7 @@ export class DictationSession {
 
   /** The next batch engine after the active one, if `kind` warrants one. */
   private nextEngine(kind: DictationErrorKind): EngineConfig | undefined {
-    if (!FALLBACK_KINDS.has(kind) || !this.active) return undefined
+    if (!isFallbackKind(kind) || !this.active) return undefined
     const from = this.engines.indexOf(this.active)
     return this.engines.slice(from + 1).find((engine) => !realtime(engine))
   }
@@ -317,6 +322,8 @@ export class DictationSession {
     reason: DictationErrorKind,
     transcript?: SonioxTranscript,
   ) {
+    // nextEngine only offers an engine for a fallback kind.
+    if (!isFallbackKind(reason)) return
     const from = this.active!
     this.active = next
     this.fallback = { from, to: next, reason }

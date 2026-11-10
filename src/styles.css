@@ -11195,8 +11195,60 @@ html[data-alma-motion] .alma-shell .persona-message {
 }
 .dictation-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
   gap: 8px;
+}
+/* Held mic: where letting go leads. The finger's zone lights up. */
+.dictation-hold {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.dictation-hold-zone {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  padding: 6px 8px;
+  border: var(--border-hairline) solid var(--gray-7);
+  border-radius: var(--radius-md);
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  text-align: center;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.dictation-hold-zone[data-active='true'] {
+  background: var(--accent-3);
+  color: var(--accent-11);
+  font-weight: var(--weight-medium);
+}
+.dictation-hold-zone[data-zone='cancel'][data-active='true'] {
+  background: var(--muted);
+  color: var(--destructive);
+}
+.dictation-fallback {
+  margin: -6px 4px 12px;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}
+/* Why a release did not send; sits above the composer for a moment. */
+.dictation-notice {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--safe-bottom) + 96px);
+  z-index: var(--z-toast);
+  margin: 0 auto;
+  max-width: 420px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--gray-12);
+  color: var(--background);
+  font-size: var(--text-sm);
+  text-align: center;
+  pointer-events: none;
 }
 .dictation-actions > button {
   min-height: 48px;

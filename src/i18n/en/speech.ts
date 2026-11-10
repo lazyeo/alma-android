@@ -16,6 +16,25 @@ export const speech = {
     stop: 'Stop',
     openSettings: 'Open voice settings',
     insertHeard: 'Insert what was heard',
+    send: 'Send',
+    edit: 'Edit',
+    fallback: {
+      network: '{from} couldn’t connect, now using {to}',
+      auth: '{from} rejected the key, now using {to}',
+      timeout: '{from} took too long, now using {to}',
+      server: '{from} had a problem, now using {to}',
+      empty: '{from} heard nothing, now using {to}',
+    },
+  },
+  hold: {
+    send: 'Release to send',
+    insert: 'Release to put it in the input box',
+    cancel: 'Slide up to cancel',
+    edit: 'Slide left to edit',
+  },
+  notice: {
+    short: 'Too short to send, so it went into the input box.',
+    draft: 'Added after what you had typed. Send it when ready.',
   },
   errors: {
     setup:
@@ -87,6 +106,13 @@ export const speech = {
       hint: 'Records {seconds} seconds and shows what was recognised.',
       recording: 'Recording for {seconds} seconds. Say a sentence.',
       result: 'Recognised',
+    },
+    release: {
+      alma: 'Alma chat: after release',
+      herdr: 'Herdr agents: after release',
+      send: 'Send',
+      insert: 'Put in the input box',
+      hint: 'Holding the mic and letting go does this. Slide left to edit instead, or up to cancel.',
     },
     saveFailed: 'Couldn’t save voice settings.',
   },

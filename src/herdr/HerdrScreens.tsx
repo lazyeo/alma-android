@@ -1187,11 +1187,16 @@ export function AgentPaneScreen() {
             }}
           />
           <MicButton
-            onText={(spoken) => {
+            surface="herdr"
+            draft={() => composerRef.current?.value ?? draft}
+            // send() takes the text itself, so no extra render is needed.
+            onSend={(spoken) => void send(spoken)}
+            onInsert={(spoken, at) => {
               const next = dictationInsertion(
                 composerRef.current,
                 composerRef.current?.value ?? draft,
                 spoken,
+                at,
               )
               setDraft(next.value)
               requestAnimationFrame(() => {

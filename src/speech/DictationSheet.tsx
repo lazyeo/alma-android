@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BottomSheet } from '../components/BottomSheet'
 import { useT } from '../i18n'
+import type { DictationAction, HoldZone } from './delivery'
 import type { DictationState } from './dictationSession'
 import type { DictationErrorKind, EngineConfig } from './types'
 
@@ -28,18 +29,26 @@ export function dictationErrorText(
 
 export function DictationSheet({
   state,
-  engine,
+  engine: primary,
   setupNeeded,
-  onStop,
+  hold,
+  canSend,
+  onFinish,
   onCancel,
   onRetry,
   onInsert,
 }: {
   state: DictationState
+  /** The primary engine, named until the session reports the active one. */
   engine: EngineConfig
-  /** The custom engine has no base URL or model yet; nothing was started. */
+  /** No enabled engine can run (e.g. only an unconfigured Custom). */
   setupNeeded?: boolean
-  onStop(): void
+  /** Set while the mic is held: the footer shows where letting go leads. */
+  hold?: { zone: HoldZone; release: DictationAction }
+  /** The composer can send; otherwise only Edit (insert) is offered. */
+  canSend: boolean
+  /** Stops recording and sends or inserts the result. */
+  onFinish(action: DictationAction): void
   /** Abandons the dictation and closes the sheet; nothing is inserted. */
   onCancel(): void
   onRetry(): void
@@ -52,8 +61,12 @@ export function DictationSheet({
     onCancel()
     navigate('/settings')
   }
-  const engineLabel = engine.custom ? t('speech.engine.custom') : engine.label
+  const engine = ('engine' in state && state.engine) || primary
+  const label = (item: EngineConfig) =>
+    item.custom ? t('speech.engine.custom') : item.label
+  const engineLabel = label(engine)
   const realtime = engine.kind === 'soniox-rt'
+  const fallback = 'fallback' in state ? state.fallback : undefined
   const error = setupNeeded
     ? { kind: 'setup' as const, detail: undefined, partial: '' }
     : state.phase === 'error'
@@ -75,18 +88,42 @@ export function DictationSheet({
         </button>
       )}
     </div>
+  ) : hold ? (
+    <div className="dictation-hold" aria-live="polite">
+      {(['cancel', 'edit', 'release'] as const).map((zone) => (
+        <span
+          key={zone}
+          className="dictation-hold-zone"
+          data-zone={zone}
+          data-active={hold.zone === zone}
+        >
+          {zone === 'release'
+            ? t(`speech.hold.${hold.release}`)
+            : t(`speech.hold.${zone}`)}
+        </span>
+      ))}
+    </div>
   ) : (
     <div className="dictation-actions">
       <button className="secondary" onClick={onCancel}>
         {t('common.cancel')}
       </button>
       <button
-        className="primary"
+        className={canSend ? 'secondary' : 'primary'}
         disabled={state.phase !== 'recording'}
-        onClick={onStop}
+        onClick={() => onFinish('insert')}
       >
-        {t('speech.sheet.stop')}
+        {t('speech.sheet.edit')}
       </button>
+      {canSend ? (
+        <button
+          className="primary"
+          disabled={state.phase !== 'recording'}
+          onClick={() => onFinish('send')}
+        >
+          {t('speech.sheet.send')}
+        </button>
+      ) : null}
     </div>
   )
 
@@ -106,6 +143,14 @@ export function DictationSheet({
           <span className="dictation-engine-model">{engine.model}</span>
         ) : null}
       </div>
+      {fallback ? (
+        <p className="dictation-fallback">
+          {t(`speech.sheet.fallback.${fallback.reason}`, {
+            from: label(fallback.from),
+            to: label(fallback.to),
+          })}
+        </p>
+      ) : null}
       {error ? (
         <div className="dictation-error" role="alert">
           <p>{dictationErrorText(t, error.kind, engineLabel)}</p>
