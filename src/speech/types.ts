@@ -1,7 +1,7 @@
 // Voice input engine model. Engines are data; the native Speech plugin does
 // the I/O and owns the API keys, so nothing here ever holds a secret.
 
-export type EngineKind = 'soniox-rt' | 'openai-compat'
+export type EngineKind = 'soniox-rt' | 'soniox-async' | 'openai-compat'
 
 export interface EngineConfig {
   /** Stable id; native stores and binds the key under this id. */

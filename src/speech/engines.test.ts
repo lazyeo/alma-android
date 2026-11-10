@@ -26,9 +26,18 @@ const openai = presetById('openai')!
 const soniox = presetById('soniox-rt')!
 
 describe('presets', () => {
-  it('defaults to Soniox real-time, then the OpenAI fallback', () => {
+  it('defaults to Soniox real-time, then Soniox async and the OpenAI fallback', () => {
     expect(DEFAULT_ENGINE_ID).toBe('soniox-rt')
-    expect(PRESETS[1].id).toBe('openai')
+    expect(PRESETS.slice(0, 3).map((preset) => preset.id)).toEqual([
+      'soniox-rt',
+      'soniox-async',
+      'openai',
+    ])
+    expect(presetById('soniox-async')).toMatchObject({
+      kind: 'soniox-async',
+      baseUrl: 'https://api.soniox.com/v1',
+      model: 'stt-async-v6',
+    })
     expect(openai.model).toBe('gpt-transcribe')
     expect(openai.models).toEqual([
       'gpt-transcribe',

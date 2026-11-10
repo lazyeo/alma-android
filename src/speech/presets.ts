@@ -1,3 +1,4 @@
+import { SONIOX_API_URL } from './sonioxAsync'
 import type { EngineConfig } from './types'
 
 export const SONIOX_RT_URL = 'wss://stt-rt.soniox.com/transcribe-websocket'
@@ -5,7 +6,8 @@ export const SONIOX_RT_URL = 'wss://stt-rt.soniox.com/transcribe-websocket'
 /**
  * Order follows the Phase 0 bench (docs/plans/2026-10-30-voice-input.md):
  * Soniox real-time with terms is the default, OpenAI gpt-transcribe with a
- * term prompt the fallback.
+ * term prompt the fallback. Soniox async transcribes after the recording
+ * ends, for when a live socket is not wanted.
  */
 export const PRESETS: readonly EngineConfig[] = [
   {
@@ -15,6 +17,14 @@ export const PRESETS: readonly EngineConfig[] = [
     baseUrl: SONIOX_RT_URL,
     model: 'stt-rt-v6',
     models: ['stt-rt-v6'],
+  },
+  {
+    id: 'soniox-async',
+    kind: 'soniox-async',
+    label: 'Soniox Async',
+    baseUrl: SONIOX_API_URL,
+    model: 'stt-async-v6',
+    models: ['stt-async-v6'],
   },
   {
     id: 'openai',

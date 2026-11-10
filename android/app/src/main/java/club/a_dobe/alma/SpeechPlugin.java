@@ -50,6 +50,7 @@ public class SpeechPlugin extends Plugin {
     private static final long DRAIN_TIMEOUT_MS = 10_000;
     private static final int ERROR_MESSAGE_LIMIT = 160;
     private static final MediaType WAV = MediaType.get("audio/wav");
+    private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
     // Redirects are off: the host check runs on the URL JS asked for, so a
     // 3xx must not carry the key (stream config frame) or audio elsewhere.
@@ -340,6 +341,60 @@ public class SpeechPlugin extends Plugin {
                     rejectTransport(call, done, error);
                 } finally {
                     finishUpload(done);
+                }
+            }
+        });
+    }
+
+    /**
+     * A small JSON call to the bound host (Soniox async job, status,
+     * transcript, delete). Independent of the recorder: it never touches
+     * the batch audio, so it is not counted as "running" voice input.
+     */
+    @PluginMethod
+    public void request(PluginCall call) {
+        String engineId = call.getString("engineId");
+        String method = call.getString("method");
+        String url = call.getString("url");
+        String json = call.getString("body");
+        boolean known = "GET".equals(method) || "POST".equals(method) || "DELETE".equals(method);
+        if (!SpeechKeyStore.validEngineId(engineId) || url == null || !known) {
+            call.reject("Invalid speech request", "io");
+            return;
+        }
+        String key;
+        try {
+            key = keys.resolve(engineId, url);
+        } catch (SpeechKeyStore.KeyException error) {
+            call.reject(error.getMessage(), error.code);
+            return;
+        }
+        Request request;
+        try {
+            Request.Builder builder = new Request.Builder().url(url).header("Authorization", "Bearer " + key);
+            if ("POST".equals(method)) builder.post(RequestBody.create(json == null ? "{}" : json, JSON));
+            else if ("DELETE".equals(method)) builder.delete();
+            else builder.get();
+            request = builder.build();
+        } catch (IllegalArgumentException error) {
+            call.reject("Invalid speech request", "io");
+            return;
+        }
+        http.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call failed, IOException error) {
+                rejectTransport(call, failed, error);
+            }
+
+            @Override
+            public void onResponse(Call done, Response response) {
+                try (ResponseBody body = response.body()) {
+                    JSObject result = new JSObject();
+                    result.put("status", response.code());
+                    result.put("body", body == null ? "" : body.string());
+                    call.resolve(result);
+                } catch (IOException error) {
+                    rejectTransport(call, done, error);
                 }
             }
         });

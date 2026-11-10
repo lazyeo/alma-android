@@ -25,6 +25,7 @@ function fakeSpeech(overrides: Partial<SpeechPlugin> = {}) {
       status: 200,
       body: '{"text":"你好 Alma"}',
     })),
+    request: vi.fn(async () => ({ status: 200, body: '{}' })),
     startStream: vi.fn(async () => undefined),
     stopStream: vi.fn(async () => undefined),
     cancelStream: vi.fn(async () => undefined),
@@ -187,6 +188,30 @@ describe('batch dictation', () => {
     await session.start(openai, [])
     fire('level', { rms: 0.4 })
     expect(session.current).toMatchObject({ phase: 'recording', level: 0.4 })
+  })
+})
+
+describe('Soniox async dictation', () => {
+  it('records, then runs the async job through native requests', async () => {
+    const replies: Record<string, string> = {
+      POST: '{"id":"t1"}',
+      GET: '{"status":"completed","text":"异步 Alma"}',
+      DELETE: '',
+    }
+    const { session, speech } = setup({
+      transcribe: vi.fn(async () => ({ status: 201, body: '{"id":"f1"}' })),
+      request: vi.fn(async (spec) => ({
+        status: 200,
+        body: replies[spec.method],
+      })),
+    })
+    await session.start(presetById('soniox-async')!, [])
+    expect(speech.startRecording).toHaveBeenCalled()
+    await session.stop()
+    expect(vi.mocked(speech.transcribe).mock.calls[0][0].url).toBe(
+      'https://api.soniox.com/v1/files',
+    )
+    expect(session.current).toEqual({ phase: 'done', text: '异步 Alma' })
   })
 })
 

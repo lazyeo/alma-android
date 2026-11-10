@@ -9,6 +9,7 @@ import {
   transcriptText,
   type SonioxTranscript,
 } from './soniox'
+import { transcribeSonioxAsync } from './sonioxAsync'
 import type { DictationError, EngineConfig } from './types'
 
 /** How long Stop waits for Soniox's `finished` before giving up. */
@@ -164,15 +165,27 @@ export class DictationSession {
         await speech.cancelRecording().catch(() => undefined)
         return this.fail({ kind: 'empty' })
       }
-      const response = await speech.transcribe(
-        buildTranscriptionRequest(engine, this.terms),
-      )
+      const outcome =
+        engine.kind === 'soniox-async'
+          ? await transcribeSonioxAsync(engine, this.terms, {
+              speech,
+              live,
+              sleep: (ms) =>
+                new Promise((resolve) => this.deps.setTimeout(resolve, ms)),
+            })
+          : await this.transcribeOnce(engine)
       if (!live()) return
-      const outcome = parseTranscription(response.status, response.body)
       return outcome.ok ? this.finish(outcome.text) : this.fail(outcome.error)
     } catch (error) {
       if (live()) this.fail(nativeError(error))
     }
+  }
+
+  private async transcribeOnce(engine: EngineConfig) {
+    const response = await this.deps.speech.transcribe(
+      buildTranscriptionRequest(engine, this.terms),
+    )
+    return parseTranscription(response.status, response.body)
   }
 
   /** Abandons the dictation; nothing is inserted. */

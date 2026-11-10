@@ -1,6 +1,7 @@
 import { registerPlugin, type PluginListenerHandle } from '@capacitor/core'
 import { isAndroidNative } from '../nativeRuntime'
 import type { NativeHttpSpec } from './openaiCompat'
+import type { NativeRequestSpec } from './sonioxAsync'
 
 export type MicPermission = 'granted' | 'denied' | 'prompt'
 
@@ -34,6 +35,11 @@ export interface SpeechPlugin {
   cancelRecording(): Promise<void>
   /** Uploads the last recording as WAV with the bound key, then drops it. */
   transcribe(spec: NativeHttpSpec): Promise<{ status: number; body: string }>
+  /**
+   * A JSON call to the bound host with the key (Soniox async's job, status,
+   * transcript and delete calls). Needs no recording.
+   */
+  request(spec: NativeRequestSpec): Promise<{ status: number; body: string }>
 
   /**
    * Real-time: opens the socket with the bound key, sends `config` (JSON,
