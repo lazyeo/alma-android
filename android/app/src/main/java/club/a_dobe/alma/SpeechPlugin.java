@@ -40,7 +40,10 @@ import okio.ByteString;
  * level, the engine's raw replies and errors (contract: src/speech/nativeSpeech.ts).
  *
  * One dictation at a time: either a batch recording (kept in memory, then
- * uploaded as WAV) or a real-time stream (PCM pushed over a WebSocket).
+ * uploaded as WAV) or a real-time stream (PCM pushed over a WebSocket and
+ * kept in memory too). The audio stays until JS discards it with
+ * cancelRecording, so a fallback engine can transcribe the same speech; it
+ * never touches disk.
  */
 @CapacitorPlugin(
     name = "Speech",
@@ -72,9 +75,12 @@ public class SpeechPlugin extends Plugin {
     private SpeechKeyStore keys;
 
     private final Object lock = new Object();
-    /** Batch recorder while recording. Guarded by lock. */
+    /**
+     * Recorder that only fills {@link #pcm}: a batch recording, or a stream's
+     * recorder handed over when its socket failed. Guarded by lock.
+     */
     private SpeechRecorder recorder;
-    /** Batch audio from start until transcribe or cancel. Guarded by lock. */
+    /** The current dictation's audio, from start until cancelRecording. Guarded by lock. */
     private ByteArrayOutputStream pcm;
     /** Upload in flight. Guarded by lock. */
     private Call transcribing;
@@ -186,7 +192,7 @@ public class SpeechPlugin extends Plugin {
             drained = stream;
             stream = null;
         }
-        if (drained != null) drained.cancel();
+        if (drained != null) drained.cancel(false);
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         SpeechRecorder started;
         synchronized (lock) {
@@ -196,26 +202,7 @@ public class SpeechPlugin extends Plugin {
             }
             pcm = buffer;
             try {
-                started = SpeechRecorder.start(new SpeechRecorder.Listener() {
-                    @Override
-                    public void onChunk(byte[] chunk) {
-                        synchronized (lock) {
-                            // A cancelled or uploaded recording no longer takes audio.
-                            if (pcm == buffer) buffer.write(chunk, 0, chunk.length);
-                        }
-                        emitLevel(chunk);
-                    }
-
-                    @Override
-                    public void onStopped(SpeechRecorder self, String reason) {
-                        synchronized (lock) {
-                            if (recorder == self) recorder = null;
-                            // A failed recording is never uploaded; free it now.
-                            if ("error".equals(reason) && pcm == buffer) pcm = null;
-                        }
-                        emitRecordingStopped(reason);
-                    }
-                });
+                started = SpeechRecorder.start(recorderListener(buffer, null));
             } catch (IOException error) {
                 pcm = null;
                 call.reject("Microphone unavailable", "io");
@@ -224,6 +211,50 @@ public class SpeechPlugin extends Plugin {
             recorder = started;
         }
         call.resolve();
+    }
+
+    /**
+     * Feeds {@code buffer} while it is the current audio and, while
+     * {@code owner} is live, the owner's socket. A recorder handed over from
+     * a failed stream keeps the same listener and just stops streaming.
+     */
+    private SpeechRecorder.Listener recorderListener(ByteArrayOutputStream buffer, Stream owner) {
+        return new SpeechRecorder.Listener() {
+            @Override
+            public void onChunk(byte[] chunk) {
+                WebSocket socket = null;
+                synchronized (lock) {
+                    // A discarded recording no longer takes audio.
+                    if (pcm == buffer) buffer.write(chunk, 0, chunk.length);
+                    if (owner != null && owner.opened && !owner.ended && !owner.draining) socket = owner.socket;
+                }
+                if (socket != null) socket.send(ByteString.of(chunk, 0, chunk.length));
+                emitLevel(chunk);
+            }
+
+            @Override
+            public void onStopped(SpeechRecorder self, String reason) {
+                boolean batchOwned = false;
+                boolean streamOwned = false;
+                synchronized (lock) {
+                    if (recorder == self) {
+                        recorder = null;
+                        batchOwned = true;
+                    }
+                    if (owner != null && owner.streamRecorder == self) {
+                        owner.streamRecorder = null;
+                        streamOwned = !owner.ended;
+                    }
+                    // A failed recording is never uploaded; free it now.
+                    if ("error".equals(reason) && pcm == buffer) pcm = null;
+                }
+                if (!batchOwned && !streamOwned) return;
+                emitRecordingStopped(reason);
+                // At the cap JS ends the audio itself (stopStream);
+                // a dead mic leaves nothing worth waiting for.
+                if (streamOwned && "error".equals(reason)) owner.cancelSilently();
+            }
+        };
     }
 
     @PluginMethod
@@ -286,10 +317,9 @@ public class SpeechPlugin extends Plugin {
                 call.reject("Nothing was recorded", "no_recording");
                 return;
             }
-            // Taking the audio here is the "drop after transcribe": whatever
-            // happens next, this recording is uploaded at most once.
+            // A copy: the audio stays for a fallback engine until JS
+            // discards it with cancelRecording.
             audio = pcm.toByteArray();
-            pcm = null;
             epoch = batchEpoch;
         }
         String key;
@@ -451,7 +481,8 @@ public class SpeechPlugin extends Plugin {
             call.reject("Invalid stream address", "io");
             return;
         }
-        Stream next = new Stream(call, firstFrame);
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        Stream next = new Stream(call, firstFrame, buffer);
         Stream drained;
         synchronized (lock) {
             if (recorder != null || transcribing != null || (stream != null && !stream.draining)) {
@@ -462,8 +493,11 @@ public class SpeechPlugin extends Plugin {
             // to the new dictation; its late events would confuse the new one.
             drained = stream;
             stream = next;
+            // Kept in memory beside the socket, for a fallback engine.
+            pcm = buffer;
+            batchEpoch++;
         }
-        if (drained != null) drained.cancel();
+        if (drained != null) drained.cancel(false);
         WebSocket socket = http.newWebSocket(request, next);
         boolean cancelledMeanwhile;
         synchronized (lock) {
@@ -483,15 +517,30 @@ public class SpeechPlugin extends Plugin {
         call.resolve();
     }
 
+    /**
+     * Closes the socket without any further event. With {@code keepAudio}
+     * the mic keeps recording into memory as a batch recording (stopRecording
+     * ends it), so a fallback engine gets the whole dictation.
+     */
     @PluginMethod
     public void cancelStream(PluginCall call) {
+        boolean keepAudio = Boolean.TRUE.equals(call.getBoolean("keepAudio", false));
         Stream current;
         synchronized (lock) {
             current = stream;
             stream = null;
         }
-        if (current != null) current.cancel();
+        if (current != null) current.cancel(keepAudio);
         call.resolve();
+    }
+
+    /** Lets a still-running stream recorder carry on as the batch recorder; false when one already runs. */
+    private boolean handOver(SpeechRecorder active) {
+        synchronized (lock) {
+            if (recorder != null) return false;
+            recorder = active;
+            return true;
+        }
     }
 
     /**
@@ -501,6 +550,7 @@ public class SpeechPlugin extends Plugin {
      */
     private final class Stream extends WebSocketListener {
         private final PluginCall startCall;
+        private final ByteArrayOutputStream buffer;
         /** Holds the key; cleared as soon as it is sent. Guarded by lock. */
         private String firstFrame;
         WebSocket socket;
@@ -511,9 +561,10 @@ public class SpeechPlugin extends Plugin {
         boolean startSettled;
         ScheduledFuture<?> drainTimer;
 
-        Stream(PluginCall startCall, String firstFrame) {
+        Stream(PluginCall startCall, String firstFrame, ByteArrayOutputStream buffer) {
             this.startCall = startCall;
             this.firstFrame = firstFrame;
+            this.buffer = buffer;
         }
 
         @Override
@@ -535,27 +586,7 @@ public class SpeechPlugin extends Plugin {
             }
             SpeechRecorder started;
             try {
-                started = SpeechRecorder.start(new SpeechRecorder.Listener() {
-                    @Override
-                    public void onChunk(byte[] chunk) {
-                        webSocket.send(ByteString.of(chunk, 0, chunk.length));
-                        if (isLive()) emitLevel(chunk);
-                    }
-
-                    @Override
-                    public void onStopped(SpeechRecorder self, String reason) {
-                        boolean live;
-                        synchronized (lock) {
-                            if (streamRecorder == self) streamRecorder = null;
-                            live = !ended;
-                        }
-                        if (!live) return;
-                        emitRecordingStopped(reason);
-                        // At the cap JS ends the audio itself (stopStream);
-                        // a dead mic leaves nothing worth waiting for.
-                        if ("error".equals(reason)) cancelSilently();
-                    }
-                });
+                started = SpeechRecorder.start(recorderListener(buffer, this));
             } catch (IOException error) {
                 failStart(webSocket, "Microphone unavailable", "io");
                 return;
@@ -630,7 +661,7 @@ public class SpeechPlugin extends Plugin {
             if (active != null) active.stop();
             if (ws == null) {
                 // Still connecting: there is no audio to finish.
-                cancel();
+                cancel(false);
                 return;
             }
             ws.send("");
@@ -652,10 +683,14 @@ public class SpeechPlugin extends Plugin {
             }
         }
 
-        /** Closes at once without any further event; resolves nothing but the pending start. */
-        void cancel() {
+        /**
+         * Closes at once without any further event; resolves nothing but the
+         * pending start. With {@code keepAudio} a running recorder is handed
+         * over instead of stopped.
+         */
+        void cancel(boolean keepAudio) {
             SpeechRecorder active = markEnded();
-            if (active != null) active.stop();
+            if (active != null && !(keepAudio && handOver(active))) active.stop();
             WebSocket ws;
             synchronized (lock) {
                 ws = socket;
@@ -669,7 +704,7 @@ public class SpeechPlugin extends Plugin {
             synchronized (lock) {
                 if (stream == this) stream = null;
             }
-            cancel();
+            cancel(false);
         }
 
         private void failStart(WebSocket webSocket, String message, String code) {
@@ -693,7 +728,10 @@ public class SpeechPlugin extends Plugin {
                 if (stream == this) stream = null;
             }
             SpeechRecorder active = markEnded();
-            if (active != null) active.stop();
+            // The server went away mid-dictation: keep recording into memory
+            // so JS can stop and hand the whole dictation to a batch engine.
+            // JS discards it (cancelRecording) when there is none.
+            if (active != null && !(live && handOver(active))) active.stop();
             if (!live) return;
             // Closed before the start call resolved: report it there, not as an event.
             if (settleStart("The speech service closed the connection", "network")) return;
@@ -762,7 +800,7 @@ public class SpeechPlugin extends Plugin {
             current = stream;
             stream = null;
         }
-        if (current != null) current.cancel();
+        if (current != null) current.cancel(false);
         timers.shutdownNow();
         super.handleOnDestroy();
     }
