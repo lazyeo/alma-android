@@ -52,6 +52,7 @@ export const agents = {
     installFailed: 'Herdr 安装失败。',
     startFailed: 'Herdr 启动失败。',
     notInstalled: 'Herdr 未安装，无法启动。',
+    stillRunning: '那台电脑还没有回应，安装可能仍在进行，请稍后重试。',
     unsupported: '这台电脑无法从这里安装 Herdr。',
   },
   kind: {

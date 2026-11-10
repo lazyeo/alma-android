@@ -53,6 +53,8 @@ export const agents = {
     installFailed: 'Herdr couldn’t be installed.',
     startFailed: 'Herdr couldn’t be started.',
     notInstalled: 'Herdr isn’t installed, so it can’t be started.',
+    stillRunning:
+      'No answer from that computer yet. The install may still be running — try again in a moment.',
     unsupported: 'This computer can’t install Herdr from here.',
   },
   kind: {

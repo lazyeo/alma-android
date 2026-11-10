@@ -5,6 +5,10 @@ import { useHerdr } from './HerdrProvider'
 import { herdrSetupAction, herdrSetupBusy, type HerdrSetupState } from './setup'
 
 const SETUP_POLL_MS = 2_000
+/** The desktop's install limit (5 min) plus its start and online waits. */
+const SETUP_WAIT_MS = 6 * 60_000
+/** Consecutive failed reads before the page stops waiting. */
+const SETUP_POLL_ERRORS = 5
 
 /**
  * Install or start Herdr Core from the offline Herdr page. The desktop's
@@ -24,13 +28,15 @@ export function HerdrSetupActions({
   const [running, setRunning] = useState<'install' | 'start'>()
   const [live, setLive] = useState<HerdrSetupState>()
   const [failure, setFailure] = useState<string>()
-  const mounted = useRef(true)
-  useEffect(
-    () => () => {
+  const mounted = useRef(false)
+  // Set on mount, not at creation: StrictMode's dev remount runs the
+  // cleanup once and would otherwise leave the flag false for good.
+  useEffect(() => {
+    mounted.current = true
+    return () => {
       mounted.current = false
-    },
-    [],
-  )
+    }
+  }, [])
   const shown = running ? (live ?? setup) : setup
   const action = running ? 'busy' : herdrSetupAction(shown)
   if (action === 'none' && !failure) return null
@@ -41,22 +47,27 @@ export function HerdrSetupActions({
     setRunning(kind)
     setFailure(undefined)
     setLive(undefined)
-    let polling = true
-    const pollUntil = async (done: () => boolean) => {
-      while (polling && mounted.current && !done()) {
+    // One poller for the whole attempt, so progress shows while the POST
+    // waits and after a proxy timeout; it stops when the POST settles, the
+    // phase leaves installing/starting, or after the install's own limit.
+    let requestDone = false
+    let errors = 0
+    const deadline = Date.now() + SETUP_WAIT_MS
+    const poll = async (): Promise<HerdrSetupState | 'gave-up' | undefined> => {
+      while (mounted.current && Date.now() < deadline) {
         await new Promise((resolve) => setTimeout(resolve, SETUP_POLL_MS))
+        if (!mounted.current || requestDone) return undefined
         try {
           const next = await api.getHerdrSetup()
+          errors = 0
           if (next && mounted.current) setLive(next)
           if (next && !herdrSetupBusy(next.phase)) return next
         } catch {
-          /* keep showing the last phase; the next poll retries */
+          if (++errors >= SETUP_POLL_ERRORS) return 'gave-up'
         }
       }
-      return undefined
+      return 'gave-up'
     }
-    let settled = false
-    void pollUntil(() => settled)
     const failed = (next?: HerdrSetupState) =>
       next?.error ??
       (kind === 'install'
@@ -64,14 +75,15 @@ export function HerdrSetupActions({
         : next?.phase === 'missing'
           ? t('agents.setup.notInstalled')
           : t('agents.setup.startFailed'))
+    const polling = poll()
     try {
       const result = await api.runHerdrSetup(kind)
-      settled = true
       if (result.status === 'pending') {
         // The proxy stopped waiting; the install carries on over there.
-        settled = false
-        const next = await pollUntil(() => false)
-        if (next && !next.online && mounted.current) setFailure(failed(next))
+        const next = await polling
+        if (!mounted.current) return
+        if (next === 'gave-up') setFailure(t('agents.setup.stillRunning'))
+        else if (next && !next.online) setFailure(failed(next))
       } else if (result.status === 'failed') {
         if (mounted.current) setFailure(failed(result.setup))
       } else if (result.status === 'unsupported') {
@@ -81,8 +93,7 @@ export function HerdrSetupActions({
       if (mounted.current)
         setFailure(reason instanceof Error ? reason.message : String(reason))
     } finally {
-      settled = true
-      polling = false
+      requestDone = true
       if (mounted.current) setRunning(undefined)
       // Re-read Herdr: online shows the board, offline the fresh phase.
       retry(desktopId)
