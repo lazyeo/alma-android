@@ -1,0 +1,93 @@
+// Voice input: the composer mic, the dictation sheet and Settings → Voice input.
+export const speech = {
+  mic: 'Voice input',
+  engine: {
+    custom: 'Custom endpoint',
+  },
+  sheet: {
+    title: 'Voice input',
+    starting: 'Getting ready…',
+    speakNow: 'Start speaking',
+    listening: 'Listening',
+    transcribing: 'Transcribing…',
+    finishing: 'Finishing…',
+    elapsed: 'Recording time',
+    level: 'Input level',
+    stop: 'Stop',
+    openSettings: 'Open voice settings',
+    insertHeard: 'Insert what was heard',
+  },
+  errors: {
+    setup:
+      'The custom endpoint needs a base URL and a model. Set them in voice settings.',
+    needs_key:
+      'Voice input needs an API key for {engine}. Add one in voice settings.',
+    mic_denied:
+      'Alma can’t use the microphone. Allow microphone access for Alma in Android settings, then try again.',
+    auth: 'The speech service rejected the API key. Check the key in voice settings.',
+    rate_limited:
+      'The speech service is busy or out of quota. Wait a moment and try again.',
+    network:
+      'Couldn’t reach the speech service. Check your connection and try again.',
+    timeout: 'The speech service took too long to answer. Try again.',
+    server: 'The speech service had a problem. Try again in a moment.',
+    bad_request:
+      'The speech service couldn’t use this request. Check the model in voice settings.',
+    host_not_allowed:
+      'The saved key isn’t allowed for this endpoint. Enter the key again in voice settings.',
+    busy: 'The microphone is already in use. Try again in a moment.',
+    empty: 'No speech was heard. Try again and speak a little longer.',
+    unknown: 'Voice input stopped unexpectedly. Try again.',
+  },
+  settings: {
+    title: 'Voice input',
+    note: 'Speech goes to the provider you pick. API keys stay in Android’s secure storage on this phone.',
+    engine: 'Engine',
+    key: {
+      title: 'API key',
+      notSet: 'Not set',
+      set: 'Set',
+      sheetTitle: 'API key for {engine}',
+      label: 'API key',
+      hint: 'Saved only on this phone and sent only to {host}.',
+      delete: 'Delete key',
+      saveFailed: 'Couldn’t save the key. Try again.',
+      deleteFailed: 'Couldn’t delete the key. Try again.',
+      statusFailed: 'Couldn’t read the saved key.',
+    },
+    model: 'Model',
+    custom: {
+      title: 'Custom endpoint',
+      notSet: 'Not set',
+      baseUrl: 'Base URL',
+      baseUrlPlaceholder: 'https://example.com/v1',
+      model: 'Model',
+      modelPlaceholder: 'whisper-1',
+      hint: 'An OpenAI-compatible transcription API.',
+      invalidUrl: 'Use an https address.',
+      keyCleared:
+        'The endpoint changed, so the saved key was removed. Enter the key again.',
+    },
+    terms: {
+      title: 'Terms',
+      count: { one: '{count} term', other: '{count} terms' },
+      label: 'Terms',
+      hint: 'One per line. Names and jargon you say often make recognition much more accurate.',
+      reset: 'Reset to defaults',
+    },
+    mic: {
+      title: 'Allow microphone',
+      hint: 'Needed to record your voice.',
+      denied:
+        'Microphone access is off. Allow it for Alma in Android settings.',
+      failed: 'Couldn’t ask for microphone access.',
+    },
+    test: {
+      title: 'Test',
+      hint: 'Records {seconds} seconds and shows what was recognised.',
+      recording: 'Recording for {seconds} seconds. Say a sentence.',
+      result: 'Recognised',
+    },
+    saveFailed: 'Couldn’t save voice settings.',
+  },
+} as const

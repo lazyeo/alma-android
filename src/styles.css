@@ -11246,3 +11246,187 @@ html[data-alma-motion] .alma-shell .persona-message {
   font-size: var(--text-xs);
   line-height: var(--leading-normal);
 }
+
+/* Voice input: composer mic, dictation sheet, Settings → Voice input. */
+.mic-button {
+  flex: 0 0 auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+/* In the thread composer the mic matches the 28px send/attach controls and
+   keeps a 40px hit area through the same ::before inset. */
+.composer .mic-button {
+  position: relative;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  border-radius: var(--radius-inner-composer);
+  color: var(--foreground);
+}
+.composer .mic-button::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+}
+.dictation-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.dictation-actions > button {
+  min-height: 48px;
+}
+.dictation-engine {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 4px 12px;
+}
+.dictation-engine-label {
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.dictation-engine-model {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dictation-progress {
+  display: grid;
+  gap: 12px;
+  margin: 0 4px;
+}
+.dictation-meter-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dictation-level {
+  flex: 1 1 auto;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--gray-4);
+}
+.dictation-level > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-9);
+  transform-origin: left center;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.dictation-elapsed {
+  flex: 0 0 auto;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.dictation-preview,
+.dictation-status {
+  margin: 0;
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+  overflow-wrap: anywhere;
+}
+.dictation-preview {
+  min-height: 48px;
+  max-height: 40dvh;
+  overflow-y: auto;
+  color: var(--foreground);
+}
+/* Not final yet: Soniox may still rewrite this part. */
+.dictation-tail {
+  color: var(--muted-foreground);
+}
+.dictation-status {
+  color: var(--muted-foreground);
+}
+.dictation-preview + .dictation-status {
+  font-size: var(--text-xs);
+}
+.dictation-error {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  margin: 0 4px;
+}
+.dictation-error p {
+  margin: 0;
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.dictation-error-detail {
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+.voice-key-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.voice-form {
+  display: grid;
+  gap: 10px;
+}
+.voice-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--gray-11);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.voice-form .settings-section-note,
+.voice-form .settings-error {
+  margin: 0 4px;
+}
+.voice-form .quiet-text-button {
+  justify-self: start;
+}
+.voice-terms-input {
+  min-height: 160px;
+  padding: 10px 12px;
+  resize: vertical;
+  line-height: var(--leading-normal);
+}
+.voice-sheet-actions {
+  margin-top: 12px;
+}
+.voice-test-result,
+.voice-test-error {
+  display: grid;
+  gap: 4px;
+  margin: 8px 4px 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.voice-test-result {
+  color: var(--foreground);
+}
+.voice-test-label {
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}
+.voice-test-error {
+  color: var(--destructive);
+}
+.sheet-footer > .voice-sheet-primary {
+  width: 100%;
+  min-height: 48px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dictation-level > span {
+    transition-duration: var(--dur-reduced);
+  }
+}

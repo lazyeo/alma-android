@@ -26,6 +26,7 @@ export function BottomSheet({
   label = title,
   className = '',
   onClose,
+  onCloseStart,
   onBack,
   footer,
   children,
@@ -35,6 +36,8 @@ export function BottomSheet({
   label?: string
   className?: string
   onClose: () => void
+  /** Called as the exit animation starts (back, drag, X, backdrop). */
+  onCloseStart?: () => void
   onBack?: () => void
   footer?: ReactNode
   children: ReactNode
@@ -46,6 +49,7 @@ export function BottomSheet({
   const { rendered, closing, requestClose, finishClose } = useAnimatedOverlay(
     true,
     onClose,
+    onCloseStart,
   )
   const backdropRef = useRef<HTMLDivElement>(null)
   const openRef = useRef(true)

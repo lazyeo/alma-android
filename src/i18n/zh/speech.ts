@@ -1,0 +1,88 @@
+import type { CatalogShape } from '../core'
+import type { speech as source } from '../en/speech'
+
+export const speech: CatalogShape<typeof source> = {
+  mic: '语音输入',
+  engine: {
+    custom: '自定义接口',
+  },
+  sheet: {
+    title: '语音输入',
+    starting: '正在准备…',
+    speakNow: '请开始说话',
+    listening: '正在听',
+    transcribing: '正在识别…',
+    finishing: '正在收尾…',
+    elapsed: '录音时长',
+    level: '输入音量',
+    stop: '停止',
+    openSettings: '打开语音设置',
+    insertHeard: '插入已识别的内容',
+  },
+  errors: {
+    setup: '自定义接口需要填写接口地址和模型，请在语音设置中填写。',
+    needs_key: '语音输入需要 {engine} 的 API 密钥，请在语音设置中添加。',
+    mic_denied:
+      'Alma 无法使用麦克风。请在 Android 设置中允许 Alma 使用麦克风，然后重试。',
+    auth: '语音服务拒绝了这个 API 密钥，请在语音设置中检查。',
+    rate_limited: '语音服务繁忙或额度已用完，请稍后重试。',
+    network: '无法连接语音服务，请检查网络后重试。',
+    timeout: '语音服务响应超时，请重试。',
+    server: '语音服务出现问题，请稍后重试。',
+    bad_request: '语音服务无法处理这个请求，请在语音设置中检查模型。',
+    host_not_allowed:
+      '已保存的密钥不允许用于这个接口，请在语音设置中重新填写密钥。',
+    busy: '麦克风正被占用，请稍后重试。',
+    empty: '没有听到说话，请重试并多说一会儿。',
+    unknown: '语音输入意外中断，请重试。',
+  },
+  settings: {
+    title: '语音输入',
+    note: '语音会发送给你选择的服务商。API 密钥只保存在这台手机的 Android 安全存储中。',
+    engine: '引擎',
+    key: {
+      title: 'API 密钥',
+      notSet: '未设置',
+      set: '已设置',
+      sheetTitle: '{engine} 的 API 密钥',
+      label: 'API 密钥',
+      hint: '只保存在这台手机上，只发送给 {host}。',
+      delete: '删除密钥',
+      saveFailed: '无法保存密钥，请重试。',
+      deleteFailed: '无法删除密钥，请重试。',
+      statusFailed: '无法读取已保存的密钥。',
+    },
+    model: '模型',
+    custom: {
+      title: '自定义接口',
+      notSet: '未设置',
+      baseUrl: '接口地址',
+      baseUrlPlaceholder: '例如 https://example.com/v1',
+      model: '模型',
+      modelPlaceholder: '例如 whisper-1',
+      hint: '兼容 OpenAI 的转写 API。',
+      invalidUrl: '请使用 https 地址。',
+      keyCleared: '接口地址已更改，已删除保存的密钥，请重新填写。',
+    },
+    terms: {
+      title: '术语表',
+      count: { other: '{count} 个术语' },
+      label: '术语表',
+      hint: '每行一个。常说的名字和术语能明显提高识别准确率。',
+      reset: '恢复默认',
+    },
+    mic: {
+      title: '允许使用麦克风',
+      hint: '录音需要麦克风权限。',
+      denied: '麦克风权限已关闭，请在 Android 设置中允许 Alma 使用麦克风。',
+      failed: '无法请求麦克风权限。',
+    },
+    test: {
+      title: '测试',
+      hint: '录 {seconds} 秒，显示识别结果。',
+      recording: '正在录 {seconds} 秒，请说一句话。',
+      result: '识别结果',
+    },
+    saveFailed: '无法保存语音设置。',
+  },
+}

@@ -51,6 +51,7 @@ import {
 import { ThemeSettingsView } from '../ThemeProvider'
 import { LanguageSettings } from './LanguageSettings'
 import { UpdateSettings } from './UpdateSettings'
+import { VoiceSettings } from './VoiceSettings'
 import { useNavigate } from 'react-router-dom'
 import { desktopScreenPath } from '../desktopRoutes'
 import { useDesktops } from '../desktops/DesktopContext'
@@ -860,6 +861,8 @@ export function SettingsScreen() {
           </section>
 
           <UpdateSettings />
+
+          <VoiceSettings />
 
           <section className="settings-section" aria-labelledby="about-heading">
             <h2 id="about-heading" className="settings-section-title">

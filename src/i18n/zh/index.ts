@@ -37,6 +37,7 @@ import { share } from './share'
 import { agents } from './agents'
 import { screen } from './screen'
 import { browser } from './browser'
+import { speech } from './speech'
 import type { CatalogShape } from '../core'
 import type { Messages } from '../en'
 
@@ -58,4 +59,5 @@ export const zh: CatalogShape<Messages> = {
   agents,
   screen,
   browser,
+  speech,
 }

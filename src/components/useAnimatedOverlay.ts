@@ -7,13 +7,23 @@ import { useOverlayRegistration } from './useOverlayRegistration'
 
 export const OVERLAY_EXIT_FALLBACK_MS = 320
 
-export function useAnimatedOverlay(open: boolean, onClose: () => void) {
+/**
+ * `onCloseStart` runs when the exit animation begins, for owners that must
+ * stop reacting at once rather than after the exit (`onClose`).
+ */
+export function useAnimatedOverlay(
+  open: boolean,
+  onClose: () => void,
+  onCloseStart?: () => void,
+) {
   const [state, setState] = useState(() => initialOverlayClosingState(open))
   const stateRef = useRef(state)
   const closeRef = useRef(onClose)
+  const closeStartRef = useRef(onCloseStart)
   const timerRef = useRef(0)
   stateRef.current = state
   closeRef.current = onClose
+  closeStartRef.current = onCloseStart
 
   const finishClose = useCallback(() => {
     if (stateRef.current.phase !== 'closing') return
@@ -35,6 +45,7 @@ export function useAnimatedOverlay(open: boolean, onClose: () => void) {
     setState(next)
     window.clearTimeout(timerRef.current)
     timerRef.current = window.setTimeout(finishClose, OVERLAY_EXIT_FALLBACK_MS)
+    closeStartRef.current?.()
   }, [finishClose])
 
   useEffect(() => {
