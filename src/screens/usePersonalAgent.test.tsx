@@ -130,4 +130,43 @@ describe('usePersonalAgent', () => {
     })
     expect(api.getPersonal).toHaveBeenCalledTimes(2)
   })
+  it("ignores the previous desktop's late reply after a switch", async () => {
+    let resolveA!: (value: unknown) => void
+    const apiA = fakeApi({
+      getPersonal: vi.fn(() => new Promise((resolve) => (resolveA = resolve))),
+    })
+    const personalB = { ...personal, threadId: 'thread-mini' }
+    const apiB = fakeApi({
+      getPersonal: vi
+        .fn()
+        .mockResolvedValue({ status: 'ok', personal: personalB }),
+    })
+    const { result, rerender } = renderHook(
+      ({ api }) => usePersonalAgent(api),
+      { initialProps: { api: apiA } },
+    )
+    rerender({ api: apiB })
+    await flush()
+    resolveA({ status: 'ok', personal })
+    await flush()
+    expect(result.current.state).toMatchObject({
+      status: 'ready',
+      personal: { threadId: 'thread-mini' },
+    })
+
+    // A late "unsupported" from the old desktop must not hide Alma on B.
+    const apiC = fakeApi({
+      getPersonal: vi.fn(() => new Promise((resolve) => (resolveA = resolve))),
+    })
+    rerender({ api: apiC })
+    rerender({ api: apiB })
+    await flush()
+    resolveA({ status: 'unsupported' })
+    await flush()
+    expect(result.current.state.status).toBe('ready')
+    await act(async () => {
+      vi.advanceTimersByTime(PERSONAL_AGENT_POLL_MS)
+    })
+    expect(apiB.getPersonal).toHaveBeenCalledTimes(3)
+  })
 })

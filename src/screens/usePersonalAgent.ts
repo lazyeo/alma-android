@@ -15,6 +15,9 @@ export function usePersonalAgent(api: AlmaApi | undefined) {
     status: 'loading',
   })
   const supported = useRef(true)
+  // The provider outlives desktop switches, so a reply from the previous
+  // desktop can land after the switch; it must not become this desktop's Alma.
+  const currentApi = useRef(api)
   const load = useCallback(async () => {
     if (!api || !supported.current) return
     try {
@@ -23,6 +26,7 @@ export function usePersonalAgent(api: AlmaApi | undefined) {
         // Mood is decoration: a vitals failure must not hide Alma.
         api.getAlmaVitals().catch(() => undefined),
       ])
+      if (currentApi.current !== api) return
       if (result.status === 'unsupported') {
         supported.current = false
         setState({ status: 'unsupported' })
@@ -37,6 +41,7 @@ export function usePersonalAgent(api: AlmaApi | undefined) {
       // 503 "not ready" or a dropped tunnel: keep the last good state; with
       // none yet, stay hidden and let the next refresh retry.
       console.warn('[personal-agent] load failed', error)
+      if (currentApi.current !== api) return
       setState((current) =>
         current.status === 'ready' ? current : { status: 'error' },
       )
@@ -44,6 +49,7 @@ export function usePersonalAgent(api: AlmaApi | undefined) {
   }, [api])
 
   useEffect(() => {
+    currentApi.current = api
     supported.current = true
     setState({ status: 'loading' })
     if (!api) return
