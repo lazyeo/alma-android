@@ -10,6 +10,15 @@ export const message = {
   renderFailed: 'This message could not be displayed.',
   prompt: 'Prompt',
   attachment: 'Attachment',
+  unsupportedPart: 'This content cannot be shown here yet.',
+  voice: {
+    unsupported: "Voice message (can't be played)",
+    play: 'Play voice message',
+    pause: 'Pause voice message',
+    loading: 'Loading voice message',
+    failed: "Couldn't load the voice message. Tap to retry.",
+    progress: '{elapsed} of {total}',
+  },
   imageEdit: {
     title: 'Image edit',
     visibleHeader: 'Edit requests',

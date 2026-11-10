@@ -13,6 +13,15 @@ export const message: CatalogShape<typeof source> = {
   renderFailed: '无法显示这条消息。',
   prompt: '提示词',
   attachment: '附件',
+  unsupportedPart: '暂时无法在这里显示此内容。',
+  voice: {
+    unsupported: '语音消息（不支持播放）',
+    play: '播放语音消息',
+    pause: '暂停语音消息',
+    loading: '正在加载语音消息',
+    failed: '语音加载失败，点按重试。',
+    progress: '已播放 {elapsed}，共 {total}',
+  },
   imageEdit: {
     title: '图片修改',
     visibleHeader: '修改请求',
