@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
 } from 'react'
@@ -18,7 +19,7 @@ import {
   type NotificationDeduper,
   type NotificationSettings,
 } from '../notifications'
-import { desktopAgentPanePath } from '../desktopRoutes'
+import { THIS_HERDR_COMPUTER, desktopAgentPanePath } from '../desktopRoutes'
 import { stripAnsi } from './transcript'
 import {
   agentTurnIdentity,
@@ -70,8 +71,8 @@ interface HerdrValue {
    * rows rendered outside that desktop's connection scope.
    */
   apiFor(desktopId: string): HandoffDesktop['api'] | undefined
-  /** Other computers for Herdr; undefined hides the switcher (old desktop). */
-  computers(desktopId: string): HerdrComputer[] | undefined
+  /** Other computers for Herdr; empty or absent hides the switcher. */
+  computers(desktopId: string): HerdrComputer[] | null | undefined
   /** The computer Herdr currently talks to; undefined is the desktop. */
   computerFor(desktopId: string): string | undefined
   selectComputer(desktopId: string, computerId?: string): void
@@ -93,6 +94,7 @@ export function useHerdr() {
 export function useHerdrNotificationEvents({
   desktopId,
   computerId,
+  viewingComputer = true,
   desktopName,
   panes,
   mutedWorkspaces,
@@ -103,8 +105,10 @@ export function useHerdrNotificationEvents({
   dedupe = deliveredNotifications,
 }: {
   desktopId: string
-  /** Pane ids repeat across computers, so tags carry the computer. */
+  /** Pane ids repeat across computers, so tags and links carry it. */
   computerId?: string
+  /** Whether the pane routes currently show this computer's panes. */
+  viewingComputer?: boolean
   desktopName: string
   panes: HerdrPane[]
   mutedWorkspaces: string[]
@@ -129,6 +133,7 @@ export function useHerdrNotificationEvents({
           to,
           muted: mutedWorkspaces.includes(pane.workspace_id),
           viewingPane:
+            viewingComputer &&
             document.visibilityState === 'visible' &&
             pathname === desktopAgentPanePath(desktopId, pane.pane_id),
         })
@@ -182,7 +187,11 @@ export function useHerdrNotificationEvents({
         await notify({
           type: 'agent-needs-you',
           tag: scopedNotificationTag(desktopId, `agent:${paneKey}:${to}`),
-          url: desktopAgentPanePath(desktopId, pane.pane_id),
+          url: desktopAgentPanePath(
+            desktopId,
+            pane.pane_id,
+            computerId ?? THIS_HERDR_COMPUTER,
+          ),
           threadTitle:
             turnTitle && turnTitle !== paneTitle
               ? [paneTitle, turnTitle].filter(Boolean).join(' — ')
@@ -197,6 +206,7 @@ export function useHerdrNotificationEvents({
   }, [
     api,
     computerId,
+    viewingComputer,
     dedupe,
     desktopId,
     desktopName,
@@ -223,7 +233,10 @@ function HerdrComputersSource({
 }: {
   desktop: HandoffDesktop
   retryToken: number
-  onComputers(desktopId: string, computers?: HerdrComputer[]): void
+  onComputers(
+    desktopId: string,
+    update: (current?: HerdrComputer[] | null) => HerdrComputer[] | null,
+  ): void
 }) {
   const { api, id: desktopId, online } = desktop
   useEffect(() => {
@@ -234,19 +247,19 @@ function HerdrComputersSource({
         .listHerdrComputers()
         .then((result) => {
           if (!current) return
-          // 503: the desktop can't reach other computers right now; keep the
-          // switcher hidden but remember the choice for when it can.
-          onComputers(
-            desktopId,
+          // 404 (older desktop): no computers. 503 (native shell detached)
+          // and failed refreshes keep the last list, so a relay hiccup
+          // doesn't silently move the board to another computer.
+          onComputers(desktopId, (previous) =>
             result.status === 'ok'
               ? result.computers
-              : result.status === 'unavailable'
-                ? []
-                : undefined,
+              : result.status === 'unsupported'
+                ? null
+                : (previous ?? []),
           )
         })
         .catch(() => {
-          if (current) onComputers(desktopId, undefined)
+          if (current) onComputers(desktopId, (previous) => previous ?? null)
         })
     const onVisibility = () => {
       if (document.visibilityState === 'visible') load()
@@ -264,17 +277,27 @@ function HerdrComputersSource({
 function HerdrDesktopSource({
   desktop,
   api,
+  active,
   settingsRef,
   onState,
   retryToken,
 }: {
   desktop: HandoffDesktop
-  /** `desktop.api` pointed at the chosen computer. */
+  /** `desktop.api`, or that desktop pointed at another computer. */
   api: HandoffDesktop['api']
+  /**
+   * Whether this computer is the one shown. The desktop's own source keeps
+   * running while another computer is shown so its agents still notify;
+   * only the shown source publishes the page state.
+   */
+  active: boolean
   settingsRef: React.MutableRefObject<NotificationSettings>
   onState(desktopId: string, state: DesktopHerdrState): void
   retryToken: number
 }) {
+  const [, rerender] = useReducer((tick: number) => tick + 1, 0)
+  const activeRef = useRef(active)
+  activeRef.current = active
   const location = useLocation()
   const locationRef = useRef(location.pathname)
   locationRef.current = location.pathname
@@ -291,6 +314,7 @@ function HerdrDesktopSource({
   const notifySnapshot = useHerdrNotificationEvents({
     desktopId,
     computerId: api.herdrComputer,
+    viewingComputer: active,
     desktopName,
     panes: stateRef.current.snapshot?.panes ?? [],
     mutedWorkspaces: stateRef.current.mutedWorkspaces,
@@ -302,10 +326,16 @@ function HerdrDesktopSource({
   const publish = useCallback(
     (patch: Partial<DesktopHerdrState>) => {
       stateRef.current = { ...stateRef.current, ...patch }
-      onState(desktopId, stateRef.current)
+      // A hidden source still re-renders so its notifications see changes.
+      if (activeRef.current) onState(desktopId, stateRef.current)
+      else rerender()
     },
     [desktopId, onState],
   )
+  // Shown again (switched back): its state is current, publish it at once.
+  useEffect(() => {
+    if (active) onState(desktopId, stateRef.current)
+  }, [active, desktopId, onState])
 
   useEffect(() => notifySnapshot(), [notifySnapshot])
 
@@ -329,6 +359,8 @@ function HerdrDesktopSource({
       .then(async ([info, mutes]) => {
         if (!current) return
         const herdrOnline = info.online === true
+        const setup = herdrOnline ? undefined : await readSetup()
+        if (!current) return
         publish({
           online: herdrOnline,
           supported: true,
@@ -336,7 +368,7 @@ function HerdrDesktopSource({
             ? mutes.workspaces
             : [],
           error: undefined,
-          setup: herdrOnline ? undefined : await readSetup(),
+          setup,
         })
       })
       .catch((reason) => {
@@ -363,19 +395,19 @@ function HerdrDesktopSource({
         try {
           const info = await api.getHerdrInfo()
           if (!current) return
-          if (info.online !== true)
-            publish({
-              online: false,
-              error: undefined,
-              setup: await readSetup(),
-            })
-          else
-            publish({
-              online: true,
-              error: undefined,
-              setup: undefined,
-              snapshot: snapshotFromWorkspaces(await api.getHerdrWorkspaces()),
-            })
+          if (info.online !== true) {
+            const setup = await readSetup()
+            if (current) publish({ online: false, error: undefined, setup })
+          } else {
+            const workspaces = await api.getHerdrWorkspaces()
+            if (current)
+              publish({
+                online: true,
+                error: undefined,
+                setup: undefined,
+                snapshot: snapshotFromWorkspaces(workspaces),
+              })
+          }
         } catch (reason) {
           if (current) publish({ online: false, error: messageOf(reason) })
         } finally {
@@ -489,8 +521,9 @@ export function HerdrProvider({
     {},
   )
   const [retryTokens, setRetryTokens] = useState<Record<string, number>>({})
+  // Absent: not loaded yet; null: the desktop has no computers route.
   const [computersByDesktop, setComputersByDesktop] = useState<
-    Record<string, HerdrComputer[] | undefined>
+    Record<string, HerdrComputer[] | null>
   >({})
   const [selectedByDesktop, setSelectedByDesktop] = useState<
     Record<string, string | null>
@@ -501,10 +534,13 @@ export function HerdrProvider({
     setByDesktop((current) => ({ ...current, [desktopId]: state }))
   }, [])
   const onComputers = useCallback(
-    (desktopId: string, computers?: HerdrComputer[]) =>
+    (
+      desktopId: string,
+      update: (current?: HerdrComputer[] | null) => HerdrComputer[] | null,
+    ) =>
       setComputersByDesktop((current) => ({
         ...current,
-        [desktopId]: computers,
+        [desktopId]: update(current[desktopId]),
       })),
     [],
   )
@@ -548,20 +584,29 @@ export function HerdrProvider({
       async setWorkspaceMuted(desktopId, workspaceId, muted) {
         const desktop = desktops.find((item) => item.id === desktopId)
         if (!desktop) return
+        const computerId = computerFor(desktopId)
         const result = await desktop.api
-          .forHerdrComputer(computerFor(desktopId))
+          .forHerdrComputer(computerId)
           .setHerdrWorkspaceMuted(workspaceId, muted)
-        setByDesktop((current) => ({
-          ...current,
-          [desktopId]: {
-            ...(current[desktopId] ?? {
-              desktopOnline: desktop.online,
-              online: false,
-              supported: true,
-            }),
-            mutedWorkspaces: result.workspaces,
-          },
-        }))
+        setByDesktop((current) => {
+          // Switched computers meanwhile: these mutes belong to the old one.
+          if (
+            current[desktopId] &&
+            current[desktopId].computerId !== computerId
+          )
+            return current
+          return {
+            ...current,
+            [desktopId]: {
+              ...(current[desktopId] ?? {
+                desktopOnline: desktop.online,
+                online: false,
+                supported: true,
+              }),
+              mutedWorkspaces: result.workspaces,
+            },
+          }
+        })
       },
     }),
     [byDesktop, computerFor, computersByDesktop, desktops],
@@ -577,16 +622,28 @@ export function HerdrProvider({
               retryToken={retryTokens[desktop.id] ?? 0}
               onComputers={onComputers}
             />
-            {/* Keyed by computer: switching starts from an empty board and
-                fresh notification baselines instead of mixing pane ids. */}
             <HerdrDesktopSource
-              key={computerId ?? ''}
+              key="this"
               desktop={desktop}
-              api={desktop.api.forHerdrComputer(computerId)}
+              api={desktop.api}
+              active={computerId === undefined}
               settingsRef={settingsRef}
               onState={onState}
               retryToken={retryTokens[desktop.id] ?? 0}
             />
+            {/* Keyed by computer: switching starts from an empty board and
+                fresh notification baselines instead of mixing pane ids. */}
+            {computerId === undefined ? null : (
+              <HerdrDesktopSource
+                key={computerId}
+                desktop={desktop}
+                api={desktop.api.forHerdrComputer(computerId)}
+                active
+                settingsRef={settingsRef}
+                onState={onState}
+                retryToken={retryTokens[desktop.id] ?? 0}
+              />
+            )}
           </Fragment>
         )
       })}

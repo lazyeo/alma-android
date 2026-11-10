@@ -528,12 +528,12 @@ export class AlmaApi {
     if (response.status === 204) return undefined as T
     return response.json<T>()
   }
-  async getImage(value: string): Promise<Blob> {
-    // A remote computer's transcript names images on that computer.
-    const path =
-      this.herdrComputer !== undefined && value.startsWith('/api/herdr/')
-        ? this.herdrPath(value.slice('/api/herdr/'.length))
-        : value
+  async getImage(path: string): Promise<Blob> {
+    // A remote computer's transcript names images on that computer, and the
+    // desktop's computers proxy only carries JSON; fetching the plain path
+    // would show the desktop's own file of that name instead.
+    if (this.herdrComputer !== undefined && path.startsWith('/api/herdr/'))
+      throw new Error('Images from another computer are not available')
     assertSafePath(path, 'GET')
     const response = await this.tunnel.fetch(path, { method: 'GET' })
     const mediaType =

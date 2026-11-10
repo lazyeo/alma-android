@@ -73,15 +73,19 @@ export function saveSelectedComputer(desktopId: string, computerId?: string) {
 }
 
 /**
- * The computer Herdr requests go to. A remembered computer that the desktop
- * doesn't list right now (removed, list unavailable, older desktop) falls
- * back to the desktop itself without forgetting the choice.
+ * The computer Herdr requests go to. `computers` is undefined until the
+ * desktop's list first loads: the remembered computer is trusted meanwhile,
+ * so a cold start or deep link never briefly shows the desktop's own panes
+ * under another computer's pane ids. Once loaded, a computer the desktop
+ * doesn't list (removed, older desktop: null) falls back to the desktop
+ * itself without forgetting the choice.
  */
 export function effectiveComputer(
-  computers: HerdrComputer[] | undefined,
+  computers: HerdrComputer[] | null | undefined,
   selected: string | null | undefined,
 ): string | undefined {
-  if (!selected || !computers) return undefined
+  if (!selected || computers === null) return undefined
+  if (computers === undefined) return selected
   return computers.some((computer) => computer.id === selected)
     ? selected
     : undefined

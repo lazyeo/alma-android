@@ -171,7 +171,9 @@ describe('Herdr computer switcher', () => {
       ),
     ).toBeTruthy()
     expect(
-      screen.getByRole('button', { name: 'Studio' }).getAttribute('aria-pressed'),
+      screen
+        .getByRole('button', { name: 'Studio' })
+        .getAttribute('aria-pressed'),
     ).toBe('true')
     const remoteCalls = fetch.mock.calls
       .map(([path]) => path as string)
@@ -233,6 +235,50 @@ describe('Herdr computer switcher', () => {
     })
     document.dispatchEvent(new Event('visibilitychange'))
     await waitFor(() => expect(polls()).toBeGreaterThan(before))
+  })
+})
+
+describe('Herdr computer choice under a flaky list', () => {
+  const studio = () =>
+    reply({ computers: [{ id: MINI, label: 'Studio', state: 'ready' }] })
+
+  it('goes straight to the remembered computer before the list loads', async () => {
+    values.set('alma.herdr.computer.desk', MINI)
+    const { api, fetch } = desktopApi({
+      ...herdrRoutes('/api/herdr'),
+      ...herdrRoutes(PREFIX),
+    })
+    // The list never answers: the remembered computer is still used.
+    fetch.mockImplementation(async (path: string) => {
+      if (path === '/api/herdr/computers') return new Promise(() => undefined)
+      const routes = { ...herdrRoutes('/api/herdr'), ...herdrRoutes(PREFIX) }
+      const route = routes[path.split('?')[0]]
+      return route ? route() : reply({ error: 'Route not found' }, 404)
+    })
+    renderAgents(api)
+    expect(await screen.findByText('On the studio computer')).toBeTruthy()
+  })
+
+  it('keeps the remote computer when a list refresh fails', async () => {
+    values.set('alma.herdr.computer.desk', MINI)
+    let listFails = false
+    const { api } = desktopApi({
+      ...herdrRoutes('/api/herdr'),
+      ...herdrRoutes(PREFIX),
+      '/api/herdr/computers': () =>
+        listFails ? reply({ error: 'relay' }, 500) : studio(),
+    })
+    renderAgents(api)
+    expect(await screen.findByRole('button', { name: 'Studio' })).toBeTruthy()
+    listFails = true
+    document.dispatchEvent(new Event('visibilitychange'))
+    await act(async () => undefined)
+    expect(
+      screen
+        .getByRole('button', { name: 'Studio' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true')
+    expect(screen.getByText('On the studio computer')).toBeTruthy()
   })
 })
 

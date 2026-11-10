@@ -15,7 +15,21 @@ let chatItems: Array<Record<string, unknown>> = [
   { id: 'm1', kind: 'assistant', text: 'Pane B transcript' },
 ]
 const blockedMenu = `Run this command?\n> 1. Yes, run command\n  2. Yes, always allow\n  3. No, cancel`
+const remoteApi = {
+  herdrComputer: '0123456789abcdef',
+  herdrUploadsSupported: false,
+  getHerdrChat: vi.fn(async () => ({
+    session_id: 's1',
+    page: { items: [{ id: 'r1', kind: 'assistant', text: 'Remote pane' }] },
+  })),
+  openJsonSocket: vi.fn(() => {
+    throw new Error('Herdr on another computer has no live socket')
+  }),
+  readHerdrPane: vi.fn(async () => ({ read: { text: '' } })),
+  getHerdrCommands: vi.fn(async () => ({ commands: [] })),
+}
 const api = {
+  forHerdrComputer: vi.fn((id?: string) => (id ? remoteApi : api)),
   herdrUploadsSupported: true,
   promptHerdrAgent: vi.fn(async () => undefined),
   herdrUpload: vi.fn(async (_bytes, _mediaType, name) => ({
@@ -63,7 +77,12 @@ const api = {
   chooseHerdrMenuOption: vi.fn(async () => undefined),
 }
 
-const location = { pathname: '/d/desktop/agents/pane-a', key: 'initial' }
+const location = {
+  pathname: '/d/desktop/agents/pane-a',
+  key: 'initial',
+  search: '',
+}
+const selectComputer = vi.fn()
 vi.mock('react-router-dom', () => ({
   useParams: () => ({ desktopId: 'desktop', paneId }),
   useLocation: () => location,
@@ -74,6 +93,8 @@ vi.mock('../desktops/DesktopContext', () => ({
 vi.mock('./HerdrProvider', () => ({
   useHerdr: () => ({
     apiFor: () => undefined,
+    computerFor: () => undefined,
+    selectComputer,
     byDesktop: {
       desktop: {
         snapshot: {
@@ -153,6 +174,28 @@ afterEach(() => {
   vi.clearAllMocks()
   agentStatus = 'idle'
   chatItems = [{ id: 'm1', kind: 'assistant', text: 'Pane B transcript' }]
+  location.search = ''
+})
+
+describe('AgentPaneScreen computer links', () => {
+  it('opens a notification link on the computer it names and selects it', async () => {
+    paneId = 'pane-b'
+    location.search = '?computer=0123456789abcdef'
+    render(<AgentPaneScreen />)
+    expect(await screen.findByText('Remote pane')).toBeTruthy()
+    expect(selectComputer).toHaveBeenCalledWith('desktop', '0123456789abcdef')
+    expect(api.getHerdrChat).not.toHaveBeenCalled()
+    // Polled: no live socket was asked of the remote computer.
+    expect(remoteApi.openJsonSocket).not.toHaveBeenCalled()
+  })
+
+  it('ignores a malformed computer in the link', async () => {
+    paneId = 'pane-b'
+    location.search = '?computer=../../settings'
+    render(<AgentPaneScreen />)
+    expect(await screen.findByText('Pane B transcript')).toBeTruthy()
+    expect(selectComputer).not.toHaveBeenCalled()
+  })
 })
 
 describe('AgentPaneScreen pane navigation', () => {
@@ -271,7 +314,11 @@ describe('AgentPaneScreen pane navigation', () => {
 
     expect(chat.getAttribute('aria-pressed')).toBe('false')
     expect(terminal.getAttribute('aria-pressed')).toBe('true')
-    expect(location).toEqual({ pathname: before.pathname, key: before.key })
+    expect(location).toEqual({
+      pathname: before.pathname,
+      key: before.key,
+      search: before.search,
+    })
     expect(window.history.length).toBe(before.length)
   })
 

@@ -95,14 +95,15 @@ describe('Herdr computer prefix', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 
-  it('asks the remote computer for its own transcript images', async () => {
+  it("never loads a remote transcript image from the desktop's own Herdr", async () => {
     const { api, fetch } = desktop(
       vi.fn().mockResolvedValue(reply({}, 200, 'image/png')),
     )
-    await api.forHerdrComputer(MINI).getImage('/api/herdr/image/shot.png')
+    await expect(
+      api.forHerdrComputer(MINI).getImage('/api/herdr/image/shot.png'),
+    ).rejects.toThrow(/another computer/)
     await api.getImage('/api/herdr/image/shot.png')
     expect(fetch.mock.calls.map(([path]) => path)).toEqual([
-      `/api/herdr/computers/${MINI}/image/shot.png`,
       '/api/herdr/image/shot.png',
     ])
   })

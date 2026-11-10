@@ -311,4 +311,52 @@ describe('useHerdrNotificationEvents', () => {
       'Where should I deploy the release candidate for testing?',
     )
   })
+
+  it('links each computer’s alert to that computer, even while another is shown', async () => {
+    const notify = vi.fn().mockResolvedValue(true)
+    const api = {
+      readHerdrPane: vi.fn().mockResolvedValue({ read: { text: '' } }),
+      getHerdrChat: vi.fn().mockResolvedValue({ page: { items: [] } }),
+    }
+    const panes = (status: string) =>
+      [
+        { pane_id: 'w1:p1', workspace_id: 'w1', agent_status: status },
+      ] as HerdrPane[]
+    const run = async (computerId: string | undefined, viewing: boolean) => {
+      notify.mockClear()
+      const { result, rerender } = renderHook(
+        ({ status }: { status: string }) =>
+          useHerdrNotificationEvents({
+            desktopId: 'desktop',
+            computerId,
+            viewingComputer: viewing,
+            desktopName: 'Mac',
+            panes: panes(status),
+            mutedWorkspaces: [],
+            // The same pane id is open, but on the other computer.
+            pathname: '/d/desktop/agents/w1%3Ap1',
+            enabled: true,
+            api,
+            notify,
+            dedupe: createNotificationDeduper(),
+          }),
+        { initialProps: { status: 'working' } },
+      )
+      act(() => result.current())
+      rerender({ status: 'done' })
+      act(() => result.current())
+      await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1))
+      return notify.mock.calls[0][0]
+    }
+    expect(await run(undefined, false)).toEqual(
+      expect.objectContaining({
+        url: '/d/desktop/agents/w1%3Ap1?computer=this',
+      }),
+    )
+    const remote = await run('0123456789abcdef', false)
+    expect(remote.url).toBe(
+      '/d/desktop/agents/w1%3Ap1?computer=0123456789abcdef',
+    )
+    expect(remote.tag).toContain('0123456789abcdef/w1:p1')
+  })
 })

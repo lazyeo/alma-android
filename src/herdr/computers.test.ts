@@ -37,8 +37,13 @@ describe('Herdr computer choice', () => {
     expect(effectiveComputer(computers, MINI)).toBe(MINI)
     expect(effectiveComputer(computers, null)).toBeUndefined()
     expect(effectiveComputer([], MINI)).toBeUndefined()
-    // Older desktop or list not loaded yet: the desktop itself.
-    expect(effectiveComputer(undefined, MINI)).toBeUndefined()
+    // Older desktop (no computers route): the desktop itself.
+    expect(effectiveComputer(null, MINI)).toBeUndefined()
+  })
+
+  it('trusts the remembered computer until the list first loads', () => {
+    expect(effectiveComputer(undefined, MINI)).toBe(MINI)
+    expect(effectiveComputer(undefined, null)).toBeUndefined()
   })
 })
 

@@ -19,7 +19,9 @@ import {
   useState,
   type CSSProperties,
 } from 'react'
-import { useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
+import { THIS_HERDR_COMPUTER } from '../desktopRoutes'
+import { herdrComputerIdPattern } from './computers'
 import { BottomSheet } from '../components/BottomSheet'
 import {
   ComposerAttachments,
@@ -105,6 +107,14 @@ type ChatResponse = {
   error?: { code?: string; message?: string }
 }
 
+/** `?computer=` of a pane link: an id, undefined (this desktop) or none. */
+function herdrComputerFromSearch(search: string | undefined) {
+  const value = new URLSearchParams(search ?? '').get('computer')
+  if (value === null) return null
+  if (value === THIS_HERDR_COMPUTER) return undefined
+  return herdrComputerIdPattern.test(value) ? value : null
+}
+
 const statusClass = (
   status: string,
 ): 'blocked' | 'working' | 'done' | 'idle' | 'unknown' =>
@@ -124,10 +134,25 @@ export function AgentPaneScreen() {
   const decodedDesktopId = decodeURIComponent(desktopId)
   const decodedPaneId = decodeURIComponent(paneId)
   const connection = useConnection()
-  const { byDesktop, apiFor } = useHerdr()
+  const { byDesktop, apiFor, computerFor, selectComputer } = useHerdr()
+  // A link from a notification names its computer; it wins over the current
+  // choice (pane ids repeat across computers) and becomes the choice.
+  const pinnedComputer = herdrComputerFromSearch(useLocation().search)
+  useEffect(() => {
+    if (
+      pinnedComputer !== null &&
+      computerFor(decodedDesktopId) !== pinnedComputer
+    )
+      selectComputer(decodedDesktopId, pinnedComputer)
+    // Only when the link changes; later choices on the page stay the user's.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [decodedDesktopId, pinnedComputer])
   // Herdr may be on another computer the desktop reaches; that API has the
   // computer's prefix and no live sockets, so this screen polls instead.
-  const api = apiFor(decodedDesktopId) ?? connection.api
+  const api =
+    pinnedComputer !== null
+      ? connection.api.forHerdrComputer(pinnedComputer)
+      : (apiFor(decodedDesktopId) ?? connection.api)
   const remote = api.herdrComputer !== undefined
   const pane = byDesktop[decodedDesktopId]?.snapshot?.panes?.find(
     (item) => item.pane_id === decodedPaneId,
@@ -139,6 +164,7 @@ export function AgentPaneScreen() {
   const [queued, setQueued] = useState<Array<{ id: string; text: string }>>([])
   const [start, setStart] = useState(-1)
   const endRef = useRef(0)
+  const sessionRef = useRef<string>()
   const [chatReady, setChatReady] = useState(false)
   const [chatUnsupported, setChatUnsupported] = useState(false)
   const [terminal, setTerminal] = useState('')
@@ -206,6 +232,7 @@ export function AgentPaneScreen() {
         throw new Error(response.error.message || response.error.code)
       }
       const page = response.page ?? {}
+      if (!prepend) sessionRef.current = response.session_id
       setItems((current) =>
         prepend
           ? mergeChatItems(current, page.items ?? [], 'prepend')
@@ -312,13 +339,28 @@ export function AgentPaneScreen() {
           60,
         )) as ChatResponse
         if (!current) return
-        if (response.page?.items)
-          setItems((items) =>
-            mergeChatItems(items, response.page?.items ?? [], 'append'),
-          )
+        const page = response.page
+        // Polls only fetch the newest page, so a new session, an error
+        // (e.g. no session any more) or a page that starts past what is
+        // shown (missed items) reloads like the socket's session_changed.
+        if (
+          response.error ||
+          (response.session_id !== undefined &&
+            response.session_id !== sessionRef.current) ||
+          (typeof page?.start === 'number' && page.start > endRef.current)
+        ) {
+          current = false
+          setItems([])
+          setQueued([])
+          endRef.current = 0
+          setChatReady(false)
+          void loadChat().catch((reason) => setError(String(reason)))
+          return
+        }
+        if (page?.items)
+          setItems((items) => mergeChatItems(items, page.items ?? [], 'append'))
         if (response.queued) setQueued(response.queued)
-        if (typeof response.page?.end === 'number')
-          endRef.current = response.page.end
+        if (typeof page?.end === 'number') endRef.current = page.end
       } catch {
         /* the next poll retries */
       }
@@ -330,7 +372,15 @@ export function AgentPaneScreen() {
       current = false
       window.clearTimeout(timeout)
     }
-  }, [api, chatReady, decodedPaneId, pageVisible, paneWorking, remote])
+  }, [
+    api,
+    chatReady,
+    decodedPaneId,
+    loadChat,
+    pageVisible,
+    paneWorking,
+    remote,
+  ])
   useEffect(() => {
     if (!chatReady || remote) return
     const resync = createChatResync({
