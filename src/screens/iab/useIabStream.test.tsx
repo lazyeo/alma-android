@@ -282,6 +282,30 @@ describe('useIabStream', () => {
     expect(second.sent()).toEqual([{ type: 'rtc_start', relayOnly: false }])
   })
 
+  it('gives video 10 seconds by default before calling it failed', async () => {
+    vi.useFakeTimers()
+    const fake = fakeSocket()
+    const { result } = renderHook(() =>
+      useIabStream(tunnelOf(fake), 't', { rtc: true, frameWaitMs: 100 }),
+    )
+    await act(async () => {
+      await fake.socket.opened
+    })
+    act(() => fake.message(bound))
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+    act(() => {
+      vi.advanceTimersByTime(9_999)
+    })
+    expect(result.current.videoFailed).toBe(false)
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+    expect(result.current.rtcState).toBe('timeout')
+    expect(result.current.videoFailed).toBe(true)
+  })
+
   it('reports a desktop refusing video as failed when it sends no frames', async () => {
     vi.useFakeTimers()
     const fake = fakeSocket()

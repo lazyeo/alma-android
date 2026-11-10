@@ -19,6 +19,7 @@ export interface IabTunnel {
 
 export interface IabStreamOptions {
   rtc?: boolean
+  /** ICE over the internet (STUN only, no TURN) can take several seconds. */
   rtcTimeoutMs?: number
   /**
    * Desktops from 0.4.491 (the native shell) stream a bound page only as
@@ -46,7 +47,7 @@ export function useIabStream(
   threadId: string,
   {
     rtc = true,
-    rtcTimeoutMs = 5_000,
+    rtcTimeoutMs = 10_000,
     frameWaitMs = 1_500,
     statusTimeoutMs = 6_000,
   }: IabStreamOptions = {},
