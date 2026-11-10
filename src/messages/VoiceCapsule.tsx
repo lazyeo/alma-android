@@ -4,12 +4,16 @@ import { useT } from '../i18n'
 import { LoadingOrb } from '../screens/LoadingOrbCanvas'
 import { useObjectUrl } from '../screens/useObjectUrl'
 import { VoiceUnavailable } from './PartView'
+import {
+  claimVoicePlayback,
+  forgetVoiceRequest,
+  isLatestVoiceRequest,
+  releaseVoicePlayback,
+  requestVoicePlayback,
+} from './voicePlayback'
 import { formatVoiceClock, parseVoiceNote, type VoiceNote } from './voiceNote'
 
 type PlaybackStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'failed'
-
-// One voice plays at a time across the app, like any messenger.
-let playingElement: HTMLAudioElement | null = null
 
 /**
  * The row-level voice slot: nothing for ordinary rows, a placeholder when
@@ -44,6 +48,7 @@ export function VoiceCapsule({
   const audioRef = useRef<HTMLAudioElement>(null)
   const mounted = useRef(true)
   const playWhenReady = useRef(false)
+  const requestOwner = useRef({}).current
   const [blob, setBlob] = useState<Blob>()
   const src = useObjectUrl(blob)
   const [status, setStatus] = useState<PlaybackStatus>('idle')
@@ -52,7 +57,9 @@ export function VoiceCapsule({
   const durationMs = voice.durationMs || decodedMs
 
   const play = useCallback(() => {
-    audioRef.current?.play().catch(() => {
+    audioRef.current?.play().catch((error: unknown) => {
+      // A pause or new source while play() is pending is not a failure.
+      if (error instanceof DOMException && error.name === 'AbortError') return
       if (mounted.current) setStatus('failed')
     })
   }, [])
@@ -69,22 +76,26 @@ export function VoiceCapsule({
       mounted.current = false
       document.removeEventListener('visibilitychange', pauseWhenHidden)
       element?.pause()
-      if (playingElement === element) playingElement = null
+      releaseVoicePlayback(element)
+      forgetVoiceRequest(requestOwner)
     }
-  }, [])
+  }, [requestOwner])
 
   useEffect(() => {
     if (src && playWhenReady.current) {
       playWhenReady.current = false
-      play()
+      // Another voice was tapped while this one downloaded: stay ready.
+      if (isLatestVoiceRequest(requestOwner)) play()
+      else setStatus('paused')
     }
-  }, [src, play])
+  }, [src, play, requestOwner])
 
   const toggle = () => {
     if (status === 'playing') {
       audioRef.current?.pause()
       return
     }
+    requestVoicePlayback(requestOwner)
     // A failed tap starts over with fresh bytes; the old ones may be bad.
     if (blob && status !== 'failed') {
       play()
@@ -178,14 +189,11 @@ export function VoiceCapsule({
         src={src}
         preload="none"
         onPlay={(event) => {
-          const element = event.currentTarget
-          if (playingElement && playingElement !== element)
-            playingElement.pause()
-          playingElement = element
+          claimVoicePlayback(event.currentTarget, voice.path)
           setStatus('playing')
         }}
         onPause={(event) => {
-          if (playingElement === event.currentTarget) playingElement = null
+          releaseVoicePlayback(event.currentTarget)
           if (!event.currentTarget.ended) setStatus('paused')
         }}
         onEnded={() => {

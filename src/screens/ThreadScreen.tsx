@@ -69,7 +69,8 @@ import {
 import { reasoningLive } from './streamingPresentation'
 import { RelayImage } from './RelayImage'
 import { RelayVoice } from './RelayVoice'
-import type { VoiceNote } from '../messages/voiceNote'
+import { parseVoiceNote, type VoiceNote } from '../messages/voiceNote'
+import { useActiveVoicePath } from '../messages/voicePlayback'
 import { ImageGalleryProvider } from './ImageGallery'
 import { stageImageEditResult } from './imageEditStaging'
 import { FileAwareLink, FileLinkProvider, useFileLinks } from './FileLinkSheet'
@@ -102,7 +103,11 @@ import {
   type ReactNode,
 } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useVirtualizer } from '@tanstack/react-virtual'
+import {
+  defaultRangeExtractor,
+  useVirtualizer,
+  type Range,
+} from '@tanstack/react-virtual'
 import { MarkdownContent } from './MarkdownContent'
 import { initialThreadOverscan, THREAD_OVERSCAN } from './threadVirtualizer'
 import { MessageView, PartView, type NestedMessageRow } from '../messages'
@@ -1416,12 +1421,32 @@ function ThreadView({
     fromSearch || expandedOverscanKey === location.key
       ? THREAD_OVERSCAN
       : initialThreadOverscan(false)
+  // A playing voice stays mounted while the user scrolls away from it;
+  // unmounting the row would stop the audio mid-sentence.
+  const activeVoicePath = useActiveVoicePath()
+  const playingIndex = useMemo(() => {
+    if (!activeVoicePath) return -1
+    return roots.findIndex((row) => {
+      const voice = parseVoiceNote(row.metadata)
+      return voice.kind === 'playable' && voice.voice.path === activeVoicePath
+    })
+  }, [roots, activeVoicePath])
+  const rangeExtractor = useCallback(
+    (range: Range) => {
+      const indexes = defaultRangeExtractor(range)
+      return playingIndex < 0 || indexes.includes(playingIndex)
+        ? indexes
+        : [...indexes, playingIndex].sort((a, b) => a - b)
+    },
+    [playingIndex],
+  )
   const virtualizer = useVirtualizer({
     count: roots.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 180,
     initialOffset: fromSearch ? 0 : roots.length * 180,
     overscan: threadOverscan,
+    rangeExtractor,
   })
 
   useEffect(() => {

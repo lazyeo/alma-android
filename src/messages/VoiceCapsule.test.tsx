@@ -10,6 +10,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MessageVoice, VoiceCapsule } from './VoiceCapsule'
 import type { VoiceNote } from './voiceNote'
+import { useActiveVoicePath } from './voicePlayback'
 
 vi.mock('../screens/LoadingOrbCanvas', () => ({
   LoadingOrb: () => <i data-testid="orb" />,
@@ -203,6 +204,74 @@ describe('VoiceCapsule', () => {
     view.unmount()
     await act(async () => resolve(audioBlob()))
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+  })
+})
+
+describe('VoiceCapsule playback races', () => {
+  it('does not let a slower download take over from a newer tap', async () => {
+    let finishA!: (blob: Blob) => void
+    const slow = () => new Promise<Blob>((done) => (finishA = done))
+    const view = render(
+      <>
+        <VoiceCapsule voice={voice} load={slow} />
+        <VoiceCapsule
+          voice={{ ...voice, path: '/api/gallery/cache/b.m4a' }}
+          load={() => Promise.resolve(audioBlob())}
+        />
+      </>,
+    )
+    const [first, second] = screen.getAllByRole('button', {
+      name: 'Play voice message',
+    })
+    fireEvent.click(first)
+    fireEvent.click(second)
+    await screen.findByRole('button', { name: 'Pause voice message' })
+    await act(async () => finishA(audioBlob()))
+    const capsules = view.container.querySelectorAll('.voice-capsule')
+    expect(capsules[0].getAttribute('data-status')).toBe('paused')
+    expect(capsules[1].getAttribute('data-status')).toBe('playing')
+  })
+
+  it('treats a pause during a pending play() as a pause, not a failure', async () => {
+    playImpl = async (element) => {
+      element.dispatchEvent(new Event('play'))
+      throw new DOMException('interrupted', 'AbortError')
+    }
+    const view = render(
+      <VoiceCapsule
+        voice={voice}
+        load={vi.fn().mockResolvedValue(audioBlob())}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Play voice message' }))
+    await screen.findByRole('button', { name: 'Pause voice message' })
+    fireEvent.click(screen.getByRole('button', { name: 'Pause voice message' }))
+    await act(async () => {})
+    expect(
+      view.container
+        .querySelector('.voice-capsule')
+        ?.getAttribute('data-status'),
+    ).toBe('paused')
+  })
+
+  it('publishes the playing path so hosts can keep its row mounted', async () => {
+    function Probe() {
+      return <output>{useActiveVoicePath() ?? 'none'}</output>
+    }
+    const view = render(
+      <>
+        <Probe />
+        <VoiceCapsule
+          voice={voice}
+          load={vi.fn().mockResolvedValue(audioBlob())}
+        />
+      </>,
+    )
+    expect(view.getByText('none')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Play voice message' }))
+    expect(await view.findByText('/api/gallery/cache/a.m4a')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Pause voice message' }))
+    expect(view.getByText('none')).toBeTruthy()
   })
 })
 

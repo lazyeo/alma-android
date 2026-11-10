@@ -973,7 +973,8 @@ dd {
 .voice-capsule-track {
   display: flex;
   flex: 1;
-  min-width: 0;
+  /* Shrink-to-fit bubbles give a flex child no width of its own. */
+  min-width: 120px;
   height: 24px;
   align-items: center;
   gap: 2px;
@@ -984,7 +985,7 @@ dd {
   max-width: 4px;
   border-radius: var(--radius-full);
   background: var(--gray-8);
-  transition: background-color var(--dur-fast);
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
 .voice-capsule-bar[data-played] {
   background: var(--accent-9);
