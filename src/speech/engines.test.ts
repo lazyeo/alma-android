@@ -5,7 +5,14 @@ import {
   parseTranscription,
   transcriptionUrl,
 } from './openaiCompat'
-import { DEFAULT_ENGINE_ID, PRESETS, presetById, validBaseUrl } from './presets'
+import {
+  DEFAULT_ENGINE_ID,
+  keyIdOf,
+  keyUrlsOf,
+  PRESETS,
+  presetById,
+  validBaseUrl,
+} from './presets'
 import {
   applySonioxTokens,
   buildSonioxConfig,
@@ -44,6 +51,21 @@ describe('presets', () => {
       'gpt-4o-mini-transcribe',
       'whisper-1',
     ])
+  })
+
+  it('shares one key across both Soniox engines and nowhere else', () => {
+    const sonioxUrls = [
+      'wss://stt-rt.soniox.com/transcribe-websocket',
+      'https://api.soniox.com/v1',
+    ]
+    for (const id of ['soniox-rt', 'soniox-async']) {
+      expect(keyIdOf(presetById(id)!)).toBe('soniox')
+      expect(keyUrlsOf(presetById(id)!)).toEqual(sonioxUrls)
+    }
+    for (const preset of PRESETS.filter((p) => !p.id.startsWith('soniox'))) {
+      expect(keyIdOf(preset)).toBe(preset.id)
+      expect(keyUrlsOf(preset)).toEqual([preset.baseUrl])
+    }
   })
 
   it('has unique ids and valid endpoints for every non-custom preset', () => {

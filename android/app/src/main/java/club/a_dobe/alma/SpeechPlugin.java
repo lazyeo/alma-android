@@ -1,6 +1,7 @@
 package club.a_dobe.alma;
 
 import android.Manifest;
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
@@ -13,7 +14,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -123,17 +126,20 @@ public class SpeechPlugin extends Plugin {
     public void setKey(PluginCall call) {
         String engineId = call.getString("engineId");
         String key = call.getString("key");
-        String boundUrl = call.getString("boundUrl");
+        JSArray rawUrls = call.getArray("boundUrls");
         if (!SpeechKeyStore.validEngineId(engineId) || key == null || key.trim().isEmpty()) {
             call.reject("Missing engine or key", "io");
             return;
         }
-        if (!SpeechHostRules.bindable(boundUrl)) {
-            call.reject("A key can only be bound to an https or wss address", SpeechKeyStore.HOST_NOT_ALLOWED);
+        List<String> boundUrls = new ArrayList<>();
+        if (rawUrls != null)
+            for (int i = 0; i < rawUrls.length(); i++) boundUrls.add(rawUrls.optString(i, "").trim());
+        if (!SpeechHostRules.bindable(engineId, boundUrls)) {
+            call.reject("This key cannot be bound to these addresses", SpeechKeyStore.HOST_NOT_ALLOWED);
             return;
         }
         try {
-            keys.set(engineId, key.trim(), boundUrl.trim());
+            keys.set(engineId, key.trim(), boundUrls);
             call.resolve();
         } catch (GeneralSecurityException | IOException error) {
             // No cause attached: the message must never carry key material.

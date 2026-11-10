@@ -5,12 +5,15 @@ import android.content.SharedPreferences;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyPermanentlyInvalidatedException;
 import android.security.keystore.KeyProperties;
+import android.text.TextUtils;
 import android.util.Base64;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.Key;
 import java.security.KeyStore;
+import java.util.Arrays;
+import java.util.List;
 import javax.crypto.AEADBadTagException;
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -67,14 +70,19 @@ final class SpeechKeyStore {
         return engineId != null && engineId.matches("^[A-Za-z0-9._-]{1,64}$");
     }
 
-    synchronized void set(String engineId, String key, String boundUrl) throws GeneralSecurityException, IOException {
+    /**
+     * Saves the key bound to {@code boundUrls}, which the caller has checked
+     * with {@link SpeechHostRules#bindable(String, List)}. Stored one per
+     * line: a URL that parses as bindable cannot contain a newline.
+     */
+    synchronized void set(String engineId, String key, List<String> boundUrls) throws GeneralSecurityException, IOException {
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
         cipher.init(Cipher.ENCRYPT_MODE, secretKey());
         byte[] ciphertext = cipher.doFinal(key.getBytes(StandardCharsets.UTF_8));
         boolean saved = prefs.edit()
             .putString(engineId + ".ct", encode(ciphertext))
             .putString(engineId + ".iv", encode(cipher.getIV()))
-            .putString(engineId + ".url", boundUrl)
+            .putString(engineId + ".url", TextUtils.join("\n", boundUrls))
             .putString(engineId + ".last4", key.length() >= MIN_LENGTH_FOR_HINT ? key.substring(key.length() - 4) : "")
             .commit();
         if (!saved) throw new IOException("Could not save the key");
@@ -99,10 +107,10 @@ final class SpeechKeyStore {
     synchronized String resolve(String engineId, String requestUrl) throws KeyException {
         String ciphertext = prefs.getString(engineId + ".ct", null);
         String iv = prefs.getString(engineId + ".iv", null);
-        String boundUrl = prefs.getString(engineId + ".url", null);
-        if (ciphertext == null || iv == null || boundUrl == null)
+        String boundUrls = prefs.getString(engineId + ".url", null);
+        if (ciphertext == null || iv == null || boundUrls == null)
             throw new KeyException("No key saved for this engine", KEY_MISSING);
-        if (!SpeechHostRules.allowed(boundUrl, requestUrl))
+        if (!SpeechHostRules.allowedAny(Arrays.asList(boundUrls.split("\n")), requestUrl))
             throw new KeyException("The key is not bound to this address", HOST_NOT_ALLOWED);
         try {
             Cipher cipher = Cipher.getInstance(TRANSFORMATION);

@@ -111,9 +111,12 @@ describe('VoiceSettings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() =>
       expect(fake.speech.setKey).toHaveBeenCalledWith({
-        engineId: 'soniox-rt',
+        engineId: 'soniox',
         key: typed,
-        boundUrl: 'wss://stt-rt.soniox.com/transcribe-websocket',
+        boundUrls: [
+          'wss://stt-rt.soniox.com/transcribe-websocket',
+          'https://api.soniox.com/v1',
+        ],
       }),
     )
     expect(await screen.findByText('Set')).toBeTruthy()
@@ -124,6 +127,50 @@ describe('VoiceSettings', () => {
       expect(key).not.toContain(typed)
       expect(value).not.toContain(typed)
     }
+  })
+
+  it('shows one shared key status for both Soniox engines', async () => {
+    fake.speech.keyStatus.mockImplementation(async (options: object) =>
+      (options as { engineId: string }).engineId === 'soniox'
+        ? { set: true, last4: 'abcd' }
+        : { set: false },
+    )
+    for (const engineId of ['soniox-rt', 'soniox-async']) {
+      saveSpeechSettings({ ...defaultSpeechSettings(), engineId })
+      render(<VoiceSettings />)
+      expect(await screen.findByText('••••abcd')).toBeTruthy()
+      cleanup()
+    }
+    saveSpeechSettings({ ...defaultSpeechSettings(), engineId: 'openai' })
+    render(<VoiceSettings />)
+    expect(await screen.findByText('Not set')).toBeTruthy()
+    expect(
+      fake.speech.keyStatus.mock.calls.map(([options]) => options),
+    ).toEqual([
+      { engineId: 'soniox' },
+      { engineId: 'soniox' },
+      { engineId: 'openai' },
+    ])
+  })
+
+  it('names both Soniox hosts and deletes the shared key once', async () => {
+    fake.speech.keyStatus.mockImplementation(async () => ({ set: true }))
+    saveSpeechSettings({ ...defaultSpeechSettings(), engineId: 'soniox-async' })
+    render(<VoiceSettings />)
+    await screen.findByText('Set')
+    fireEvent.click(row(/^API key/))
+    expect(
+      await screen.findByText(
+        'Saved only on this phone and sent only to stt-rt.soniox.com, api.soniox.com.',
+      ),
+    ).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete key' }))
+    await waitFor(() =>
+      expect(fake.speech.deleteKey).toHaveBeenCalledWith({
+        engineId: 'soniox',
+      }),
+    )
+    expect(fake.speech.deleteKey).toHaveBeenCalledTimes(1)
   })
 
   it('shows the last four of a saved key', async () => {

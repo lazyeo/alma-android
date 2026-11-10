@@ -206,11 +206,15 @@ describe('Soniox async dictation', () => {
       })),
     })
     await session.start(presetById('soniox-async')!, [])
+    expect(speech.keyStatus).toHaveBeenCalledWith({ engineId: 'soniox' })
     expect(speech.startRecording).toHaveBeenCalled()
     await session.stop()
-    expect(vi.mocked(speech.transcribe).mock.calls[0][0].url).toBe(
-      'https://api.soniox.com/v1/files',
-    )
+    expect(vi.mocked(speech.transcribe).mock.calls[0][0]).toMatchObject({
+      engineId: 'soniox',
+      url: 'https://api.soniox.com/v1/files',
+    })
+    for (const [spec] of vi.mocked(speech.request).mock.calls)
+      expect(spec.engineId).toBe('soniox')
     expect(session.current).toEqual({ phase: 'done', text: '异步 Alma' })
   })
 })
@@ -221,7 +225,7 @@ describe('real-time dictation', () => {
     await session.start(soniox, ['Herdr'])
     expect(speech.startStream).toHaveBeenCalledTimes(1)
     const options = vi.mocked(speech.startStream).mock.calls[0][0]
-    expect(options.engineId).toBe('soniox-rt')
+    expect(options.engineId).toBe('soniox')
     expect(options.url).toBe('wss://stt-rt.soniox.com/transcribe-websocket')
     expect(JSON.parse(options.config)).toMatchObject({
       model: 'stt-rt-v6',

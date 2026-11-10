@@ -1,4 +1,5 @@
 import type { SpeechPlugin } from './nativeSpeech'
+import { keyIdOf } from './presets'
 import {
   httpErrorKind,
   type NativeHttpSpec,
@@ -10,7 +11,6 @@ import type { DictationError, EngineConfig } from './types'
 // create a transcription for it, poll until it completes, fetch the text,
 // then delete both so no audio or transcript stays on the provider.
 
-export const SONIOX_API_URL = 'https://api.soniox.com/v1'
 export const POLL_INTERVAL_MS = 1000
 /** About two minutes, matching the batch upload timeout in native. */
 export const MAX_POLLS = 120
@@ -28,7 +28,7 @@ const root = (engine: EngineConfig) => engine.baseUrl.trim().replace(/\/+$/, '')
 
 export function sonioxUploadSpec(engine: EngineConfig): NativeHttpSpec {
   return {
-    engineId: engine.id,
+    engineId: keyIdOf(engine),
     url: `${root(engine)}/files`,
     fields: {},
     fileField: 'file',
@@ -41,7 +41,7 @@ export function sonioxCreateSpec(
   fileId: string,
 ): NativeRequestSpec {
   return {
-    engineId: engine.id,
+    engineId: keyIdOf(engine),
     method: 'POST',
     url: `${root(engine)}/transcriptions`,
     body: JSON.stringify({
@@ -58,7 +58,7 @@ export function sonioxStatusSpec(
   id: string,
 ): NativeRequestSpec {
   return {
-    engineId: engine.id,
+    engineId: keyIdOf(engine),
     method: 'GET',
     url: `${root(engine)}/transcriptions/${encodeURIComponent(id)}`,
   }
@@ -69,7 +69,7 @@ export function sonioxTranscriptSpec(
   id: string,
 ): NativeRequestSpec {
   return {
-    engineId: engine.id,
+    engineId: keyIdOf(engine),
     method: 'GET',
     url: `${root(engine)}/transcriptions/${encodeURIComponent(id)}/transcript`,
   }
@@ -81,7 +81,7 @@ export function sonioxDeleteSpec(
   id: string,
 ): NativeRequestSpec {
   return {
-    engineId: engine.id,
+    engineId: keyIdOf(engine),
     method: 'DELETE',
     url: `${root(engine)}/${what}/${encodeURIComponent(id)}`,
   }

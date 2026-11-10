@@ -1,3 +1,4 @@
+import { keyIdOf } from './presets'
 import { buildTermsPrompt } from './terms'
 import type { DictationError, EngineConfig } from './types'
 
@@ -23,7 +24,7 @@ export function buildTranscriptionRequest(
   terms: readonly string[],
 ): NativeHttpSpec {
   return {
-    engineId: engine.id,
+    engineId: keyIdOf(engine),
     url: transcriptionUrl(engine.baseUrl),
     fields: {
       model: engine.model,

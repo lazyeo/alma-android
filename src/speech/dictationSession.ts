@@ -9,6 +9,7 @@ import {
   transcriptText,
   type SonioxTranscript,
 } from './soniox'
+import { keyIdOf } from './presets'
 import { transcribeSonioxAsync } from './sonioxAsync'
 import type { DictationError, EngineConfig } from './types'
 
@@ -102,13 +103,13 @@ export class DictationSession {
       if (mic !== 'granted') ({ mic } = await speech.requestMicPermission())
       if (!live()) return
       if (mic !== 'granted') return this.fail({ kind: 'mic_denied' })
-      const key = await speech.keyStatus({ engineId: engine.id })
+      const key = await speech.keyStatus({ engineId: keyIdOf(engine) })
       if (!live()) return
       if (!key.set) return this.fail({ kind: 'needs_key' })
       this.listen(engine)
       if (engine.kind === 'soniox-rt') {
         await speech.startStream({
-          engineId: engine.id,
+          engineId: keyIdOf(engine),
           url: engine.baseUrl,
           config: JSON.stringify(buildSonioxConfig(engine, terms)),
         })

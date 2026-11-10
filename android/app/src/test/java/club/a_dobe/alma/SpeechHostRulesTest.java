@@ -3,11 +3,14 @@ package club.a_dobe.alma;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Arrays;
+import java.util.Collections;
 import org.junit.Test;
 
 public class SpeechHostRulesTest {
     private static final String OPENAI = "https://api.openai.com/v1";
     private static final String SONIOX = "wss://stt-rt.soniox.com/transcribe-websocket";
+    private static final String SONIOX_API = "https://api.soniox.com/v1";
 
     @Test
     public void sameHostPassesWhatever() {
@@ -78,5 +81,29 @@ public class SpeechHostRulesTest {
     public void hostComparisonIgnoresCase() {
         assertTrue(SpeechHostRules.allowed(OPENAI, "https://API.OpenAI.com/v1/audio/transcriptions"));
         assertTrue(SpeechHostRules.allowed("HTTPS://Api.OpenAI.COM/v1", "https://api.openai.com/v1/audio/transcriptions"));
+    }
+
+    @Test
+    public void sharedSonioxKeyBindsBothFixedHosts() {
+        assertTrue(SpeechHostRules.bindable("soniox", Arrays.asList(SONIOX, SONIOX_API)));
+        assertTrue(SpeechHostRules.bindable("soniox", Arrays.asList(SONIOX_API, "WSS://STT-RT.soniox.com:443/x")));
+        assertTrue(SpeechHostRules.allowedAny(Arrays.asList(SONIOX, SONIOX_API), SONIOX));
+        assertTrue(SpeechHostRules.allowedAny(Arrays.asList(SONIOX, SONIOX_API), SONIOX_API + "/files"));
+        assertFalse(SpeechHostRules.allowedAny(Arrays.asList(SONIOX, SONIOX_API), "https://stt-rt.soniox.com/x"));
+        assertFalse(SpeechHostRules.allowedAny(Arrays.asList(SONIOX, SONIOX_API), OPENAI));
+    }
+
+    @Test
+    public void onlyTheSharedSonioxKeySpansTwoHosts() {
+        assertFalse(SpeechHostRules.bindable("custom", Arrays.asList(SONIOX, SONIOX_API)));
+        assertFalse(SpeechHostRules.bindable("openai", Arrays.asList(OPENAI, SONIOX_API)));
+        assertFalse(SpeechHostRules.bindable("soniox", Arrays.asList(SONIOX, OPENAI)));
+        assertFalse(SpeechHostRules.bindable("soniox", Arrays.asList(SONIOX, SONIOX)));
+        assertFalse(SpeechHostRules.bindable("soniox", Arrays.asList(SONIOX, "https://api.soniox.com:8443/v1")));
+        assertFalse(SpeechHostRules.bindable("soniox", Arrays.asList(SONIOX, SONIOX_API, OPENAI)));
+        assertFalse(SpeechHostRules.bindable("soniox", Collections.emptyList()));
+        assertFalse(SpeechHostRules.bindable("soniox", null));
+        assertTrue(SpeechHostRules.bindable("openai", Collections.singletonList(OPENAI)));
+        assertTrue(SpeechHostRules.bindable("soniox", Collections.singletonList(SONIOX)));
     }
 }

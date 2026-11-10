@@ -20,11 +20,15 @@ export interface SpeechPlugin {
   checkMicPermission(): Promise<{ mic: MicPermission }>
   requestMicPermission(): Promise<{ mic: MicPermission }>
 
-  /** Saves the key bound to `boundUrl`'s scheme, host and port. Write-only. */
+  /**
+   * Saves the key bound to each URL's scheme, host and port. Write-only.
+   * `engineId` here and below is the key id (keyIdOf). Native allows more
+   * than one URL only for the shared Soniox key and its two fixed hosts.
+   */
   setKey(options: {
     engineId: string
     key: string
-    boundUrl: string
+    boundUrls: string[]
   }): Promise<void>
   keyStatus(options: { engineId: string }): Promise<KeyStatus>
   deleteKey(options: { engineId: string }): Promise<void>

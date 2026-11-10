@@ -1,7 +1,11 @@
 package club.a_dobe.alma;
 
 import java.net.URI;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * Decides where a saved speech key may be sent. A key is bound to the
@@ -14,6 +18,37 @@ final class SpeechHostRules {
     /** True when a key may be saved for this URL at all. */
     static boolean bindable(String url) {
         return parse(url) != null;
+    }
+
+    /** The one key shared by two endpoints: Soniox real-time and Soniox async. */
+    static final String SHARED_SONIOX_KEY_ID = "soniox";
+    /** The only pair a shared key may be bound to, fixed here rather than trusted from JS. */
+    private static final Set<String> SHARED_SONIOX_ORIGINS =
+        new HashSet<>(Arrays.asList("wss://stt-rt.soniox.com:443", "https://api.soniox.com:443"));
+
+    /**
+     * True when a key saved under {@code keyId} may be bound to all of
+     * {@code urls}: one bindable URL, or for the shared Soniox key exactly
+     * its two fixed origins. No other key may span several hosts.
+     */
+    static boolean bindable(String keyId, List<String> urls) {
+        if (urls == null || urls.isEmpty()) return false;
+        if (urls.size() == 1) return bindable(urls.get(0));
+        if (!SHARED_SONIOX_KEY_ID.equals(keyId) || urls.size() != SHARED_SONIOX_ORIGINS.size()) return false;
+        Set<String> origins = new HashSet<>();
+        for (String url : urls) {
+            Target target = parse(url);
+            if (target == null) return false;
+            origins.add(target.origin());
+        }
+        return origins.equals(SHARED_SONIOX_ORIGINS);
+    }
+
+    /** True when any of the bound URLs admits {@code requestUrl}. */
+    static boolean allowedAny(List<String> boundUrls, String requestUrl) {
+        if (boundUrls == null) return false;
+        for (String bound : boundUrls) if (allowed(bound, requestUrl)) return true;
+        return false;
     }
 
     /** True when a key bound to {@code boundUrl} may be sent to {@code requestUrl}. */
@@ -37,6 +72,10 @@ final class SpeechHostRules {
             this.scheme = scheme;
             this.host = host;
             this.port = port;
+        }
+
+        String origin() {
+            return scheme + "://" + host + ":" + port;
         }
     }
 

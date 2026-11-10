@@ -26,7 +26,7 @@ import {
   type KeyStatus,
   type MicPermission,
 } from '../speech/nativeSpeech'
-import { PRESETS, validBaseUrl } from '../speech/presets'
+import { keyIdOf, keyUrlsOf, PRESETS, validBaseUrl } from '../speech/presets'
 import { DEFAULT_TERMS, formatTerms, parseTerms } from '../speech/terms'
 import type { EngineConfig } from '../speech/types'
 import { useVoiceTest } from '../speech/VoiceTest'
@@ -48,19 +48,21 @@ function VoiceSettingsSection() {
   const [mic, setMic] = useState<MicPermission>()
   const test = useVoiceTest()
   const engine = resolveEngine(settings)
+  // Both Soniox engines share a key, so they share this status too.
+  const keyId = keyIdOf(engine)
   const engineName = (candidate: EngineConfig) =>
     candidate.custom ? t('speech.engine.custom') : candidate.label
 
   useEffect(() => {
     let current = true
     setKeyStatus(undefined)
-    Speech.keyStatus({ engineId: engine.id })
+    Speech.keyStatus({ engineId: keyId })
       .then((status) => current && setKeyStatus(status))
       .catch(() => current && setError(t('speech.settings.key.statusFailed')))
     return () => {
       current = false
     }
-  }, [engine.id, t])
+  }, [keyId, t])
 
   useEffect(() => {
     let current = true
@@ -331,13 +333,13 @@ function KeySheet({
     setBusy(true)
     try {
       await Speech.setKey({
-        engineId: engine.id,
+        engineId: keyIdOf(engine),
         key: typed,
-        boundUrl: engine.baseUrl,
+        boundUrls: keyUrlsOf(engine),
       })
       setKey('')
       void haptic('light')
-      onStatus(await Speech.keyStatus({ engineId: engine.id }))
+      onStatus(await Speech.keyStatus({ engineId: keyIdOf(engine) }))
       onClose()
     } catch {
       setError(t('speech.settings.key.saveFailed'))
@@ -348,7 +350,7 @@ function KeySheet({
   const remove = async () => {
     setBusy(true)
     try {
-      await Speech.deleteKey({ engineId: engine.id })
+      await Speech.deleteKey({ engineId: keyIdOf(engine) })
       void haptic('light')
       onStatus({ set: false })
       onClose()
@@ -358,7 +360,7 @@ function KeySheet({
       setBusy(false)
     }
   }
-  const host = hostOf(engine.baseUrl)
+  const host = keyUrlsOf(engine).map(hostOf).filter(Boolean).join(', ')
   return (
     <BottomSheet
       title={t('speech.settings.key.sheetTitle', { engine: engineName })}

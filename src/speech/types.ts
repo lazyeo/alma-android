@@ -14,6 +14,13 @@ export interface EngineConfig {
   model: string
   /** Models offered in Settings; the first one is the preset default. */
   models: readonly string[]
+  /**
+   * Native key id when engines share one key (both Soniox engines);
+   * defaults to `id`.
+   */
+  keyId?: string
+  /** Every URL the shared key is bound to; defaults to `[baseUrl]`. */
+  keyUrls?: readonly string[]
   /** Set for the user-defined endpoint, whose base URL and model are editable. */
   custom?: boolean
 }

@@ -120,7 +120,7 @@ describe('MicButton', () => {
     expect(sheet?.textContent).toContain('Soniox')
     expect(sheet?.textContent).toContain('stt-rt-v6')
     expect(fake.speech.startStream).toHaveBeenCalledWith(
-      expect.objectContaining({ engineId: 'soniox-rt' }),
+      expect.objectContaining({ engineId: 'soniox' }),
     )
   })
 
