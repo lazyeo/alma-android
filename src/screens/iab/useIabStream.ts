@@ -19,13 +19,23 @@ export interface IabTunnel {
 
 export interface IabStreamOptions {
   rtc?: boolean
+  /** ICE over the internet (STUN only, no TURN) can take several seconds. */
   rtcTimeoutMs?: number
+  /**
+   * Desktops from 0.4.491 (the native shell) stream a bound page only as
+   * WebRTC video and send no JPEG frames: video starts this long after a
+   * bound status if no frame came first.
+   */
+  frameWaitMs?: number
   /**
    * The desktop reports a status as soon as the socket opens; an open socket
    * that stays silent this long belongs to a desktop without the browser.
    */
   statusTimeoutMs?: number
 }
+
+/** RTC states after which no video will come on this attempt. */
+const RTC_DEAD = new Set(['failed', 'unavailable', 'timeout'])
 
 /** Open sockets closed before any status, in a row, before giving up. */
 export const SILENT_CLOSES_UNSUPPORTED = 3
@@ -37,7 +47,8 @@ export function useIabStream(
   threadId: string,
   {
     rtc = true,
-    rtcTimeoutMs = 5_000,
+    rtcTimeoutMs = 10_000,
+    frameWaitMs = 1_500,
     statusTimeoutMs = 6_000,
   }: IabStreamOptions = {},
 ) {
@@ -63,6 +74,8 @@ export function useIabStream(
   const [videoLive, setVideoLive] = useState(false)
   const [rtcState, setRtcState] = useState('idle')
   const [error, setError] = useState('')
+  /** Video failed and the desktop never sent a JPEG frame on this socket. */
+  const [videoFailed, setVideoFailed] = useState(false)
 
   const sendRaw = useCallback((value: IabClientMessage) => {
     if (!openRef.current) return
@@ -90,7 +103,9 @@ export function useIabStream(
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let rtcTimer: ReturnType<typeof setTimeout> | undefined
     let statusTimer: ReturnType<typeof setTimeout> | undefined
+    let frameWaitTimer: ReturnType<typeof setTimeout> | undefined
     let rtcStarted = false
+    let sawFrame = false
     let opened = false
     let heard = false
     // Frames are numbered per socket from 1: the first one of this socket
@@ -101,7 +116,18 @@ export function useIabStream(
     openRef.current = false
     setBound(undefined)
     setRtcState('idle')
+    setVideoFailed(false)
 
+    const clearFrameWait = () => {
+      if (frameWaitTimer) clearTimeout(frameWaitTimer)
+      frameWaitTimer = undefined
+    }
+    // Without JPEG frames to fall back on, a dead video leaves the screen
+    // black: say so instead of spinning.
+    const rtcState = (state: string) => {
+      setRtcState(state)
+      if (RTC_DEAD.has(state) && rtcStarted && !sawFrame) setVideoFailed(true)
+    }
     const clearVideo = () => {
       if (rtcTimer) clearTimeout(rtcTimer)
       rtcTimer = undefined
@@ -115,7 +141,7 @@ export function useIabStream(
         if (!disposed) setStream(next)
       },
       onState: (state) => {
-        setRtcState(state)
+        rtcState(state)
         if (state === 'failed') clearVideo()
       },
       onError: setError,
@@ -126,14 +152,16 @@ export function useIabStream(
       clearVideo()
     }
     // Like the official client: video once the first frame proves the page
-    // streams, so a closed browser never sets up a peer.
+    // streams, so a closed browser never sets up a peer. A native-shell
+    // desktop sends no frames, so a bound page without one starts it too.
     const startRtc = () => {
+      clearFrameWait()
       if (!rtc || disposed || rtcStarted) return
       rtcStarted = true
       sendRaw({ type: 'rtc_start', relayOnly: false })
       rtcTimer = setTimeout(() => {
         if (videoLiveRef.current) return
-        setRtcState('timeout')
+        rtcState('timeout')
         sendRaw({ type: 'rtc_stop' })
         stopRtc()
       }, rtcTimeoutMs)
@@ -157,8 +185,11 @@ export function useIabStream(
           setPage({ url: next.url, title: next.title, loading: next.loading })
           setError(next.error ?? '')
           if (!next.bound) {
+            clearFrameWait()
             frameRef.current = undefined
             setFrame(undefined)
+          } else if (rtc && !rtcStarted && !sawFrame && !frameWaitTimer) {
+            frameWaitTimer = setTimeout(startRtc, frameWaitMs)
           }
           break
         case 'page':
@@ -177,6 +208,8 @@ export function useIabStream(
               ? next
               : latestFrame(frameRef.current, next)
           firstFrame = false
+          sawFrame = true
+          setVideoFailed(false)
           frameRef.current = kept
           setFrame(kept)
           setViewport((current) =>
@@ -193,7 +226,7 @@ export function useIabStream(
           setError(next.message)
           break
         case 'rtc':
-          setRtcState(next.state)
+          rtcState(next.state)
           break
         case 'rtc_offer':
           clearVideo()
@@ -219,6 +252,7 @@ export function useIabStream(
     const removeClose = socket.onClose(() => {
       if (disposed) return
       if (statusTimer) clearTimeout(statusTimer)
+      clearFrameWait()
       openRef.current = false
       setConnected(false)
       stopRtc()
@@ -252,6 +286,7 @@ export function useIabStream(
         if (retryTimer) clearTimeout(retryTimer)
         retryTimer = undefined
         if (statusTimer) clearTimeout(statusTimer)
+        clearFrameWait()
         openRef.current = false
         setConnected(false)
         stopRtc()
@@ -267,6 +302,7 @@ export function useIabStream(
       disposed = true
       if (retryTimer) clearTimeout(retryTimer)
       if (statusTimer) clearTimeout(statusTimer)
+      clearFrameWait()
       document.removeEventListener('visibilitychange', onVisibility)
       removeMessage()
       removeClose()
@@ -278,6 +314,7 @@ export function useIabStream(
     }
   }, [
     generation,
+    frameWaitMs,
     rtc,
     rtcTimeoutMs,
     sendRaw,
@@ -286,6 +323,13 @@ export function useIabStream(
     tunnel,
     unsupported,
   ])
+
+  /** Tries the video again on a fresh socket. */
+  const retry = useCallback(() => {
+    failures.current = 0
+    setVideoFailed(false)
+    setGeneration((value) => value + 1)
+  }, [])
 
   const markVideoFrame = useCallback(() => {
     if (videoLiveRef.current) return
@@ -306,6 +350,8 @@ export function useIabStream(
     videoLive,
     markVideoFrame,
     rtcState,
+    videoFailed,
+    retry,
     error,
     send,
   }

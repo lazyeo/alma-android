@@ -174,6 +174,176 @@ describe('useIabStream', () => {
     expect(fake.sent().at(-1)).toEqual({ type: 'rtc_stop' })
   })
 
+  const bound = {
+    type: 'status',
+    bound: true,
+    url: 'https://a.test/',
+    title: 'A',
+    loading: false,
+  }
+
+  it('asks for video when a bound page sends no frames (native-shell desktop)', async () => {
+    vi.useFakeTimers()
+    const fake = fakeSocket()
+    renderHook(() =>
+      useIabStream(tunnelOf(fake), 't', { rtc: true, frameWaitMs: 1_500 }),
+    )
+    await act(async () => {
+      await fake.socket.opened
+    })
+    act(() => fake.message(bound))
+    act(() => {
+      vi.advanceTimersByTime(1_499)
+    })
+    expect(fake.sent()).toEqual([])
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+    expect(fake.sent()).toEqual([{ type: 'rtc_start', relayOnly: false }])
+  })
+
+  it('waits for no timer when a frame comes first, and asks only once', async () => {
+    vi.useFakeTimers()
+    const fake = fakeSocket()
+    renderHook(() =>
+      useIabStream(tunnelOf(fake), 't', { rtc: true, frameWaitMs: 1_500 }),
+    )
+    await act(async () => {
+      await fake.socket.opened
+    })
+    act(() => {
+      fake.message(bound)
+      fake.message(frame(1))
+    })
+    expect(fake.sent()).toEqual([{ type: 'rtc_start', relayOnly: false }])
+    act(() => {
+      vi.advanceTimersByTime(5_000)
+    })
+    expect(
+      fake.sent().filter((value) => value.type === 'rtc_start'),
+    ).toHaveLength(1)
+  })
+
+  it('does not ask for video while the browser is closed', async () => {
+    vi.useFakeTimers()
+    const fake = fakeSocket()
+    renderHook(() => useIabStream(tunnelOf(fake), 't', { rtc: true }))
+    await act(async () => {
+      await fake.socket.opened
+    })
+    act(() => fake.message({ type: 'status', bound: false }))
+    act(() => {
+      vi.advanceTimersByTime(10_000)
+    })
+    expect(fake.sent()).toEqual([])
+  })
+
+  it('reports failed video when there are no frames to fall back on, and retries', async () => {
+    vi.useFakeTimers()
+    const first = fakeSocket()
+    const second = fakeSocket()
+    const openIabSocket = vi
+      .fn()
+      .mockReturnValueOnce(first.socket)
+      .mockReturnValue(second.socket)
+    const tunnel = { openIabSocket }
+    const { result } = renderHook(() =>
+      useIabStream(tunnel, 't', {
+        rtc: true,
+        frameWaitMs: 1_500,
+        rtcTimeoutMs: 1_000,
+      }),
+    )
+    await act(async () => {
+      await first.socket.opened
+    })
+    act(() => first.message(bound))
+    act(() => {
+      vi.advanceTimersByTime(1_500)
+    })
+    expect(result.current.videoFailed).toBe(false)
+    act(() => {
+      vi.advanceTimersByTime(1_000)
+    })
+    expect(result.current.rtcState).toBe('timeout')
+    expect(result.current.videoFailed).toBe(true)
+
+    act(() => result.current.retry())
+    expect(openIabSocket).toHaveBeenCalledTimes(2)
+    expect(first.socket.close).toHaveBeenCalled()
+    expect(result.current.videoFailed).toBe(false)
+    await act(async () => {
+      await second.socket.opened
+    })
+    act(() => second.message(bound))
+    act(() => {
+      vi.advanceTimersByTime(1_500)
+    })
+    expect(second.sent()).toEqual([{ type: 'rtc_start', relayOnly: false }])
+  })
+
+  it('gives video 10 seconds by default before calling it failed', async () => {
+    vi.useFakeTimers()
+    const fake = fakeSocket()
+    const { result } = renderHook(() =>
+      useIabStream(tunnelOf(fake), 't', { rtc: true, frameWaitMs: 100 }),
+    )
+    await act(async () => {
+      await fake.socket.opened
+    })
+    act(() => fake.message(bound))
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+    act(() => {
+      vi.advanceTimersByTime(9_999)
+    })
+    expect(result.current.videoFailed).toBe(false)
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+    expect(result.current.rtcState).toBe('timeout')
+    expect(result.current.videoFailed).toBe(true)
+  })
+
+  it('reports a desktop refusing video as failed when it sends no frames', async () => {
+    vi.useFakeTimers()
+    const fake = fakeSocket()
+    const { result } = renderHook(() =>
+      useIabStream(tunnelOf(fake), 't', { rtc: true, frameWaitMs: 100 }),
+    )
+    await act(async () => {
+      await fake.socket.opened
+    })
+    act(() => fake.message(bound))
+    act(() => {
+      vi.advanceTimersByTime(100)
+    })
+    act(() => fake.message({ type: 'rtc', state: 'failed' }))
+    expect(result.current.videoFailed).toBe(true)
+  })
+
+  it('keeps JPEG frames, not an error, when video fails on an older desktop', async () => {
+    vi.useFakeTimers()
+    const fake = fakeSocket()
+    const { result } = renderHook(() =>
+      useIabStream(tunnelOf(fake), 't', { rtc: true, rtcTimeoutMs: 1_000 }),
+    )
+    await act(async () => {
+      await fake.socket.opened
+    })
+    act(() => {
+      fake.message(bound)
+      fake.message(frame(1))
+    })
+    act(() => {
+      vi.advanceTimersByTime(1_000)
+    })
+    expect(result.current.rtcState).toBe('timeout')
+    expect(result.current.videoFailed).toBe(false)
+    expect(result.current.frame?.seq).toBe(1)
+  })
+
   it('sends page input over the socket while no data channel is open', async () => {
     const fake = fakeSocket()
     const { result } = renderHook(() =>

@@ -26,6 +26,9 @@ export const browser = {
   closedBody: 'Enter an address above to open it in this tab on your computer.',
   unsupportedTitle: 'No browser view on this computer',
   unsupportedBody: 'Update Alma on that computer to see its browser here.',
+  videoFailedTitle: 'Could not show the browser',
+  videoFailedBody:
+    "This computer's browser only streams video, and the video connection failed. Away from the computer's network, it may need a TURN relay.",
   keyboard: 'Type into the page',
   keyboardPlaceholder: 'Type into the page',
   sendText: 'Send',

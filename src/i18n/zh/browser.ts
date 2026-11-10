@@ -28,6 +28,9 @@ export const browser: CatalogShape<typeof source> = {
   closedBody: '在上方输入网址，就会在电脑上的这个标签页里打开。',
   unsupportedTitle: '这台电脑不支持浏览器画面',
   unsupportedBody: '更新那台电脑上的 Alma 后，即可在这里查看它的浏览器。',
+  videoFailedTitle: '无法显示浏览器画面',
+  videoFailedBody:
+    '桌面浏览器只提供视频流，视频连接失败。不在电脑所在的网络时，可能需要 TURN 中继。',
   keyboard: '向页面输入',
   keyboardPlaceholder: '向页面输入文字',
   sendText: '发送',

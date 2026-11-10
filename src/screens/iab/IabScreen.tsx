@@ -14,6 +14,7 @@ import {
   RotateCw,
   Send,
   TriangleAlert,
+  VideoOff,
   X,
 } from 'lucide-react'
 import {
@@ -291,6 +292,15 @@ export function IabScreen({
       <strong>{t('browser.closedTitle')}</strong>
       <span>{t('browser.closedBody')}</span>
       {iab.error ? <small>{iab.error}</small> : null}
+    </div>
+  ) : iab.videoFailed && !live ? (
+    <div className="remote-screen-empty remote-screen-asleep" role="alert">
+      <VideoOff size={28} />
+      <strong>{t('browser.videoFailedTitle')}</strong>
+      <span>{t('browser.videoFailedBody')}</span>
+      <button className="chip-button" onClick={iab.retry}>
+        {t('common.retry')}
+      </button>
     </div>
   ) : !live ? (
     <div className="remote-screen-empty">
