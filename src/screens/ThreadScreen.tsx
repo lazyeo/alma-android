@@ -68,6 +68,8 @@ import {
 } from './optimisticThread'
 import { reasoningLive } from './streamingPresentation'
 import { RelayImage } from './RelayImage'
+import { RelayVoice } from './RelayVoice'
+import type { VoiceNote } from '../messages/voiceNote'
 import { ImageGalleryProvider } from './ImageGallery'
 import { stageImageEditResult } from './imageEditStaging'
 import { FileAwareLink, FileLinkProvider, useFileLinks } from './FileLinkSheet'
@@ -312,6 +314,7 @@ const threadPartCapabilities = {
   renderImage: (source: string, name: string) => (
     <RelayImage source={source} name={name} />
   ),
+  renderVoice: (voice: VoiceNote) => <RelayVoice voice={voice} />,
   renderNestedRuns: (rows: readonly NestedMessageRow[], live: boolean) => (
     <NestedRuns rows={rows as readonly MessageRow[]} live={live} />
   ),

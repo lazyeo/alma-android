@@ -15,6 +15,7 @@ export const message: CatalogShape<typeof source> = {
   attachment: '附件',
   unsupportedPart: '暂时无法在这里显示此内容。',
   voice: {
+    label: '语音消息',
     unsupported: '语音消息（不支持播放）',
     play: '播放语音消息',
     pause: '暂停语音消息',

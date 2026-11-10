@@ -7,11 +7,13 @@ import { useT } from '../i18n'
 import { parseAlmaImageEdit } from '../components/imageAnnotatorModel'
 import { ImageEditCard } from './ImageEditCard'
 import { TeammateMessagePart } from './TeammateMessagePart'
-import { isVoiceLikePart } from './voiceNote'
+import { isVoiceLikePart, type VoiceNote } from './voiceNote'
 
 export interface PartViewCapabilities {
   renderMarkdown: (text: string, linkUserFilePaths?: boolean) => ReactNode
   renderImage?: (source: string, name: string) => ReactNode
+  /** Plays a row's voice note; absent hosts show the "can't play" note. */
+  renderVoice?: (voice: VoiceNote) => ReactNode
   renderNestedRuns?: (
     rows: readonly NestedMessageRow[],
     live: boolean,

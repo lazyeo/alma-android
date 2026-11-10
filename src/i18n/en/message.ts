@@ -12,6 +12,7 @@ export const message = {
   attachment: 'Attachment',
   unsupportedPart: 'This content cannot be shown here yet.',
   voice: {
+    label: 'Voice message',
     unsupported: "Voice message (can't be played)",
     play: 'Play voice message',
     pause: 'Pause voice message',

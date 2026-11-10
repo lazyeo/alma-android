@@ -152,4 +152,33 @@ describe('PersonaMessageView', () => {
     )
     expect(onToggleReaction).toHaveBeenCalledWith(row, '👍')
   })
+
+  it('gives a voice reply with no text a bubble with the player', () => {
+    const row = message('voice', 'assistant', [], {
+      voice: { url: '/api/gallery/cache/a.m4a', durationMs: 3000 },
+    })
+    const view = render(
+      <PersonaMessageView
+        row={row}
+        layout={personaLayout([row])[0]}
+        mood="happy"
+        capabilities={{
+          ...capabilities,
+          renderVoice: (voice) => <span>player {voice.path}</span>,
+        }}
+      />,
+    )
+    const bubble = view.container.querySelector('.persona-bubble')
+    expect(bubble?.textContent).toBe('player /api/gallery/cache/a.m4a')
+  })
+
+  it('shows the voice and its spoken text together', () => {
+    renderRows([
+      message('voice', 'user', [{ type: 'text', text: 'call mom later' }], {
+        voice: { url: '/api/gallery/cache/a.m4a' },
+      }),
+    ])
+    expect(screen.getByText("Voice message (can't be played)")).toBeTruthy()
+    expect(screen.getByText('call mom later')).toBeTruthy()
+  })
 })

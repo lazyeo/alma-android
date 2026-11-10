@@ -9,6 +9,7 @@ import type { MessagePart } from './index'
 import { previewTailAttributes } from '../components/longPressPreview'
 import { EndResourceCards } from './EndResourceCards'
 import { PartView, type PartViewCapabilities } from './PartView'
+import { MessageVoice } from './VoiceCapsule'
 import type { NestedMessageRow } from './ToolPart'
 import { LoadingOrb } from '../screens/LoadingOrbCanvas'
 import { deriveEndResources } from '../screens/endResources'
@@ -100,6 +101,10 @@ export function MessageView({
       {...previewTail}
       className={`message ${row.message.role}`}
     >
+      <MessageVoice
+        metadata={row.metadata}
+        renderVoice={capabilities.renderVoice}
+      />
       {groupParts(row.message.parts).map((group) => {
         const content = group.parts.map((part, index) => (
           <PartView
