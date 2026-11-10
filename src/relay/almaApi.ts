@@ -488,6 +488,39 @@ export class AlmaApi {
     const bytes = await response.bytes()
     return new Blob([new Uint8Array(bytes)], { type: mediaType })
   }
+  /**
+   * A voice note's bytes from the desktop gallery cache, always through the
+   * tunnel (relay or LAN). `expectedType` is the row's declared audio type,
+   * used only when the desktop serves the file without an audio type.
+   */
+  async getAudio(path: string, expectedType?: string): Promise<Blob> {
+    // Compare the normalized path so `..` cannot step out of the cache.
+    if (
+      new URL(path, 'https://local.invalid').pathname !== path ||
+      !path.startsWith('/api/gallery/cache/')
+    )
+      throw new Error('Unsupported audio address')
+    assertSafePath(path, 'GET')
+    const response = await this.tunnel.fetch(path, { method: 'GET' })
+    const served = (
+      Object.entries(response.headers).find(
+        ([key]) => key.toLowerCase() === 'content-type',
+      )?.[1] ?? ''
+    )
+      .toLowerCase()
+      .split(';')[0]
+      .trim()
+    const untyped = !served || served === 'application/octet-stream'
+    const mediaType = served.startsWith('audio/')
+      ? served
+      : untyped && expectedType?.startsWith('audio/')
+        ? expectedType
+        : ''
+    if (response.status !== 200 || !mediaType)
+      throw new Error('Audio unavailable')
+    const bytes = await response.bytes()
+    return new Blob([new Uint8Array(bytes)], { type: mediaType })
+  }
   listModels() {
     return this.request<{
       data: Array<

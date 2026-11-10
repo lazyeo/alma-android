@@ -5,6 +5,8 @@ import { useLongPress } from '../components/useLongPress'
 import { useT } from '../i18n'
 import { PartView, type PartViewCapabilities } from '../messages/PartView'
 import { ReactionChips } from '../messages/ReactionChips'
+import { MessageVoice } from '../messages/VoiceCapsule'
+import { parseVoiceNote } from '../messages/voiceNote'
 import type { MessageRow } from '../relay'
 import { LoadingOrb } from '../screens/LoadingOrbCanvas'
 import { parseReactions } from '../screens/messageReactions'
@@ -53,7 +55,9 @@ export const PersonaMessageView = memo(function PersonaMessageView({
   )
   const status = row.metadata?.optimisticStatus
   const reactions = useMemo(() => parseReactions(row.metadata), [row.metadata])
-  const empty = !parts.body.length && !parts.reasoning.length
+  // A voice reply may have no text parts at all; it still needs a bubble.
+  const hasVoice = parseVoiceNote(row.metadata).kind !== 'none'
+  const empty = !parts.body.length && !parts.reasoning.length && !hasVoice
   return (
     <article
       {...press}
@@ -88,8 +92,12 @@ export const PersonaMessageView = memo(function PersonaMessageView({
             ))}
           </div>
         ) : null}
-        {parts.body.length ? (
+        {parts.body.length || hasVoice ? (
           <div className="persona-bubble">
+            <MessageVoice
+              metadata={row.metadata}
+              renderVoice={capabilities.renderVoice}
+            />
             {parts.body.map((part, index) => (
               <div
                 key={`${part.type}-${index}`}

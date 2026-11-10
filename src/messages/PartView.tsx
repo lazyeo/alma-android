@@ -1,3 +1,4 @@
+import { AudioLines, CircleHelp } from 'lucide-react'
 import { memo, type ReactNode } from 'react'
 import type { MessagePart } from './index'
 import { ReasoningPart } from './ReasoningPart'
@@ -6,10 +7,13 @@ import { useT } from '../i18n'
 import { parseAlmaImageEdit } from '../components/imageAnnotatorModel'
 import { ImageEditCard } from './ImageEditCard'
 import { TeammateMessagePart } from './TeammateMessagePart'
+import { isVoiceLikePart, type VoiceNote } from './voiceNote'
 
 export interface PartViewCapabilities {
   renderMarkdown: (text: string, linkUserFilePaths?: boolean) => ReactNode
   renderImage?: (source: string, name: string) => ReactNode
+  /** Plays a row's voice note; absent hosts show the "can't play" note. */
+  renderVoice?: (voice: VoiceNote) => ReactNode
   renderNestedRuns?: (
     rows: readonly NestedMessageRow[],
     live: boolean,
@@ -80,5 +84,27 @@ export const PartView = memo(function PartView({
       />
     )
   }
-  return part.text ? <p>{part.text}</p> : null
+  if (part.text) return <p>{part.text}</p>
+  // AI SDK bookkeeping parts carry no content of their own.
+  if (part.type.startsWith('source-') || part.type.startsWith('data-'))
+    return null
+  return isVoiceLikePart(part) ? (
+    <VoiceUnavailable />
+  ) : (
+    <p className="message-unsupported">
+      <CircleHelp size={16} aria-hidden />
+      {t('message.unsupportedPart')}
+    </p>
+  )
 })
+
+/** Shown wherever a voice message exists but this client cannot play it. */
+export function VoiceUnavailable() {
+  const t = useT()
+  return (
+    <p className="message-unsupported">
+      <AudioLines size={16} aria-hidden />
+      {t('message.voice.unsupported')}
+    </p>
+  )
+}

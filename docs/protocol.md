@@ -283,6 +283,46 @@ GET /api/system/site-icon?url=<encoded absolute http(s) URL>
 
 A successful response is `{ "dataUrl": "data:image/png;base64,..." }`. Older desktops and lookup failures are treated as no icon. The mobile client caches positive and negative results by origin for the app run.
 
+### Voice messages
+
+**Verified** against Alma Desktop 0.4.567's server bundle and one probe message (a temporary thread, deleted afterwards). Voice arrives with Desktop 0.4.528 and later. A voice message is **not** a message part. The audio is attached to the message as `metadata.voice`:
+
+```json
+{
+  "message": {
+    "role": "assistant",
+    "parts": [{ "type": "text", "text": "caption or spoken text" }]
+  },
+  "metadata": {
+    "voice": {
+      "url": "/api/gallery/cache/attachment-<hex>.m4a",
+      "mediaType": "audio/mp4",
+      "durationMs": 1421,
+      "waveform": [0.085, 0.214, 0.267]
+    }
+  }
+}
+```
+
+The desktop sanitizes this object before it stores or broadcasts it:
+
+- `url` is a gallery cache path, `/api/gallery/cache/<name>`, where `<name>` matches `[A-Za-z0-9][A-Za-z0-9._-]{0,159}`. An absolute `http://localhost:<port>/api/gallery/cache/...` or `http://127.0.0.1:<port>/...` URL is reduced to that path. Any other URL makes the desktop drop the voice entirely.
+- `mediaType` is one of `audio/mp4`, `audio/m4a`, `audio/x-m4a`, `audio/aac`, `audio/wav`, `audio/x-wav`, `audio/wave`, `audio/mpeg`, `audio/mp3`, `audio/ogg`, or `audio/webm`. Stored files are normally transcoded to `audio/mp4` (`.m4a`); `audio/mpeg` is kept as-is.
+- `durationMs` is a rounded integer between 0 and 1,800,000 (30 minutes). It is `0` when the desktop could not decode the audio.
+- `waveform` has at most 64 values between 0 and 1 (peak-normalized RMS) and may be empty.
+
+The text parts of the same message hold the caption, the text that was spoken, or the reply that was read aloud. There is no separate transcript field. Voice is written by three paths:
+
+| Source                                                                          | Message                                                                                                                                         |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/voice-notes` (raw bytes, `x-alma-filename`)                          | Returns `{ url, mediaType, durationMs, waveform, size }`. The uploader then sends a user message with `userMessageMetadata.voice`.              |
+| `POST /api/threads/:id/send-voice` `{ text \| filePath, caption?, messageId? }` | Adds an assistant message whose text part is `text` or `caption` (may have no parts), or attaches the voice to the in-flight assistant message. |
+| Automatic voice reply (`tts.auto`)                                              | Attaches `metadata.voice` to an existing assistant message later, broadcast as `message_updated`.                                               |
+
+Because of the last path, a message can gain `metadata.voice` after it is first rendered.
+
+The audio is served by the gallery cache static route, which honors `Range` requests (`206 Partial Content`, `Accept-Ranges: bytes`). The mobile client resolves the path with the same tunneled fetch it uses for attachment previews, so relay mode never uses the desktop's `localhost` URL directly. It then plays the downloaded bytes from a local object URL. The client applies the same URL rule as the desktop and accepts any `audio/*` type. Missing `durationMs` or `waveform` falls back to the decoded length and a plain progress line. A `metadata.voice` whose URL fails the rule renders a "voice message (can't be played)" placeholder, so it is never fetched and never blank. Message parts the client does not recognize render as a neutral placeholder too, and audio-looking ones get the voice placeholder.
+
 ### Computer browser (in-app browser)
 
 **Verified** against Alma Desktop 0.4.467's main bundle (static reading; not yet exercised on a device). Each thread can view and drive the desktop's in-app browser for its workspace (the artifact workspace when the thread keeps artifacts):

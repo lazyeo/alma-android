@@ -931,6 +931,88 @@ dd {
   font-size: var(--text-xs);
   font-family: var(--ui-font);
 }
+/* A part or voice this client cannot show: quiet, but never a blank row. */
+.message-unsupported {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  font-family: var(--ui-font);
+}
+.message-unsupported svg {
+  flex-shrink: 0;
+}
+.voice-capsule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 320px);
+  margin: 4px 0;
+  font-family: var(--ui-font);
+}
+.voice-capsule-toggle {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--accent-9);
+  color: var(--accent-contrast);
+}
+.voice-capsule-toggle:active:not(:disabled) {
+  background: var(--accent-10);
+}
+.voice-capsule-toggle:disabled {
+  background: var(--gray-a3);
+}
+.voice-capsule-track {
+  display: flex;
+  flex: 1;
+  /* Shrink-to-fit bubbles give a flex child no width of its own. */
+  min-width: 120px;
+  height: 24px;
+  align-items: center;
+  gap: 2px;
+}
+.voice-capsule-bar {
+  flex: 1;
+  min-width: 2px;
+  max-width: 4px;
+  border-radius: var(--radius-full);
+  background: var(--gray-8);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.voice-capsule-bar[data-played] {
+  background: var(--accent-9);
+}
+.voice-capsule-line {
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--gray-8);
+}
+.voice-capsule-line > span {
+  display: block;
+  height: 100%;
+  background: var(--accent-9);
+}
+.voice-capsule-time,
+.voice-capsule-error {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.voice-capsule-error {
+  flex-shrink: 1;
+  min-width: 0;
+}
 .version-switcher {
   display: flex;
   align-items: center;
