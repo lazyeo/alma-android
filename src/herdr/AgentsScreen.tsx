@@ -22,6 +22,7 @@ import {
 import { AgentsBoard, AgentsList } from './AgentsBoard'
 import { useHerdr, type DesktopHerdrState } from './HerdrProvider'
 import { AgentsManageProvider, useAgentsManage } from './AgentsManage'
+import { HerdrComputerSwitcher } from './HerdrComputerSwitcher'
 
 export function AgentsScreen() {
   const { desktopId = '' } = useParams()
@@ -122,6 +123,7 @@ function AgentsScreenContent({
         }
       />
       <div className="page-body agents-page-body">
+        <HerdrComputerSwitcher desktopId={decodedDesktopId} />
         <AgentsState state={state} onRetry={() => retry(decodedDesktopId)} />
         {!herdrReady(state) ? null : mode === 'board' ? (
           <AgentsBoard

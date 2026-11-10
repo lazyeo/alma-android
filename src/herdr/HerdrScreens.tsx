@@ -123,8 +123,12 @@ export function AgentPaneScreen() {
   const { desktopId = '', paneId = '' } = useParams()
   const decodedDesktopId = decodeURIComponent(desktopId)
   const decodedPaneId = decodeURIComponent(paneId)
-  const { api } = useConnection()
-  const { byDesktop } = useHerdr()
+  const connection = useConnection()
+  const { byDesktop, apiFor } = useHerdr()
+  // Herdr may be on another computer the desktop reaches; that API has the
+  // computer's prefix and no live sockets, so this screen polls instead.
+  const api = apiFor(decodedDesktopId) ?? connection.api
+  const remote = api.herdrComputer !== undefined
   const pane = byDesktop[decodedDesktopId]?.snapshot?.panes?.find(
     (item) => item.pane_id === decodedPaneId,
   ) as HerdrPane | undefined
@@ -254,7 +258,27 @@ export function AgentPaneScreen() {
   }, [decodedPaneId, loadChat])
   useEffect(() => () => revokeAttachmentPreviews(attachmentsRef.current), [])
   useEffect(() => {
-    if (view !== 'terminal') return
+    if (view !== 'terminal' || !remote || !pageVisible) return
+    let current = true
+    let timeout = 0
+    const poll = async () => {
+      try {
+        const result = await api.readHerdrPane(decodedPaneId)
+        if (current) setTerminal(result?.read?.text ?? '')
+      } catch {
+        /* the next read retries; the last screen stays up meanwhile */
+      }
+      if (current)
+        timeout = window.setTimeout(poll, paneWorking ? 2_000 : 10_000)
+    }
+    void poll()
+    return () => {
+      current = false
+      window.clearTimeout(timeout)
+    }
+  }, [api, decodedPaneId, pageVisible, paneWorking, remote, view])
+  useEffect(() => {
+    if (view !== 'terminal' || remote) return
     const socket = api.openJsonSocket(
       `/ws/herdr/screen?pane=${encodeURIComponent(decodedPaneId)}`,
       (event) => {
@@ -273,11 +297,42 @@ export function AgentPaneScreen() {
         .catch(() => undefined),
     )
     return () => socket.close()
-  }, [api, decodedPaneId, view])
+  }, [api, decodedPaneId, remote, view])
   // Opened once the first page is in, so `from` resumes after it. The helper
   // keeps one live socket and reopens from the latest byte offset after gaps.
   useEffect(() => {
-    if (!chatReady) return
+    if (!chatReady || !remote || !pageVisible) return
+    let current = true
+    let timeout = 0
+    const poll = async () => {
+      try {
+        const response = (await api.getHerdrChat(
+          decodedPaneId,
+          -1,
+          60,
+        )) as ChatResponse
+        if (!current) return
+        if (response.page?.items)
+          setItems((items) =>
+            mergeChatItems(items, response.page?.items ?? [], 'append'),
+          )
+        if (response.queued) setQueued(response.queued)
+        if (typeof response.page?.end === 'number')
+          endRef.current = response.page.end
+      } catch {
+        /* the next poll retries */
+      }
+      if (current)
+        timeout = window.setTimeout(poll, paneWorking ? 2_000 : 10_000)
+    }
+    timeout = window.setTimeout(poll, paneWorking ? 2_000 : 10_000)
+    return () => {
+      current = false
+      window.clearTimeout(timeout)
+    }
+  }, [api, chatReady, decodedPaneId, pageVisible, paneWorking, remote])
+  useEffect(() => {
+    if (!chatReady || remote) return
     const resync = createChatResync({
       getEnd: () => endRef.current,
       open: (from, onMessage, onClose) => {
@@ -315,7 +370,7 @@ export function AgentPaneScreen() {
       document.removeEventListener('visibilitychange', onVisibilityChange)
       resync.stop()
     }
-  }, [api, chatReady, decodedPaneId, loadChat])
+  }, [api, chatReady, decodedPaneId, loadChat, remote])
 
   const blockedPrompt = useMemo(() => {
     if (pane?.agent_status !== 'blocked') return null
@@ -843,7 +898,7 @@ export function AgentPaneScreen() {
                   capabilities={{
                     renderMarkdown: (text) => <MarkdownContent text={text} />,
                     renderImage: (source, name) => (
-                      <RelayImage source={source} name={name} />
+                      <RelayImage api={api} source={source} name={name} />
                     ),
                   }}
                   below={
@@ -1042,7 +1097,7 @@ export function AgentPaneScreen() {
             onClose={() => setSubagentSheetOpen(false)}
           />
         ) : null}
-        {view === 'chat' && !chatUnsupported ? (
+        {view === 'chat' && !chatUnsupported && api.herdrUploadsSupported ? (
           <ComposerAttachmentTray
             api={api}
             attachments={attachments}
@@ -1104,7 +1159,7 @@ export function AgentPaneScreen() {
               )}
             </div>
           ) : null}
-          {view === 'chat' && !chatUnsupported ? (
+          {view === 'chat' && !chatUnsupported && api.herdrUploadsSupported ? (
             <ComposerAttachments
               attachments={attachments}
               onChange={setAttachments}

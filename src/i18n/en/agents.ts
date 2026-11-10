@@ -36,6 +36,12 @@ export const agents = {
     'This closes the workspace and every agent tab inside it.',
   closeTabAction: 'Close tab',
   closeWorkspaceAction: 'Close workspace',
+  computers: {
+    label: 'Computer for Herdr',
+    thisComputer: 'This computer',
+    notReady: '{name} (connecting)',
+    polled: 'Updates every few seconds — this computer has no live connection.',
+  },
   kind: {
     claude: 'Claude',
     codex: 'Codex',

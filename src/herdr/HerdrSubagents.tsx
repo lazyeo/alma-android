@@ -238,7 +238,7 @@ function SubagentDetail({
               capabilities={{
                 renderMarkdown: (text) => <MarkdownContent text={text} />,
                 renderImage: (source, name) => (
-                  <RelayImage source={source} name={name} />
+                  <RelayImage api={api} source={source} name={name} />
                 ),
               }}
             />

@@ -35,6 +35,12 @@ export const agents = {
   closeWorkspaceDescription: '这会关闭工作区及其中的所有 Agent 标签页',
   closeTabAction: '关闭标签页',
   closeWorkspaceAction: '关闭工作区',
+  computers: {
+    label: 'Herdr 所在电脑',
+    thisComputer: '本机',
+    notReady: '{name}（连接中）',
+    polled: '每隔几秒刷新：这台电脑没有实时连接。',
+  },
   kind: {
     claude: 'Claude 助手',
     codex: 'Codex 助手',

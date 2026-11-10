@@ -16,6 +16,7 @@ let chatItems: Array<Record<string, unknown>> = [
 ]
 const blockedMenu = `Run this command?\n> 1. Yes, run command\n  2. Yes, always allow\n  3. No, cancel`
 const api = {
+  herdrUploadsSupported: true,
   promptHerdrAgent: vi.fn(async () => undefined),
   herdrUpload: vi.fn(async (_bytes, _mediaType, name) => ({
     path: `/desktop/uploads/${name}`,
@@ -72,6 +73,7 @@ vi.mock('../desktops/DesktopContext', () => ({
 }))
 vi.mock('./HerdrProvider', () => ({
   useHerdr: () => ({
+    apiFor: () => undefined,
     byDesktop: {
       desktop: {
         snapshot: {

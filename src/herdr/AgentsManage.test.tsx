@@ -51,6 +51,10 @@ function renderManage(
   const fullApi = {
     getHerdrInfo: vi.fn(async () => ({ online: true })),
     getHerdrMutes: vi.fn(async () => ({ workspaces: [] })),
+    listHerdrComputers: vi.fn(async () => ({ status: 'unsupported' })),
+    forHerdrComputer() {
+      return this
+    },
     openJsonSocket: vi.fn(() => ({
       opened: Promise.resolve(),
       close: vi.fn(),
