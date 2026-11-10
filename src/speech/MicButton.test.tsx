@@ -171,6 +171,22 @@ describe('MicButton', () => {
     expect(onText).not.toHaveBeenCalled()
   })
 
+  it('drops a result that lands while the sheet is closing', async () => {
+    const onText = renderMic()
+    await openRecording()
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
+    await waitFor(() => expect(fake.speech.stopStream).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(fake.speech.cancelStream).toHaveBeenCalled()
+    act(() =>
+      fake.fire('streamMessage', {
+        data: tokens([{ text: 'too late', is_final: true }], true),
+      }),
+    )
+    await act(() => new Promise((resolve) => setTimeout(resolve, 400)))
+    expect(onText).not.toHaveBeenCalled()
+  })
+
   it('push-to-talk: release after a hold stops and is not also a tap', async () => {
     const onText = renderMic()
     const button = screen.getByRole('button', { name: 'Voice input' })

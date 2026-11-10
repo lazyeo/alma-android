@@ -83,6 +83,9 @@ export function DictationSheet({
       title={t('speech.sheet.title')}
       className="dictation-sheet"
       onClose={onCancel}
+      // Cancel as the exit starts, so a result that lands during the
+      // exit animation is dropped instead of inserted.
+      onCloseStart={onCancel}
       footer={footer}
     >
       <div className="dictation-engine">
