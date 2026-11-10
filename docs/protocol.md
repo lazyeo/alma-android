@@ -321,7 +321,7 @@ The text parts of the same message hold the caption, the text that was spoken, o
 
 Because of the last path, a message can gain `metadata.voice` after it is first rendered.
 
-The audio is served by the gallery cache static route, which honors `Range` requests (`206 Partial Content`, `Accept-Ranges: bytes`). The mobile client resolves the path with the same tunneled fetch it uses for attachment previews, so relay mode never uses the desktop's `localhost` URL directly. It then plays the downloaded bytes from a local object URL. Missing or invalid `metadata.voice` is ignored, and message parts the client does not recognize render as a neutral placeholder instead of nothing.
+The audio is served by the gallery cache static route, which honors `Range` requests (`206 Partial Content`, `Accept-Ranges: bytes`). The mobile client resolves the path with the same tunneled fetch it uses for attachment previews, so relay mode never uses the desktop's `localhost` URL directly. It then plays the downloaded bytes from a local object URL. The client applies the same URL rule as the desktop and accepts any `audio/*` type. Missing `durationMs` or `waveform` falls back to the decoded length and a plain progress line. A `metadata.voice` whose URL fails the rule renders a "voice message (can't be played)" placeholder, so it is never fetched and never blank. Message parts the client does not recognize render as a neutral placeholder too, and audio-looking ones get the voice placeholder.
 
 ### Computer browser (in-app browser)
 
