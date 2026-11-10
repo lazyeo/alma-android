@@ -26,7 +26,8 @@ import { parseLoopPrompt } from './threadLoop'
 import { RefPicker } from './RefPicker'
 import { highlightSegments } from './references'
 import { useComposerReferences } from './useComposerReferences'
-import { dictationInsertion, MicButton } from '../speech/MicButton'
+import { dictationInsertion } from '../speech/insertText'
+import { useVoiceInput } from '../speech/VoiceInput'
 import { useAfterNextRender } from '../speech/useAfterNextRender'
 import { useThreadDraft } from './useThreadDraft'
 import { useT } from '../i18n'
@@ -76,6 +77,25 @@ function StartView() {
   // A voice send fills the composer, then starts from the next render.
   const afterRender = useAfterNextRender()
   const startRef = useRef<() => Promise<void>>()
+  const voice = useVoiceInput({
+    surface: 'alma',
+    draft: () => references.stateRef.current.text,
+    onInsert: (spoken, at) => {
+      const next = dictationInsertion(
+        textarea.current,
+        references.stateRef.current.text,
+        spoken,
+        at,
+      )
+      references.changeText(next.value, next.caret, false)
+      references.placeCaret(next.caret)
+    },
+    onSend: (spoken) => {
+      references.changeText(spoken, spoken.length, false)
+      afterRender(() => void startRef.current?.())
+    },
+    textareaRef: textarea,
+  })
   const selected = models.find((candidate) => candidate.id === model)
   useEffect(() => {
     let active = true
@@ -275,26 +295,7 @@ function StartView() {
             }
             sending={busy}
             textareaRef={textarea}
-            voiceInput={
-              <MicButton
-                surface="alma"
-                draft={() => references.stateRef.current.text}
-                onInsert={(spoken, at) => {
-                  const next = dictationInsertion(
-                    textarea.current,
-                    references.stateRef.current.text,
-                    spoken,
-                    at,
-                  )
-                  references.changeText(next.value, next.caret, false)
-                  references.placeCaret(next.caret)
-                }}
-                onSend={(spoken) => {
-                  references.changeText(spoken, spoken.length, false)
-                  afterRender(() => void startRef.current?.())
-                }}
-              />
-            }
+            voice={voice}
             inputBackdrop={
               references.references.length ? (
                 <div className="composer-highlight" aria-hidden="true">

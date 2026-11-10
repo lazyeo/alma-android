@@ -11168,65 +11168,200 @@ html[data-alma-motion] .alma-shell .persona-message {
   line-height: var(--leading-normal);
 }
 
-/* Voice input: composer mic, dictation sheet, Settings → Voice input. */
-.mic-button {
+/* Voice input: the composer's voice mode, the hold overlay, the error
+   sheet and Settings → Voice input. */
+.composer-entry {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+.composer-entry > .composer-input {
+  flex: 1 1 auto;
+}
+.voice-mode-toggle {
   flex: 0 0 auto;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  border-radius: var(--radius-inner-composer);
+  color: var(--foreground);
+}
+/* The whole bar is the press target; the browser must not scroll or
+   select under a held finger. */
+.voice-hold-bar {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--secondary);
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  transition: background-color var(--dur-press) var(--ease-out);
 }
-/* In the thread composer the mic matches the 28px send/attach controls and
-   keeps a 40px hit area through the same ::before inset. */
-.composer .mic-button {
-  position: relative;
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
-  min-height: 28px;
-  border-radius: var(--radius-inner-composer);
-  color: var(--foreground);
+.voice-hold-bar[data-active='true'] {
+  background: var(--gray-6);
 }
-.composer .mic-button::before {
-  content: '';
+.agent-composer .voice-hold-bar {
+  min-height: 42px;
+}
+/* The hold overlay draws on a fixed dark scrim in every theme, so its
+   surfaces use the --voice-* tokens rather than the theme's grays. */
+.voice-hold {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-fullscreen);
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.voice-hold-scrim {
   position: absolute;
-  inset: -6px;
-  border-radius: inherit;
+  inset: 0;
+  background: var(--voice-scrim);
+}
+.voice-hold-bubble {
+  position: absolute;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+  min-height: 88px;
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  background: var(--accent-9);
+  color: var(--accent-contrast);
+  transition:
+    left var(--dur-fast) var(--ease-out),
+    width var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+.voice-hold-bubble[data-zone='cancel'] {
+  background: var(--red-9);
+  color: var(--red-contrast);
+}
+.voice-hold-bubble[data-zone='edit'] {
+  justify-items: stretch;
+}
+.voice-hold-tail {
+  position: absolute;
+  top: 100%;
+  width: 16px;
+  height: 8px;
+  margin-left: -8px;
+  background: inherit;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  transition: left var(--dur-fast) var(--ease-out);
+}
+/* The live transcript: its latest three lines, or all of it to edit. */
+.voice-hold-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: 100%;
+  max-height: calc(var(--leading-normal) * 3em);
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+  overflow-wrap: anywhere;
+}
+.voice-hold-text[data-full='true'] {
+  display: block;
+  max-height: 36dvh;
+  overflow-y: auto;
+}
+.voice-hold-hint {
+  font-size: var(--text-sm);
+  text-align: center;
+}
+.voice-hold-wave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 24px;
+}
+.voice-hold-wave > span {
+  width: 3px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  transition: height var(--dur-press) var(--ease-out);
+}
+.voice-hold-bubble[data-zone='cancel'] .voice-hold-wave {
+  gap: 1px;
+}
+.voice-hold-bubble[data-zone='cancel'] .voice-hold-wave > span {
+  width: 2px;
+}
+.voice-hold-bubble[data-zone='edit'] .voice-hold-wave {
+  justify-content: flex-end;
+}
+.voice-hold-status {
+  position: absolute;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  max-width: calc(100vw - 32px);
+  color: var(--voice-on-surface);
+  text-align: center;
+  transform: translateX(-50%);
+  transition: left var(--dur-fast) var(--ease-out);
+}
+.voice-hold-status p {
+  margin: 0;
+  font-size: var(--text-md);
+  white-space: nowrap;
+}
+.voice-hold-status small {
+  color: var(--voice-muted);
+  font-size: var(--text-xs);
+}
+.voice-hold-status .quiet-text-button {
+  margin-top: 8px;
+  color: var(--voice-on-surface);
+}
+.voice-hold-capsule {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  padding: 0 16px;
+  border-radius: var(--radius-full);
+  background: var(--voice-surface);
+  color: var(--voice-on-surface);
+  font-size: var(--text-md);
+  text-align: center;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.voice-hold-capsule[data-active='true'] {
+  background: var(--voice-surface-active);
+  color: var(--voice-on-active);
+}
+.voice-hold-arc {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--voice-surface);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.voice-hold-arc[data-active='true'] {
+  background: var(--voice-arc-active);
 }
 .dictation-actions {
   display: grid;
   grid-auto-columns: 1fr;
   grid-auto-flow: column;
   gap: 8px;
-}
-/* Held mic: where letting go leads. The finger's zone lights up. */
-.dictation-hold {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-.dictation-hold-zone {
-  display: grid;
-  place-items: center;
-  min-height: 48px;
-  padding: 6px 8px;
-  border: var(--border-hairline) solid var(--gray-7);
-  border-radius: var(--radius-md);
-  color: var(--muted-foreground);
-  font-size: var(--text-xs);
-  text-align: center;
-  transition:
-    background-color var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out);
-}
-.dictation-hold-zone[data-active='true'] {
-  background: var(--accent-3);
-  color: var(--accent-11);
-  font-weight: var(--weight-medium);
-}
-.dictation-hold-zone[data-zone='cancel'][data-active='true'] {
-  background: var(--muted);
-  color: var(--destructive);
 }
 .dictation-fallback {
   margin: -6px 4px 12px;
@@ -11272,60 +11407,6 @@ html[data-alma-motion] .alma-shell .persona-message {
   font-size: var(--text-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.dictation-progress {
-  display: grid;
-  gap: 12px;
-  margin: 0 4px;
-}
-.dictation-meter-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.dictation-level {
-  flex: 1 1 auto;
-  height: 4px;
-  overflow: hidden;
-  border-radius: var(--radius-full);
-  background: var(--gray-4);
-}
-.dictation-level > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent-9);
-  transform-origin: left center;
-  transition: transform var(--dur-press) var(--ease-out);
-}
-.dictation-elapsed {
-  flex: 0 0 auto;
-  color: var(--muted-foreground);
-  font-size: var(--text-xs);
-  font-variant-numeric: tabular-nums;
-}
-.dictation-preview,
-.dictation-status {
-  margin: 0;
-  font-size: var(--text-md);
-  line-height: var(--leading-normal);
-  overflow-wrap: anywhere;
-}
-.dictation-preview {
-  min-height: 48px;
-  max-height: 40dvh;
-  overflow-y: auto;
-  color: var(--foreground);
-}
-/* Not final yet: Soniox may still rewrite this part. */
-.dictation-tail {
-  color: var(--muted-foreground);
-}
-.dictation-status {
-  color: var(--muted-foreground);
-}
-.dictation-preview + .dictation-status {
-  font-size: var(--text-xs);
 }
 .dictation-error {
   display: grid;
@@ -11462,9 +11543,4 @@ html[data-alma-motion] .alma-shell .persona-message {
 .sheet-footer > .voice-sheet-primary {
   width: 100%;
   min-height: 48px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .dictation-level > span {
-    transition-duration: var(--dur-reduced);
-  }
 }

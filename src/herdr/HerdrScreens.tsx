@@ -48,7 +48,8 @@ import {
   type TerminalKey,
 } from '../terminal/terminal'
 import { useHerdr } from './HerdrProvider'
-import { dictationInsertion, MicButton } from '../speech/MicButton'
+import { dictationInsertion } from '../speech/insertText'
+import { useVoiceInput } from '../speech/VoiceInput'
 import { createChatResync } from './chatResync'
 import { AgentMark } from './AgentMark'
 import {
@@ -744,6 +745,27 @@ export function AgentPaneScreen() {
       ),
     [rows],
   )
+  const voice = useVoiceInput({
+    surface: 'herdr',
+    draft: () => composerRef.current?.value ?? draft,
+    // send() takes the text itself, so no extra render is needed.
+    onSend: (spoken) => void send(spoken),
+    onInsert: (spoken, at) => {
+      const next = dictationInsertion(
+        composerRef.current,
+        composerRef.current?.value ?? draft,
+        spoken,
+        at,
+      )
+      setDraft(next.value)
+      requestAnimationFrame(() => {
+        const area = composerRef.current
+        area?.focus()
+        area?.setSelectionRange(next.caret, next.caret)
+      })
+    },
+    textareaRef: composerRef,
+  })
 
   return (
     <ImageGalleryProvider images={galleryImages}>
@@ -1131,8 +1153,12 @@ export function AgentPaneScreen() {
               {keysHidden ? <Keyboard size={17} /> : <KeyboardOff size={17} />}
             </button>
           ) : null}
+          {voice?.toggle}
+          {voice?.bar}
           <textarea
             ref={composerRef}
+            // Hidden, not unmounted, so the draft and caret survive voice mode.
+            hidden={Boolean(voice?.bar)}
             value={draft}
             aria-label={
               view === 'terminal'
@@ -1184,26 +1210,6 @@ export function AgentPaneScreen() {
                 event.preventDefault()
                 void send()
               }
-            }}
-          />
-          <MicButton
-            surface="herdr"
-            draft={() => composerRef.current?.value ?? draft}
-            // send() takes the text itself, so no extra render is needed.
-            onSend={(spoken) => void send(spoken)}
-            onInsert={(spoken, at) => {
-              const next = dictationInsertion(
-                composerRef.current,
-                composerRef.current?.value ?? draft,
-                spoken,
-                at,
-              )
-              setDraft(next.value)
-              requestAnimationFrame(() => {
-                const area = composerRef.current
-                area?.focus()
-                area?.setSelectionRange(next.caret, next.caret)
-              })
             }}
           />
           <button
