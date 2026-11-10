@@ -26,6 +26,8 @@ export const speech: CatalogShape<typeof source> = {
       timeout: '{from} 超时，已改用 {to}',
       server: '{from} 出错，已改用 {to}',
       empty: '{from} 没识别出内容，已改用 {to}',
+      rate_limited: '{from} 额度不足或限流，已改用 {to}',
+      needs_key: '{from} 未设置 key，已改用 {to}',
     },
   },
   hold: {

@@ -33,6 +33,7 @@ export const FALLBACK_KINDS = [
   'timeout',
   'server',
   'empty',
+  'rate_limited',
 ] as const
 export type FallbackKind = (typeof FALLBACK_KINDS)[number]
 
@@ -40,11 +41,14 @@ function isFallbackKind(kind: DictationErrorKind): kind is FallbackKind {
   return (FALLBACK_KINDS as readonly string[]).includes(kind)
 }
 
-/** The last engine switch, for the sheet's "X failed, now using Y" line. */
+/**
+ * The last engine switch, for the sheet's "X failed, now using Y" line.
+ * needs_key: the first enabled engine had no key, so it was skipped.
+ */
 export interface FallbackNote {
   from: EngineConfig
   to: EngineConfig
-  reason: FallbackKind
+  reason: FallbackKind | 'needs_key'
 }
 
 export type DictationState =
@@ -177,6 +181,8 @@ export class DictationSession {
       const engine = this.engines[0]
       if (!engine) return this.fail({ kind: 'needs_key' })
       this.active = engine
+      if (engine !== chain[0])
+        this.fallback = { from: chain[0], to: engine, reason: 'needs_key' }
       this.listen()
       if (realtime(engine)) {
         await speech.startStream({
@@ -197,6 +203,7 @@ export class DictationSession {
         startedAt: this.deps.now(),
         level: 0,
         transcript: EMPTY_TRANSCRIPT,
+        fallback: this.fallback,
       })
     } catch (error) {
       if (live()) this.fail(nativeError(error))

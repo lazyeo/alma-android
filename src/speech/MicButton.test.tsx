@@ -376,6 +376,22 @@ describe('MicButton errors and fallback', () => {
     )
   })
 
+  it('says when the first engine was skipped for want of a key', async () => {
+    fake.speech.keyStatus.mockImplementation(async (options?: object) => ({
+      set: (options as { engineId: string }).engineId !== 'soniox',
+    }))
+    renderMic()
+    fireEvent.click(mic())
+    const sheet = await screen.findByRole('dialog', { name: 'Voice input' })
+    await waitFor(() =>
+      expect(sheet.textContent).toContain(
+        'Soniox has no key set, now using OpenAI',
+      ),
+    )
+    expect(fake.speech.startStream).not.toHaveBeenCalled()
+    expect(fake.speech.startRecording).toHaveBeenCalled()
+  })
+
   it('without a key explains it and offers voice settings', async () => {
     fake.speech.keyStatus.mockImplementation(async () => ({ set: false }))
     const { onSend, onInsert } = renderMic()

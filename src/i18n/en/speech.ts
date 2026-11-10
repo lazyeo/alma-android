@@ -24,6 +24,8 @@ export const speech = {
       timeout: '{from} took too long, now using {to}',
       server: '{from} had a problem, now using {to}',
       empty: '{from} heard nothing, now using {to}',
+      rate_limited: '{from} is out of quota or busy, now using {to}',
+      needs_key: '{from} has no key set, now using {to}',
     },
   },
   hold: {

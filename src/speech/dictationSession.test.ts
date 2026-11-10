@@ -427,6 +427,8 @@ describe('engine fallback', () => {
     ['timeout', reply(408, '{}')],
     ['server', reply(500, '{}')],
     ['empty', reply(200, '{"text":"  "}')],
+    ['rate_limited', reply(429, '{}')],
+    ['rate_limited', reply(402, '{}')],
   ])('falls back on %s', async (kind, first) => {
     const transcribe = byHost({
       'api.openai.com': first,
@@ -442,20 +444,20 @@ describe('engine fallback', () => {
     })
   })
 
-  it.each([
-    ['bad_request', 400],
-    ['rate_limited', 429],
-  ])('does not fall back on %s', async (kind, status) => {
-    const transcribe = byHost({
-      'api.openai.com': reply(status, '{}'),
-      'api.groq.com': reply(200, '{"text":"never"}'),
-    })
-    const { session } = setup({ transcribe })
-    await session.start([openai, groq], [])
-    await session.stop()
-    expect(transcribe).toHaveBeenCalledTimes(1)
-    expect(session.current).toMatchObject({ phase: 'error', error: { kind } })
-  })
+  it.each([['bad_request', 400]])(
+    'does not fall back on %s',
+    async (kind, status) => {
+      const transcribe = byHost({
+        'api.openai.com': reply(status, '{}'),
+        'api.groq.com': reply(200, '{"text":"never"}'),
+      })
+      const { session } = setup({ transcribe })
+      await session.start([openai, groq], [])
+      await session.stop()
+      expect(transcribe).toHaveBeenCalledTimes(1)
+      expect(session.current).toMatchObject({ phase: 'error', error: { kind } })
+    },
+  )
 
   it('does not fall back after Cancel', async () => {
     let answer: (value: { status: number; body: string }) => void = () => {}
@@ -504,7 +506,19 @@ describe('engine fallback', () => {
     expect(session.current).toMatchObject({
       phase: 'recording',
       engine: { id: 'openai' },
+      fallback: {
+        from: { id: 'soniox-rt' },
+        to: { id: 'openai' },
+        reason: 'needs_key',
+      },
     })
+  })
+
+  it('notes nothing when the first engine has a key', async () => {
+    const { session } = setup()
+    await session.start([openai, groq], [])
+    expect(session.current).toMatchObject({ phase: 'recording' })
+    expect((session.current as { fallback?: unknown }).fallback).toBeUndefined()
   })
 
   it('re-transcribes the recorded audio when the stream drops mid-dictation', async () => {
