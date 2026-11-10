@@ -107,6 +107,17 @@ export const speech = {
       recording: 'Recording for {seconds} seconds. Say a sentence.',
       result: 'Recognised',
     },
+    engines: {
+      title: 'Engines',
+      hint: 'The first engine on is used; if it fails (network, key, timeout, server error or no text), the next ones take over with the same recording. Drag to reorder; tap an engine to set it up.',
+      primary: 'Primary',
+      fallback: 'Fallback {position}',
+      off: 'Off',
+      notSetUp: 'Not set up',
+      noKey: 'No API key',
+      reorder: 'Reorder {engine}',
+      toggle: 'Use {engine}',
+    },
     release: {
       alma: 'Alma chat: after release',
       herdr: 'Herdr agents: after release',

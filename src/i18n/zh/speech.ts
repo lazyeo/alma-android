@@ -102,6 +102,17 @@ export const speech: CatalogShape<typeof source> = {
       recording: '正在录 {seconds} 秒，请说一句话。',
       result: '识别结果',
     },
+    engines: {
+      title: '引擎',
+      hint: '使用第一个开启的引擎；它失败时（网络、key、超时、服务端错误或没识别出内容），后面的引擎依次用同一段录音接手。拖动排序；点引擎可设置。',
+      primary: '主引擎',
+      fallback: '备用 {position}',
+      off: '已停用',
+      notSetUp: '未配置',
+      noKey: '未设置 API key',
+      reorder: '调整 {engine} 的顺序',
+      toggle: '启用 {engine}',
+    },
     release: {
       alma: 'Alma 聊天：松手后',
       herdr: 'Herdr agent：松手后',

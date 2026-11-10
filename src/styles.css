@@ -11394,6 +11394,71 @@ html[data-alma-motion] .alma-shell .persona-message {
 .voice-test-error {
   color: var(--destructive);
 }
+.voice-sheet-note {
+  margin: 0 4px 12px;
+}
+.voice-engine-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.voice-engine-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 56px;
+  padding: 0 8px 0 0;
+  border: var(--border-hairline) solid var(--gray-7);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.voice-engine-row[data-dragging='true'] {
+  background: var(--gray-3);
+}
+.voice-engine-row[data-enabled='false'] .voice-engine-name {
+  color: var(--muted-foreground);
+}
+.voice-engine-handle {
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  width: 40px;
+  color: var(--muted-foreground);
+  touch-action: none;
+  cursor: grab;
+}
+.voice-engine-main {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+  padding: 8px 4px;
+  text-align: left;
+}
+.voice-engine-name {
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+.voice-engine-meta {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.voice-engine-meta > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.voice-engine-problem {
+  color: var(--destructive);
+}
 .sheet-footer > .voice-sheet-primary {
   width: 100%;
   min-height: 48px;
