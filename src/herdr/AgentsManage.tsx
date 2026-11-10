@@ -1,5 +1,11 @@
 import { LoaderCircle, Pencil, Plus, Trash2 } from 'lucide-react'
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BottomSheet } from '../components/BottomSheet'
 import { desktopAgentPanePath } from '../desktopRoutes'
@@ -39,6 +45,12 @@ export function useAgentsManage() {
 
 const kinds: HerdrAgentKind[] = ['claude', 'codex', 'pi']
 
+/** The desktop's default agent first, as the desktop would pick it. */
+const kindsFor = (defaultKind?: HerdrAgentKind) =>
+  defaultKind
+    ? [defaultKind, ...kinds.filter((kind) => kind !== defaultKind)]
+    : kinds
+
 export function AgentsManageProvider({
   desktopId,
   children,
@@ -60,6 +72,20 @@ export function AgentsManageProvider({
   const [busy, setBusy] = useState(false)
   const [startingWorkspaceId, setStartingWorkspaceId] = useState<string>()
   const [error, setError] = useState<string>()
+  // The desktop starts new Herdr conversations with its coding agent
+  // setting; unknown (unreadable, another computer) keeps the plain pickers.
+  const [defaultKind, setDefaultKind] = useState<HerdrAgentKind>()
+  useEffect(() => {
+    setDefaultKind(undefined)
+    if (!api) return
+    let current = true
+    void api.getDefaultHerdrAgent().then((kind) => {
+      if (current) setDefaultKind(kind)
+    })
+    return () => {
+      current = false
+    }
+  }, [api])
 
   const fail = (reason: unknown) =>
     setError(reason instanceof Error ? reason.message : String(reason))
@@ -159,7 +185,10 @@ export function AgentsManageProvider({
         openWorkspace: (workspace) =>
           setTarget({ kind: 'workspace', workspace }),
         openNewAgentTab: (workspace) => setAgentWorkspace(workspace),
-        openNewWorkspace: () => setCreatingWorkspace(true),
+        openNewWorkspace: () => {
+          setWorkspaceKind(defaultKind)
+          setCreatingWorkspace(true)
+        },
         startingWorkspaceId,
       }}
     >
@@ -296,6 +325,7 @@ export function AgentsManageProvider({
         >
           <AgentKinds
             disabled={busy}
+            defaultKind={defaultKind}
             onSelect={(kind) => void start(agentWorkspace, kind)}
           />
         </BottomSheet>
@@ -330,10 +360,11 @@ export function AgentsManageProvider({
             >
               {t('agents.noAgent')}
             </button>
-            {kinds.map((kind) => (
+            {kindsFor(defaultKind).map((kind) => (
               <button
                 className={workspaceKind === kind ? 'selected' : ''}
                 key={kind}
+                aria-pressed={workspaceKind === kind}
                 onClick={() => setWorkspaceKind(kind)}
               >
                 {t(`agents.kind.${kind}`)}
@@ -348,15 +379,17 @@ export function AgentsManageProvider({
 
 function AgentKinds({
   disabled,
+  defaultKind,
   onSelect,
 }: {
   disabled: boolean
+  defaultKind?: HerdrAgentKind
   onSelect(kind: HerdrAgentKind): void
 }) {
   const t = useT()
   return (
     <div className="sheet-list">
-      {kinds.map((kind) => (
+      {kindsFor(defaultKind).map((kind) => (
         <button
           className="sheet-row"
           disabled={disabled}
@@ -364,6 +397,9 @@ function AgentKinds({
           onClick={() => onSelect(kind)}
         >
           <span>{t(`agents.kind.${kind}`)}</span>
+          {kind === defaultKind ? (
+            <small className="sheet-row-note">{t('agents.defaultAgent')}</small>
+          ) : null}
         </button>
       ))}
     </div>

@@ -24,8 +24,22 @@ export function desktopAgentsPath(desktopId: string) {
   return `/d/${encodeURIComponent(desktopId)}/agents`
 }
 
-export function desktopAgentPanePath(desktopId: string, paneId: string) {
-  return `${desktopAgentsPath(desktopId)}/${encodeURIComponent(paneId)}`
+/** Query value for the paired desktop's own Herdr in a pane link. */
+export const THIS_HERDR_COMPUTER = 'this'
+
+/**
+ * @param computer pins the link to one Herdr computer (an id, or
+ * THIS_HERDR_COMPUTER); pane ids repeat across computers, so links that
+ * outlive the current choice (notifications) carry it. Without it the pane
+ * opens on the computer currently chosen.
+ */
+export function desktopAgentPanePath(
+  desktopId: string,
+  paneId: string,
+  computer?: string,
+) {
+  const path = `${desktopAgentsPath(desktopId)}/${encodeURIComponent(paneId)}`
+  return computer ? `${path}?computer=${encodeURIComponent(computer)}` : path
 }
 
 export function desktopReferencesPath(desktopId: string, uri?: string) {

@@ -1824,6 +1824,11 @@ button.reaction-chip:active {
 .sheet-row.selected {
   background: var(--accent-3);
 }
+.sheet-row-note {
+  margin-left: auto;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}
 .sheet-row-copy {
   flex: 1;
   min-width: 0;
@@ -9543,6 +9548,45 @@ dialog:focus,
 }
 .agents-page-body {
   padding-top: 8px;
+}
+/* Which computer Herdr talks to (desktop or one it reaches). */
+.herdr-computers {
+  padding: 0 16px 8px;
+}
+.herdr-computer-switcher {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.herdr-computer-switcher::-webkit-scrollbar {
+  display: none;
+}
+.herdr-computer-switcher .chip-button[data-state]:not([data-state='ready']) {
+  opacity: 0.6;
+}
+.herdr-computer-note {
+  margin: 6px 0 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+}
+.herdr-setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+}
+.herdr-setup-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.herdr-setup-error {
+  margin: 0;
+  max-width: 32em;
+  overflow-wrap: anywhere;
 }
 .agent-project-switcher {
   display: flex;

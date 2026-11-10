@@ -14,6 +14,7 @@ import {
 } from './agentsBoardModel'
 import { AgentsBoard, AgentsList } from './AgentsBoard'
 import { AgentsState } from './AgentsScreen'
+import { HerdrComputerSwitcher } from './HerdrComputerSwitcher'
 import { useHerdr } from './HerdrProvider'
 import { AgentsManageProvider, useAgentsManage } from './AgentsManage'
 
@@ -124,7 +125,12 @@ function AgentsSidebarContent({
         ) : null}
       </header>
       <div className="agents-sidebar-body">
-        <AgentsState state={state} onRetry={() => retry(decodedDesktopId)} />
+        <HerdrComputerSwitcher desktopId={decodedDesktopId} />
+        <AgentsState
+          state={state}
+          desktopId={decodedDesktopId}
+          onRetry={() => retry(decodedDesktopId)}
+        />
         {mode === 'board' ? (
           <AgentsBoard
             desktopId={decodedDesktopId}

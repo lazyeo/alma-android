@@ -3,10 +3,21 @@ import { useConnection } from '../desktops/DesktopContext'
 import { useT } from '../i18n'
 import { useImageGallery } from './ImageGallery'
 import { imageCache } from './relayImages'
+import type { AlmaApi } from '../relay/almaApi'
 
-export function RelayImage({ source, name }: { source: string; name: string }) {
+export function RelayImage({
+  source,
+  name,
+  api: sourceApi,
+}: {
+  source: string
+  name: string
+  /** The API that owns `source`, e.g. Herdr on another computer. */
+  api?: AlmaApi
+}) {
   const t = useT()
-  const { api } = useConnection()
+  const connection = useConnection()
+  const api = sourceApi ?? connection.api
   const { openGallery } = useImageGallery()
   const host = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)

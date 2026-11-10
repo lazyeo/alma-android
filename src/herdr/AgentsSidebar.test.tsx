@@ -87,6 +87,11 @@ describe('AgentsSidebar project selection', () => {
     const api = {
       getHerdrInfo: vi.fn(async () => ({ online: true })),
       getHerdrMutes: vi.fn(async () => ({ workspaces: [] })),
+      listHerdrComputers: vi.fn(async () => ({ status: 'unsupported' })),
+      getDefaultHerdrAgent: vi.fn(async () => undefined),
+      forHerdrComputer() {
+        return this
+      },
       openJsonSocket: vi.fn(
         (path: string, onEvent: (event: Record<string, unknown>) => void) => {
           if (path === '/ws/herdr') onHerdrEvent = onEvent
@@ -178,6 +183,11 @@ describe('AgentsSidebar project selection', () => {
     const api = {
       getHerdrInfo: vi.fn(async () => ({ online: false })),
       getHerdrMutes: vi.fn(async () => ({ workspaces: [] })),
+      listHerdrComputers: vi.fn(async () => ({ status: 'unsupported' })),
+      getDefaultHerdrAgent: vi.fn(async () => undefined),
+      forHerdrComputer() {
+        return this
+      },
       openJsonSocket: vi.fn(() => ({
         opened: Promise.resolve(),
         close: vi.fn(),

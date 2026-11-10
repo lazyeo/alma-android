@@ -1,4 +1,10 @@
-import { agentTabName, type HerdrAgentKind } from '../herdr/manage'
+import {
+  agentTabName,
+  desktopDefaultAgent,
+  type CoderAgentProvider,
+  type HerdrAgentKind,
+} from '../herdr/manage'
+import { parseHerdrSetup, type HerdrSetupState } from '../herdr/setup'
 import { parseGoal } from '../screens/threadGoal'
 import { parseLoop } from '../screens/threadLoop'
 import {
@@ -23,6 +29,11 @@ import {
 } from '../screens/personalAgent'
 import type { LiveSubagentSnapshot } from '../screens/subagentLive'
 import type { RelayTunnel, TunnelSocket } from './tunnel'
+import {
+  herdrComputerIdPattern,
+  parseHerdrComputers,
+  type HerdrComputersResult,
+} from '../herdr/computers'
 
 export const MAX_RELAY_UPLOAD_BYTES = 6 * 1024 * 1024
 
@@ -323,6 +334,8 @@ export class AlmaHttpError extends Error {
   constructor(
     message: string,
     public status: number,
+    /** Raw response text, for routes that explain failures in JSON. */
+    public body?: string,
   ) {
     super(message)
     this.name = 'AlmaHttpError'
@@ -435,7 +448,43 @@ export interface RefCard {
 }
 
 export class AlmaApi {
-  constructor(public tunnel: Pick<RelayTunnel, 'fetch' | 'openWebSocket'>) {}
+  private herdrComputerApis = new Map<string, AlmaApi>()
+  /**
+   * @param herdrComputer another computer the desktop reaches for Herdr;
+   * when set, every Herdr route goes through `/api/herdr/computers/<id>/`.
+   */
+  constructor(
+    public tunnel: Pick<RelayTunnel, 'fetch' | 'openWebSocket'>,
+    readonly herdrComputer?: string,
+  ) {
+    if (
+      herdrComputer !== undefined &&
+      !herdrComputerIdPattern.test(herdrComputer)
+    )
+      throw new Error('Invalid Herdr computer id')
+  }
+  /**
+   * The same desktop with Herdr pointed at `computerId` (undefined: the
+   * desktop itself). Instances are reused so React effects and the image
+   * cache see a stable API per computer.
+   */
+  forHerdrComputer(computerId?: string): AlmaApi {
+    if (computerId === this.herdrComputer) return this
+    if (this.herdrComputer !== undefined)
+      throw new Error('Pick a Herdr computer from the desktop API')
+    if (computerId === undefined) return this
+    let api = this.herdrComputerApis.get(computerId)
+    if (!api) {
+      api = new AlmaApi(this.tunnel, computerId)
+      this.herdrComputerApis.set(computerId, api)
+    }
+    return api
+  }
+  private herdrPath(rest: string) {
+    return this.herdrComputer === undefined
+      ? `/api/herdr/${rest}`
+      : `/api/herdr/computers/${this.herdrComputer}/${rest}`
+  }
   private async request<T>(
     path: string,
     init: {
@@ -468,15 +517,23 @@ export class AlmaApi {
       .finally(() => {
         if (timeout) clearTimeout(timeout)
       })
-    if (response.status < 200 || response.status >= 300)
+    if (response.status < 200 || response.status >= 300) {
+      const body = await response.text()
       throw new AlmaHttpError(
-        `${method} ${path} failed (${response.status}): ${(await response.text()).slice(0, 300)}`,
+        `${method} ${path} failed (${response.status}): ${body.slice(0, 300)}`,
         response.status,
+        body,
       )
+    }
     if (response.status === 204) return undefined as T
     return response.json<T>()
   }
   async getImage(path: string): Promise<Blob> {
+    // A remote computer's transcript names images on that computer, and the
+    // desktop's computers proxy only carries JSON; fetching the plain path
+    // would show the desktop's own file of that name instead.
+    if (this.herdrComputer !== undefined && path.startsWith('/api/herdr/'))
+      throw new Error('Images from another computer are not available')
     assertSafePath(path, 'GET')
     const response = await this.tunnel.fetch(path, { method: 'GET' })
     const mediaType =
@@ -1053,11 +1110,21 @@ export class AlmaApi {
       throw error
     }
   }
-  herdrUpload(bytes: Uint8Array, mediaType: string, name: string) {
+  /** The computers proxy drops raw bodies, so a remote upload would be empty. */
+  get herdrUploadsSupported() {
+    return this.herdrComputer === undefined
+  }
+  private assertHerdrUploadSupported() {
+    // Guard only: the composer hides attachments for a remote computer.
+    if (!this.herdrUploadsSupported)
+      throw new Error("Files can't be sent to another computer yet")
+  }
+  async herdrUpload(bytes: Uint8Array, mediaType: string, name: string) {
+    this.assertHerdrUploadSupported()
     this.assertRelayUploadSize(bytes, name)
     const query = new URLSearchParams({ name: basename(name) })
     return this.requestHerdrUpload(
-      `/api/herdr/upload?${query}`,
+      this.herdrPath(`upload?${query}`),
       bytes,
       mediaType,
     ).then((result) => {
@@ -1071,6 +1138,7 @@ export class AlmaApi {
     name: string,
     options: { uploadId?: string; chunkBytes?: number } = {},
   ) {
+    this.assertHerdrUploadSupported()
     const uploadId = options.uploadId ?? crypto.randomUUID()
     if (!/^[A-Za-z0-9-]{8,64}$/.test(uploadId))
       throw new Error('Invalid Herdr upload id')
@@ -1090,7 +1158,7 @@ export class AlmaApi {
       })
       if (end === bytes.byteLength) query.set('done', '1')
       result = await this.requestHerdrUpload(
-        `/api/herdr/upload?${query}`,
+        this.herdrPath(`upload?${query}`),
         bytes.slice(offset, end),
         mediaType,
       )
@@ -1135,13 +1203,109 @@ export class AlmaApi {
         capabilities?: Record<string, unknown>
       }
       herdr_error?: string
-    }>('/api/herdr/info')
+    }>(this.herdrPath('info'))
+  }
+  /** Other computers this desktop reaches for Herdr (0.4.567). */
+  async listHerdrComputers(): Promise<HerdrComputersResult> {
+    try {
+      return {
+        status: 'ok',
+        computers: parseHerdrComputers(
+          await this.request<unknown>('/api/herdr/computers'),
+        ),
+      }
+    } catch (error) {
+      if (isUnsupportedEndpoint(error)) return { status: 'unsupported' }
+      if (error instanceof AlmaHttpError && error.status === 503)
+        return { status: 'unavailable' }
+      throw error
+    }
+  }
+  /** Reduced snapshot; the only one a remote computer serves over HTTP. */
+  getHerdrWorkspaces() {
+    return this.request<unknown>(this.herdrPath('workspaces'))
+  }
+  async getHerdrSetup(): Promise<HerdrSetupState | undefined> {
+    try {
+      return parseHerdrSetup(
+        await this.request<unknown>(this.herdrPath('setup')),
+      )
+    } catch (error) {
+      if (isUnsupportedEndpoint(error)) return undefined
+      throw error
+    }
+  }
+  /**
+   * Install or start Herdr Core. The desktop answers once Herdr is online
+   * (200) or the attempt failed (502, with the setup state explaining why);
+   * an install can take minutes, and through another computer the desktop
+   * gives up waiting after 60 s (504) while the install carries on.
+   */
+  async runHerdrSetup(
+    action: 'install' | 'start',
+  ): Promise<
+    | { status: 'done'; setup?: HerdrSetupState }
+    | { status: 'failed'; setup?: HerdrSetupState }
+    | { status: 'pending' }
+    | { status: 'unsupported' }
+  > {
+    try {
+      const setup = parseHerdrSetup(
+        await this.request<unknown>(this.herdrPath(`setup/${action}`), {
+          method: 'POST',
+          body: {},
+        }),
+      )
+      return { status: 'done', setup }
+    } catch (error) {
+      if (!(error instanceof AlmaHttpError)) throw error
+      if (error.status === 502) {
+        let setup: HerdrSetupState | undefined
+        try {
+          setup = parseHerdrSetup(JSON.parse(error.body ?? ''))
+        } catch {
+          setup = undefined
+        }
+        return { status: 'failed', setup }
+      }
+      if (error.status === 504) return { status: 'pending' }
+      if (error.status === 400 || isUnsupportedEndpoint(error))
+        return { status: 'unsupported' }
+      throw error
+    }
+  }
+  /**
+   * The desktop's coding agent for new Herdr conversations, or undefined
+   * when it can't be read (callers then keep their own default). Settings
+   * live on the paired desktop only; another computer's aren't reachable.
+   */
+  async getDefaultHerdrAgent(): Promise<HerdrAgentKind | undefined> {
+    if (this.herdrComputer !== undefined) return undefined
+    try {
+      const [settings, providers] = await Promise.all([
+        this.getSettings(),
+        this.request<unknown>('/api/providers'),
+      ])
+      return desktopDefaultAgent(
+        settings?.chat?.coderAgentProviderId,
+        Array.isArray(providers)
+          ? providers.filter(
+              (item): item is CoderAgentProvider =>
+                Boolean(item) &&
+                typeof item === 'object' &&
+                typeof (item as { id?: unknown }).id === 'string',
+            )
+          : [],
+      )
+    } catch {
+      return undefined
+    }
   }
   getHerdrMutes() {
-    return this.request<{ workspaces: string[] }>('/api/herdr/mutes')
+    return this.request<{ workspaces: string[] }>(this.herdrPath('mutes'))
   }
   setHerdrWorkspaceMuted(workspace: string, muted: boolean) {
-    return this.request<{ workspaces: string[] }>('/api/herdr/mutes', {
+    return this.request<{ workspaces: string[] }>(this.herdrPath('mutes'), {
       method: 'PUT',
       body: { workspace, muted },
     })
@@ -1150,18 +1314,19 @@ export class AlmaApi {
     return this.request<{
       result?: T
       error?: { code: string; message: string }
-    }>('/api/herdr/rpc', { method: 'POST', body: { method, params } }).then(
-      (response) => {
-        if (response.error) {
-          const error = new Error(response.error.message) as Error & {
-            code?: string
-          }
-          error.code = response.error.code
-          throw error
+    }>(this.herdrPath('rpc'), {
+      method: 'POST',
+      body: { method, params },
+    }).then((response) => {
+      if (response.error) {
+        const error = new Error(response.error.message) as Error & {
+          code?: string
         }
-        return response.result as T
-      },
-    )
+        error.code = response.error.code
+        throw error
+      }
+      return response.result as T
+    })
   }
   herdrRenameTab(tabId: string, label: string) {
     return this.herdrRpc('tab.rename', { tab_id: tabId, label })
@@ -1270,7 +1435,7 @@ export class AlmaApi {
     const query = new URLSearchParams({ agent, pane: paneId })
     try {
       return await this.request<HerdrCommandsResponse>(
-        `/api/herdr/commands?${query}`,
+        this.herdrPath(`commands?${query}`),
       )
     } catch (error) {
       if (error instanceof AlmaHttpError && error.status === 404)
@@ -1323,7 +1488,7 @@ export class AlmaApi {
       before: String(before),
       limit: String(limit),
     })
-    return this.request<unknown>(`/api/herdr/chat?${query}`)
+    return this.request<unknown>(this.herdrPath(`chat?${query}`))
   }
   async getHerdrSubagent(
     paneId: string,
@@ -1339,7 +1504,7 @@ export class AlmaApi {
         agent?: { type?: string; description?: string; finished?: boolean }
         page?: HerdrSubagentPage
         error?: { code?: string; message?: string }
-      }>(`/api/herdr/subagent?${query}`)
+      }>(this.herdrPath(`subagent?${query}`))
       if (response.error)
         return {
           status: 'error',
@@ -1367,6 +1532,13 @@ export class AlmaApi {
     onEvent: (event: RealtimeEvent) => void,
   ): TunnelSocket {
     assertSafePath(path, 'WS')
+    // The desktop has no socket forwarding for other computers; opening the
+    // plain path would silently stream the desktop's own Herdr instead.
+    if (
+      this.herdrComputer !== undefined &&
+      /^\/ws\/herdr(?:\/|\?|$)/.test(path)
+    )
+      throw new Error('Herdr on another computer has no live socket')
     const socket = this.tunnel.openWebSocket(path)
     socket.onMessage((message) => {
       if (typeof message === 'string') {
