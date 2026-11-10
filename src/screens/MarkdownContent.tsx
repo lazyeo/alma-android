@@ -24,6 +24,9 @@ const isReferenceUri = (url: string) => /^alma:\/\/(?!connect)[^/]+\//.test(url)
 const keepReferenceUrls = (url: string) =>
   isReferenceUri(url) ? url : defaultUrlTransform(url)
 
+type RemarkPlugin = NonNullable<
+  ComponentProps<typeof Markdown>['remarkPlugins']
+>[number]
 type AnchorProps = ComponentProps<'a'> & { node?: unknown }
 type ImageProps = ComponentProps<'img'> & { node?: unknown }
 
@@ -188,6 +191,7 @@ export const MarkdownContent = memo(function MarkdownContent({
   getSiteIcon,
   components,
   className = '',
+  math: renderMath = true,
 }: {
   text: string
   linkUserFilePaths?: boolean
@@ -198,9 +202,14 @@ export const MarkdownContent = memo(function MarkdownContent({
   getSiteIcon?: (url: string) => Promise<string | null>
   components?: ComponentProps<typeof Markdown>['components']
   className?: string
+  /** False for text the user typed: "(a)", "\\(x\\)" or "$5" are prose, not formulas. */
+  math?: boolean
 }) {
-  const [math, setMath] = useState<typeof import('./richMath')>()
-  const needsMath = /\$|```math|~~~math/.test(text)
+  const [loadedMath, setMath] = useState<typeof import('./richMath')>()
+  const math = renderMath ? loadedMath : undefined
+  // Single dollars stay literal, as on the desktop (chat.singleDollarTextMath
+  // defaults to off there), so only $$ and math fences need KaTeX.
+  const needsMath = renderMath && /\$\$|```math|~~~math/.test(text)
   useEffect(() => {
     if (needsMath) void import('./richMath').then(setMath)
   }, [needsMath])
@@ -208,7 +217,9 @@ export const MarkdownContent = memo(function MarkdownContent({
   const remarkPlugins = useMemo(
     () => [
       ...baseRemarkPlugins,
-      ...(math ? [math.remarkMath] : []),
+      ...(math
+        ? [[math.remarkMath, { singleDollarTextMath: false }] as RemarkPlugin]
+        : []),
       ...(references ? [() => stripMessageReferenceAtSigns] : []),
       ...(linkUserFilePaths ? [remarkUserFilePaths] : []),
     ],

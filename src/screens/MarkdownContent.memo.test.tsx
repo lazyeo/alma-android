@@ -79,12 +79,12 @@ it('misses the cache when the components identity changes', () => {
 })
 
 it('misses the cache when math finishes loading', async () => {
-  render(<MarkdownContent text="$x^2$" />)
-  expect(mocks.renderMarkdown).toHaveBeenCalledWith('$x^2$', 0)
+  render(<MarkdownContent text="$$x^2$$" />)
+  expect(mocks.renderMarkdown).toHaveBeenCalledWith('$$x^2$$', 0)
 
   await act(async () => {})
   await waitFor(() =>
-    expect(mocks.renderMarkdown).toHaveBeenCalledWith('$x^2$', 1),
+    expect(mocks.renderMarkdown).toHaveBeenCalledWith('$$x^2$$', 1),
   )
   expect(mocks.renderMarkdown).toHaveBeenCalledTimes(2)
 })

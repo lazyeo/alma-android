@@ -181,4 +181,34 @@ describe('PersonaMessageView', () => {
     expect(screen.getByText("Voice message (can't be played)")).toBeTruthy()
     expect(screen.getByText('call mom later')).toBeTruthy()
   })
+
+  it('renders the user side without math and Alma with it', () => {
+    const renderMarkdown = vi.fn((text: string) => <p>{text}</p>)
+    const rows = [
+      message('u', 'user', [{ type: 'text', text: 'user $$x$$' }]),
+      message('a', 'assistant', [{ type: 'text', text: 'alma $$x$$' }]),
+    ]
+    const layout = personaLayout(rows)
+    render(
+      <LanguageProvider>
+        {rows.map((row, index) => (
+          <PersonaMessageView
+            key={row.id}
+            row={row}
+            layout={layout[index]}
+            mood="happy"
+            capabilities={{ renderMarkdown }}
+          />
+        ))}
+      </LanguageProvider>,
+    )
+    expect(renderMarkdown).toHaveBeenCalledWith(
+      'user $$x$$',
+      expect.objectContaining({ math: false }),
+    )
+    expect(renderMarkdown).toHaveBeenCalledWith(
+      'alma $$x$$',
+      expect.objectContaining({ math: true }),
+    )
+  })
 })

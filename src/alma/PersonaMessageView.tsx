@@ -87,7 +87,9 @@ export const PersonaMessageView = memo(function PersonaMessageView({
           <div className="persona-thinking" data-preview-omit="">
             {parts.reasoning.map((part, index) => (
               <div key={index}>
-                {capabilities.renderMarkdown(String(part.text ?? ''), false)}
+                {capabilities.renderMarkdown(String(part.text ?? ''), {
+                  linkUserFilePaths: false,
+                })}
               </div>
             ))}
           </div>
@@ -107,6 +109,7 @@ export const PersonaMessageView = memo(function PersonaMessageView({
                   part={part}
                   live={false}
                   linkUserFilePaths={alma}
+                  math={alma}
                   capabilities={capabilities}
                 />
               </div>

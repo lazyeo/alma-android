@@ -21,8 +21,11 @@ import { AgentsManageProvider, useAgentsManage } from './AgentsManage'
 export function AgentsSidebar() {
   const { desktopId = '' } = useParams()
   const decodedDesktopId = decodeURIComponent(desktopId)
+  // The split layout keeps this sidebar mounted across desktop switches; the
+  // key drops A's in-memory workspace pick and open dialogs (which would
+  // otherwise act through B's api) instead of carrying them over to B.
   return (
-    <AgentsManageProvider desktopId={decodedDesktopId}>
+    <AgentsManageProvider key={decodedDesktopId} desktopId={decodedDesktopId}>
       <AgentsSidebarContent desktopId={decodedDesktopId} />
     </AgentsManageProvider>
   )

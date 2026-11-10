@@ -179,6 +179,92 @@ describe('AgentsSidebar project selection', () => {
     expect(screen.getByText('Session B')).toBeTruthy()
   })
 
+  it("keeps each desktop's project pick when switching desktops", async () => {
+    // Herdr workspace ids are per-server, so MBA and Mini can share them.
+    const events: Record<string, (event: Record<string, unknown>) => void> = {}
+    const herdrApi = (desktop: string) =>
+      ({
+        getHerdrInfo: vi.fn(async () => ({ online: true })),
+        getHerdrMutes: vi.fn(async () => ({ workspaces: [] })),
+        openJsonSocket: vi.fn(
+          (path: string, onEvent: (event: Record<string, unknown>) => void) => {
+            if (path === '/ws/herdr') events[desktop] = onEvent
+            return {
+              opened: Promise.resolve(),
+              close: vi.fn(),
+              onClose: vi.fn(),
+            }
+          },
+        ),
+        setHerdrWorkspaceMuted: vi.fn(async () => ({ workspaces: [] })),
+      }) as unknown as AlmaApi
+    const mba = herdrApi('mba')
+    const mini = herdrApi('mini')
+    localStorage.setItem('alma.agents.selected-workspace.mini', 'workspace-b')
+
+    function SwitchDesktop({ to }: { to: string }) {
+      const navigate = useNavigate()
+      return (
+        <button onClick={() => navigate(`/d/${to}/agents`)}>Switch {to}</button>
+      )
+    }
+    const selected = () =>
+      screen
+        .getAllByRole('tab')
+        .find((tab) => tab.getAttribute('aria-selected') === 'true')
+        ?.textContent
+
+    render(
+      <LanguageProvider>
+        <MemoryRouter initialEntries={['/d/mba/agents']}>
+          <ConnectionContext.Provider
+            value={{
+              pairing: { id: 'mba', name: 'MBA' } as never,
+              api: mba,
+              tunnel: {} as never,
+              status: 'online',
+              transport: 'relay',
+              latency: { transport: 'relay', ms: null, sampledAt: 0 },
+            }}
+          >
+            <HerdrProvider
+              desktops={[
+                { id: 'mba', name: 'MBA', online: true, api: mba },
+                { id: 'mini', name: 'Mini', online: true, api: mini },
+              ]}
+              notificationSettings={{} as never}
+            >
+              <SwitchDesktop to="mini" />
+              <SwitchDesktop to="mba" />
+              {/* Rendered outside the routed outlet, as in the split layout. */}
+              <Routes>
+                <Route path="/d/:desktopId/*" element={<AgentsSidebar />} />
+              </Routes>
+            </HerdrProvider>
+          </ConnectionContext.Provider>
+        </MemoryRouter>
+      </LanguageProvider>,
+    )
+
+    await waitFor(() => expect(events.mba && events.mini).toBeTruthy())
+    events.mba({ type: 'snapshot', snapshot: snapshot() })
+    events.mini({ type: 'snapshot', snapshot: snapshot() })
+    await waitFor(() => expect(selected()).toMatch(/Project A/), {
+      timeout: 5_000,
+    })
+    fireEvent.click(screen.getByRole('tab', { name: /Project C/ }))
+    expect(selected()).toMatch(/Project C/)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Switch mini' }))
+    await waitFor(() => expect(selected()).toMatch(/Project B/))
+    expect(localStorage.getItem('alma.agents.selected-workspace.mini')).toBe(
+      'workspace-b',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Switch mba' }))
+    await waitFor(() => expect(selected()).toMatch(/Project C/))
+  })
+
   it('offers the remote screen while Herdr is unreachable', async () => {
     const api = {
       getHerdrInfo: vi.fn(async () => ({ online: false })),

@@ -61,10 +61,10 @@ it('does not request favicons for references or non-http links', () => {
   expect(getSiteIcon).not.toHaveBeenCalled()
 })
 
-it('renders inline, display and fenced math but keeps currency literal', async () => {
+it('renders inline double-dollar, display and fenced math but keeps currency literal', async () => {
   const { container } = render(
     <MarkdownContent
-      text={'Pay $5 and $10. $x^2$\n\n$$\ny=2\n$$\n\n```math\nz=3\n```'}
+      text={'Pay $5 and $10. $$x^2$$\n\n$$\ny=2\n$$\n\n```math\nz=3\n```'}
     />,
   )
   await waitFor(() =>
@@ -72,6 +72,52 @@ it('renders inline, display and fenced math but keeps currency literal', async (
   )
   expect(container.textContent).toContain('Pay $5 and $10.')
   expect(mocks.render).not.toHaveBeenCalled()
+})
+
+// Waits for the KaTeX chunk via a sibling that needs it, so a missing .katex
+// below means "not math" rather than "not loaded yet".
+async function renderBesideLoadedMath(node: React.ReactNode) {
+  const view = render(
+    <>
+      <MarkdownContent className="probe" text="$$p$$" />
+      {node}
+    </>,
+  )
+  await waitFor(() =>
+    expect(view.container.querySelector('.probe .katex')).toBeTruthy(),
+  )
+  return view
+}
+
+it('keeps single-dollar spans and escaped parentheses literal in assistant text', async () => {
+  const { container } = await renderBesideLoadedMath(
+    <MarkdownContent
+      className="subject"
+      text={'(a) 和 (b)，\\(x\\)，价格 $5 和 $10，$x$ 与 $y$。$$z$$'}
+    />,
+  )
+  const subject = container.querySelector('.subject')!
+  expect(subject.querySelectorAll('.katex')).toHaveLength(1)
+  // CommonMark drops the backslash escapes; the parentheses stay prose.
+  expect(subject.textContent).toContain(
+    '(a) 和 (b)，(x)，价格 $5 和 $10，$x$ 与 $y$。',
+  )
+})
+
+it('never renders user-authored text as math', async () => {
+  const { container } = await renderBesideLoadedMath(
+    <MarkdownContent
+      className="subject"
+      math={false}
+      text={'(a) 和 (b)\n\n\\(x\\)\n\n价格 $5 和 $10\n\n$$y=2$$'}
+    />,
+  )
+  const subject = container.querySelector('.subject')!
+  expect(subject.querySelector('.katex')).toBeNull()
+  expect(subject.textContent).toContain('(a) 和 (b)')
+  expect(subject.textContent).toContain('(x)')
+  expect(subject.textContent).toContain('价格 $5 和 $10')
+  expect(subject.textContent).toContain('$$y=2$$')
 })
 it('debounces closed Mermaid fences and retains a copyable source toggle', async () => {
   URL.createObjectURL = vi.fn(() => 'blob:diagram')
