@@ -11643,11 +11643,6 @@ html[data-alma-motion] .alma-shell .persona-message {
   font-size: var(--text-xs);
   overflow-wrap: anywhere;
 }
-.voice-key-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
 .voice-form {
   display: grid;
   gap: 10px;
@@ -11672,9 +11667,6 @@ html[data-alma-motion] .alma-shell .persona-message {
   resize: vertical;
   line-height: var(--leading-normal);
 }
-.voice-sheet-actions {
-  margin-top: 12px;
-}
 .voice-test-result,
 .voice-test-error {
   display: grid;
@@ -11693,38 +11685,65 @@ html[data-alma-motion] .alma-shell .persona-message {
 .voice-test-error {
   color: var(--destructive);
 }
-.voice-sheet-note {
-  margin: 0 4px 12px;
+/* Settings → Voice input: three cards on one page, rows open in place. */
+.voice-card-title {
+  margin: 18px 4px 4px;
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+.voice-card + .settings-section-note,
+.voice-card-title + .settings-section-note {
+  margin-top: 0;
+}
+.voice-card-last {
+  margin-top: 18px;
 }
 .voice-engine-list {
-  display: grid;
-  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
+.voice-engine-row,
+.voice-provider,
+.voice-release-row,
+.voice-more-toggle {
+  position: relative;
+}
+/* Hairlines between rows, inset past the handle like .settings-row. */
+.voice-engine-row + .voice-engine-row::before,
+.voice-provider + .voice-provider::before,
+.voice-release-row + .voice-release-row::before,
+.voice-engine-list + .voice-more-toggle::before,
+.voice-more-toggle + .voice-engine-list::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12px;
+  right: 0;
+  height: var(--border-hairline);
+  background: var(--gray-7);
+}
+.voice-more-toggle + .voice-engine-list {
+  position: relative;
+}
 .voice-engine-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 56px;
-  padding: 0 8px 0 0;
-  border: var(--border-hairline) solid var(--gray-7);
-  border-radius: var(--radius-md);
-  background: var(--background);
   transition: background-color var(--dur-fast) var(--ease-out);
 }
 .voice-engine-row[data-dragging='true'] {
   background: var(--gray-3);
 }
-.voice-engine-row[data-enabled='false'] .voice-engine-name {
-  color: var(--muted-foreground);
+.voice-engine-line {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding-right: 12px;
 }
 .voice-engine-handle {
+  flex: 0 0 40px;
   display: grid;
   place-items: center;
   align-self: stretch;
-  width: 40px;
   color: var(--muted-foreground);
   touch-action: none;
   cursor: grab;
@@ -11733,30 +11752,212 @@ html[data-alma-motion] .alma-shell .persona-message {
   display: grid;
   flex: 1;
   min-width: 0;
-  gap: 2px;
-  padding: 8px 4px;
+  gap: 3px;
+  padding: 9px 8px 9px 0;
   text-align: left;
 }
-.voice-engine-name {
+.voice-row-name {
+  overflow: hidden;
   color: var(--foreground);
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.voice-engine-meta {
+.voice-engine-row[data-on='false'] .voice-row-name {
+  color: var(--muted-foreground);
+}
+.voice-key-badge,
+.voice-provider-status {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 4px;
   min-width: 0;
+  min-height: 14px;
   overflow: hidden;
   color: var(--muted-foreground);
   font-size: var(--text-xs);
+  line-height: var(--leading-tight);
   white-space: nowrap;
 }
-.voice-engine-meta > span {
+.voice-key-badge > span,
+.voice-provider-status > span {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.voice-engine-problem {
+.voice-key-badge svg,
+.voice-provider-status svg {
+  flex: 0 0 auto;
+}
+.voice-key-badge[data-tone='set'] svg,
+.voice-provider-status[data-tone='set'] svg {
+  color: var(--accent-11);
+}
+.voice-key-badge[data-tone='missing'],
+.voice-provider-status[data-tone='missing'] {
+  color: var(--amber-11);
+}
+.voice-key-badge[data-tone='error'],
+.voice-provider-status[data-tone='error'] {
   color: var(--destructive);
+}
+.voice-provider-status[data-tone='warn'] {
+  color: var(--amber-11);
+}
+.voice-key-last4 {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: var(--tracking-normal);
+}
+.voice-row-detail {
+  display: grid;
+  gap: 10px;
+  padding: 0 12px 14px 40px;
+}
+.voice-row-detail .settings-section-note,
+.voice-row-detail .settings-error {
+  margin: 0;
+}
+.voice-provider .voice-row-detail {
+  padding-left: 12px;
+}
+.voice-model-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.voice-model-choice .chip-button[aria-pressed='true'] {
+  background: var(--accent-3);
+  color: var(--accent-11);
+}
+/* The plain off track vanishes against the card in light themes. */
+.voice-engine-row .settings-switch[aria-checked='false'] {
+  background: var(--gray-6);
+}
+.voice-more-toggle {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 40px;
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  text-align: left;
+}
+.voice-more-toggle > span:first-child {
+  flex: 1;
+}
+.voice-more-chevron {
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.voice-more-toggle[aria-expanded='true'] .voice-more-chevron {
+  transform: rotate(180deg);
+}
+.voice-provider-head {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  text-align: left;
+}
+.voice-row-copy {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.voice-row-copy small {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  line-height: var(--leading-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.voice-provider-head .voice-provider-status {
+  flex: 0 1 auto;
+  max-width: 48%;
+}
+.voice-open-chevron {
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.voice-provider-head[aria-expanded='true'] .voice-open-chevron {
+  transform: rotate(90deg);
+}
+.voice-key-editor {
+  display: grid;
+  gap: 8px;
+}
+.voice-key-editor .settings-section-note,
+.voice-key-editor .settings-error {
+  margin: 0;
+}
+.voice-key-input {
+  display: flex;
+  gap: 8px;
+}
+.voice-key-input .rename-input {
+  flex: 1;
+  min-width: 0;
+}
+.voice-key-save {
+  flex: 0 0 auto;
+  min-width: 64px;
+  min-height: 44px;
+}
+.voice-key-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-left: -10px;
+}
+.voice-key-check {
+  flex-wrap: wrap;
+  white-space: normal;
+}
+.voice-key-check small {
+  color: var(--muted-foreground);
+}
+.voice-release-row {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+}
+.voice-release-row .voice-row-name {
+  flex: 1;
+  min-width: 0;
+}
+.voice-segments {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-md);
+  background: var(--secondary);
+}
+.voice-segments button {
+  min-width: 56px;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+.voice-segments button[aria-pressed='true'] {
+  background: var(--card);
+  color: var(--foreground);
+  font-weight: var(--weight-medium);
 }
 .sheet-footer > .voice-sheet-primary {
   width: 100%;
