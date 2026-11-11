@@ -18,6 +18,8 @@ import {
 import { TEST_RECORD_MS } from '../speech/VoiceTest'
 import { VoiceSettings } from './VoiceSettings'
 
+type Status = { set: boolean; last4?: string }
+
 const fake = vi.hoisted(() => ({
   available: { value: true },
   listeners: new Map<string, Set<(event: unknown) => void>>(),
@@ -28,6 +30,12 @@ const fake = vi.hoisted(() => ({
     checkMicPermission: vi.fn(async () => ({ mic: 'granted' as string })),
     requestMicPermission: vi.fn(async () => ({ mic: 'granted' as string })),
     setKey: vi.fn(async (_options: object) => undefined),
+    pasteKey: vi.fn(
+      async (_options: object): Promise<{ set: boolean; last4?: string }> => ({
+        set: true,
+        last4: 'past',
+      }),
+    ),
     keyStatus: vi.fn(
       async (_options: object): Promise<{ set: boolean; last4?: string }> => ({
         set: false,
@@ -41,7 +49,7 @@ const fake = vi.hoisted(() => ({
       status: 200,
       body: '{"text":"hello"}',
     })),
-    request: vi.fn(async () => ({ status: 200, body: '{}' })),
+    request: vi.fn(async (_spec: object) => ({ status: 200, body: '{}' })),
     startStream: vi.fn(async (_options: object) => undefined),
     stopStream: vi.fn(async () => undefined),
     cancelStream: vi.fn(async () => undefined),
@@ -74,13 +82,25 @@ function memoryStorage() {
 
 let storage: ReturnType<typeof memoryStorage>
 
+/** Key statuses by key id; anything unlisted has no key. */
+function keys(saved: Record<string, Status>) {
+  fake.speech.keyStatus.mockImplementation(
+    async (options: object) =>
+      saved[(options as { engineId: string }).engineId] ?? { set: false },
+  )
+}
+
 beforeEach(() => {
   storage = memoryStorage()
   vi.stubGlobal('localStorage', storage)
   vi.clearAllMocks()
   fake.listeners.clear()
   fake.available.value = true
-  fake.speech.keyStatus.mockImplementation(async () => ({ set: false }))
+  keys({})
+  fake.speech.request.mockImplementation(async () => ({
+    status: 200,
+    body: '{}',
+  }))
 })
 
 afterEach(() => {
@@ -91,7 +111,26 @@ afterEach(() => {
 /** Default settings with `id` as the primary engine. */
 const first = (id: string) => moveEngine(defaultSpeechSettings(), id, 0)
 
-const row = (name: RegExp) => screen.getByRole('button', { name })
+const engineRow = (name: string) =>
+  screen
+    .getAllByRole('listitem')
+    .find(
+      (item) =>
+        item.querySelector('.voice-engine-main .voice-row-name')
+          ?.textContent === name,
+    )!
+const providerRow = (name: string) =>
+  [...document.querySelectorAll<HTMLElement>('.voice-provider')].find(
+    (item) => item.querySelector('.voice-row-name')?.textContent === name,
+  )!
+const openProvider = (name: string) =>
+  fireEvent.click(within(providerRow(name)).getAllByRole('button')[0])
+const listedNames = () =>
+  [
+    ...document.querySelectorAll(
+      '.voice-engine-list:not(.voice-engine-more) .voice-engine-main .voice-row-name',
+    ),
+  ].map((item) => item.textContent)
 
 describe('VoiceSettings', () => {
   it('is hidden without the native recorder', () => {
@@ -100,78 +139,246 @@ describe('VoiceSettings', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('saves the key natively, bound to the engine URL, and never to localStorage', async () => {
+  it('shows each engine’s key state: last four, shared Soniox, or none', async () => {
+    keys({ soniox: { set: true, last4: 'abcd' } })
     render(<VoiceSettings />)
-    await screen.findByText('Not set')
-    fireEvent.click(row(/^API key/))
-    const input = await screen.findByLabelText('API key')
+    await waitFor(() =>
+      expect(engineRow('Soniox').textContent).toContain('••••abcd'),
+    )
+    expect(engineRow('Soniox').textContent).toContain('Shared Soniox key')
+    expect(engineRow('Soniox Async').textContent).toContain('Shared Soniox key')
+    expect(engineRow('OpenAI').textContent).toContain('No key')
+    expect(providerRow('Soniox').textContent).toContain('••••abcd')
+    expect(providerRow('OpenAI').textContent).toContain('Not set')
+    // One status call per provider: the shared Soniox key is asked for once.
+    const asked = fake.speech.keyStatus.mock.calls.map(
+      ([options]) => (options as { engineId: string }).engineId,
+    )
+    expect(asked.sort()).toEqual(
+      ['custom', 'groq', 'openai', 'siliconflow', 'soniox'].sort(),
+    )
+  })
+
+  it('folds uncommon engines under More engines', async () => {
+    render(<VoiceSettings />)
+    await screen.findAllByText('No key')
+    expect(listedNames()).toEqual(['Soniox', 'OpenAI', 'Soniox Async'])
+    expect(screen.queryByRole('switch', { name: 'Use Groq' })).toBeNull()
+    const more = screen.getByRole('button', { name: /More engines/ })
+    expect(more.getAttribute('aria-expanded')).toBe('false')
+    fireEvent.click(more)
+    expect(engineRow('Groq')).toBeTruthy()
+    expect(engineRow('Custom endpoint').textContent).toContain(
+      'Endpoint not set',
+    )
+  })
+
+  it('saves a typed key natively, never to localStorage, then checks it', async () => {
+    render(<VoiceSettings />)
+    await screen.findAllByText('No key')
+    openProvider('OpenAI')
+    const input = screen.getByLabelText('API key for OpenAI')
     expect(input.getAttribute('type')).toBe('password')
     expect(input.getAttribute('autocomplete')).toBe('off')
     const typed = 'sk-test-secret-wxyz'
-    fake.speech.keyStatus.mockImplementation(async () => ({
-      set: true,
-      last4: 'wxyz',
-    }))
+    keys({ openai: { set: true, last4: 'wxyz' } })
     fireEvent.change(input, { target: { value: typed } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() =>
       expect(fake.speech.setKey).toHaveBeenCalledWith({
-        engineId: 'soniox',
+        engineId: 'openai',
         key: typed,
-        boundUrls: [
-          'wss://stt-rt.soniox.com/transcribe-websocket',
-          'https://api.soniox.com/v1',
-        ],
+        boundUrls: ['https://api.openai.com/v1'],
       }),
     )
-    expect(await screen.findByText('Set')).toBeTruthy()
-    expect(screen.getByText('wxyz', { exact: false }).textContent).toBe(
-      '••••wxyz',
-    )
+    expect(await screen.findByText('Key works')).toBeTruthy()
+    expect(fake.speech.request).toHaveBeenCalledWith({
+      engineId: 'openai',
+      method: 'GET',
+      url: 'https://api.openai.com/v1/models',
+    })
+    expect(engineRow('OpenAI').textContent).toContain('••••wxyz')
     for (const [key, value] of storage.values) {
       expect(key).not.toContain(typed)
       expect(value).not.toContain(typed)
     }
   })
 
-  it('shows one shared key status for both Soniox engines', async () => {
-    fake.speech.keyStatus.mockImplementation(async (options: object) =>
-      (options as { engineId: string }).engineId === 'soniox'
-        ? { set: true, last4: 'abcd' }
-        : { set: false },
-    )
-    for (const engineId of ['soniox-rt', 'soniox-async']) {
-      saveSpeechSettings({
-        ...first(engineId),
-      })
-      render(<VoiceSettings />)
-      expect(await screen.findByText('••••abcd')).toBeTruthy()
-      cleanup()
-    }
-    saveSpeechSettings({
-      ...first('openai'),
-    })
+  it('names why a saved key failed its check', async () => {
+    fake.speech.request.mockImplementation(async () => ({
+      status: 401,
+      body: '{}',
+    }))
     render(<VoiceSettings />)
-    expect(await screen.findByText('Not set')).toBeTruthy()
-    const asked = fake.speech.keyStatus.mock.calls.map(
-      ([options]) => (options as { engineId: string }).engineId,
-    )
-    // One shared Soniox key id per page, never one per Soniox engine.
-    expect(asked.filter((id) => id === 'soniox')).toHaveLength(3)
-    expect(asked).not.toContain('soniox-rt')
-    expect(asked).not.toContain('soniox-async')
+    await screen.findAllByText('No key')
+    openProvider('OpenAI')
+    keys({ openai: { set: true, last4: 'wxyz' } })
+    fireEvent.change(screen.getByLabelText('API key for OpenAI'), {
+      target: { value: 'sk-wrong-0000wxyz' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    const status = await screen.findByRole('status')
+    expect(status.textContent).toContain('Key rejected')
+    expect(status.textContent).toContain('HTTP 401')
+    expect(engineRow('OpenAI').textContent).toContain('Key rejected')
   })
 
-  it('names both Soniox hosts and deletes the shared key once', async () => {
-    fake.speech.keyStatus.mockImplementation(async () => ({ set: true }))
-    saveSpeechSettings({
-      ...first('soniox-async'),
+  it('pastes a key natively, so it never passes through JS', async () => {
+    render(<VoiceSettings />)
+    await screen.findAllByText('No key')
+    openProvider('Soniox')
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Paste from clipboard' }),
+    )
+    await waitFor(() =>
+      expect(fake.speech.pasteKey).toHaveBeenCalledWith({
+        engineId: 'soniox',
+        boundUrls: [
+          'wss://stt-rt.soniox.com/transcribe-websocket',
+          'https://api.soniox.com/v1',
+        ],
+      }),
+    )
+    expect(fake.speech.setKey).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(engineRow('Soniox').textContent).toContain('••••past'),
+    )
+    // Soniox's model list is public, so the check lists files instead.
+    expect(fake.speech.request).toHaveBeenCalledWith({
+      engineId: 'soniox',
+      method: 'GET',
+      url: 'https://api.soniox.com/v1/files',
+    })
+  })
+
+  it('says so when the clipboard holds no key', async () => {
+    fake.speech.pasteKey.mockImplementationOnce(async () => {
+      throw Object.assign(new Error('empty'), { code: 'clipboard_empty' })
     })
     render(<VoiceSettings />)
-    await screen.findByText('Set')
-    fireEvent.click(row(/^API key/))
+    await screen.findAllByText('No key')
+    openProvider('OpenAI')
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Paste from clipboard' }),
+    )
     expect(
-      await screen.findByText(
+      await screen.findByText('The clipboard doesn’t hold an API key.'),
+    ).toBeTruthy()
+  })
+
+  it('asks for the key in place when a key-less engine is switched on', async () => {
+    saveSpeechSettings({ ...defaultSpeechSettings(), disabled: ['groq'] })
+    render(<VoiceSettings />)
+    await screen.findAllByText('No key')
+    fireEvent.click(screen.getByRole('button', { name: /More engines/ }))
+    const toggle = () => screen.getByRole('switch', { name: 'Use Groq' })
+    fireEvent.click(toggle())
+    // Not on yet: only once the key is saved.
+    expect(toggle().getAttribute('aria-checked')).toBe('false')
+    expect(loadSpeechSettings().disabled).toContain('groq')
+    const input = within(engineRow('Groq')).getByLabelText('API key for Groq')
+    keys({ groq: { set: true, last4: '0000' } })
+    fireEvent.change(input, { target: { value: 'gsk-test-0000' } })
+    fireEvent.click(
+      within(engineRow('Groq')).getByRole('button', { name: 'Save' }),
+    )
+    await waitFor(() =>
+      expect(fake.speech.setKey).toHaveBeenCalledWith({
+        engineId: 'groq',
+        key: 'gsk-test-0000',
+        boundUrls: ['https://api.groq.com/openai/v1'],
+      }),
+    )
+    await waitFor(() =>
+      expect(toggle().getAttribute('aria-checked')).toBe('true'),
+    )
+    expect(loadSpeechSettings().disabled).not.toContain('groq')
+    // On now, so it joins the listed order.
+    expect(listedNames()).toContain('Groq')
+  })
+
+  it('switches an engine with a key straight on and off', async () => {
+    keys({ openai: { set: true }, soniox: { set: true } })
+    render(<VoiceSettings />)
+    const openai = () => screen.getByRole('switch', { name: 'Use OpenAI' })
+    await waitFor(() =>
+      expect(openai().getAttribute('aria-checked')).toBe('true'),
+    )
+    fireEvent.click(openai())
+    expect(loadSpeechSettings().disabled).toEqual(['openai'])
+    expect(openai().getAttribute('aria-checked')).toBe('false')
+    fireEvent.click(openai())
+    expect(loadSpeechSettings().disabled).toEqual([])
+  })
+
+  it('keeps the last engine in use on', async () => {
+    keys({ openai: { set: true } })
+    render(<VoiceSettings />)
+    const openai = await screen.findByRole('switch', { name: 'Use OpenAI' })
+    await waitFor(() =>
+      expect((openai as HTMLButtonElement).disabled).toBe(true),
+    )
+    expect(
+      (screen.getByRole('switch', { name: 'Use Soniox' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false)
+  })
+
+  it('reorders the listed engines by keyboard or drag', async () => {
+    render(<VoiceSettings />)
+    await screen.findAllByText('No key')
+    expect(listedNames()).toEqual(['Soniox', 'OpenAI', 'Soniox Async'])
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Soniox' }), {
+      key: 'ArrowDown',
+    })
+    expect(loadSpeechSettings().order.slice(0, 2)).toEqual([
+      'openai',
+      'soniox-rt',
+    ])
+    expect(listedNames()).toEqual(['OpenAI', 'Soniox', 'Soniox Async'])
+
+    // Drag Soniox Async (3rd) up by two rows (56 px each without layout).
+    const handle = () =>
+      screen.getByRole('button', { name: 'Reorder Soniox Async' })
+    fireEvent.pointerDown(handle(), { pointerId: 1, clientY: 300 })
+    fireEvent.pointerMove(handle(), { pointerId: 1, clientY: 240 })
+    fireEvent.pointerMove(handle(), { pointerId: 1, clientY: 180 })
+    fireEvent.pointerUp(handle(), { pointerId: 1 })
+    expect(listedNames()).toEqual(['Soniox Async', 'OpenAI', 'Soniox'])
+    expect(loadSpeechSettings().order[0]).toBe('soniox-async')
+    // Folded engines keep their place behind the listed ones.
+    expect(loadSpeechSettings().order.slice(3)).toEqual([
+      'groq',
+      'siliconflow',
+      'custom',
+    ])
+  })
+
+  it('picks a model and tests only that engine from its row', async () => {
+    keys({ openai: { set: true }, soniox: { set: true } })
+    render(<VoiceSettings />)
+    await waitFor(() =>
+      expect(engineRow('OpenAI').textContent).toContain('OpenAI'),
+    )
+    await screen.findAllByText('Shared Soniox key')
+    fireEvent.click(within(engineRow('OpenAI')).getAllByRole('button')[1])
+    fireEvent.click(screen.getByRole('button', { name: 'whisper-1' }))
+    expect(loadSpeechSettings().models.openai).toBe('whisper-1')
+    fireEvent.click(screen.getByRole('button', { name: 'Test OpenAI' }))
+    await waitFor(() => expect(fake.speech.startRecording).toHaveBeenCalled())
+    // Only OpenAI: the Soniox stream above it in the order is not opened.
+    expect(fake.speech.startStream).not.toHaveBeenCalled()
+  })
+
+  it('deletes the shared Soniox key once and names both hosts', async () => {
+    keys({ soniox: { set: true, last4: 'abcd' } })
+    render(<VoiceSettings />)
+    await waitFor(() =>
+      expect(providerRow('Soniox').textContent).toContain('••••abcd'),
+    )
+    openProvider('Soniox')
+    expect(
+      screen.getByText(
         'Saved only on this phone and sent only to stt-rt.soniox.com, api.soniox.com.',
       ),
     ).toBeTruthy()
@@ -182,16 +389,9 @@ describe('VoiceSettings', () => {
       }),
     )
     expect(fake.speech.deleteKey).toHaveBeenCalledTimes(1)
-  })
-
-  it('shows the last four of a saved key', async () => {
-    fake.speech.keyStatus.mockImplementation(async () => ({
-      set: true,
-      last4: 'abcd',
-    }))
-    render(<VoiceSettings />)
-    expect((await screen.findByText('••••abcd')).textContent).toBe('••••abcd')
-    expect(screen.getByText('Set')).toBeTruthy()
+    await waitFor(() =>
+      expect(engineRow('Soniox').textContent).toContain('No key'),
+    )
   })
 
   it('clears the custom key when the base URL changes', async () => {
@@ -199,17 +399,16 @@ describe('VoiceSettings', () => {
       ...first('custom'),
       custom: { baseUrl: 'https://old.example.com/v1', model: 'whisper-1' },
     })
-    fake.speech.keyStatus.mockImplementation(async () => ({
-      set: true,
-      last4: 'abcd',
-    }))
+    keys({ custom: { set: true, last4: 'abcd' } })
     render(<VoiceSettings />)
-    await screen.findByText('••••abcd')
-    fireEvent.click(row(/^Custom endpoint/))
-    fireEvent.change(await screen.findByLabelText('Base URL'), {
+    await waitFor(() =>
+      expect(providerRow('Custom endpoint').textContent).toContain('••••abcd'),
+    )
+    openProvider('Custom endpoint')
+    fireEvent.change(screen.getByLabelText('Base URL'), {
       target: { value: 'https://new.example.com/v1' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save endpoint' }))
     await waitFor(() =>
       expect(fake.speech.deleteKey).toHaveBeenCalledWith({
         engineId: 'custom',
@@ -225,28 +424,51 @@ describe('VoiceSettings', () => {
     )
   })
 
-  it('rejects a plain http base URL on the public internet', async () => {
-    saveSpeechSettings({
-      ...first('custom'),
-    })
+  it('rejects a plain http base URL', async () => {
     render(<VoiceSettings />)
-    fireEvent.click(row(/^Custom endpoint/))
-    fireEvent.change(await screen.findByLabelText('Base URL'), {
+    await screen.findAllByText('No key')
+    openProvider('Custom endpoint')
+    fireEvent.change(screen.getByLabelText('Base URL'), {
       target: { value: 'http://example.com/v1' },
     })
     fireEvent.change(screen.getByLabelText('Model'), {
       target: { value: 'whisper-1' },
     })
     expect(
-      (screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement)
-        .disabled,
+      (
+        screen.getByRole('button', {
+          name: 'Save endpoint',
+        }) as HTMLButtonElement
+      ).disabled,
     ).toBe(true)
-    expect(fake.speech.deleteKey).not.toHaveBeenCalled()
+    expect(screen.getByText('Use an https address.')).toBeTruthy()
+    // No key field until there is an endpoint to bind it to.
+    expect(screen.queryByLabelText('API key for Custom endpoint')).toBeNull()
+  })
+
+  it('sets what release does per composer in place', async () => {
+    render(<VoiceSettings />)
+    const group = (name: string) => screen.getByRole('group', { name })
+    const pressed = (name: string) =>
+      within(group(name))
+        .getAllByRole('button')
+        .filter((button) => button.getAttribute('aria-pressed') === 'true')
+        .map((button) => button.textContent)
+    expect(pressed('Alma chat')).toEqual(['Send'])
+    expect(pressed('Herdr agents')).toEqual(['Insert'])
+    fireEvent.click(
+      within(group('Alma chat')).getByRole('button', { name: 'Insert' }),
+    )
+    expect(loadSpeechSettings().release).toEqual({
+      alma: 'insert',
+      herdr: 'insert',
+    })
+    expect(pressed('Alma chat')).toEqual(['Insert'])
   })
 
   it('saves edited terms parsed one per line', async () => {
     render(<VoiceSettings />)
-    fireEvent.click(row(/^Terms/))
+    fireEvent.click(screen.getByRole('button', { name: /^Terms/ }))
     fireEvent.change(await screen.findByRole('textbox', { name: 'Terms' }), {
       target: { value: 'Alma\n  Herdr \nalma\nSoniox, WebSocket\n\n' },
     })
@@ -278,11 +500,11 @@ describe('VoiceSettings', () => {
   })
 
   it('Test records a few seconds and shows what was recognised', async () => {
-    fake.speech.keyStatus.mockImplementation(async () => ({ set: true }))
+    keys({ soniox: { set: true } })
     render(<VoiceSettings />)
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {
-      fireEvent.click(row(/^Test/))
+      fireEvent.click(screen.getByRole('button', { name: /^Test/ }))
       await waitFor(() => expect(fake.speech.startStream).toHaveBeenCalled())
       await screen.findByText(/Recording for 3 seconds/)
       act(() =>
@@ -307,117 +529,14 @@ describe('VoiceSettings', () => {
   })
 
   it('Test explains a missing key without recording', async () => {
-    saveSpeechSettings({
-      ...first('openai'),
-    })
+    saveSpeechSettings({ ...first('openai') })
     render(<VoiceSettings />)
-    fireEvent.click(row(/^Test/))
+    fireEvent.click(screen.getByRole('button', { name: /^Test/ }))
     expect(
       await screen.findByText(
         'Voice input needs an API key for OpenAI. Add one in voice settings.',
       ),
     ).toBeTruthy()
     expect(fake.speech.startRecording).not.toHaveBeenCalled()
-  })
-
-  it('lists engines in order and reorders them by keyboard or drag', async () => {
-    render(<VoiceSettings />)
-    fireEvent.click(row(/^Engine/))
-    const list = await screen.findByRole('dialog', { name: 'Engines' })
-    const names = () =>
-      [...list.querySelectorAll('.voice-engine-name')].map(
-        (item) => item.textContent,
-      )
-    expect(names().slice(0, 3)).toEqual(['Soniox', 'OpenAI', 'Soniox Async'])
-    const meta = () =>
-      [...list.querySelectorAll('.voice-engine-meta')].map((item) =>
-        [...item.children].map((part) => part.textContent),
-      )
-    // No key is saved in this test, so each engine says so.
-    expect(meta()[0]).toEqual(['Primary', 'stt-rt-v6', 'No API key'])
-    expect(meta()[1]).toEqual(['Fallback 1', 'gpt-transcribe', 'No API key'])
-    expect(meta().at(-1)).toEqual(['Fallback 5', 'Not set up'])
-
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Reorder Soniox' }), {
-      key: 'ArrowDown',
-    })
-    expect(loadSpeechSettings().order.slice(0, 2)).toEqual([
-      'openai',
-      'soniox-rt',
-    ])
-    expect(names()[0]).toBe('OpenAI')
-
-    // Drag Groq (4th) up by two rows (56 px each without layout).
-    const handle = screen.getByRole('button', { name: 'Reorder Groq' })
-    fireEvent.pointerDown(handle, { pointerId: 1, clientY: 300 })
-    fireEvent.pointerMove(handle, { pointerId: 1, clientY: 240 })
-    fireEvent.pointerMove(
-      screen.getByRole('button', { name: 'Reorder Groq' }),
-      { pointerId: 1, clientY: 180 },
-    )
-    fireEvent.pointerUp(screen.getByRole('button', { name: 'Reorder Groq' }), {
-      pointerId: 1,
-    })
-    expect(loadSpeechSettings().order.indexOf('groq')).toBe(1)
-  })
-
-  it('switches engines off but keeps the last one on', async () => {
-    render(<VoiceSettings />)
-    fireEvent.click(row(/^Engine/))
-    await screen.findByRole('dialog', { name: 'Engines' })
-    fireEvent.click(screen.getByRole('switch', { name: 'Use OpenAI' }))
-    expect(loadSpeechSettings().disabled).toEqual(['openai'])
-    expect(
-      screen
-        .getByRole('switch', { name: 'Use OpenAI' })
-        .getAttribute('aria-checked'),
-    ).toBe('false')
-    for (const name of [
-      'Soniox Async',
-      'Groq',
-      'SiliconFlow',
-      'Custom endpoint',
-    ])
-      fireEvent.click(screen.getByRole('switch', { name: `Use ${name}` }))
-    const last = screen.getByRole('switch', {
-      name: 'Use Soniox',
-    }) as HTMLButtonElement
-    expect(last.disabled).toBe(true)
-    expect(loadSpeechSettings().disabled).not.toContain('soniox-rt')
-  })
-
-  it('sets up a fallback engine from the list', async () => {
-    render(<VoiceSettings />)
-    fireEvent.click(row(/^Engine/))
-    await screen.findByRole('dialog', { name: 'Engines' })
-    fireEvent.click(screen.getByText('Groq'))
-    const groq = await screen.findByRole('dialog', { name: 'Groq' })
-    fireEvent.click(within(groq).getByRole('button', { name: /^API key/ }))
-    const input = await screen.findByLabelText('API key')
-    fireEvent.change(input, { target: { value: 'gsk-test-0000' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    await waitFor(() =>
-      expect(fake.speech.setKey).toHaveBeenCalledWith({
-        engineId: 'groq',
-        key: 'gsk-test-0000',
-        boundUrls: ['https://api.groq.com/openai/v1'],
-      }),
-    )
-  })
-
-  it('sets what release does per composer', async () => {
-    render(<VoiceSettings />)
-    const alma = row(/^Alma chat: after release/)
-    const herdr = row(/^Herdr agents: after release/)
-    expect(alma.textContent).toContain('Send')
-    expect(herdr.textContent).toContain('Put in the input box')
-    fireEvent.click(alma)
-    fireEvent.click(
-      await screen.findByRole('button', { name: /^Put in the input box/ }),
-    )
-    expect(loadSpeechSettings().release).toEqual({
-      alma: 'insert',
-      herdr: 'insert',
-    })
   })
 })
