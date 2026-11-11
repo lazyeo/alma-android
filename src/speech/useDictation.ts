@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { DictationSession, type DictationState } from './dictationSession'
-import { engineChain, loadSpeechSettings, resolveEngine } from './engineStore'
+import {
+  engineChain,
+  engineReady,
+  loadSpeechSettings,
+  resolveEngine,
+} from './engineStore'
 import { Speech } from './nativeSpeech'
 import type { EngineConfig } from './types'
 
@@ -8,7 +13,8 @@ export interface Dictation {
   state: DictationState
   /** The primary engine as of the last Start (the state names the active one). */
   engine: EngineConfig
-  start(): void
+  /** Runs the user's chain, or only `engineId` (Settings → Test). */
+  start(engineId?: string): void
   stop(): void
   cancel(): void
   reset(): void
@@ -38,10 +44,12 @@ export function useDictation(): Dictation {
     const session = sessionRef.current
     return () => session?.dispose()
   }, [])
-  const start = useCallback(() => {
+  const start = useCallback((engineId?: string) => {
     const settings = loadSpeechSettings()
-    const chain = engineChain(settings)
-    setEngine(chain[0] ?? resolveEngine(settings))
+    const chain = engineId
+      ? [resolveEngine(settings, engineId)].filter(engineReady)
+      : engineChain(settings)
+    setEngine(chain[0] ?? resolveEngine(settings, engineId))
     void sessionRef.current?.start(chain, settings.terms)
   }, [])
   const stop = useCallback(() => void sessionRef.current?.stop(), [])
