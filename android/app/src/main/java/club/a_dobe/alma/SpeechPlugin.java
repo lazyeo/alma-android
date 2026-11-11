@@ -1,6 +1,9 @@
 package club.a_dobe.alma;
 
 import android.Manifest;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
@@ -130,26 +133,63 @@ public class SpeechPlugin extends Plugin {
 
     @PluginMethod
     public void setKey(PluginCall call) {
-        String engineId = call.getString("engineId");
         String key = call.getString("key");
-        JSArray rawUrls = call.getArray("boundUrls");
-        if (!SpeechKeyStore.validEngineId(engineId) || key == null || key.trim().isEmpty()) {
+        if (key == null || key.trim().isEmpty()) {
             call.reject("Missing engine or key", "io");
             return;
+        }
+        if (storeKey(call, key.trim())) call.resolve();
+    }
+
+    /**
+     * Saves the clipboard's text as the key without it ever reaching JS, and
+     * resolves with the new status. Rejects with clipboard_empty when the
+     * clipboard holds no single plausible key.
+     */
+    @PluginMethod
+    public void pasteKey(PluginCall call) {
+        // ClipboardManager wants a Looper thread; plugin calls arrive on a
+        // background one.
+        getActivity().runOnUiThread(() -> {
+            ClipboardManager clipboard = (ClipboardManager) getContext().getSystemService(Context.CLIPBOARD_SERVICE);
+            ClipData clip = clipboard == null ? null : clipboard.getPrimaryClip();
+            CharSequence text = clip == null || clip.getItemCount() == 0 ? null : clip.getItemAt(0).coerceToText(getContext());
+            String key = SpeechClipboardKey.from(text);
+            if (key == null) {
+                call.reject("The clipboard holds no API key", "clipboard_empty");
+                return;
+            }
+            if (!storeKey(call, key)) return;
+            SpeechKeyStore.Status status = keys.status(call.getString("engineId"));
+            JSObject result = new JSObject();
+            result.put("set", status.set);
+            if (status.last4 != null) result.put("last4", status.last4);
+            call.resolve(result);
+        });
+    }
+
+    /** Checks the call's engine id and bound URLs, then saves; false once rejected. */
+    private boolean storeKey(PluginCall call, String key) {
+        String engineId = call.getString("engineId");
+        JSArray rawUrls = call.getArray("boundUrls");
+        if (!SpeechKeyStore.validEngineId(engineId)) {
+            call.reject("Missing engine or key", "io");
+            return false;
         }
         List<String> boundUrls = new ArrayList<>();
         if (rawUrls != null)
             for (int i = 0; i < rawUrls.length(); i++) boundUrls.add(rawUrls.optString(i, "").trim());
         if (!SpeechHostRules.bindable(engineId, boundUrls)) {
             call.reject("This key cannot be bound to these addresses", SpeechKeyStore.HOST_NOT_ALLOWED);
-            return;
+            return false;
         }
         try {
-            keys.set(engineId, key.trim(), boundUrls);
-            call.resolve();
+            keys.set(engineId, key, boundUrls);
+            return true;
         } catch (GeneralSecurityException | IOException error) {
             // No cause attached: the message must never carry key material.
             call.reject("Could not store the key", "io");
+            return false;
         }
     }
 

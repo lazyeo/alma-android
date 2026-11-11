@@ -14,7 +14,7 @@ export interface KeyStatus {
 /**
  * Error codes native rejects with (`error.code` in JS):
  * key_missing, host_not_allowed, mic_denied, busy, no_recording,
- * network, timeout, io.
+ * network, timeout, io, clipboard_empty.
  */
 export interface SpeechPlugin {
   checkMicPermission(): Promise<{ mic: MicPermission }>
@@ -30,6 +30,15 @@ export interface SpeechPlugin {
     key: string
     boundUrls: string[]
   }): Promise<void>
+  /**
+   * Saves the clipboard's text as the key, natively: the key never passes
+   * through JS. Same binding rules as setKey; rejects with
+   * `clipboard_empty` when the clipboard holds no single plausible key.
+   */
+  pasteKey(options: {
+    engineId: string
+    boundUrls: string[]
+  }): Promise<KeyStatus>
   keyStatus(options: { engineId: string }): Promise<KeyStatus>
   deleteKey(options: { engineId: string }): Promise<void>
 
