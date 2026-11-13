@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Nothing yet.
+
+## [0.1.9] - 2026-11-14
+
+### Added
+
 - Message reactions, matching Alma desktop 0.4.434 and later: emoji reactions show as small chips under each message, in threads and on Alma's page, including the 👀 Alma adds when she starts on your message. Your own are highlighted; tap one to remove it. Long-press a message for a quick row of 👍 ❤️ 😂 👀 🎉 🙏 above its actions. Changes show at once and follow the desktop live; if one fails it is undone, and on a desktop too old for reactions the controls hide while stored reactions still show (2026-11-06).
 - Computer browser: a conversation can show the in-app browser of Alma on the computer, live, and drive it. Open it from the thread menu (Computer browser), or from the globe that appears in the header while Alma has a browser open for that thread. Tap to click, double-tap, drag to scroll, pinch to zoom; type into the page or press Enter, Tab, Esc, Delete and the arrows; go back, forward or reload; and see, switch, close or open the computer's tabs, including the ones Alma opened. The address bar opens any address or search on the computer, even when no browser is open yet, and pages only the computer can reach, such as `localhost` dev servers, work too. The picture is the desktop's JPEG screencast, upgraded to WebRTC video when the desktop can, with input then sent over its data channel. Desktops from 0.4.491 send video only; when that video cannot connect, the viewer says so and offers a retry instead of staying black. Desktops without the browser view show neither entry (2026-11-10).
 - Voice input: thread chats, the new-thread page and Herdr chats get a voice/keyboard switch beside the text box, and each remembers which one you used last. In voice mode the text box becomes a Hold to talk bar: hold it and speak while a bubble over the dimmed screen shows the live waveform and what was heard, then let go. By default releasing sends the text in Alma chats and puts it in the input box in Herdr; Settings › Voice input › After release changes each. Slide onto Cancel to drop the recording, or onto the edit capsule to put the text in the input box first. A hold under a second is dropped as too short, a result under two characters goes into the input box instead of being sent, and if you had already typed something the dictation is added after it for you to send. Recordings stop at 5 minutes and go into the input box. Voice input asks for microphone access the first time, and each problem (no key, no microphone, no connection, nothing heard) gets a plain message with a way to fix it (2026-11-11).
@@ -32,7 +38,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Dollar signs and brackets in your own messages are no longer turned into math: text like `\(x\)`, `$5 and $10` or `$$y$$` shows as you typed it, in threads, on Alma's page and in Herdr. In replies a single `$` stays a plain dollar sign, as on the desktop, while `$$…$$` and math blocks still render (2026-11-11).
 - Switching desktops no longer lets the previous desktop's Alma leak into the new one: a late answer from the old desktop could make its conversation the new desktop's Alma, or hide Alma there altogether (2026-11-11).
 - On tablets and unfolded phones, the Herdr side list no longer carries its project choice or an open rename or close dialog over to the next desktop, where the dialog could act on the wrong desktop's Herdr (2026-11-11).
-
 ## [0.1.8] - 2026-11-05
 
 ### Added
@@ -233,7 +238,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Foldable layouts, a frosted screen transition, optional Shizuku live hinge-angle input, and an estimated fallback.
 - Foreground-lifetime local notifications for completed replies and pending approvals; no push service is used.
 
-[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.9...HEAD
 [0.1.0]: https://github.com/lazyeo/alma-android/releases/tag/v0.1.0
 [0.1.1]: https://github.com/lazyeo/alma-android/compare/v0.1.0...v0.1.1
 [0.1.2]: https://github.com/lazyeo/alma-android/compare/v0.1.1...v0.1.2
@@ -243,3 +248,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.1.6]: https://github.com/lazyeo/alma-android/compare/v0.1.5...v0.1.6
 [0.1.7]: https://github.com/lazyeo/alma-android/compare/v0.1.6...v0.1.7
 [0.1.8]: https://github.com/lazyeo/alma-android/compare/v0.1.7...v0.1.8
+[0.1.9]: https://github.com/lazyeo/alma-android/compare/v0.1.8...v0.1.9
