@@ -283,7 +283,7 @@ Commit: `feat(speech): voice settings`.
 
 1. `npm run check` passes with rc=0. Then `npm run android:build`.
 2. Run the screenshots.
-3. Private + public test builds go onto the Fold7 (skill `alma手机端迭代交付`).
+3. Install the test build on Android test devices (a foldable is useful for the dual-screen paths).
 4. On the device, for each configured engine: dictate zh, zh-en and noisy speech into a thread and into a Herdr pane. Record the results under **Results**.
 5. On the device: deny the mic permission, then confirm the sheet explains it and recovers once it is granted.
 
@@ -354,4 +354,4 @@ Live preview in the sheet: final text normally, the non-final tail in a lighter 
 
 ### Phase 1 (device)
 
-(fill in from Task 1.9)
+Checked on a foldable and a standard Android phone before v0.1.9; no separate measurements were recorded.
