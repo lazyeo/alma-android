@@ -10,13 +10,13 @@ An unofficial Android client for [Alma Desktop](https://alma.now). Pair it with 
 
 ## Screenshots
 
-| Threads and the floating tab bar                                                                 | Alma                                                                                                   |
-| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| ![Thread list with the floating tab bar and Alma's thought bubble](docs/screenshots/threads.png) | ![Alma's conversation with her face in the header](docs/screenshots/alma.png)                          |
-| Conversation                                                                                     | Long-press preview and actions                                                                         |
-| ![Conversation with a code block](docs/screenshots/thread-code.png)                              | ![Reply preview card above the message actions with Retry reply](docs/screenshots/message-actions.png) |
-| Files and diffs                                                                                  | Settings (简体中文)                                                                                    |
-| ![Thread files and diff](docs/screenshots/files-diff.png)                                        | ![Settings in Simplified Chinese](docs/screenshots/settings-zh.png)                                    |
+| Threads and the floating tab bar                                                                 | Alma                                                                                                      |
+| ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| ![Thread list with the floating tab bar and Alma's thought bubble](docs/screenshots/threads.png) | ![Alma's conversation with her face in the header](docs/screenshots/alma.png)                             |
+| Conversation                                                                                     | Long-press preview and actions                                                                            |
+| ![Conversation with a code block](docs/screenshots/thread-code.png)                              | ![Reply preview card above quick reactions and the message actions](docs/screenshots/message-actions.png) |
+| Files and diffs                                                                                  | Settings (简体中文)                                                                                       |
+| ![Thread files and diff](docs/screenshots/files-diff.png)                                        | ![Settings in Simplified Chinese](docs/screenshots/settings-zh.png)                                       |
 
 ### Herdr agents, remote desktop and updates
 
@@ -71,13 +71,16 @@ The app connects through Alma's official relay and, when the phone and desktop s
 - **Floating tab bar:** on phones a capsule with Threads, Alma and Herdr; GTD and Settings are icon buttons in the Threads header, and the current desktop's name in the page title opens the desktop switcher.
 - Threads, projects (with project cards and Recent threads), and GTD views
 - Streaming replies, tool calls, approvals, and user questions
-- Long-press a message for a reduced preview card above its actions; retry a reply or resend a failed message from there
+- Long-press a message for a reduced preview card above its actions; react with an emoji, retry a reply or resend a failed message from there
+- Emoji reactions as chips under each message, including the 👀 Alma adds when she starts on yours; tap your own to remove it (Alma desktop 0.4.434+)
 - Composer controls for model, reasoning effort, goals, and loops
 - Thread file panel with diffs, plus HTML and Markdown previews
 - Rich previews: KaTeX math, Mermaid diagrams, audio and video, PDF, CSV/XLSX and DOCX
 - Code-block copy, Android Share-to-Alma, and an image gallery
-- **Herdr coding agents:** for desktops running Herdr, board and list views of workspaces and sessions. Each session has a Chat view drawn with the same message components as threads, and a Terminal view with Fit/Grid layouts, on-demand scrollback and virtual keys. Answer an agent's permission menu from the chat or the session list, use slash commands, follow subagents, mute noisy workspaces, and get an "Agent needs you" alert.
+- **Voice input:** switch a thread or Herdr composer to voice, hold the bar to talk, and release to send, or slide to cancel or to edit the text first. It uses your own key for Soniox (real-time or async), OpenAI, Groq, SiliconFlow or a custom OpenAI-compatible endpoint, falling back to the next engine on failure. Voice messages play in a capsule (Alma desktop 0.4.528+).
+- **Herdr coding agents:** for desktops running Herdr, board and list views of workspaces and sessions. Each session has a Chat view drawn with the same message components as threads, and a Terminal view with Fit/Grid layouts, on-demand scrollback and virtual keys. Answer an agent's permission menu from the chat or the session list, use slash commands, follow subagents, mute noisy workspaces, and get an "Agent needs you" alert. Switch the Herdr page to another computer the desktop reaches, install or start Herdr from the offline page, and start new sessions with the desktop's default agent.
 - **Remote desktop:** watch a paired desktop's screen and control it as a trackpad (tap to click, hold then move to drag, two fingers to scroll or right-click), type text, and wake a sleeping display. Pinch to zoom 1–4x or switch between Fit and 1:1, pan with one finger, and on macOS pick another display or a single app window to stream.
+- **Computer browser:** from a thread's menu, or the globe in its header while Alma has a browser open, watch and drive Alma's in-app browser on the desktop. Tap, scroll, pinch to zoom and type; go back, forward or reload; switch or open tabs; and open any address, including ones only the desktop can reach such as localhost.
 - **LAN direct:** on the same Wi-Fi the app talks to the desktop directly instead of through the relay; the switcher shows a Wi-Fi icon for LAN or a globe for the relay.
 - Multiple desktops with macOS, Windows or Linux icons and live latency
 - Desktop Base46 theme palettes
@@ -97,6 +100,7 @@ There is no push service. Notifications are generated locally from the live rela
 - Multiple desktops are isolated by pairing.
 - The pairing link is a full-access secret. See [SECURITY.md](SECURITY.md) before sharing diagnostics or reporting a vulnerability.
 - The client intentionally blocks known dangerous desktop routes that it does not need.
+- Voice input stays off until you add a speech engine key. Recordings go from the phone straight to the engines you turn on; each key is stored encrypted on the device and sent only to its provider's https/wss endpoint.
 
 The contributor-facing protocol notes are in [docs/protocol.md](docs/protocol.md).
 
