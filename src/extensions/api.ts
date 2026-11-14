@@ -37,4 +37,13 @@ export interface AppExtension {
   ): QueueBinding
   useDesktopEventHook?(desktopId: string): (event: RealtimeEvent) => void
   useNotificationSuppression?(): (desktopId: string) => boolean
+  /**
+   * Marks for Herdr agent kinds, keyed by lowercase kind (for example `agy`).
+   * Each one draws the bare mark at `size` px inside AgentMark's wrapper and
+   * takes precedence over the built-in mark; `muted` means draw it in
+   * currentColor.
+   */
+  agentMarks?: Partial<
+    Record<string, ComponentType<{ size: number; muted: boolean }>>
+  >
 }

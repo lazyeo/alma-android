@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Nothing yet.
 
+### Changed
+
+- Extensions can supply agent marks for Herdr agent kinds (2026-11-14).
+
 ### Fixed
 
 - A photo or screenshot whose original file is over 6 MB is no longer refused with the 6 MB relay message before it is shrunk; it is re-encoded like any other image, and the limit applies to what is actually uploaded (2026-11-14).

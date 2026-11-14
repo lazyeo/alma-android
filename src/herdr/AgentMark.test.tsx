@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
 import { cleanup, render } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { installed } from '@alma/extensions-installed'
 import { AgentMark } from './AgentMark'
 
-afterEach(cleanup)
+vi.mock('@alma/extensions-installed', () => ({ installed: {} }))
+afterEach(() => {
+  cleanup()
+  delete installed.agentMarks
+})
 
 describe('AgentMark', () => {
   it('renders the Claude Code robot in its brand color', () => {
@@ -70,5 +75,68 @@ describe('AgentMark', () => {
     expect(container.querySelector('path')?.getAttribute('fill')).toBe(
       'currentColor',
     )
+  })
+
+  it('renders an extension mark for its kind with the box size and muted state', () => {
+    installed.agentMarks = {
+      agy: ({ size, muted }) => (
+        <svg data-extension-mark={muted ? 'muted' : 'colored'} width={size} />
+      ),
+    }
+    const { container, rerender } = render(<AgentMark agent="AGY" small />)
+    const wrapper = container.querySelector('[data-agent-mark="agy"]')
+
+    expect(wrapper?.className).toBe('agent-mark')
+    expect(wrapper?.getAttribute('style')).toContain('width: 14px')
+    expect(
+      container.querySelector('[data-extension-mark]')?.getAttribute('width'),
+    ).toBe('14')
+    expect(
+      container
+        .querySelector('[data-extension-mark]')
+        ?.getAttribute('data-extension-mark'),
+    ).toBe('colored')
+    expect(container.querySelector('[data-agent-mark="fallback"]')).toBeNull()
+
+    rerender(<AgentMark agent="agy" muted />)
+    expect(container.querySelector('[data-agent-mark="agy"]')?.className).toBe(
+      'agent-mark muted',
+    )
+    expect(
+      container.querySelector('[data-extension-mark]')?.getAttribute('width'),
+    ).toBe('18')
+    expect(
+      container
+        .querySelector('[data-extension-mark]')
+        ?.getAttribute('data-extension-mark'),
+    ).toBe('muted')
+  })
+
+  it('lets an extension mark take precedence over a built-in mark', () => {
+    installed.agentMarks = {
+      claude: () => <svg data-extension-mark="claude" />,
+    }
+    const { container } = render(<AgentMark agent="claude" />)
+
+    expect(
+      container.querySelector('[data-extension-mark="claude"]'),
+    ).toBeTruthy()
+    expect(container.querySelector('path')).toBeNull()
+  })
+
+  it('keeps the Bot fallback for kinds no extension supplies', () => {
+    installed.agentMarks = { agy: () => <svg data-extension-mark="agy" /> }
+    const { container } = render(<AgentMark agent="gemini" />)
+
+    expect(container.querySelector('[data-agent-mark="gemini"]')).toBeTruthy()
+    expect(container.querySelector('[data-agent-mark="fallback"]')).toBeTruthy()
+    expect(container.querySelector('[data-extension-mark]')).toBeNull()
+  })
+
+  it('ignores inherited keys when looking up an extension mark', () => {
+    installed.agentMarks = { agy: () => <svg data-extension-mark="agy" /> }
+    const { container } = render(<AgentMark agent="constructor" />)
+
+    expect(container.querySelector('[data-agent-mark="fallback"]')).toBeTruthy()
   })
 })

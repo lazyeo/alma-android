@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import { Bot } from 'lucide-react'
+import { installed } from '@alma/extensions-installed'
 
 const CLAUDE_CODE =
   'M21 10.5h3v3h-3v3h-1.5v3H18v-3h-1.5v3H15v-3H9v3H7.5v-3H6v3H4.5v-3H3v-3H0v-3h3v-6h18Zm-15 0h1.5v-3H6Zm10.5 0H18v-3h-1.5z'
@@ -28,6 +29,23 @@ export function AgentMark({
   const box = small ? 14 : 18
   const className = `agent-mark${muted ? ' muted' : ''}`
   const id = useId().replace(/:/g, '')
+  // Herdr controls `kind`, so only own keys count: `constructor` must not
+  // resolve to Object.prototype.constructor.
+  const marks = installed.agentMarks
+  const ExtensionMark =
+    marks && Object.hasOwn(marks, kind) ? marks[kind] : undefined
+
+  if (ExtensionMark)
+    return (
+      <span
+        aria-hidden="true"
+        className={className}
+        data-agent-mark={kind}
+        style={{ width: box, height: box }}
+      >
+        <ExtensionMark size={box} muted={muted} />
+      </span>
+    )
 
   if (kind === 'claude')
     return (
