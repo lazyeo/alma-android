@@ -15,6 +15,15 @@ export function relayUploadError(filename: string) {
   return t('composer.attachments.tooLarge', { name: filename })
 }
 
+/**
+ * Every size comparison with NaN or 0 fails, so a bad limit would end the
+ * encode loop with a "too large" error for any image; fail loudly instead.
+ */
+function assertByteLimit(byteLimit: number) {
+  if (!Number.isFinite(byteLimit) || byteLimit <= 0)
+    throw new Error(`Invalid upload byte limit: ${byteLimit}`)
+}
+
 export function nextImageEncodingAttempt({
   maxEdge,
   quality,
@@ -89,6 +98,7 @@ export async function encodeImageCanvas(
   } = {},
 ): Promise<Blob> {
   const byteLimit = options.byteLimit ?? MAX_RELAY_UPLOAD_BYTES
+  assertByteLimit(byteLimit)
   const limit = Math.min(options.maxEdge ?? 2200, 2200)
   const mediaType = options.preserveAlpha ? 'image/png' : 'image/jpeg'
   let attempt: ImageEncodingAttempt | null = options.preserveAlpha
@@ -167,6 +177,7 @@ export async function downscaleImage(
   file: File,
   byteLimit = MAX_RELAY_UPLOAD_BYTES,
 ): Promise<{ bytes: Uint8Array; mediaType: string; previewUrl: string }> {
+  assertByteLimit(byteLimit)
   if (file.size === 0) throw new Error(imageDecodeError(file))
   let bitmap: ImageBitmap | HTMLImageElement
   try {

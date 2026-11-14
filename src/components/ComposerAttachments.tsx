@@ -210,7 +210,11 @@ export function ComposerAttachments({
           t('composer.attachments.tooMany', { count: maxAttachments }),
         )
       for (const file of Array.from(list)) {
-        if (file.size > maxFileBytes)
+        // The cap is on what is uploaded. A re-encoded image is checked after
+        // downscaleImage, which shrinks a large original (a tall screenshot)
+        // well under it; checking the original refused it for nothing.
+        const sentAsIs = !images || !preprocessImages
+        if (sentAsIs && file.size > maxFileBytes)
           throw new Error(relayUploadError(file.name))
         if (images) {
           if (preprocessImages) {

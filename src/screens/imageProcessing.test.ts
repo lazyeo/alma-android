@@ -22,6 +22,18 @@ describe('image decode failures', () => {
     ).toBe('a.heic (image/heic, 2 KB) could not be read as an image.')
   })
 
+  // A comparison with NaN or 0 fails every attempt, which would report a
+  // tiny image as over the relay cap.
+  it('rejects an unusable byte limit instead of calling the image too large', async () => {
+    const file = new File([new Uint8Array(93_676)], '33332.jpg', {
+      type: 'image/jpeg',
+    })
+    for (const limit of [Number.NaN, 0, -1])
+      await expect(downscaleImage(file, limit)).rejects.toThrow(
+        /invalid upload byte limit/i,
+      )
+  })
+
   it('rejects an empty file before decoding', async () => {
     const file = new File([], 'cloud.jpg', { type: 'image/jpeg' })
     await expect(downscaleImage(file)).rejects.toThrow(/cloud\.jpg is empty/)
