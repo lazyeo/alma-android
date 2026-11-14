@@ -125,6 +125,9 @@ export const threads = {
     setup: {
       failed: "Couldn't start the conversation",
     },
+    // A share into her thread that could not be handed to her yet.
+    shareUnsent:
+      'Alma isn’t reachable right now, so your shared message hasn’t been sent.',
     showThinking: 'Show thinking',
     hideThinking: 'Hide thinking',
     mood: {

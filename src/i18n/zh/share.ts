@@ -20,6 +20,9 @@ export const share: CatalogShape<typeof source> = {
   nothingWaiting: '没有等待分享的内容。',
   backToThreads: '返回对话列表',
   newChatShortcut: '新对话：{desktop}',
+  threadOnDesktop: '{title}（{desktop}）',
+  readFailed: '无法读取分享的内容：{reason}',
+  nothingToSend: '没有可发送的内容。请添加一个问题，或重新分享。',
   sharedFiles: '分享了 {names}',
   fileNameSeparator: '、',
 }

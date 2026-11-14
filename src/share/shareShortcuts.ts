@@ -2,7 +2,11 @@ import { excludePersonalRunThreads } from '../alma/personalThread'
 import { t } from '../i18n/runtime'
 import { updateNativeShareShortcuts } from '../nativeBridge'
 import type { Thread } from '../relay'
-import { encodeNewChatShortcutId, encodeThreadShortcutId } from './shareLogic'
+import {
+  encodeNewChatShortcutId,
+  encodeThreadShortcutId,
+  shareThreadLabel,
+} from './shareLogic'
 
 export interface ShareShortcutOptions {
   shortcuts: Array<{ id: string; label: string; desktopName: string }>
@@ -57,7 +61,11 @@ export function desktopShareShortcuts(
         .slice(0, limit)
         .map((thread) => ({
           id: encodeThreadShortcutId(desktopId, thread.id),
-          label: thread.title || t('common.untitledThread'),
+          label: shareThreadLabel(
+            thread.title,
+            desktopName,
+            activeDesktopIds.length,
+          ),
           desktopName,
         })),
       {

@@ -128,6 +128,7 @@ export const threads: CatalogShape<typeof source> = {
     setup: {
       failed: '无法开始对话',
     },
+    shareUnsent: '暂时连不上 Alma，你分享的内容还没有发出。',
     showThinking: '查看思考过程',
     hideThinking: '收起思考过程',
     mood: {

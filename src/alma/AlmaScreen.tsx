@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useConnection } from '../desktops/DesktopContext'
 import { desktopThreadsPath } from '../desktopRoutes'
 import { useT } from '../i18n'
@@ -25,7 +25,19 @@ export function AlmaScreen() {
   const refresh = presence?.refresh
   const startSetup = presence?.startSetup
   const setup = presence?.setup ?? 'idle'
-  const state = presence?.state
+  // Presence follows the active desktop and only catches up after a switch
+  // (a share into another desktop): until then it describes someone else's
+  // Alma, so it counts as still loading here.
+  const state =
+    presence?.desktopId && presence.desktopId !== pairing.id
+      ? undefined
+      : presence?.state
+  // A share or new-chat hand-off for her thread (PersonalThreadRedirect
+  // forwards it); ThreadView sends it once her thread is open.
+  const pendingShare = Boolean(
+    (useLocation().state as { pendingFirstSend?: unknown } | null)
+      ?.pendingFirstSend,
+  )
   // The desktop cannot create her main conversation, so the phone finds or
   // makes one (personalSetup.ts); the shell stands in until it is known.
   const needsSetup = state?.status === 'ready' && !state.personal.threadId
@@ -55,6 +67,21 @@ export function AlmaScreen() {
   )
   if (!state || state.status === 'loading')
     return <p className="empty">{t('thread.opening')}</p>
+  // Leaving would drop a pending share without a word, so say it is unsent
+  // and offer a retry; the hand-off stays in the location until it sends.
+  if (state.status !== 'ready' && pendingShare)
+    return (
+      <div className="empty alma-setup-state" role="alert">
+        <p>{t('threads.personal.shareUnsent')}</p>
+        <button
+          type="button"
+          className="quiet-text-button"
+          onClick={() => void refresh?.()}
+        >
+          {t('common.tryAgain')}
+        </button>
+      </div>
+    )
   // Unsupported or unreachable: nothing to show.
   if (state.status !== 'ready') return <Navigate to={backPath} replace />
   const threadId = state.personal.threadId ?? undefined

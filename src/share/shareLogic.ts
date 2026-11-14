@@ -188,3 +188,33 @@ export function composeSharedMessage(payload: SharePayload, question: string) {
     )
   return sections.join('\n\n')
 }
+
+/**
+ * The share-sheet label of a thread. Each paired desktop has its own Alma
+ * thread titled "Alma", and the sheet shows nothing but this label (the
+ * avatar badge is the desktop's initial, often the same letter), so with
+ * more than one desktop the label names the desktop too.
+ */
+export function shareThreadLabel(
+  title: string | undefined,
+  desktopName: string,
+  pairedDesktops: number,
+) {
+  const name = title?.trim() || t('common.untitledThread')
+  return pairedDesktops > 1
+    ? t('share.threadOnDesktop', { title: name, desktop: desktopName })
+    : name
+}
+
+/**
+ * Why a share cannot be sent, or undefined when it can. A share that would
+ * carry nothing (no file survived the native read and there is no text) is
+ * refused here: the thread screen drops an empty hand-off without a word.
+ */
+export function shareSendProblem(payload: SharePayload, question: string) {
+  if (payload.files.length || composeSharedMessage(payload, question))
+    return undefined
+  return payload.error
+    ? t('share.readFailed', { reason: payload.error })
+    : t('share.nothingToSend')
+}

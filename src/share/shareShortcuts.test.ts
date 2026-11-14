@@ -47,6 +47,15 @@ describe('desktopShareShortcuts', () => {
     expect(options.shortcuts.at(-1)?.label).toBe('New chat: Mac')
   })
 
+  it('tells same-titled threads of two desktops apart', () => {
+    const alma = { id: 'main', title: 'Alma' } as Thread
+    const labels = [
+      desktopShareShortcuts('a', 'MacBook', [alma], ['a', 'b']),
+      desktopShareShortcuts('b', 'Mac mini', [alma], ['a', 'b']),
+    ].map((options) => options.shortcuts[0].label)
+    expect(labels).toEqual(['Alma on MacBook', 'Alma on Mac mini'])
+  })
+
   it('gives no slot to her background run threads', () => {
     const run = (id: string) =>
       ({

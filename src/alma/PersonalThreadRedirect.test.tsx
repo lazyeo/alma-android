@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { PersonalAgentState } from '../screens/personalAgent'
 import { AlmaPresenceContext, type AlmaPresence } from './AlmaPresence'
@@ -42,10 +42,20 @@ const presence = (state: PersonalAgentState, desktopId = 'd1') =>
     refresh: async () => undefined,
   }) as AlmaPresence
 
-function open(path: string, value: AlmaPresence | null) {
+function AlmaRoute() {
+  const state = useLocation().state as { pendingFirstSend?: { id: string } }
+  return (
+    <p>
+      alma screen
+      {state?.pendingFirstSend ? ` ${state.pendingFirstSend.id}` : ''}
+    </p>
+  )
+}
+
+function open(path: string, value: AlmaPresence | null, state?: unknown) {
   render(
     <AlmaPresenceContext.Provider value={value}>
-      <MemoryRouter initialEntries={[path]}>
+      <MemoryRouter initialEntries={[{ pathname: path, state }]}>
         <Routes>
           <Route path="/d/:desktopId">
             {['threads/:threadId', 'gtd/:threadId'].map((route) => (
@@ -59,7 +69,7 @@ function open(path: string, value: AlmaPresence | null) {
                 }
               />
             ))}
-            <Route path="alma" element={<p>alma screen</p>} />
+            <Route path="alma" element={<AlmaRoute />} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -74,6 +84,15 @@ describe('PersonalThreadRedirect', () => {
     cleanup()
     open('/d/d1/gtd/alma', presence(ready('alma')))
     expect(screen.getByText('alma screen')).toBeTruthy()
+  })
+
+  // A share or new-chat hand-off rides in router state; dropping it here
+  // silently lost the shared image and text.
+  it('keeps a pending first send when it redirects to her thread', () => {
+    open('/d/d1/threads/alma', presence(ready('alma')), {
+      pendingFirstSend: { id: 'share-1' },
+    })
+    expect(screen.getByText('alma screen share-1')).toBeTruthy()
   })
 
   it('redirects from the cached id while presence is loading', () => {

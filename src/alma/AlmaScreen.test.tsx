@@ -66,8 +66,8 @@ const ready = (threadId: string | null): PersonalAgentState => ({
   },
 })
 
-const routes = (
-  <MemoryRouter initialEntries={['/d/home/alma']}>
+const routes = (state?: unknown) => (
+  <MemoryRouter initialEntries={[{ pathname: '/d/home/alma', state }]}>
     <Routes>
       <Route path="/d/home/alma" element={<AlmaScreen />} />
       <Route path="/d/home/threads" element={<p>threads list</p>} />
@@ -79,9 +79,13 @@ function renderScreen(
   state: PersonalAgentState,
   setup: AlmaSetupStatus = 'idle',
   startSetup = vi.fn(),
+  {
+    desktopId = 'home',
+    location,
+  }: { desktopId?: string; location?: unknown } = {},
 ) {
   const value: AlmaPresence = {
-    desktopId: 'home',
+    desktopId,
     state,
     generating: false,
     face: presenceFace(state, false),
@@ -92,16 +96,16 @@ function renderScreen(
   render(
     <LanguageProvider>
       <AlmaPresenceContext.Provider value={value}>
-        {routes}
+        {routes(location)}
       </AlmaPresenceContext.Provider>
     </LanguageProvider>,
   )
-  return startSetup
+  return { startSetup, refresh: value.refresh }
 }
 
 describe('AlmaScreen setup', () => {
   it('starts setup in the shell instead of leaving when no thread is set', () => {
-    const startSetup = renderScreen(ready(null))
+    const { startSetup } = renderScreen(ready(null))
     expect(startSetup).toHaveBeenCalledTimes(1)
     expect(screen.getByText('Opening thread…')).toBeTruthy()
     expect(screen.queryByTestId('thread')).toBeNull()
@@ -109,7 +113,7 @@ describe('AlmaScreen setup', () => {
   })
 
   it('offers a retry when setup failed and does not restart on its own', () => {
-    const startSetup = renderScreen(ready(null), 'error')
+    const { startSetup } = renderScreen(ready(null), 'error')
     expect(startSetup).not.toHaveBeenCalled()
     expect(screen.getByRole('alert').textContent).toContain(
       "Couldn't start the conversation",
@@ -119,7 +123,7 @@ describe('AlmaScreen setup', () => {
   })
 
   it('opens the thread once it is known', () => {
-    const startSetup = renderScreen(ready('main'))
+    const { startSetup } = renderScreen(ready('main'))
     expect(startSetup).not.toHaveBeenCalled()
     expect(screen.getByTestId('thread').textContent).toBe('main')
   })
@@ -127,6 +131,44 @@ describe('AlmaScreen setup', () => {
   it('goes back on a desktop without a personal agent', () => {
     renderScreen({ status: 'unsupported' })
     expect(screen.getByText('threads list')).toBeTruthy()
+  })
+})
+
+// A share into her thread arrives here as router state; leaving would drop
+// it without a word.
+describe('AlmaScreen with a pending shared message', () => {
+  const location = {
+    pendingFirstSend: {
+      id: 's1',
+      content: 'hi',
+      attachments: [],
+      createdAt: 0,
+    },
+  }
+
+  it('stays and says the share is unsent when she is unreachable', () => {
+    const { refresh } = renderScreen(
+      { status: 'error', error: 'offline' } as PersonalAgentState,
+      'idle',
+      vi.fn(),
+      { location },
+    )
+    expect(screen.queryByText('threads list')).toBeNull()
+    expect(screen.getByRole('alert').textContent).toContain(
+      'shared message hasn’t been sent',
+    )
+    vi.mocked(refresh).mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('waits for this desktop instead of opening another desktop’s thread', () => {
+    renderScreen(ready('elsewhere'), 'idle', vi.fn(), {
+      desktopId: 'other',
+      location,
+    })
+    expect(screen.queryByTestId('thread')).toBeNull()
+    expect(screen.getByText('Opening thread…')).toBeTruthy()
   })
 })
 

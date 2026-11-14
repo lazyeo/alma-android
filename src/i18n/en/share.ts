@@ -18,6 +18,10 @@ export const share = {
   nothingWaiting: 'Nothing is waiting to be shared.',
   backToThreads: 'Back to threads',
   newChatShortcut: 'New chat: {desktop}',
+  // A thread's share-sheet label once more than one desktop is paired.
+  threadOnDesktop: '{title} on {desktop}',
+  readFailed: "Couldn't read what was shared: {reason}",
+  nothingToSend: 'There is nothing to send. Add a question or share again.',
   // Sent as the message when only files were shared and no question typed.
   sharedFiles: 'Shared {names}',
   fileNameSeparator: ', ',

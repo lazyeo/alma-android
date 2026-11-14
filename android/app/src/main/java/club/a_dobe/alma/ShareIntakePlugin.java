@@ -100,7 +100,9 @@ public class ShareIntakePlugin extends Plugin {
                     .putExtra(EXTRA_SHORTCUT_ID, id);
                 ShortcutInfoCompat shortcut = new ShortcutInfoCompat.Builder(getContext(), id)
                     .setShortLabel(label)
-                    .setLongLabel(TextUtils.isEmpty(desktopName) ? label : getContext().getString(R.string.share_shortcut_long_label, label, desktopName))
+                    // With several desktops the JS label already names the
+                    // desktop (shareThreadLabel), so it is the long label too.
+                    .setLongLabel(TextUtils.isEmpty(desktopName) || activeDesktopIds.size() > 1 ? label : getContext().getString(R.string.share_shortcut_long_label, label, desktopName))
                     .setIcon(avatarIcon(label, desktopName))
                     .setIntent(launch)
                     .setCategories(categories)

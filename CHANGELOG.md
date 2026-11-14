@@ -10,6 +10,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Nothing yet.
 
+### Fixed
+
+- A photo or screenshot whose original file is over 6 MB is no longer refused with the 6 MB relay message before it is shrunk; it is re-encoded like any other image, and the limit applies to what is actually uploaded (2026-11-14).
+- Sharing into Alma's own conversation from the Android share sheet sends the shared image and text instead of opening her page with nothing sent. If she cannot be reached, her page says the share has not been sent and offers a retry; a shared file the phone could not read, or a share with nothing in it, is explained on the share page instead of being dropped (2026-11-14).
+- With more than one desktop paired, share-sheet targets name their desktop, such as "Alma on Mac mini", so the Alma conversations of different desktops can be told apart (2026-11-14).
+
 ## [0.1.9] - 2026-11-14
 
 ### Added
@@ -38,6 +44,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Dollar signs and brackets in your own messages are no longer turned into math: text like `\(x\)`, `$5 and $10` or `$$y$$` shows as you typed it, in threads, on Alma's page and in Herdr. In replies a single `$` stays a plain dollar sign, as on the desktop, while `$$…$$` and math blocks still render (2026-11-11).
 - Switching desktops no longer lets the previous desktop's Alma leak into the new one: a late answer from the old desktop could make its conversation the new desktop's Alma, or hide Alma there altogether (2026-11-11).
 - On tablets and unfolded phones, the Herdr side list no longer carries its project choice or an open rename or close dialog over to the next desktop, where the dialog could act on the wrong desktop's Herdr (2026-11-11).
+
 ## [0.1.8] - 2026-11-05
 
 ### Added
@@ -61,6 +68,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - On tablets and unfolded phones the thread list can be swiped closed from the page beside it, the same place it swipes open. On GTD, whose list rows keep their own status swipes, the list could be swiped open but not closed (2026-11-05).
 - Remote screen keeps Control when you switch windows or displays, when the connection drops, and when you leave the app and come back; it reconnects by itself (at once on return, otherwise after 1 to 8 seconds). It turns off only when you choose View only, open another desktop, or the desktop stops accepting input, and then a short notice says why (2026-11-05).
 - Switching desktops no longer reshuffles the tab bar: Alma's centre slot is remembered per desktop and held while the next desktop loads, and fades out only once that desktop is confirmed to have no personal agent (2026-11-05).
+
 ## [0.1.7] - 2026-11-05
 
 ### Added

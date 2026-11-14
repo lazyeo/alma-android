@@ -23,6 +23,8 @@ import {
   encodeNewChatShortcutId,
   encodeThreadShortcutId,
   searchSharedThreads,
+  shareSendProblem,
+  shareThreadLabel,
   type ShareFile,
 } from './shareLogic'
 import { useSharePayload } from './useSharePayload'
@@ -112,7 +114,7 @@ export function ShareScreen() {
       ...recentThreadsByDesktop(sources).map(
         ({ desktopId, desktopName, thread }) => ({
           id: encodeThreadShortcutId(desktopId, thread.id),
-          label: thread.title || t('common.untitledThread'),
+          label: shareThreadLabel(thread.title, desktopName, desktops.length),
           desktopName,
         }),
       ),
@@ -143,6 +145,11 @@ export function ShareScreen() {
       chosenDesktop.status !== 'online'
     ) {
       setError(t('share.chooseOnline'))
+      return
+    }
+    const problem = shareSendProblem(payload, question)
+    if (problem) {
+      setError(problem)
       return
     }
     setBusy(true)
@@ -310,7 +317,18 @@ export function ShareScreen() {
             />
           </>
         ) : null}
-        {error ? <p className="share-error">{error}</p> : null}
+        {/* A file the native side could not read never reaches the
+            preview, so say so before the user sends what is left. */}
+        {payload.error && !error ? (
+          <p className="share-error" role="alert">
+            {t('share.readFailed', { reason: payload.error })}
+          </p>
+        ) : null}
+        {error ? (
+          <p className="share-error" role="alert">
+            {error}
+          </p>
+        ) : null}
       </footer>
     </main>
   )

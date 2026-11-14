@@ -7,6 +7,8 @@ import {
   mergeSharedThreads,
   normalizeSharePayload,
   searchSharedThreads,
+  shareSendProblem,
+  shareThreadLabel,
 } from './shareLogic'
 
 describe('normalizeSharePayload', () => {
@@ -166,5 +168,69 @@ describe('composeSharedMessage', () => {
         '',
       ),
     ).toBe('Shared fold.png')
+  })
+})
+
+describe('shareSendProblem', () => {
+  it('names the native read failure instead of sending nothing', () => {
+    expect(
+      shareSendProblem(
+        { files: [], error: 'shot.png is larger than the 20 MB share limit.' },
+        '',
+      ),
+    ).toBe(
+      "Couldn't read what was shared: shot.png is larger than the 20 MB share limit.",
+    )
+  })
+
+  it('refuses a share with no text, question or file', () => {
+    expect(shareSendProblem({ files: [] }, '  ')).toBe(
+      'There is nothing to send. Add a question or share again.',
+    )
+  })
+
+  it('lets a question go out even when the shared file was unreadable', () => {
+    expect(
+      shareSendProblem(
+        { files: [], error: 'Could not open x.' },
+        'What is this?',
+      ),
+    ).toBeUndefined()
+  })
+
+  it('lets files or text go out', () => {
+    expect(
+      shareSendProblem(
+        {
+          files: [
+            {
+              name: 'a.png',
+              mimeType: 'image/png',
+              size: 1,
+              path: 'file:///a',
+            },
+          ],
+        },
+        '',
+      ),
+    ).toBeUndefined()
+    expect(shareSendProblem({ text: 'hello', files: [] }, '')).toBeUndefined()
+  })
+})
+
+describe('shareThreadLabel', () => {
+  // Every paired desktop has its own Alma thread titled "Alma"; the share
+  // sheet shows only this label, so without the desktop both look the same.
+  it('adds the desktop once more than one desktop is paired', () => {
+    expect(shareThreadLabel('Alma', 'MacBook', 2)).toBe('Alma on MacBook')
+    expect(shareThreadLabel('Alma', 'Mac mini', 2)).toBe('Alma on Mac mini')
+  })
+
+  it('keeps the plain title with a single desktop', () => {
+    expect(shareThreadLabel('Alma', 'MacBook', 1)).toBe('Alma')
+  })
+
+  it('falls back to the untitled label', () => {
+    expect(shareThreadLabel('  ', 'MacBook', 1)).toBe('Untitled thread')
   })
 })
