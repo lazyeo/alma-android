@@ -2601,6 +2601,14 @@ function createTunnel(targetPairing?: StoredPairing): ManagedTunnel {
       const pathname = new URL(path, 'https://fixture.local').pathname
       if (pathname === '/api/system/site-icon')
         return json(200, { dataUrl: null })
+      // One project with an icon, the rest without, to show both rows.
+      if (/^\/api\/workspaces\/[^/]+\/favicon$/.test(pathname))
+        return json(200, {
+          dataUrl:
+            pathname === '/api/workspaces/ws-app/favicon'
+              ? windowIcon('#2f7d6d', 'A')
+              : null,
+        })
       const delay = /^\/api\/threads\/[^/]+$/.test(pathname)
         ? delayThreadMs
         : pathname === '/api/threads' || pathname === '/api/workspaces'

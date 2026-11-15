@@ -35,6 +35,7 @@ import { BottomSheet } from '../components/BottomSheet'
 import { useOverlayRegistration } from '../components/useOverlayRegistration'
 import { AnchoredMenu, pointAnchor } from '../components/AnchoredMenu'
 import { useConnection } from '../desktops/DesktopContext'
+import { useRealtimeLink } from '../desktops/useRealtimeLink'
 import { ScopedRootHeader } from '../layout/ScopedRootHeader'
 import { threadNavigationOptions } from '../layout/splitLayout'
 import {
@@ -61,6 +62,7 @@ import { useThreadOrganize } from './ThreadOrganize'
 import { useDesktopThreadList } from './useDesktopThreadList'
 import { useT } from '../i18n'
 import { ProjectCardSection } from './ProjectCardSection'
+import { WorkspaceFavicon } from './WorkspaceFavicon'
 import { useAlmaPresence } from '../alma/AlmaPresence'
 import {
   excludePersonalThread,
@@ -68,6 +70,8 @@ import {
 } from '../alma/personalThread'
 import { usePullToRefresh } from './usePullToRefresh'
 import { useUpdateBadge } from '../updates/UpdateProvider'
+
+let threadsScreenVisits = 0
 
 export function ThreadsScreen({
   selectedThreadId,
@@ -77,7 +81,7 @@ export function ThreadsScreen({
 } = {}) {
   const t = useT()
   const updateBadge = useUpdateBadge()
-  const { api, pairing } = useConnection(),
+  const { api, pairing, status } = useConnection(),
     navigate = useNavigate(),
     location = useLocation()
   const navigateToThread = (threadId: string, options?: NavigateOptions) => {
@@ -150,9 +154,17 @@ export function ThreadsScreen({
   const almaPresence = useAlmaPresence()
   const personalIds = usePersonalThreadIds(pairing.id)
   const listBodyRef = useRef<HTMLDivElement>(null)
-  const pull = usePullToRefresh(listBodyRef, () =>
-    Promise.all([reload(), almaPresence?.refresh()]),
-  )
+  // Workspace icons are asked again each time this screen opens, after each
+  // reconnect and on pull-to-refresh, so one that failed or changed on the
+  // desktop (or a desktop updated to serve the route) does not stay hidden.
+  const link = useRealtimeLink(api, status)
+  const [screenVisit] = useState(() => ++threadsScreenVisits)
+  const [refreshes, setRefreshes] = useState(0)
+  const faviconRound = `${screenVisit}:${link.epoch}:${refreshes}`
+  const pull = usePullToRefresh(listBodyRef, () => {
+    setRefreshes((count) => count + 1)
+    return Promise.all([reload(), almaPresence?.refresh()])
+  })
   const { generating, pendingThreadIds, indicatorsFor } =
     useThreadRowIndicators(pairing.id)
   const [projectId, setProjectId] = useState<string>()
@@ -499,7 +511,16 @@ export function ThreadsScreen({
                       }}
                     >
                       <span className="project-row-copy">
-                        <strong>{project.name}</strong>
+                        <strong>
+                          {project.id !== 'none' ? (
+                            <WorkspaceFavicon
+                              api={api}
+                              workspaceId={project.id}
+                              round={faviconRound}
+                            />
+                          ) : null}
+                          {project.name}
+                        </strong>
                         <small>
                           {t('threads.threadCount', { count: project.count })}
                         </small>

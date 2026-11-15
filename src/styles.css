@@ -5315,6 +5315,13 @@ button:focus-visible,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.project-row-favicon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  border-radius: var(--radius-sm);
+  vertical-align: -3px;
+}
 .project-row-meta {
   display: flex !important;
   grid-auto-flow: column;
