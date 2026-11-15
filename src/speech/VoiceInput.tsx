@@ -6,13 +6,16 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
+import { useOverlayRegistration } from '../components/useOverlayRegistration'
 import { haptic } from '../haptics'
 import { useT } from '../i18n'
 import {
   decideDelivery,
+  MIN_HOLD_MS,
   releaseOutcome,
   type DictationAction,
 } from './delivery'
+import { MAX_RECORDING_MS } from './dictationSession'
 import { DictationSheet } from './DictationSheet'
 import {
   engineChain,
@@ -33,6 +36,13 @@ import { useDictation } from './useDictation'
 
 /** How long a held-back send's explanation stays up. */
 export const NOTICE_MS = 3500
+/**
+ * Native stops at MAX_RECORDING_MS on its own; this is the backstop should
+ * its `limit` event never arrive, so a locked recording cannot run on.
+ */
+export const LIMIT_GRACE_MS = 3000
+/** How often the locked recording's clock redraws. */
+const LOCKED_TICK_MS = 250
 
 export interface VoiceInputOptions {
   /** Picks the "after release" setting (Settings → Voice input). */
@@ -74,8 +84,19 @@ export function useVoiceInput(
   latest.current = options
   useEffect(() => {
     if (!notice) return
-    const timer = window.setTimeout(() => setNotice(''), NOTICE_MS)
-    return () => window.clearTimeout(timer)
+    // A notice posted while Alma is off screen (a recording stopped as it
+    // left) only starts its countdown once the user is back to read it.
+    let timer: number | undefined
+    const countDown = () => {
+      if (document.visibilityState === 'hidden' || timer !== undefined) return
+      timer = window.setTimeout(() => setNotice(''), NOTICE_MS)
+    }
+    countDown()
+    document.addEventListener('visibilitychange', countDown)
+    return () => {
+      document.removeEventListener('visibilitychange', countDown)
+      window.clearTimeout(timer)
+    }
   }, [notice])
   if (!speechAvailable()) return undefined
 
@@ -150,6 +171,17 @@ interface Hold {
   zone: HoldZone
 }
 
+/** A hold released in the lock area: recording goes on without a finger. */
+interface Locked {
+  pressedAt: number
+}
+
+/**
+ * Why a recording stopped without the user choosing what to do with it.
+ * The result then goes into the composer, never sent, with this notice.
+ */
+type SafeStop = 'limit' | 'background' | 'back' | 'interrupted'
+
 export function HoldToTalk({
   surface,
   draft,
@@ -169,6 +201,9 @@ export function HoldToTalk({
   const t = useT()
   const { state, engine, start, stop, cancel, reset } = useDictation()
   const [hold, setHold] = useState<Hold>()
+  const [locked, setLocked] = useState<Locked>()
+  /** Redraws the locked clock. */
+  const [now, setNow] = useState(() => Date.now())
   /** Set from release until the transcript lands, with the release zone. */
   const [finishing, setFinishing] = useState<HoldZone>()
   const [layout, setLayout] = useState<HoldLayout>()
@@ -179,6 +214,7 @@ export function HoldToTalk({
   const pendingAction = useRef<DictationAction>()
   // Released while still starting: stop as soon as recording begins.
   const stopWhenRecording = useRef(false)
+  const safeStopReason = useRef<SafeStop>()
   const latest = useRef({ draft, onSend, onInsert, onNotice })
   latest.current = { draft, onSend, onInsert, onNotice }
 
@@ -196,10 +232,69 @@ export function HoldToTalk({
 
   const dismiss = () => {
     setHold(undefined)
+    setLocked(undefined)
     setFinishing(undefined)
     stopWhenRecording.current = false
     pendingAction.current = undefined
+    safeStopReason.current = undefined
   }
+
+  /** Stops into the transcript `outcome` asks for (or waits to). */
+  const finishAs = (zone: HoldZone, outcome: DictationAction) => {
+    setHold(undefined)
+    setLocked(undefined)
+    setFinishing(zone)
+    pendingAction.current = outcome
+    if (state.phase === 'recording') stop()
+    // Native's cap already stopped it: the transcript is on its way.
+    else if (state.phase !== 'finishing') stopWhenRecording.current = true
+  }
+
+  /**
+   * What letting go in `zone` does, from the finger or from a locked
+   * recording's buttons (which name the zone their action matches).
+   */
+  const conclude = (
+    zone: HoldZone,
+    pressedAt: number,
+    action: DictationAction,
+  ) => {
+    const outcome = releaseOutcome(zone, Date.now() - pressedAt, action)
+    void haptic('light')
+    if (outcome === 'cancel' || outcome === 'too_short') {
+      dismiss()
+      cancel()
+      if (outcome === 'too_short')
+        latest.current.onNotice(t('speech.notice.tooShort'))
+      return
+    }
+    if (outcome === 'lock') {
+      setHold(undefined)
+      setNow(Date.now())
+      setLocked({ pressedAt })
+      return
+    }
+    finishAs(zone, outcome)
+  }
+
+  /**
+   * The app left the screen, the system took the finger, Back was pressed,
+   * or the cap was reached: keep what was recorded by putting it into the
+   * composer, and say why. Nothing recorded yet (still starting) means
+   * nothing to keep.
+   */
+  const stopSafely = (why: SafeStop) => {
+    if (!hold && !locked) return
+    if (state.phase !== 'recording') {
+      dismiss()
+      cancel()
+      return
+    }
+    safeStopReason.current = why
+    finishAs(hold?.zone === 'edit' ? 'edit' : 'release', 'insert')
+  }
+  const latestStopSafely = useRef(stopSafely)
+  latestStopSafely.current = stopSafely
 
   const press = (pointerId: number) => {
     const settings = loadSpeechSettings()
@@ -227,26 +322,44 @@ export function HoldToTalk({
   }
 
   const letGo = () => {
-    if (!hold) return
-    const outcome = releaseOutcome(
-      hold.zone,
-      Date.now() - hold.pressedAt,
-      release,
-    )
-    void haptic('light')
-    if (outcome === 'cancel' || outcome === 'too_short') {
-      dismiss()
-      cancel()
-      if (outcome === 'too_short')
-        latest.current.onNotice(t('speech.notice.tooShort'))
-      return
-    }
-    setHold(undefined)
-    setFinishing(hold.zone)
-    pendingAction.current = outcome
-    if (state.phase === 'recording') stop()
-    else stopWhenRecording.current = true
+    if (hold) conclude(hold.zone, hold.pressedAt, release)
   }
+
+  const recording = Boolean(hold || locked)
+  // A backgrounded WebView may lose the mic (Android silences background
+  // capture) and a phone call takes the screen: stop while the audio so far
+  // is intact rather than record silence or lose it.
+  useEffect(() => {
+    if (!recording) return
+    const stopWhenHidden = () => {
+      if (document.visibilityState === 'hidden')
+        latestStopSafely.current('background')
+    }
+    document.addEventListener('visibilitychange', stopWhenHidden)
+    return () =>
+      document.removeEventListener('visibilitychange', stopWhenHidden)
+  }, [recording])
+
+  // Back would otherwise leave the screen and drop the recording, or the
+  // transcript still on its way (a long locked one may take a minute to
+  // upload): locked it stops safely, finishing it does nothing, as the
+  // overlay's Cancel is the way out.
+  useOverlayRegistration(Boolean(locked || finishing), () =>
+    latestStopSafely.current('back'),
+  )
+
+  useEffect(() => {
+    if (!locked) return
+    const timer = window.setInterval(() => setNow(Date.now()), LOCKED_TICK_MS)
+    return () => window.clearInterval(timer)
+  }, [locked])
+
+  const elapsedMs =
+    locked && state.phase === 'recording' ? now - state.startedAt : 0
+  useEffect(() => {
+    if (elapsedMs >= MAX_RECORDING_MS + LIMIT_GRACE_MS)
+      latestStopSafely.current('limit')
+  }, [elapsedMs])
 
   useEffect(() => {
     if (state.phase === 'recording') {
@@ -255,10 +368,28 @@ export function HoldToTalk({
         stopWhenRecording.current = false
         stop()
       }
+    } else if (state.phase === 'finishing') {
+      // Only native (its length cap, a failed mic) stops a recording
+      // nobody let go of.
+      if (!pendingAction.current && (hold || locked)) {
+        safeStopReason.current =
+          state.cutOff === 'mic' ? 'interrupted' : 'limit'
+        finishAs(hold?.zone === 'edit' ? 'edit' : 'release', 'insert')
+      }
     } else if (state.phase === 'done') {
       // A recording that hit the length cap was never released: putting
       // it in the composer is the safe choice.
+      const why =
+        safeStopReason.current ?? (pendingAction.current ? undefined : 'limit')
+      // A safe stop always inserts at the caret, which holds nothing back,
+      // so its notice replaces none.
       deliver(pendingAction.current ?? 'insert', state.text)
+      if (why)
+        latest.current.onNotice(
+          why === 'limit'
+            ? t('speech.notice.limit', { minutes: MAX_RECORDING_MS / 60_000 })
+            : t(`speech.notice.${why}`),
+        )
       void haptic('selection')
       dismiss()
       reset()
@@ -283,7 +414,7 @@ export function HoldToTalk({
           to: label(state.fallback.to),
         })
       : undefined
-  const zone = hold?.zone ?? finishing
+  const zone = hold?.zone ?? (locked ? 'lock' : finishing)
 
   return (
     <>
@@ -292,7 +423,7 @@ export function HoldToTalk({
         className="voice-hold-bar"
         data-active={Boolean(hold)}
         onPointerDown={(event) => {
-          if (event.button > 0 || hold || finishing) return
+          if (event.button > 0 || hold || locked || finishing) return
           event.preventDefault()
           event.currentTarget.setPointerCapture?.(event.pointerId)
           press(event.pointerId)
@@ -304,10 +435,17 @@ export function HoldToTalk({
         onPointerUp={(event) => {
           if (event.pointerId === hold?.pointerId) letGo()
         }}
-        // The system took the pointer (the mic permission dialog, a system
-        // gesture): no real release happened, so drop the dictation.
+        // The system took the pointer (the mic permission dialog, a call
+        // taking the screen, a system gesture): no real release happened.
+        // Before there is speech worth keeping, drop the dictation; after,
+        // keep it, as Android may cancel the finger before the page hides.
         onPointerCancel={(event) => {
           if (event.pointerId !== hold?.pointerId) return
+          if (
+            state.phase === 'recording' &&
+            Date.now() - hold.pressedAt >= MIN_HOLD_MS
+          )
+            return stopSafely('interrupted')
           dismiss()
           cancel()
         }}
@@ -329,6 +467,16 @@ export function HoldToTalk({
             dismiss()
             cancel()
           }}
+          locked={
+            locked && !finishing
+              ? {
+                  elapsedMs,
+                  canSend,
+                  onSend: () => conclude('release', locked.pressedAt, 'send'),
+                  onEdit: () => conclude('edit', locked.pressedAt, release),
+                }
+              : undefined
+          }
         />
       ) : null}
       {setupNeeded || state.phase === 'error' ? (

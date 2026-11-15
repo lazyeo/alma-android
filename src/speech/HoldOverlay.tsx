@@ -1,6 +1,8 @@
+import { Lock } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { useT } from '../i18n'
 import type { DictationAction } from './delivery'
+import { MAX_RECORDING_MS } from './dictationSession'
 import {
   bubbleFrame,
   type Capsule,
@@ -10,6 +12,24 @@ import {
 
 /** How many recent input levels the bubble's waveform shows. */
 export const WAVE_BARS = 24
+/** A locked recording warns this long before native's cap stops it. */
+export const ENDING_SOON_MS = 30_000
+
+/** A recording's length as mm:ss, the cap being well under an hour. */
+export function formatElapsed(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000))
+  const seconds = String(total % 60).padStart(2, '0')
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${seconds}`
+}
+
+/** Set while a locked recording goes on without a finger. */
+export interface LockedRecording {
+  elapsedMs: number
+  /** Shows Send; a composer without a send path only offers To text. */
+  canSend: boolean
+  onSend(): void
+  onEdit(): void
+}
 
 export interface HoldOverlayProps {
   layout: HoldLayout
@@ -26,15 +46,18 @@ export interface HoldOverlayProps {
   /** The engine at work and, after a switch, why. */
   engineLabel: string
   fallback?: string
-  /** Abandons a dictation that is still being transcribed. */
+  /** Abandons a dictation that is still being transcribed, or a locked one. */
   onCancel(): void
+  locked?: LockedRecording
 }
 
 /**
  * The full-screen hold-to-talk overlay: a dimmed screen, a bubble with the
- * live waveform and transcript, and the cancel and edit capsules above the
- * arc the finger starts on. Every shape comes from `layout`, the same
- * geometry the finger is hit-tested against.
+ * live waveform and transcript, the lock hint above it, and the cancel and
+ * edit capsules above the arc the finger starts on. Locked, the capsules
+ * give way to Cancel, To text and Send buttons in the same band. Every
+ * shape comes from `layout`, the same geometry the finger is hit-tested
+ * against.
  */
 export function HoldOverlay(props: HoldOverlayProps) {
   return createPortal(<HoldOverlayView {...props} />, document.body)
@@ -50,14 +73,27 @@ export function HoldOverlayView({
   engineLabel,
   fallback,
   onCancel,
+  locked,
 }: HoldOverlayProps) {
   const t = useT()
   const frame = bubbleFrame(layout, zone)
+  const remainingMs = locked ? MAX_RECORDING_MS - locked.elapsedMs : Infinity
   const status = finishing
     ? t('speech.sheet.transcribing')
-    : zone === 'release'
-      ? t(`speech.hold.${release}`)
-      : t(`speech.hold.${zone}`)
+    : locked
+      ? remainingMs <= ENDING_SOON_MS
+        ? t('speech.locked.endingSoon', {
+            seconds: Math.max(0, Math.ceil(remainingMs / 1000)),
+            minutes: MAX_RECORDING_MS / 60_000,
+          })
+        : t('speech.locked.status')
+      : zone === 'release'
+        ? t(`speech.hold.${release}`)
+        : t(`speech.hold.${zone}`)
+  const elapsed = locked ? formatElapsed(locked.elapsedMs) : ''
+  // Offered while the finger can still slide up to it.
+  const lockHint =
+    !finishing && !locked && (zone === 'release' || zone === 'lock')
   const text =
     zone === 'cancel' ? '' : transcript || (zone === 'edit' ? null : '')
   return (
@@ -93,11 +129,26 @@ export function HoldOverlayView({
           className="voice-hold-tail"
           style={{ left: frame.tailX - frame.left }}
         />
+        {lockHint ? (
+          <span className="voice-hold-lock" data-active={zone === 'lock'}>
+            <Lock size={16} strokeWidth={2} aria-hidden="true" />
+            {t('speech.hold.lockHint')}
+          </span>
+        ) : null}
       </div>
       <div
         className="voice-hold-status"
         style={{ left: frame.tailX, top: layout.bubbleBottom + 16 }}
       >
+        {locked && !finishing ? (
+          <span
+            className="voice-hold-elapsed"
+            role="timer"
+            aria-label={t('speech.locked.elapsed', { time: elapsed })}
+          >
+            {elapsed}
+          </span>
+        ) : null}
         <p aria-live="polite">{status}</p>
         <small>{fallback ?? engineLabel}</small>
         {finishing ? (
@@ -106,7 +157,29 @@ export function HoldOverlayView({
           </button>
         ) : null}
       </div>
-      {finishing ? null : (
+      {locked && !finishing ? (
+        <div
+          className="voice-hold-actions"
+          style={{
+            left: layout.width / 2 - layout.band / 2,
+            width: layout.band,
+            top: layout.cancel.cy - layout.cancel.height / 2,
+            height: layout.cancel.height,
+          }}
+        >
+          <button type="button" onClick={onCancel}>
+            {t('speech.locked.cancel')}
+          </button>
+          <button type="button" onClick={locked.onEdit}>
+            {t('speech.locked.edit')}
+          </button>
+          {locked.canSend ? (
+            <button type="button" className="primary" onClick={locked.onSend}>
+              {t('speech.locked.send')}
+            </button>
+          ) : null}
+        </div>
+      ) : finishing ? null : (
         <>
           <CapsuleShape
             capsule={layout.cancel}
@@ -122,7 +195,7 @@ export function HoldOverlayView({
       )}
       <div
         className="voice-hold-arc"
-        data-active={!finishing && zone === 'release'}
+        data-active={!finishing && !locked && zone === 'release'}
         style={{
           left: layout.arc.cx - layout.arc.r,
           top: layout.arc.cy - layout.arc.r,

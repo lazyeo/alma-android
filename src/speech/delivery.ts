@@ -45,12 +45,13 @@ export function decideDelivery(
 /** A hold shorter than this was a tap or a slip, not speech. */
 export const MIN_HOLD_MS = 1000
 
-export type ReleaseOutcome = DictationAction | 'cancel' | 'too_short'
+export type ReleaseOutcome = DictationAction | 'cancel' | 'too_short' | 'lock'
 
 /**
- * What letting go of a hold does: the cancel capsule abandons it, a hold
- * too short to be speech is dropped, the edit capsule always inserts, and
- * anywhere else follows the composer's "after release" setting.
+ * What letting go of a hold does: the cancel capsule abandons it, the lock
+ * area keeps recording hands-free, a hold too short to be speech is
+ * dropped, the edit capsule always inserts, and anywhere else follows the
+ * composer's "after release" setting.
  */
 export function releaseOutcome(
   zone: HoldZone,
@@ -58,6 +59,9 @@ export function releaseOutcome(
   release: DictationAction,
 ): ReleaseOutcome {
   if (zone === 'cancel') return 'cancel'
+  // A slide all the way up is deliberate, however quick: the recording
+  // has only begun and goes on.
+  if (zone === 'lock') return 'lock'
   if (heldMs < MIN_HOLD_MS) return 'too_short'
   return zone === 'edit' ? 'insert' : release
 }

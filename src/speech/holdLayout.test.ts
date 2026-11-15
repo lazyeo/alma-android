@@ -86,7 +86,25 @@ describe('zoneAt', () => {
     const { arc, cancel } = PHONE
     expect(zoneAt(PHONE, arc.cx, arc.cy - arc.r + 30)).toBe('release')
     expect(zoneAt(PHONE, PHONE.width / 2, cancel.cy)).toBe('release')
-    expect(zoneAt(PHONE, cancel.cx, cancel.cy - 120)).toBe('release')
+    expect(zoneAt(PHONE, cancel.cx, cancel.cy - 60)).toBe('release')
+  })
+
+  it('locks above the bubble edge, clear of both capsules', () => {
+    for (const layout of [COVER, PHONE, INNER]) {
+      const { cancel, edit, lockLine } = layout
+      for (let x = 0; x <= layout.width; x += 4) {
+        expect(zoneAt(layout, x, lockLine - 1)).toBe('lock')
+        expect(zoneAt(layout, x, 0)).toBe('lock')
+        expect(zoneAt(layout, x, lockLine + 1)).not.toBe('lock')
+        // Not even a padded capsule edge reaches the lock line.
+        expect(inCapsule(cancel, x, lockLine)).toBe(false)
+        expect(inCapsule(edit, x, lockLine)).toBe(false)
+      }
+      // The status line under the bubble still releases.
+      expect(zoneAt(layout, layout.width / 2, layout.bubbleBottom + 16)).toBe(
+        'release',
+      )
+    }
   })
 })
 
@@ -100,7 +118,8 @@ describe('bubbleFrame', () => {
     expect(cancel.tailX).toBeCloseTo(PHONE.cancel.cx)
     expect(edit.width).toBe(PHONE.band)
     expect(edit.tailX).toBe(PHONE.edit.cx)
-    for (const zone of ['release', 'cancel', 'edit'] as const) {
+    expect(bubbleFrame(PHONE, 'lock')).toEqual(release)
+    for (const zone of ['release', 'cancel', 'edit', 'lock'] as const) {
       const frame = bubbleFrame(COVER, zone)
       expect(frame.left).toBeGreaterThanOrEqual(0)
       expect(frame.left + frame.width).toBeLessThanOrEqual(COVER.width)

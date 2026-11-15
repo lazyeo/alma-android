@@ -2,7 +2,8 @@
 // capsules from this layout, and the finger is hit-tested against the same
 // shapes, so what lights up is exactly where the finger is.
 
-export type HoldZone = 'release' | 'cancel' | 'edit'
+/** `lock`: everything above the bubble's bottom edge (slide straight up). */
+export type HoldZone = 'release' | 'cancel' | 'edit' | 'lock'
 
 /** A rounded capsule turned `angle` degrees clockwise about its centre. */
 export interface Capsule {
@@ -24,6 +25,12 @@ export interface HoldLayout {
   edit: Capsule
   /** The bubble's bottom edge (its tail hangs below this). */
   bubbleBottom: number
+  /**
+   * Above this line the finger locks the recording. It is the bubble's
+   * bottom edge: a deliberate slide past the status line, well clear of
+   * the capsules, so overshooting a capsule still lands on it.
+   */
+  lockLine: number
 }
 
 /** Wide screens keep the capsules this close together, not stretched. */
@@ -55,6 +62,7 @@ export function holdLayout(
     height: capsuleHeight,
     angle: turn,
   })
+  const bubbleBottom = capsuleY - capsuleHeight / 2 - 72
   return {
     width,
     height,
@@ -63,7 +71,8 @@ export function holdLayout(
     // Outer ends dip, so the two capsules follow the arc below them.
     cancel: capsule(width / 2 - offset, -angle),
     edit: capsule(width / 2 + offset, angle),
-    bubbleBottom: capsuleY - capsuleHeight / 2 - 72,
+    bubbleBottom,
+    lockLine: bubbleBottom,
   }
 }
 
@@ -86,10 +95,14 @@ export function inCapsule(
   return Math.hypot(localX - nearestX, localY) <= radius + pad
 }
 
-/** Where letting go at (x, y) leads: a capsule, or anywhere else = release. */
+/**
+ * Where letting go at (x, y) leads: a capsule, the lock area above the
+ * bubble's bottom edge, or anywhere else = release.
+ */
 export function zoneAt(layout: HoldLayout, x: number, y: number): HoldZone {
   if (inCapsule(layout.cancel, x, y)) return 'cancel'
   if (inCapsule(layout.edit, x, y)) return 'edit'
+  if (y < layout.lockLine) return 'lock'
   return 'release'
 }
 

@@ -55,6 +55,12 @@ import okio.ByteString;
 public class SpeechPlugin extends Plugin {
     static final String MIC = "microphone";
     private static final long TRANSCRIBE_TIMEOUT_S = 120;
+    /**
+     * A slow uplink (about 256 kbit/s) the upload budget assumes on top of
+     * TRANSCRIBE_TIMEOUT_S, so a recording at the 5-minute cap (9.6 MB of
+     * WAV) is not cut off mid-upload on a weak cellular link.
+     */
+    private static final long SLOW_UPLINK_BYTES_PER_S = 32_000;
     /** How long a stopped stream may take to deliver its final tokens. */
     private static final long DRAIN_TIMEOUT_MS = 10_000;
     private static final int ERROR_MESSAGE_LIMIT = 160;
@@ -285,8 +291,11 @@ public class SpeechPlugin extends Plugin {
                         owner.streamRecorder = null;
                         streamOwned = !owner.ended;
                     }
-                    // A failed recording is never uploaded; free it now.
-                    if ("error".equals(reason) && pcm == buffer) pcm = null;
+                    // A failed batch recording keeps what it captured: JS stops
+                    // and transcribes it, as at the cap, since an unattended
+                    // locked recording may hold minutes of speech. A failed
+                    // stream is never uploaded; free it now.
+                    if ("error".equals(reason) && pcm == buffer && !batchOwned) pcm = null;
                 }
                 if (!batchOwned && !streamOwned) return;
                 emitRecordingStopped(reason);
@@ -391,6 +400,7 @@ public class SpeechPlugin extends Plugin {
             return;
         }
         Call upload = batchHttp.newCall(request);
+        upload.timeout().timeout(transcribeTimeoutSeconds(audio.length), TimeUnit.SECONDS);
         synchronized (lock) {
             if (epoch != batchEpoch) {
                 call.reject("Transcription cancelled", "io");
@@ -420,6 +430,16 @@ public class SpeechPlugin extends Plugin {
                 }
             }
         });
+    }
+
+    /**
+     * The whole-call budget for uploading {@code pcmBytes} of audio and
+     * waiting for its transcript: the provider's own time plus the upload at
+     * a slow uplink. Read and write timeouts stay per-operation inactivity
+     * limits; this one bounds the call as a whole.
+     */
+    static long transcribeTimeoutSeconds(long pcmBytes) {
+        return TRANSCRIBE_TIMEOUT_S + pcmBytes / SLOW_UPLINK_BYTES_PER_S;
     }
 
     /**

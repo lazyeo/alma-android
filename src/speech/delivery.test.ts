@@ -51,6 +51,11 @@ describe('releaseOutcome', () => {
     expect(releaseOutcome('edit', MIN_HOLD_MS - 1, 'send')).toBe('too_short')
   })
 
+  it('locks from the lock area, even right after the press', () => {
+    expect(releaseOutcome('lock', 10, 'send')).toBe('lock')
+    expect(releaseOutcome('lock', 60_000, 'insert')).toBe('lock')
+  })
+
   it('inserts from the edit capsule and follows the setting elsewhere', () => {
     expect(releaseOutcome('edit', MIN_HOLD_MS, 'send')).toBe('insert')
     expect(releaseOutcome('release', MIN_HOLD_MS, 'send')).toBe('send')

@@ -21,6 +21,24 @@ import type { DictationError, DictationErrorKind, EngineConfig } from './types'
 export const FINISH_TIMEOUT_MS = 5000
 /** Shorter batch clips are almost always an accidental tap. */
 export const MIN_BATCH_MS = 300
+/**
+ * Native's recording cap (SpeechRecorder.MAX_BYTES), which ends a
+ * dictation with `recordingStopped: limit`. At 16 kHz mono s16le that is
+ * 9.6 MB of WAV. Native uploads it straight to the provider, never through
+ * the relay, so the relay's 6 MB upload cap (MAX_RELAY_UPLOAD_BYTES) does
+ * not apply; only the transcript travels over the relay. 9.6 MB sits well
+ * inside the providers' own caps (25 MB for OpenAI-compatible uploads).
+ * Native also stretches the upload's call timeout with the WAV's size
+ * (SpeechPlugin.transcribeTimeoutSeconds), so a recording at the cap gets
+ * time to cross a slow uplink instead of timing out mid-upload.
+ */
+export const MAX_RECORDING_MS = 5 * 60_000
+
+/**
+ * Why the recorder stopped by itself: native's length cap, or the mic
+ * failing mid-recording. Either way what was captured is still transcribed.
+ */
+export type CutOff = 'limit' | 'mic'
 
 /**
  * Failures the next engine may not share. Others (a refused request, a
@@ -68,6 +86,8 @@ export type DictationState =
       engine: EngineConfig
       transcript: SonioxTranscript
       fallback?: FallbackNote
+      /** Set when nobody pressed Stop: the recorder ended on its own. */
+      cutOff?: CutOff
     }
   | {
       phase: 'done'
@@ -136,6 +156,7 @@ export class DictationSession {
   /** Why the stream ended while finishing, when it failed. */
   private streamError?: DictationError
   private terms: readonly string[] = []
+  private cutOff?: CutOff
 
   constructor(
     private readonly deps: SessionDeps,
@@ -162,6 +183,7 @@ export class DictationSession {
     this.active = chain[0]
     this.fallback = undefined
     this.streamError = undefined
+    this.cutOff = undefined
     this.terms = terms
     this.set({ phase: 'starting' })
     const { speech } = this.deps
@@ -221,6 +243,7 @@ export class DictationSession {
       engine,
       transcript,
       fallback: this.fallback,
+      cutOff: this.cutOff,
     })
     const { speech } = this.deps
     try {
@@ -254,7 +277,13 @@ export class DictationSession {
       }
       const { durationMs } = await speech.stopRecording()
       if (!live()) return
-      if (durationMs < MIN_BATCH_MS) return this.fail({ kind: 'empty' })
+      if (durationMs < MIN_BATCH_MS)
+        return this.fail(
+          // The mic died before anything worth keeping was captured.
+          this.cutOff === 'mic'
+            ? { kind: 'unknown', detail: 'microphone' }
+            : { kind: 'empty' },
+        )
       return this.transcribeFrom(engine, transcriptText(transcript), live)
     } catch (error) {
       if (live()) this.fail(nativeError(error), transcriptText(transcript))
@@ -382,8 +411,18 @@ export class DictationSession {
       }),
       speech.addListener('recordingStopped', ({ reason }) => {
         if (!live() || this.state.phase !== 'recording') return
-        if (reason === 'limit') void this.stop()
-        else this.fail({ kind: 'unknown', detail: 'microphone' })
+        // A failed batch recorder keeps the audio it captured (an
+        // unattended locked recording may hold minutes of speech), so stop
+        // and transcribe it. A live stream's audio went to the socket,
+        // which native closes; its transcript so far is the partial.
+        if (reason === 'limit' || !streaming()) {
+          this.cutOff = reason === 'limit' ? 'limit' : 'mic'
+          void this.stop()
+        } else
+          this.fail(
+            { kind: 'unknown', detail: 'microphone' },
+            transcriptText(this.state.transcript),
+          )
       }),
       speech.addListener('streamMessage', ({ data }) => {
         if (!live() || !streaming()) return

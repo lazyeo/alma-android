@@ -11582,6 +11582,60 @@ html[data-alma-motion] .alma-shell .persona-message {
 .voice-hold-arc[data-active='true'] {
   background: var(--voice-arc-active);
 }
+/* Rides above the bubble, which grows upward with the transcript. It sits
+   inside the lock area, which already begins at the bubble's bottom edge
+   (holdLayout's lockLine): the chip lights up as the finger crosses it. */
+.voice-hold-lock {
+  position: absolute;
+  bottom: calc(100% + 16px);
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: var(--voice-surface);
+  color: var(--voice-on-surface);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  transform: translateX(-50%);
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.voice-hold-lock[data-active='true'] {
+  background: var(--voice-surface-active);
+  color: var(--voice-on-active);
+}
+.voice-hold-elapsed {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+/* A locked recording's choices, in the band the capsules held. Send is the
+   shared .primary button; the others keep the surface of the capsules
+   they replace, so the band looks the same before and after locking. */
+.voice-hold-actions {
+  position: absolute;
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 8px;
+}
+.voice-hold-actions > button {
+  border-radius: var(--radius-full);
+  font-size: var(--text-md);
+}
+.voice-hold-actions > button:not(.primary) {
+  border: 0;
+  background: var(--voice-surface);
+  color: var(--voice-on-surface);
+  transition: background-color var(--dur-press) var(--ease-out);
+}
+.voice-hold-actions > button:not(.primary):active {
+  background: var(--voice-surface-active);
+  color: var(--voice-on-active);
+}
 .dictation-actions {
   display: grid;
   grid-auto-columns: 1fr;
