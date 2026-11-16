@@ -51,6 +51,7 @@ import {
   MoreVertical,
   Network,
   PencilLine,
+  Quote,
   RotateCcw,
   Search,
   TextSelection,
@@ -217,10 +218,11 @@ import { timelineEntries } from './timelineLayout'
 import { TimelineRail } from './TimelineRail'
 import { useLayoutMode } from '../layout/useLayoutMode'
 import {
-  appendQuote,
   appendReference,
   highlightSegments,
+  insertQuote,
   messageReferenceUri,
+  quotableMessageText,
   snippetLabel,
   stripReferenceAtSigns,
 } from './references'
@@ -599,6 +601,17 @@ function ThreadView({
   const [selectableRow, setSelectableRow] = useState<MessageRow>()
   // Quote/Mention close the reader first; the caret lands once it is gone.
   const pendingCaretRef = useRef<number>()
+  // A textarea mounted with a restored draft reports its caret at 0 until
+  // the user puts one there, so only a focused composer's caret is trusted.
+  const composerCaretPlacedRef = useRef(false)
+  useEffect(() => {
+    const onFocusIn = (event: FocusEvent) => {
+      if (event.target === textareaRef.current)
+        composerCaretPlacedRef.current = true
+    }
+    document.addEventListener('focusin', onFocusIn)
+    return () => document.removeEventListener('focusin', onFocusIn)
+  }, [])
   const [messages, setMessages] = useState<MessageRow[]>(
     () => initialCachedThread?.rows ?? [],
   )
@@ -2275,10 +2288,37 @@ function ThreadView({
     return next.caret
   }
 
+  /** Puts a quote block at the composer caret; returns the caret after it. */
+  function quoteIntoComposer(value: string) {
+    const { text: current, references: refs } = composerStateRef.current
+    // A blurred textarea keeps its selection, so this is where the user last
+    // left the caret; a draft they never touched gets the quote at its end.
+    const area = composerCaretPlacedRef.current ? textareaRef.current : null
+    const next = insertQuote(
+      current,
+      area?.selectionStart ?? current.length,
+      area?.selectionEnd ?? current.length,
+      value,
+      refs,
+    )
+    setText(next.value)
+    // Typing updates this in onChange; a quote bypasses it.
+    requestAnimationFrame(() =>
+      setOverflowing((textareaRef.current?.scrollHeight ?? 0) > 130),
+    )
+    return next.caret
+  }
+
   function quoteSelection(value: string) {
-    const next = appendQuote(composerStateRef.current.text, value)
-    setText(next)
-    pendingCaretRef.current = next.length
+    pendingCaretRef.current = quoteIntoComposer(value)
+  }
+
+  function quoteMessage(row: MessageRow) {
+    const caret = quoteIntoComposer(
+      quotableMessageText(messageText(row.message.parts)),
+    )
+    setActionRow(undefined)
+    placeCaret(caret)
   }
 
   async function mentionSelection(row: MessageRow, value: string) {
@@ -3117,6 +3157,17 @@ function ThreadView({
               <TextSelection size={18} aria-hidden="true" />
               {t('message.actions.select')}
             </button>
+            {messageText(actionRow.message.parts).trim() ? (
+              <button
+                onClick={() => {
+                  void haptic('light')
+                  quoteMessage(actionRow)
+                }}
+              >
+                <Quote size={18} aria-hidden="true" />
+                {t('message.actions.quote')}
+              </button>
+            ) : null}
             <button
               onClick={() => {
                 void haptic('light')

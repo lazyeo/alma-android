@@ -40,6 +40,7 @@ export const message = {
     label: 'Message actions',
     copy: 'Copy text',
     select: 'Select text',
+    quote: 'Quote message',
     mention: 'Mention message',
     editResend: 'Edit & resend',
     retry: 'Retry reply',

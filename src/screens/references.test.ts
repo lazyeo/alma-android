@@ -8,7 +8,9 @@ import {
   sanitizeReferenceLabel,
   stripReferenceAtSigns,
   type DraftReference,
-  appendQuote,
+  insertQuote,
+  quoteMarkdown,
+  quotableMessageText,
   appendReference,
   messageReferenceUri,
   snippetLabel,
@@ -123,9 +125,81 @@ describe('selection actions', () => {
   })
 
   it('quotes every line and keeps blank lines inside the quote', () => {
-    expect(appendQuote('', 'one\n\ntwo\n')).toBe('> one\n>\n> two\n\n')
-    expect(appendQuote('Draft  \n', 'one')).toBe('Draft\n\n> one\n\n')
-    expect(appendQuote('Draft', '   ')).toBe('Draft')
+    expect(insertQuote('', 0, 0, 'one\n\ntwo\n')).toEqual({
+      value: '> one\n>\n> two\n\n',
+      caret: 15,
+    })
+    expect(quoteMarkdown('a\r\n  \r\nb')).toBe('> a\n>\n> b')
+  })
+
+  it('appends after a draft when the caret is at its end', () => {
+    expect(insertQuote('Draft  \n', 8, 8, 'one')).toEqual({
+      value: 'Draft\n\n> one\n\n',
+      caret: 14,
+    })
+  })
+
+  it('inserts at the caret and keeps the text after it', () => {
+    const next = insertQuote('Before\n\nAfter', 0, 0, 'q')
+    expect(next).toEqual({ value: '> q\n\nBefore\n\nAfter', caret: 5 })
+    const middle = insertQuote('Hello world', 6, 6, 'q')
+    expect(middle).toEqual({ value: 'Hello\n\n> q\n\nworld', caret: 12 })
+    const atBreak = insertQuote('One\n\nTwo', 5, 5, 'q')
+    expect(atBreak).toEqual({ value: 'One\n\n> q\n\nTwo', caret: 10 })
+  })
+
+  it('never overwrites selected composer text', () => {
+    const next = insertQuote('keep this', 0, 4, 'q')
+    expect(next.value).toBe('keep\n\n> q\n\nthis')
+    // A reversed range behaves the same.
+    expect(insertQuote('keep this', 4, 0, 'q')).toEqual(next)
+  })
+
+  it('moves the insertion point past a reference token it would split', () => {
+    const refs = [{ label: 'Road map', uri: 'alma://thread/a', kind: 'thread' }]
+    const next = insertQuote('Ask @Road map next', 8, 8, 'q', refs)
+    expect(next.value).toBe('Ask @Road map\n\n> q\n\nnext')
+    expect(next.value).toContain('@Road map')
+  })
+
+  it('steps past the longest reference at the caret, whatever the list order', () => {
+    const road = { label: 'Road', uri: 'alma://thread/a', kind: 'thread' }
+    const road2 = { label: 'Road 2', uri: 'alma://thread/b', kind: 'thread' }
+    expect(
+      insertQuote('@Road and @Road 2 end', 13, 13, 'q', [road, road2]).value,
+    ).toBe('@Road and @Road 2\n\n> q\n\nend')
+    // '@Roadster' is a plain word, not the 'Road' token.
+    expect(insertQuote('@Roadster', 3, 3, 'q', [road]).value).toBe(
+      '@Ro\n\n> q\n\nadster',
+    )
+  })
+
+  it('keeps a quoted @label from taking over the draft reference on send', () => {
+    const bob = { label: 'Bob', uri: 'alma://thread/b', kind: 'thread' }
+    const next = insertQuote('see @Bob', 0, 0, 'ping @Bob please', [bob])
+    expect(next.value).toBe('> ping Bob please\n\nsee @Bob')
+    expect(materializeReferences(next.value, [bob])).toBe(
+      '> ping Bob please\n\nsee @[Bob](alma://thread/b)',
+    )
+  })
+
+  it('clamps an out-of-range caret and leaves the draft alone for blank text', () => {
+    expect(insertQuote('Draft', 99, 99, 'q').value).toBe('Draft\n\n> q\n\n')
+    expect(insertQuote('Draft', Number.NaN, Number.NaN, 'q').value).toBe(
+      'Draft\n\n> q\n\n',
+    )
+    expect(insertQuote('Draft', 2, 2, ' \n ')).toEqual({
+      value: 'Draft',
+      caret: 2,
+    })
+  })
+
+  it('quotes a whole message with references shown as their labels', () => {
+    expect(
+      quotableMessageText(
+        'See @[Road map](alma://thread/a) and @[x](alma://file/b)',
+      ),
+    ).toBe('See Road map and x')
   })
 
   it('appends a reference token with a separating space', () => {

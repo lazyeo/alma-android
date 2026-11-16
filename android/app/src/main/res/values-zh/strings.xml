@@ -6,7 +6,7 @@
     <string name="file_chooser_open">打开文件</string>
 
     <!-- Text selection toolbar -->
-    <string name="selection_menu_quote">引述</string>
+    <string name="selection_menu_quote">引用</string>
     <string name="selection_menu_mention">提及</string>
 
     <!-- Direct Share shortcut long label. %1$s: thread title, %2$s: desktop name -->

@@ -8,10 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Nothing yet.
+- Quote a whole message from its long-press menu (2026-11-17).
 
 ### Changed
 
+- Quoting selected text or a message now inserts the quote at the composer caret instead of the end of the draft, followed by a blank line; selected composer text and references are kept, and a draft that was never focused gets the quote at its end. The Chinese selection-toolbar item now reads 引用 like the rest of the app (2026-11-17).
 - Extensions can supply agent marks for Herdr agent kinds (2026-11-14).
 
 ### Fixed

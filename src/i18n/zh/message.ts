@@ -43,6 +43,7 @@ export const message: CatalogShape<typeof source> = {
     label: '消息操作',
     copy: '复制文本',
     select: '选择文本',
+    quote: '引用消息',
     mention: '提及消息',
     editResend: '编辑并重新发送',
     retry: '重新生成回复',

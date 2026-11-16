@@ -216,12 +216,96 @@ export function quoteMarkdown(text: string) {
     .join('\n')
 }
 
-/** Appends a quote block after the draft, leaving the caret on a new line. */
-export function appendQuote(draft: string, text: string) {
-  const quote = quoteMarkdown(text)
-  if (!quote) return draft
-  const head = draft.replace(/\s+$/, '')
-  return `${head ? `${head}\n\n` : ''}${quote}\n\n`
+/**
+ * Inserts a quote block at the composer caret as its own paragraph, followed
+ * by a blank line, and returns where the caret goes (right after it). A
+ * selection in the composer is kept: the quote lands after it rather than
+ * replacing it, and a caret inside a tracked `@label` token moves past the
+ * token so the reference survives.
+ */
+export function insertQuote(
+  draft: string,
+  selectionStart: number,
+  selectionEnd: number,
+  text: string,
+  references: DraftReference[] = [],
+) {
+  const at = outsideReference(
+    draft,
+    clampIndex(Math.max(selectionStart, selectionEnd), draft.length),
+    references,
+  )
+  const quote = quoteMarkdown(withoutReferenceTokens(text, references))
+  if (!quote) return { value: draft, caret: at }
+  const head = draft.slice(0, at).replace(/\s+$/, '')
+  // Drop the whitespace that separated head and tail, but keep the next
+  // line's own indentation (a code block or nested list item).
+  const tail = draft
+    .slice(at)
+    .replace(/^[ \t]*(?:\n[ \t]*)*/, (gap) =>
+      gap.includes('\n') ? gap.slice(gap.lastIndexOf('\n') + 1) : '',
+    )
+  const before = `${head ? `${head}\n\n` : ''}${quote}\n\n`
+  return { value: before + tail, caret: before.length }
+}
+
+/** Message text as the reader shows it: reference tokens read as their labels. */
+export function quotableMessageText(text: string) {
+  return text.replace(TOKEN, (_token, label: string) => label)
+}
+
+function clampIndex(index: number, length: number) {
+  return Number.isFinite(index) ? Math.max(0, Math.min(index, length)) : length
+}
+
+/** Where tracked `@label` tokens sit, longest label first, never overlapping. */
+function referenceSpans(text: string, references: DraftReference[]) {
+  const spans: Array<[number, number]> = []
+  for (const ref of [...references].sort(
+    (a, b) => b.label.length - a.label.length,
+  )) {
+    const token = `@${ref.label}`
+    for (
+      let start = text.indexOf(token);
+      start >= 0;
+      start = text.indexOf(token, start + 1)
+    ) {
+      const end = start + token.length
+      if (!endsAtWordBoundary(text, end)) continue
+      if (spans.some(([s, e]) => start < e && s < end)) continue
+      spans.push([start, end])
+    }
+  }
+  return spans
+}
+
+/** Same boundary rule as `materializeReferences`. */
+function endsAtWordBoundary(text: string, end: number) {
+  const after = text[end]
+  return !after || /[^\p{L}\p{N}_]/u.test(after)
+}
+
+function outsideReference(
+  text: string,
+  index: number,
+  references: DraftReference[],
+) {
+  const inside = referenceSpans(text, references).find(
+    ([start, end]) => start < index && index < end,
+  )
+  return inside ? inside[1] : index
+}
+
+/**
+ * Drops the `@` from quoted copies of tracked labels: sending links only the
+ * first `@label`, which must stay the user's own token, not the quote's.
+ */
+function withoutReferenceTokens(text: string, references: DraftReference[]) {
+  const spans = referenceSpans(text, references).sort((a, b) => b[0] - a[0])
+  return spans.reduce(
+    (result, [start]) => result.slice(0, start) + result.slice(start + 1),
+    text,
+  )
 }
 
 /** Adds a reference token at the end of the draft. */
