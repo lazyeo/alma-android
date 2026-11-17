@@ -28,6 +28,7 @@ import {
 } from '../nativeBridge'
 import { isNativePlatform } from '../nativeRuntime'
 import { BLANK_POSTER } from '../media'
+import { formatBytes } from '../messages/fileAttachment'
 import type { AlmaApi } from '../relay/almaApi'
 import { HtmlFilePreview } from './HtmlFilePreview'
 import { MarkdownFilePreview } from './MarkdownFilePreview'
@@ -72,12 +73,6 @@ interface SheetState {
   nativeToken?: string
   preparing?: boolean
   actionMessage?: { tone: 'error' | 'success'; text: string }
-}
-
-const formatBytes = (size: number) => {
-  if (size < 1024) return `${size} B`
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
-  return `${(size / 1024 / 1024).toFixed(1)} MB`
 }
 
 const toBase64 = (bytes: Uint8Array) => {
