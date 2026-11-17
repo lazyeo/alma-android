@@ -29,6 +29,7 @@ const stable = vi.hoisted(() => ({
 }))
 const navigate = vi.fn()
 const api = {
+  getWorkspaceFavicon: vi.fn(async () => null),
   deleteThread: vi.fn(async () => undefined),
   getProjectCard: vi.fn(async () => ({
     card: { brief: 'Brief', focus: 'Focus', resume: [] },
@@ -212,5 +213,28 @@ describe('ThreadsScreen project thread actions', () => {
     await waitFor(() => expect(api.deleteThread).toHaveBeenCalledWith('t2'))
     await waitFor(() => expect(groupRow('Beta')).toBeUndefined())
     expect(navigate).not.toHaveBeenCalled()
+  })
+
+  it('shows the workspace icon before the project name and asks again on reopen', async () => {
+    const icon = 'data:image/png;base64,p1'
+    api.getWorkspaceFavicon.mockClear()
+    api.getWorkspaceFavicon.mockResolvedValue(icon as never)
+    renderProjects()
+    const favicon = await waitFor(() => {
+      const img = document.querySelector('.project-row-favicon')
+      expect(img?.getAttribute('src')).toBe(icon)
+      return img!
+    })
+    expect(favicon.closest('strong')?.textContent).toBe('Proj')
+    expect(api.getWorkspaceFavicon).toHaveBeenCalledWith('p1')
+
+    // A desktop may have been updated or reconnected in between.
+    cleanup()
+    renderProjects()
+    expect(document.querySelector('.project-row-favicon')).toBeTruthy()
+    await waitFor(() =>
+      expect(api.getWorkspaceFavicon).toHaveBeenCalledTimes(2),
+    )
+    api.getWorkspaceFavicon.mockResolvedValue(null)
   })
 })

@@ -10,7 +10,9 @@ import {
 import { useRef } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { closeTopOverlay, resetOverlayStackForTests } from '../overlayStack'
 import { MIN_HOLD_MS } from './delivery'
+import { MAX_RECORDING_MS } from './dictationSession'
 import {
   defaultSpeechSettings,
   saveSpeechSettings,
@@ -18,7 +20,12 @@ import {
 } from './engineStore'
 import { holdLayout } from './holdLayout'
 import { inputModeKey } from './inputMode'
-import { useVoiceInput, type VoiceInputOptions } from './VoiceInput'
+import {
+  LIMIT_GRACE_MS,
+  NOTICE_MS,
+  useVoiceInput,
+  type VoiceInputOptions,
+} from './VoiceInput'
 
 type Listener = (event: unknown) => void
 
@@ -37,6 +44,10 @@ const fake = vi.hoisted(() => {
     stopRecording: vi.fn(async () => ({ durationMs: 2000 })),
     cancelRecording: vi.fn(ok),
     transcribe: vi.fn(async () => ({ status: 200, body: '{"text":"hi"}' })),
+    request: vi.fn(async (_spec: { method: string }) => ({
+      status: 200,
+      body: '{}',
+    })),
     startStream: vi.fn(ok),
     stopStream: vi.fn(ok),
     cancelStream: vi.fn(ok),
@@ -193,6 +204,9 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  resetOverlayStackForTests()
+  // Drops the own property hideApp() put over the prototype's getter.
+  delete (document as { visibilityState?: unknown }).visibilityState
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
@@ -399,6 +413,9 @@ describe('hold to talk', () => {
     )
     expect(onSend).not.toHaveBeenCalled()
     expect(overlay()).toBeNull()
+    expect(screen.getByRole('status').textContent).toBe(
+      'Recording stopped at the 5-minute limit. What you said is in the input box.',
+    )
     // Back on the keyboard: the bar the finger was on is gone.
     expect(screen.getByLabelText('Message').hidden).toBe(false)
   })
@@ -512,5 +529,392 @@ describe('hold to talk errors and fallback', () => {
     ).toBeTruthy()
     expect(overlay()).toBeNull()
     expect(fake.speech.checkMicPermission).not.toHaveBeenCalled()
+  })
+})
+
+/** Slides up into the lock area and lets go: recording goes on. */
+function lockUp(held = 200) {
+  slide(LAYOUT.width / 2, LAYOUT.lockLine - 40)
+  letGo(held)
+}
+
+const timer = () => screen.queryByRole('timer')?.textContent
+
+function setVisibility(state: 'hidden' | 'visible') {
+  Object.defineProperty(document, 'visibilityState', {
+    configurable: true,
+    get: () => state,
+  })
+  document.dispatchEvent(new Event('visibilitychange'))
+}
+const hideApp = () => setVisibility('hidden')
+const showApp = () => setVisibility('visible')
+
+const INTERRUPTED =
+  'Recording was interrupted. What you said is in the input box.'
+
+describe('locked recording', () => {
+  it('lights the lock hint when the finger slides up, with one haptic', async () => {
+    useVoiceMode()
+    renderComposer()
+    await press()
+    const hint = () => document.querySelector('.voice-hold-lock')
+    expect(hint()?.textContent).toBe('Slide up to lock')
+    expect(hint()?.getAttribute('data-active')).toBe('false')
+    haptics.haptic.mockClear()
+    slide(LAYOUT.width / 2, LAYOUT.lockLine - 40)
+    expect(hint()?.getAttribute('data-active')).toBe('true')
+    expect(status()).toBe('Release to keep recording')
+    slide(LAYOUT.width / 2 + 30, LAYOUT.lockLine - 80)
+    expect(
+      haptics.haptic.mock.calls.filter(([kind]) => kind === 'selection'),
+    ).toHaveLength(1)
+    // Over a capsule the hint gives way to the capsule's own.
+    slide(LAYOUT.edit.cx, LAYOUT.edit.cy)
+    expect(hint()).toBeNull()
+  })
+
+  it('keeps recording after release in the lock area and shows the time', async () => {
+    useVoiceMode()
+    const { onSend, onInsert } = renderComposer()
+    await press()
+    lockUp()
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+    expect(fake.speech.stopStream).not.toHaveBeenCalled()
+    expect(fake.speech.cancelStream).not.toHaveBeenCalled()
+    expect(overlay()).not.toBeNull()
+    expect(status()).toBe('Recording hands-free')
+    expect(timer()).toBe('00:00')
+    expect(screen.getByRole('timer').getAttribute('aria-label')).toBe(
+      'Recorded 00:00',
+    )
+    expect(document.querySelector('.voice-hold-capsule')).toBeNull()
+    for (const name of ['Cancel', 'To text', 'Send'])
+      expect(screen.getByRole('button', { name })).toBeTruthy()
+    heldFor += 65_000
+    await waitFor(() => expect(timer()).toBe('01:05'))
+    // The bar beneath takes no new press while locked.
+    fireEvent.pointerDown(bar(), { button: 0, pointerId: 2 })
+    expect(fake.speech.startStream).toHaveBeenCalledTimes(1)
+    expect(onSend).not.toHaveBeenCalled()
+    expect(onInsert).not.toHaveBeenCalled()
+  })
+
+  it('sends from the lock with Send', async () => {
+    useVoiceMode()
+    const { onSend, onInsert } = renderComposer()
+    await press()
+    lockUp()
+    heldFor += 5000
+    fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
+    await finishWith('locked and sent')
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith('locked and sent'))
+    expect(onInsert).not.toHaveBeenCalled()
+    expect(overlay()).toBeNull()
+  })
+
+  it('sends with Send even where release fills in (Herdr)', async () => {
+    useVoiceMode('herdr')
+    const { onSend } = renderComposer({ surface: 'herdr' })
+    await press()
+    lockUp()
+    heldFor += 5000
+    fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
+    await finishWith('git log')
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith('git log'))
+  })
+
+  it('offers no Send where the composer cannot send', async () => {
+    useVoiceMode()
+    renderComposer({ onSend: undefined })
+    await press()
+    lockUp()
+    expect(await screen.findByRole('button', { name: 'To text' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
+  })
+
+  it('puts the text in the composer with To text', async () => {
+    useVoiceMode()
+    const { onSend, onInsert } = renderComposer()
+    await press()
+    lockUp()
+    heldFor += 5000
+    fireEvent.click(await screen.findByRole('button', { name: 'To text' }))
+    await finishWith('edit me')
+    await waitFor(() =>
+      expect(onInsert).toHaveBeenCalledWith('edit me', 'caret'),
+    )
+    expect(onSend).not.toHaveBeenCalled()
+  })
+
+  it('discards the recording with Cancel', async () => {
+    useVoiceMode()
+    const { onSend, onInsert } = renderComposer()
+    await press()
+    lockUp()
+    heldFor += 5000
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(overlay()).toBeNull())
+    expect(fake.speech.cancelStream).toHaveBeenCalled()
+    expect(fake.speech.stopStream).not.toHaveBeenCalled()
+    expect(onSend).not.toHaveBeenCalled()
+    expect(onInsert).not.toHaveBeenCalled()
+  })
+
+  it('drops a lock ended before it was long enough to be speech', async () => {
+    useVoiceMode()
+    const { onSend } = renderComposer()
+    await press()
+    lockUp(100)
+    fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
+    await waitFor(() => expect(overlay()).toBeNull())
+    expect(screen.getByRole('status').textContent).toBe(
+      'Too short. Hold while you speak.',
+    )
+    expect(onSend).not.toHaveBeenCalled()
+  })
+
+  it('stops into the composer when the app leaves the screen, never sending', async () => {
+    useVoiceMode()
+    const { onSend, onInsert } = renderComposer()
+    await press()
+    lockUp()
+    heldFor += 5000
+    await screen.findByRole('timer')
+    act(() => hideApp())
+    await finishWith('kept in the background')
+    await waitFor(() =>
+      expect(onInsert).toHaveBeenCalledWith('kept in the background', 'caret'),
+    )
+    expect(onSend).not.toHaveBeenCalled()
+    expect(screen.getByRole('status').textContent).toBe(
+      'Recording stopped when Alma left the screen. What you said is in the input box.',
+    )
+  })
+
+  it('stops into the composer when the app leaves the screen mid-hold', async () => {
+    useVoiceMode()
+    const { onSend, onInsert } = renderComposer()
+    await press()
+    act(() => hideApp())
+    // The system taking the finger afterwards drops nothing.
+    fireEvent.pointerCancel(bar(), { pointerId: 1 })
+    letGo()
+    await finishWith('a call came in')
+    await waitFor(() =>
+      expect(onInsert).toHaveBeenCalledWith('a call came in', 'caret'),
+    )
+    expect(onSend).not.toHaveBeenCalled()
+  })
+
+  it('keeps a hold the system cancels before the page hides', async () => {
+    useVoiceMode()
+    const { onSend, onInsert } = renderComposer()
+    await press()
+    heldFor += MIN_HOLD_MS
+    // A call's screen takes the finger first; the page hides afterwards.
+    fireEvent.pointerCancel(bar(), { pointerId: 1 })
+    act(() => hideApp())
+    await finishWith('the call took the finger')
+    await waitFor(() =>
+      expect(onInsert).toHaveBeenCalledWith(
+        'the call took the finger',
+        'caret',
+      ),
+    )
+    expect(onSend).not.toHaveBeenCalled()
+    expect(fake.speech.cancelStream).not.toHaveBeenCalledBefore(
+      fake.speech.stopStream,
+    )
+    expect(screen.getByRole('status').textContent).toBe(INTERRUPTED)
+  })
+
+  it('keeps the background notice until the user is back to read it', async () => {
+    useVoiceMode()
+    const { onInsert } = renderComposer()
+    await press()
+    lockUp()
+    heldFor += 5000
+    await screen.findByRole('timer')
+    act(() => hideApp())
+    await finishWith('read me later')
+    await waitFor(() => expect(onInsert).toHaveBeenCalled())
+    const notice = () => screen.queryByRole('status')?.textContent
+    vi.useFakeTimers()
+    try {
+      act(() => vi.advanceTimersByTime(NOTICE_MS * 3))
+      expect(notice()).toBe(
+        'Recording stopped when Alma left the screen. What you said is in the input box.',
+      )
+      act(() => showApp())
+      act(() => vi.advanceTimersByTime(NOTICE_MS - 1))
+      expect(notice()).toBeTruthy()
+      act(() => vi.advanceTimersByTime(1))
+      expect(notice()).toBeUndefined()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('swallows Back while the transcript is on its way', async () => {
+    useVoiceMode()
+    onlyEngine('openai')
+    let answer: (value: { status: number; body: string }) => void = () => {}
+    fake.speech.transcribe.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve
+        }),
+    )
+    const { onSend, onInsert } = renderComposer()
+    await press()
+    lockUp()
+    heldFor += 5000
+    fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
+    await waitFor(() => expect(status()).toBe('Transcribing…'))
+    // Back is taken by the overlay, so the screen (and the dictation) stays.
+    expect(closeTopOverlay()).toBe(true)
+    expect(overlay()).not.toBeNull()
+    expect(fake.speech.cancelRecording).not.toHaveBeenCalled()
+    answer({ status: 200, body: '{"text":"still sent"}' })
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith('still sent'))
+    expect(onInsert).not.toHaveBeenCalled()
+    // Done: Back belongs to the screen again.
+    expect(closeTopOverlay()).toBe(false)
+  })
+
+  it('keeps a locked batch recording whose mic fails', async () => {
+    useVoiceMode()
+    onlyEngine('openai')
+    const { onSend, onInsert } = renderComposer()
+    await press()
+    lockUp()
+    heldFor += 5000
+    await screen.findByRole('timer')
+    act(() => fake.fire('recordingStopped', { reason: 'error' }))
+    await waitFor(() => expect(onInsert).toHaveBeenCalledWith('hi', 'caret'))
+    expect(fake.speech.stopRecording).toHaveBeenCalled()
+    expect(fake.speech.transcribe).toHaveBeenCalledTimes(1)
+    expect(onSend).not.toHaveBeenCalled()
+    expect(screen.getByRole('status').textContent).toBe(INTERRUPTED)
+  })
+
+  it('stops into the composer on Back instead of leaving', async () => {
+    useVoiceMode()
+    const { onSend, onInsert } = renderComposer()
+    await press()
+    lockUp()
+    heldFor += 5000
+    await screen.findByRole('timer')
+    act(() => void closeTopOverlay())
+    await finishWith('back pressed')
+    await waitFor(() =>
+      expect(onInsert).toHaveBeenCalledWith('back pressed', 'caret'),
+    )
+    expect(onSend).not.toHaveBeenCalled()
+    expect(screen.getByRole('status').textContent).toBe(
+      'Recording stopped. What you said is in the input box.',
+    )
+  })
+
+  it('says why when native stops a locked recording at the cap', async () => {
+    useVoiceMode()
+    const { onSend, onInsert } = renderComposer()
+    await press()
+    lockUp()
+    await screen.findByRole('timer')
+    act(() => fake.fire('recordingStopped', { reason: 'limit' }))
+    await waitFor(() => expect(status()).toBe('Transcribing…'))
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
+    await finishWith('five whole minutes')
+    await waitFor(() =>
+      expect(onInsert).toHaveBeenCalledWith('five whole minutes', 'caret'),
+    )
+    expect(onSend).not.toHaveBeenCalled()
+    expect(screen.getByRole('status').textContent).toBe(
+      'Recording stopped at the 5-minute limit. What you said is in the input box.',
+    )
+  })
+
+  it('warns before the cap and stops itself if native never does', async () => {
+    useVoiceMode()
+    const { onSend, onInsert } = renderComposer()
+    await press()
+    lockUp()
+    heldFor += MAX_RECORDING_MS - 10_000
+    await waitFor(() =>
+      expect(status()).toBe('Stops in 10s at the 5-minute limit'),
+    )
+    expect(timer()).toBe('04:50')
+    expect(fake.speech.stopStream).not.toHaveBeenCalled()
+    heldFor += 10_000 + LIMIT_GRACE_MS
+    await finishWith('ran long')
+    await waitFor(() =>
+      expect(onInsert).toHaveBeenCalledWith('ran long', 'caret'),
+    )
+    expect(onSend).not.toHaveBeenCalled()
+    expect(screen.getByRole('status').textContent).toBe(
+      'Recording stopped at the 5-minute limit. What you said is in the input box.',
+    )
+  })
+
+  it('sends a locked recording through an OpenAI-compatible upload', async () => {
+    useVoiceMode()
+    onlyEngine('openai')
+    const { onSend } = renderComposer()
+    await press()
+    expect(fake.speech.startRecording).toHaveBeenCalled()
+    lockUp()
+    heldFor += 5000
+    fireEvent.click(await screen.findByRole('button', { name: 'Send' }))
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith('hi'))
+    expect(fake.speech.stopRecording).toHaveBeenCalled()
+    expect(fake.speech.transcribe).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a backgrounded locked recording through the Soniox async job', async () => {
+    useVoiceMode()
+    onlyEngine('soniox-async')
+    fake.speech.transcribe.mockImplementation(async () => ({
+      status: 201,
+      body: '{"id":"f1"}',
+    }))
+    fake.speech.request.mockImplementation(async ({ method }) => ({
+      status: 200,
+      body:
+        method === 'POST'
+          ? '{"id":"t1"}'
+          : '{"status":"completed","text":"异步 锁定"}',
+    }))
+    const { onSend, onInsert } = renderComposer()
+    await press()
+    lockUp()
+    heldFor += 5000
+    await screen.findByRole('timer')
+    act(() => hideApp())
+    await waitFor(() =>
+      expect(onInsert).toHaveBeenCalledWith('异步 锁定', 'caret'),
+    )
+    expect(fake.speech.stopRecording).toHaveBeenCalled()
+    expect(fake.speech.cancelRecording).not.toHaveBeenCalledBefore(
+      fake.speech.transcribe,
+    )
+    expect(onSend).not.toHaveBeenCalled()
+  })
+
+  it('releases the mic when the composer goes away while locked', async () => {
+    useVoiceMode()
+    renderComposer()
+    await press()
+    lockUp()
+    await screen.findByRole('timer')
+    fake.speech.cancelStream.mockClear()
+    fake.speech.cancelRecording.mockClear()
+    cleanup()
+    await waitFor(() => {
+      expect(fake.speech.cancelStream).toHaveBeenCalled()
+      expect(fake.speech.cancelRecording).toHaveBeenCalled()
+    })
+    expect(overlay()).toBeNull()
   })
 })

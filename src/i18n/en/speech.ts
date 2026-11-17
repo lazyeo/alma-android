@@ -32,9 +32,26 @@ export const speech = {
     cancelZone: 'Cancel',
     editZone: 'Slide here to edit',
     editHint: 'Release and the text goes into the input box',
+    lock: 'Release to keep recording',
+    lockHint: 'Slide up to lock',
+  },
+  locked: {
+    status: 'Recording hands-free',
+    endingSoon: 'Stops in {seconds}s at the {minutes}-minute limit',
+    elapsed: 'Recorded {time}',
+    send: 'Send',
+    edit: 'To text',
+    cancel: 'Cancel',
   },
   notice: {
     tooShort: 'Too short. Hold while you speak.',
+    limit:
+      'Recording stopped at the {minutes}-minute limit. What you said is in the input box.',
+    background:
+      'Recording stopped when Alma left the screen. What you said is in the input box.',
+    back: 'Recording stopped. What you said is in the input box.',
+    interrupted:
+      'Recording was interrupted. What you said is in the input box.',
     short: 'Too short to send, so it went into the input box.',
     draft: 'Added after what you had typed. Send it when ready.',
   },

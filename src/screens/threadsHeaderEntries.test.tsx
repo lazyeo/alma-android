@@ -13,11 +13,14 @@ vi.mock('../desktops/DesktopTitleSwitcher', () => ({
     <span className="desktop-title-stub">{fallback}</span>
   ),
 }))
+// One api per connection, as in the app: the realtime link restarts when it
+// changes, so a fresh object every render would never settle.
+const connection = vi.hoisted(() => ({
+  api: { searchThreads: vi.fn() },
+  pairing: { id: 'desk', name: 'Desk' },
+}))
 vi.mock('../desktops/DesktopContext', () => ({
-  useConnection: () => ({
-    api: { searchThreads: vi.fn() },
-    pairing: { id: 'desk', name: 'Desk' },
-  }),
+  useConnection: () => connection,
 }))
 
 vi.mock('./useDesktopThreadList', () => ({

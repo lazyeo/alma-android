@@ -39,6 +39,7 @@ const stable = vi.hoisted(() => ({
 }))
 const navigate = vi.fn()
 const api = {
+  getWorkspaceFavicon: vi.fn(async () => null),
   getProjectCard: vi.fn(async () => ({
     card: { brief: 'Brief', focus: 'Focus', resume: [] },
   })),

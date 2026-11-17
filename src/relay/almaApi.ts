@@ -641,6 +641,27 @@ export class AlmaApi {
   listWorkspaces() {
     return this.request<Workspace[]>('/api/workspaces')
   }
+  /**
+   * `GET /api/workspaces/:id/favicon`: the project's icon, `null` when it has
+   * none. Desktops that predate the route answer 404, which means the same;
+   * other failures throw so the caller can try again after a reconnect.
+   */
+  async getWorkspaceFavicon(workspaceId: string): Promise<string | null> {
+    try {
+      const result = await this.request<{ dataUrl?: unknown }>(
+        `/api/workspaces/${encodeURIComponent(workspaceId)}/favicon`,
+      )
+      // Only inline images: a remote URL would make the WebView fetch it
+      // straight from the internet, outside the relay.
+      return typeof result.dataUrl === 'string' &&
+        result.dataUrl.startsWith('data:image/')
+        ? result.dataUrl
+        : null
+    } catch (error) {
+      if (error instanceof AlmaHttpError && error.status === 404) return null
+      throw error
+    }
+  }
   getProjectCard(workspaceId: string) {
     return this.request<ProjectCardResponse>(
       `/api/workspaces/${encodeURIComponent(workspaceId)}/project-card`,

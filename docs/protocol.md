@@ -158,7 +158,10 @@ GET    /api/threads/:id/context-usage?model=<provider:model>
 POST   /api/threads/:id/compact
 GET    /api/search/threads?q=<query>
 GET    /api/workspaces
+GET    /api/workspaces/:id/favicon
 ```
+
+`GET /api/workspaces/:id/favicon` returns `{ dataUrl: string | null }`, the icon shown before the project's name in the Projects list. The phone only shows `data:image/` values, so the WebView never fetches an image from the internet. Desktops without the route answer 404, which the phone treats as no icon rather than an error; it asks again after a reconnect or pull-to-refresh.
 
 Thread detail includes message rows. A row contains its own database id plus a nested `message` object with `role` and typed `parts`. Tool parts carry a tool call id, state, input, and output. `parentToolCallId` attaches sub-agent rows to the spawning tool call.
 

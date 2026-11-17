@@ -632,6 +632,45 @@ describe('Alma API safety', () => {
     )
   })
 
+  it('reads a workspace favicon and treats a desktop without the route as no icon', async () => {
+    const reply = (status: number, body: unknown) => ({
+      status,
+      json: async () => body,
+      text: async () => JSON.stringify(body),
+      headers: {},
+    })
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        reply(200, { dataUrl: 'data:image/png;base64,ws' }),
+      )
+      .mockResolvedValueOnce(reply(200, { dataUrl: null }))
+      .mockResolvedValueOnce(reply(404, { error: 'Not found' }))
+      .mockResolvedValueOnce(
+        reply(200, { dataUrl: 'https://tracker.example/x.png' }),
+      )
+      .mockResolvedValueOnce(reply(502, { error: 'Bad gateway' }))
+    const api = new AlmaApi({ fetch, openWebSocket: vi.fn() } as any)
+
+    await expect(api.getWorkspaceFavicon('ws 1')).resolves.toBe(
+      'data:image/png;base64,ws',
+    )
+    await expect(api.getWorkspaceFavicon('ws-none')).resolves.toBeNull()
+    await expect(api.getWorkspaceFavicon('ws-old')).resolves.toBeNull()
+    await expect(api.getWorkspaceFavicon('ws-remote')).resolves.toBeNull()
+    await expect(api.getWorkspaceFavicon('ws-down')).rejects.toMatchObject({
+      status: 502,
+    })
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
+      '/api/workspaces/ws%201/favicon',
+      expect.objectContaining({ method: 'GET' }),
+    )
+    expect(() =>
+      assertSafePath('/api/workspaces/ws%201/favicon', 'GET'),
+    ).not.toThrow()
+  })
+
   it('switches message versions with the desktop direction body', async () => {
     const fetch = vi.fn().mockResolvedValue({
       status: 200,

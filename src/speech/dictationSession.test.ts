@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import {
   DictationSession,
   FINISH_TIMEOUT_MS,
+  MAX_RECORDING_MS,
   nativeError,
   type DictationState,
 } from './dictationSession'
@@ -183,6 +185,63 @@ describe('batch dictation', () => {
     expect(speech.transcribe).toHaveBeenCalled()
   })
 
+  it('marks a stop at the cap as cut off by the limit', async () => {
+    const { session, fire, states } = setup()
+    await session.start([openai], [])
+    fire('recordingStopped', { reason: 'limit' })
+    await flush()
+    expect(states).toContainEqual(
+      expect.objectContaining({ phase: 'finishing', cutOff: 'limit' }),
+    )
+  })
+
+  it('transcribes what a failed mic captured', async () => {
+    const { session, fire, speech, states } = setup()
+    await session.start([openai], [])
+    fire('recordingStopped', { reason: 'error' })
+    await flush()
+    expect(speech.stopRecording).toHaveBeenCalled()
+    expect(speech.transcribe).toHaveBeenCalled()
+    expect(states).toContainEqual(
+      expect.objectContaining({ phase: 'finishing', cutOff: 'mic' }),
+    )
+    expect(session.current).toMatchObject({ phase: 'done', text: '你好 Alma' })
+  })
+
+  it('reports the mic when it failed before anything was captured', async () => {
+    const { session, fire, speech } = setup({
+      stopRecording: vi.fn(async () => ({ durationMs: 0 })),
+    })
+    await session.start([openai], [])
+    fire('recordingStopped', { reason: 'error' })
+    await flush()
+    expect(speech.transcribe).not.toHaveBeenCalled()
+    expect(session.current).toMatchObject({
+      phase: 'error',
+      error: { kind: 'unknown', detail: 'microphone' },
+    })
+  })
+
+  it('knows the same recording cap as native', () => {
+    const recorder = readFileSync(
+      new URL(
+        '../../android/app/src/main/java/club/a_dobe/alma/SpeechRecorder.java',
+        import.meta.url,
+      ),
+      'utf8',
+    )
+    const minutes =
+      /MAX_BYTES = (\d+)L \* 60L \* SpeechWav\.SAMPLE_RATE \* 2L/.exec(
+        recorder,
+      )?.[1]
+    expect(Number(minutes) * 60_000).toBe(MAX_RECORDING_MS)
+    // 16 kHz mono s16le WAV at the cap, against an OpenAI-compatible
+    // provider's 25 MB upload ceiling (audio never crosses the relay).
+    expect((MAX_RECORDING_MS / 1000) * 16_000 * 2 + 44).toBeLessThan(
+      25 * 1024 * 1024,
+    )
+  })
+
   it('tracks the input level', async () => {
     const { session, fire } = setup()
     await session.start([openai], [])
@@ -310,6 +369,21 @@ describe('real-time dictation', () => {
     expect(speech.cancelStream).toHaveBeenCalled()
   })
 
+  it('keeps what was heard when the mic fails mid-stream', async () => {
+    const { session, fire, speech } = setup()
+    await session.start([soniox], [])
+    fire('streamMessage', {
+      data: JSON.stringify({ tokens: [{ text: '说到一半', is_final: true }] }),
+    })
+    fire('recordingStopped', { reason: 'error' })
+    expect(session.current).toMatchObject({
+      phase: 'error',
+      error: { kind: 'unknown', detail: 'microphone' },
+      partial: '说到一半',
+    })
+    expect(speech.stopStream).not.toHaveBeenCalled()
+  })
+
   it('reports a dropped connection while recording', async () => {
     const { session, fire } = setup()
     await session.start([soniox], [])
@@ -317,6 +391,21 @@ describe('real-time dictation', () => {
     expect(session.current).toMatchObject({
       error: { kind: 'network', detail: 'reset' },
     })
+  })
+
+  it('ends the stream with what was heard at the recording limit', async () => {
+    const { session, fire, speech } = setup()
+    await session.start([soniox], [])
+    fire('streamMessage', {
+      data: JSON.stringify({ tokens: [{ text: '很长', is_final: true }] }),
+    })
+    fire('recordingStopped', { reason: 'limit' })
+    expect(speech.stopStream).toHaveBeenCalled()
+    fire('streamMessage', {
+      data: JSON.stringify({ tokens: [], finished: true }),
+    })
+    await flush()
+    expect(session.current).toMatchObject({ phase: 'done', text: '很长' })
   })
 
   it('maps a refused host binding', async () => {
