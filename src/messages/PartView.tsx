@@ -7,6 +7,8 @@ import { useT } from '../i18n'
 import { parseAlmaImageEdit } from '../components/imageAnnotatorModel'
 import { ImageEditCard } from './ImageEditCard'
 import { TeammateMessagePart } from './TeammateMessagePart'
+import { FileTypeIcon } from './FileTypeIcon'
+import { fileExtensionLabel, formatBytes } from './fileAttachment'
 import { isVoiceLikePart, type VoiceNote } from './voiceNote'
 
 export interface MarkdownRenderOptions {
@@ -58,10 +60,25 @@ export const PartView = memo(function PartView({
       typeof part.filename === 'string'
         ? part.filename
         : t('message.attachment')
-    return part.type === 'image' || mediaType.startsWith('image/') ? (
-      (capabilities.renderImage?.(part.url, filename) ?? null)
-    ) : (
-      <span className="message-file">{filename}</span>
+    if (part.type === 'image' || mediaType.startsWith('image/'))
+      return capabilities.renderImage?.(part.url, filename) ?? null
+    // Desktop file parts rarely say their size; the extension stands in.
+    const detail =
+      typeof part.size === 'number' &&
+      Number.isFinite(part.size) &&
+      part.size >= 0
+        ? formatBytes(part.size)
+        : fileExtensionLabel(filename)
+    return (
+      <span className="message-file">
+        <span className="end-resource-icon">
+          <FileTypeIcon name={filename} mediaType={mediaType} />
+        </span>
+        <span className="end-resource-copy">
+          <strong>{filename}</strong>
+          {detail ? <span>{detail}</span> : null}
+        </span>
+      </span>
     )
   }
 

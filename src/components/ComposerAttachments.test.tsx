@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AlmaApi } from '../relay/almaApi'
 import type { ComposerAttachment } from '../screens/attachmentUpload'
@@ -49,6 +55,12 @@ vi.mock('./ImageAnnotator', () => ({
       <button onClick={onCancel}>Cancel</button>
     </div>
   ),
+}))
+
+vi.mock('../screens/relayImages', () => ({
+  imageCache: () => ({
+    get: async () => new Blob(['relay'], { type: 'image/png' }),
+  }),
 }))
 
 const api = {} as AlmaApi
@@ -203,5 +215,149 @@ describe('ComposerAttachmentTray image markup', () => {
     expect(onChange).not.toHaveBeenCalled()
     expect(URL.createObjectURL).not.toHaveBeenCalled()
     expect(URL.revokeObjectURL).not.toHaveBeenCalled()
+  })
+})
+
+describe('ComposerAttachmentTray file attachments', () => {
+  beforeEach(() => {
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: vi.fn(() => 'blob:relay-preview'),
+      revokeObjectURL: vi.fn(),
+    })
+  })
+
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+  })
+
+  it('shows a non-image attachment as a file card, never as an image', () => {
+    const file: ComposerAttachment = {
+      id: 'attachment-3mf',
+      kind: 'file',
+      name: 'plate.3mf',
+      mediaType: 'application/octet-stream',
+      // Drafts saved before the fix still carry an object URL for files.
+      previewUrl: 'blob:stale-file',
+      pending: { blob: new Blob([new Uint8Array(2048)]) },
+    }
+
+    const { container } = render(
+      <ComposerAttachmentTray
+        api={api}
+        attachments={[file]}
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(container.querySelector('img')).toBeNull()
+    expect(screen.getByText('plate.3mf')).toBeTruthy()
+    expect(screen.getByText('2.0 KB')).toBeTruthy()
+    expect(container.querySelector('svg.lucide-box')).toBeTruthy()
+  })
+
+  it('shows the extension when an uploaded file has no local size', () => {
+    const file: ComposerAttachment = {
+      kind: 'file',
+      name: 'backup.zip',
+      mediaType: 'application/zip',
+      filePath: '/tmp/backup.zip',
+    }
+
+    const { container } = render(
+      <ComposerAttachmentTray
+        api={api}
+        attachments={[file]}
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(container.querySelector('img')).toBeNull()
+    expect(screen.getByText('ZIP')).toBeTruthy()
+    expect(container.querySelector('svg.lucide-file-archive')).toBeTruthy()
+  })
+
+  it('keeps each relay image preview with its own image when one is removed', async () => {
+    let created = 0
+    vi.mocked(URL.createObjectURL).mockImplementation(
+      () => `blob:preview-${++created}`,
+    )
+    const first: ComposerAttachment = {
+      kind: 'image',
+      name: 'first.png',
+      mediaType: 'image/png',
+      url: 'http://localhost:23001/api/gallery/cache/first.png',
+    }
+    const second: ComposerAttachment = {
+      ...first,
+      name: 'second.png',
+      url: 'http://localhost:23001/api/gallery/cache/second.png',
+    }
+
+    const view = render(
+      <ComposerAttachmentTray
+        api={api}
+        attachments={[first, second]}
+        onChange={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(view.container.querySelectorAll('img')).toHaveLength(2),
+    )
+    const firstPreview = view.container
+      .querySelectorAll('img')[0]
+      .getAttribute('src')
+
+    view.rerender(
+      <ComposerAttachmentTray
+        api={api}
+        attachments={[second]}
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(view.container.querySelector('img')?.getAttribute('src')).not.toBe(
+      firstPreview,
+    )
+  })
+
+  it('does not hand a removed image preview to the file that takes its place', async () => {
+    const image: ComposerAttachment = {
+      kind: 'image',
+      name: 'restored.png',
+      mediaType: 'image/png',
+      url: 'http://localhost:23001/api/gallery/cache/restored.png',
+    }
+    const file: ComposerAttachment = {
+      kind: 'file',
+      name: 'notes.txt',
+      mediaType: 'text/plain',
+      filePath: '/tmp/notes.txt',
+    }
+
+    const view = render(
+      <ComposerAttachmentTray
+        api={api}
+        attachments={[image, file]}
+        onChange={vi.fn()}
+      />,
+    )
+    await waitFor(() =>
+      expect(view.container.querySelector('img')?.getAttribute('src')).toBe(
+        'blob:relay-preview',
+      ),
+    )
+
+    view.rerender(
+      <ComposerAttachmentTray
+        api={api}
+        attachments={[file]}
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(view.container.querySelector('img')).toBeNull()
+    expect(screen.getByText('notes.txt')).toBeTruthy()
   })
 })

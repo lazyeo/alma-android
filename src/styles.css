@@ -921,15 +921,21 @@ dd {
   background: var(--background);
 }
 .message-file {
-  display: inline-flex;
+  width: fit-content;
+  /* A fixed cap: a percentage is ignored while the user bubble sizes itself
+     to its content, so a long name would widen the bubble past the card. */
+  max-width: 320px;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
   margin: 8px 0;
-  padding: 10px 12px;
+  padding: 10px;
   border: var(--border-hairline) solid var(--gray-7);
-  border-radius: var(--radius-md);
-  color: var(--acid);
-  font-weight: var(--weight-medium);
-  font-size: var(--text-xs);
+  border-radius: var(--radius-lg);
   font-family: var(--ui-font);
+  line-height: var(--leading-normal);
 }
 /* A part or voice this client cannot show: quiet, but never a blank row. */
 .message-unsupported {
@@ -7377,6 +7383,25 @@ button:active:not(:disabled),
   text-align: center;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+/* The size sits in the tile under the icon, so a file chip keeps an image
+   chip's footprint with its name on one line. */
+.attachment-chip.attachment-file > span {
+  align-content: center;
+  gap: 4px;
+}
+.attachment-file-detail {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: var(--text-xs);
+  line-height: var(--leading-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attachment-chip.attachment-file strong {
+  display: block;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .attachment-chip .attachment-remove {
   position: absolute;

@@ -130,6 +130,28 @@ describe('thread drafts', () => {
     expect(restored[0].previewUrl).toMatch(/^blob:/)
   })
 
+  it('restores a pending file without an image preview', async () => {
+    const blobs = new MemoryAttachmentStore()
+    await blobs.put('file-key', new Blob(['solid'], { type: 'model/3mf' }))
+
+    const restored = await loadDraftAttachments(
+      [
+        {
+          id: 'attachment-2',
+          kind: 'file',
+          name: 'plate.3mf',
+          mediaType: 'model/3mf',
+          pendingKey: 'file-key',
+        },
+      ],
+      blobs,
+    )
+
+    expect(restored).toHaveLength(1)
+    expect(restored[0]).toMatchObject({ kind: 'file', name: 'plate.3mf' })
+    expect(restored[0].previewUrl).toBeUndefined()
+  })
+
   it('silently drops pending attachment metadata when its blob is missing', async () => {
     const blobs = new MemoryAttachmentStore()
     await expect(

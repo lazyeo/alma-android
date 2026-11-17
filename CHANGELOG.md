@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - A photo or screenshot whose original file is over 6 MB is no longer refused with the 6 MB relay message before it is shrunk; it is re-encoded like any other image, and the limit applies to what is actually uploaded (2026-11-14).
 - Sharing into Alma's own conversation from the Android share sheet sends the shared image and text instead of opening her page with nothing sent. If she cannot be reached, her page says the share has not been sent and offers a retry; a shared file the phone could not read, or a share with nothing in it, is explained on the share page instead of being dropped (2026-11-14).
 - With more than one desktop paired, share-sheet targets name their desktop, such as "Alma on Mac mini", so the Alma conversations of different desktops can be told apart (2026-11-14).
+- Non-image attachments, such as a 3MF, ZIP or PDF, showed a broken image preview in the composer and a bare name in sent messages; they now show as a file card with an icon for their type and their size (or their extension when the size is not known) (2026-11-17).
 
 ## [0.1.9] - 2026-11-14
 

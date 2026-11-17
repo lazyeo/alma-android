@@ -182,7 +182,8 @@ export async function loadDraftAttachments(
       kind: attachment.kind,
       name: attachment.name,
       mediaType: attachment.mediaType,
-      previewUrl: URL.createObjectURL(blob),
+      previewUrl:
+        attachment.kind === 'image' ? URL.createObjectURL(blob) : undefined,
       pending: { blob, storeKey: attachment.pendingKey },
     })
   }

@@ -6,7 +6,8 @@ export interface PendingAttachment {
   kind: 'image' | 'file'
   name: string
   mediaType: string
-  previewUrl: string
+  /** Object URL of an image's bytes; files have none and show a type icon. */
+  previewUrl?: string
   pending: { blob: Blob; storeKey?: string }
 }
 

@@ -104,6 +104,22 @@ describe('ComposerAttachments.pick size limits', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  it('does not create an image preview for a picked non-image file', async () => {
+    const { onChange } = pick(
+      'files',
+      bigFile(
+        'plate.3mf',
+        'application/vnd.ms-package.3dmanufacturing-3dmodel+xml',
+        10,
+      ),
+    )
+    await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1))
+    const [attachment] = onChange.mock.calls[0][0]
+    expect(attachment).toMatchObject({ kind: 'file', name: 'plate.3mf' })
+    expect(attachment.previewUrl).toBeUndefined()
+    expect(URL.createObjectURL).not.toHaveBeenCalled()
+  })
+
   it('keeps the raw cap for images that are not re-encoded', async () => {
     const { onChange, onError } = pick(
       'photos',

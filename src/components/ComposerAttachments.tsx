@@ -19,6 +19,8 @@ import { BottomSheet } from './BottomSheet'
 import { ImageAnnotator } from './ImageAnnotator'
 import { buildMarkupNotes } from './imageAnnotatorModel'
 import { useT } from '../i18n'
+import { FileTypeIcon } from '../messages/FileTypeIcon'
+import { fileExtensionLabel, formatBytes } from '../messages/fileAttachment'
 
 export function ComposerAttachmentTray({
   api,
@@ -32,7 +34,9 @@ export function ComposerAttachmentTray({
   onAnnotationText?(text: string): void
 }) {
   const t = useT()
-  const [previews, setPreviews] = useState<Record<number, string>>({})
+  // Keyed by relay url, not tray index: removing an attachment shifts the
+  // indexes, and an index key handed one image's preview to its neighbour.
+  const [previews, setPreviews] = useState<Record<string, string>>({})
   const [editing, setEditing] = useState<{
     index: number
     attachment: PendingAttachment
@@ -41,7 +45,7 @@ export function ComposerAttachmentTray({
     let active = true
     const urls: string[] = []
     void Promise.all(
-      attachments.map(async (attachment, index) => {
+      attachments.map(async (attachment) => {
         if (
           attachment.previewUrl ||
           attachment.kind !== 'image' ||
@@ -49,12 +53,13 @@ export function ComposerAttachmentTray({
           !attachment.url
         )
           return
+        const source = attachment.url
         try {
-          const blob = await imageCache(api).get(attachment.url)
+          const blob = await imageCache(api).get(source)
           if (!active) return
           const url = URL.createObjectURL(blob)
           urls.push(url)
-          setPreviews((current) => ({ ...current, [index]: url }))
+          setPreviews((current) => ({ ...current, [source]: url }))
         } catch {
           // Keep the image placeholder when a restored relay preview is unavailable.
         }
@@ -72,10 +77,24 @@ export function ComposerAttachmentTray({
         {attachments.map((attachment, index) => {
           const annotatable =
             attachment.kind === 'image' && isPendingAttachment(attachment)
-          const previewUrl = attachment.previewUrl || previews[index]
+          // Only an image may render as one; a file's previewUrl (drafts saved
+          // before this fix) points at bytes an <img> cannot show.
+          const previewUrl =
+            attachment.kind === 'image'
+              ? attachment.previewUrl ||
+                ('url' in attachment && attachment.url
+                  ? previews[attachment.url]
+                  : undefined)
+              : undefined
+          const fileDetail =
+            attachment.kind === 'file'
+              ? isPendingAttachment(attachment)
+                ? formatBytes(attachment.pending.blob.size)
+                : fileExtensionLabel(attachment.name)
+              : ''
           return (
             <div
-              className={`attachment-chip${annotatable ? ' annotatable' : ''}`}
+              className={`attachment-chip${annotatable ? ' annotatable' : ''}${attachment.kind === 'file' ? ' attachment-file' : ''}`}
               key={`${attachment.name}-${index}`}
             >
               {annotatable ? (
@@ -101,7 +120,18 @@ export function ComposerAttachmentTray({
                   {attachment.kind === 'image' ? (
                     <Image size={22} />
                   ) : (
-                    <File size={22} />
+                    <>
+                      <FileTypeIcon
+                        name={attachment.name}
+                        mediaType={attachment.mediaType}
+                        size={22}
+                      />
+                      {fileDetail ? (
+                        <small className="attachment-file-detail">
+                          {fileDetail}
+                        </small>
+                      ) : null}
+                    </>
                   )}
                 </span>
               )}
@@ -239,12 +269,12 @@ export function ComposerAttachments({
           }
         } else {
           const mediaType = file.type || 'application/octet-stream'
+          // No previewUrl: the card shows a type icon, never the bytes.
           pending.push({
             id: crypto.randomUUID(),
             kind: 'file',
             name: file.name,
             mediaType,
-            previewUrl: URL.createObjectURL(file),
             pending: { blob: file },
           })
         }
