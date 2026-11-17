@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Nothing yet.
+
+## [0.1.10] - 2026-11-18
+
+### Added
+
 - Hold-to-talk can be locked: slide up past the bubble to keep recording hands-free, then choose Send, To text or Cancel. A recording that stops without a choice (leaving Alma, Back, a call, the 5-minute cap or a mic failure) goes into the composer instead of being sent (2026-11-16).
 - The Projects tab shows each workspace's favicon from the desktop (Alma Desktop 0.4.684 and later); projects without one look as before (2026-11-16).
 - Quote a whole message from its long-press menu (2026-11-17).
@@ -23,7 +29,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Sharing into Alma's own conversation from the Android share sheet sends the shared image and text instead of opening her page with nothing sent. If she cannot be reached, her page says the share has not been sent and offers a retry; a shared file the phone could not read, or a share with nothing in it, is explained on the share page instead of being dropped (2026-11-14).
 - With more than one desktop paired, share-sheet targets name their desktop, such as "Alma on Mac mini", so the Alma conversations of different desktops can be told apart (2026-11-14).
 - Non-image attachments, such as a 3MF, ZIP or PDF, showed a broken image preview in the composer and a bare name in sent messages; they now show as a file card with an icon for their type and their size (or their extension when the size is not known) (2026-11-17).
-
 ## [0.1.9] - 2026-11-14
 
 ### Added
@@ -254,7 +259,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Foldable layouts, a frosted screen transition, optional Shizuku live hinge-angle input, and an estimated fallback.
 - Foreground-lifetime local notifications for completed replies and pending approvals; no push service is used.
 
-[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.9...HEAD
+[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.10...HEAD
 [0.1.0]: https://github.com/lazyeo/alma-android/releases/tag/v0.1.0
 [0.1.1]: https://github.com/lazyeo/alma-android/compare/v0.1.0...v0.1.1
 [0.1.2]: https://github.com/lazyeo/alma-android/compare/v0.1.1...v0.1.2
@@ -265,3 +270,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.1.7]: https://github.com/lazyeo/alma-android/compare/v0.1.6...v0.1.7
 [0.1.8]: https://github.com/lazyeo/alma-android/compare/v0.1.7...v0.1.8
 [0.1.9]: https://github.com/lazyeo/alma-android/compare/v0.1.8...v0.1.9
+[0.1.10]: https://github.com/lazyeo/alma-android/compare/v0.1.9...v0.1.10
