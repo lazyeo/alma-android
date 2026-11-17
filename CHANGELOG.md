@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Hold-to-talk can be locked: slide up past the bubble to keep recording hands-free, then choose Send, To text or Cancel. A recording that stops without a choice (leaving Alma, Back, a call, the 5-minute cap or a mic failure) goes into the composer instead of being sent (2026-11-16).
+- The Projects tab shows each workspace's favicon from the desktop (Alma Desktop 0.4.684 and later); projects without one look as before (2026-11-16).
 - Quote a whole message from its long-press menu (2026-11-17).
 
 ### Changed
