@@ -1263,6 +1263,7 @@ export function AgentPaneScreen() {
           {voice?.toggle}
           {voice?.bar}
           <textarea
+            {...voice?.textHold}
             ref={composerRef}
             // Hidden, not unmounted, so the draft and caret survive voice mode.
             hidden={Boolean(voice?.bar)}

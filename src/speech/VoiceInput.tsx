@@ -1,11 +1,14 @@
-import { AudioLines, Keyboard } from 'lucide-react'
+import { Keyboard, Mic } from 'lucide-react'
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
+  type PointerEvent,
   type ReactNode,
   type RefObject,
 } from 'react'
+import { createLongPress } from '../components/longPress'
 import { useOverlayRegistration } from '../components/useOverlayRegistration'
 import { haptic } from '../haptics'
 import { useT } from '../i18n'
@@ -30,6 +33,7 @@ import {
   type HoldZone,
 } from './holdLayout'
 import { loadInputMode, saveInputMode, type InputMode } from './inputMode'
+import { canLongPressToTalk } from './longPressTalk'
 import { speechAvailable } from './nativeSpeech'
 import { useAfterNextRender } from './useAfterNextRender'
 import { useDictation } from './useDictation'
@@ -57,17 +61,35 @@ export interface VoiceInputOptions {
   textareaRef?: RefObject<HTMLTextAreaElement>
 }
 
+/** Pointer handlers for an element that starts or follows a hold. */
+export interface HoldPointerProps {
+  onPointerDown(event: PointerEvent<HTMLElement>): void
+  onPointerMove(event: PointerEvent<HTMLElement>): void
+  onPointerUp(event: PointerEvent<HTMLElement>): void
+  onPointerCancel(event: PointerEvent<HTMLElement>): void
+  onContextMenu(event: React.MouseEvent<HTMLElement>): void
+}
+
 export interface VoiceInput {
-  /** The voice/keyboard switch, left of the input. */
+  /**
+   * The small mic/keyboard switch left of the input. Also carries the hold
+   * overlay and the setup sheet, which both entries share.
+   */
   toggle: ReactNode
   /** The hold-to-talk bar replacing the text box, or null on the keyboard. */
   bar: ReactNode | null
+  /**
+   * Spread on the text box: a long press on it, while empty and unfocused,
+   * starts the same hold as the bar (see canLongPressToTalk).
+   */
+  textHold: HoldPointerProps & { 'data-hold-to-talk': true }
 }
 
 /**
- * A composer's voice mode: a switch, and in voice mode a full-width
- * hold-to-talk bar in place of the text box. Undefined in the web build,
- * which has no native recorder.
+ * A composer's voice input. The text box is the entry: a tap types, a long
+ * press on an empty, unfocused box holds to talk. The switch keeps the
+ * full-width hold-to-talk bar for those who prefer it. Undefined in the
+ * web build, which has no native recorder.
  */
 export function useVoiceInput(
   options: VoiceInputOptions,
@@ -98,18 +120,33 @@ export function useVoiceInput(
       window.clearTimeout(timer)
     }
   }, [notice])
-  if (!speechAvailable()) return undefined
-
   const changeMode = (next: InputMode) => {
     setMode(next)
     saveInputMode(options.surface, next)
   }
+  // One hold for both entries: switching modes never drops a recording.
+  const talk = useHoldToTalk({
+    surface: options.surface,
+    draft: () => latest.current.draft(),
+    canSend: Boolean(options.onSend),
+    onNotice: setNotice,
+    onSend: (text) => latest.current.onSend?.(text),
+    // Inserted text is there to be edited: show the text box first.
+    onInsert: (text, at) => {
+      changeMode('keyboard')
+      afterRender(() => latest.current.onInsert(text, at))
+    },
+  })
+  const textHold = useTextHold(talk, () => latest.current.textareaRef?.current)
+  if (!speechAvailable()) return undefined
+
   const keyboard = () => {
     changeMode('keyboard')
     afterRender(() => latest.current.textareaRef?.current?.focus())
   }
   const voice = mode === 'voice'
   return {
+    textHold,
     toggle: (
       <>
         <button
@@ -127,7 +164,7 @@ export function useVoiceInput(
           {voice ? (
             <Keyboard size={18} strokeWidth={2} />
           ) : (
-            <AudioLines size={18} strokeWidth={2} />
+            <Mic size={18} strokeWidth={2} />
           )}
         </button>
         {notice ? (
@@ -135,22 +172,89 @@ export function useVoiceInput(
             {notice}
           </p>
         ) : null}
+        {talk.view}
       </>
     ),
     bar: voice ? (
-      <HoldToTalk
-        surface={options.surface}
-        draft={() => latest.current.draft()}
-        canSend={Boolean(options.onSend)}
-        onNotice={setNotice}
-        onSend={(text) => latest.current.onSend?.(text)}
-        // Inserted text is there to be edited: show the text box first.
-        onInsert={(text, at) => {
-          changeMode('keyboard')
-          afterRender(() => latest.current.onInsert(text, at))
-        }}
-      />
+      <button
+        type="button"
+        className="voice-hold-bar"
+        data-active={talk.holding}
+        {...talk.barProps}
+      >
+        {t('speech.hold.bar')}
+      </button>
     ) : null,
+  }
+}
+
+/**
+ * The text box's long press. Below the hold delay a press is the system's
+ * (a tap focuses and raises the keyboard); past it, the hold takes the
+ * pointer and everything after (slides, release) is the bar's gesture.
+ */
+function useTextHold(
+  talk: HoldToTalk,
+  area: () => HTMLTextAreaElement | null | undefined,
+): VoiceInput['textHold'] {
+  const latest = useRef({ talk, area })
+  latest.current = { talk, area }
+  const pending = useRef<{ pointerId: number; element: HTMLElement }>()
+  const press = useMemo(
+    () =>
+      createLongPress(() => {
+        const held = pending.current
+        pending.current = undefined
+        if (!held || latest.current.talk.busy) return
+        // Should the system have focused the box on the way down, put the
+        // keyboard away: the overlay is taking the screen.
+        const box = latest.current.area()
+        if (box && document.activeElement === box) box.blur()
+        held.element.setPointerCapture?.(held.pointerId)
+        latest.current.talk.begin(held.pointerId)
+      }),
+    [],
+  )
+  useEffect(() => press.cancel, [press])
+  const drop = () => {
+    press.cancel()
+    pending.current = undefined
+  }
+  const eligible = () => {
+    const box = latest.current.area()
+    return canLongPressToTalk(
+      box,
+      Boolean(box) && document.activeElement === box,
+    )
+  }
+  return {
+    'data-hold-to-talk': true,
+    onPointerDown(event) {
+      if (event.button > 0 || !event.isPrimary || talk.busy || !eligible())
+        return
+      pending.current = {
+        pointerId: event.pointerId,
+        element: event.currentTarget,
+      }
+      press.start(event.clientX, event.clientY)
+    },
+    onPointerMove(event) {
+      if (event.pointerId === pending.current?.pointerId)
+        press.move(event.clientX, event.clientY)
+      talk.follow.onPointerMove(event)
+    },
+    onPointerUp(event) {
+      drop()
+      talk.follow.onPointerUp(event)
+    },
+    onPointerCancel(event) {
+      drop()
+      talk.follow.onPointerCancel(event)
+    },
+    // The system's long-press menu only where the rule leaves it the press.
+    onContextMenu(event) {
+      if (pending.current || talk.busy || eligible()) event.preventDefault()
+    },
   }
 }
 
@@ -182,7 +286,26 @@ interface Locked {
  */
 type SafeStop = 'limit' | 'background' | 'back' | 'interrupted'
 
-export function HoldToTalk({
+/** A hold to talk, startable from the bar or from the text box. */
+export interface HoldToTalk {
+  /** A finger is down on a hold (not locked, not finishing). */
+  holding: boolean
+  /** Holding, locked, or waiting on the transcript: no new hold starts. */
+  busy: boolean
+  /** Starts a hold for this pointer now (setup sheet when none can run). */
+  begin(pointerId: number): void
+  /** Follows a started hold's pointer: slides, release, system cancel. */
+  follow: Pick<
+    HoldPointerProps,
+    'onPointerMove' | 'onPointerUp' | 'onPointerCancel'
+  >
+  /** The bar: a hold starts on press. */
+  barProps: HoldPointerProps
+  /** The overlay and setup sheet, rendered once for both entries. */
+  view: ReactNode
+}
+
+export function useHoldToTalk({
   surface,
   draft,
   canSend,
@@ -197,7 +320,7 @@ export function HoldToTalk({
   onNotice(text: string): void
   onSend(text: string): void
   onInsert(text: string, at: 'caret' | 'end'): void
-}) {
+}): HoldToTalk {
   const t = useT()
   const { state, engine, start, stop, cancel, reset } = useDictation()
   const [hold, setHold] = useState<Hold>()
@@ -415,44 +538,34 @@ export function HoldToTalk({
         })
       : undefined
   const zone = hold?.zone ?? (locked ? 'lock' : finishing)
+  const busy = Boolean(hold || locked || finishing)
 
-  return (
+  const follow: HoldToTalk['follow'] = {
+    onPointerMove(event) {
+      if (event.pointerId === hold?.pointerId)
+        move(event.clientX, event.clientY)
+    },
+    onPointerUp(event) {
+      if (event.pointerId === hold?.pointerId) letGo()
+    },
+    // The system took the pointer (the mic permission dialog, a call
+    // taking the screen, a system gesture): no real release happened.
+    // Before there is speech worth keeping, drop the dictation; after,
+    // keep it, as Android may cancel the finger before the page hides.
+    onPointerCancel(event) {
+      if (event.pointerId !== hold?.pointerId) return
+      if (
+        state.phase === 'recording' &&
+        Date.now() - hold.pressedAt >= MIN_HOLD_MS
+      )
+        return stopSafely('interrupted')
+      dismiss()
+      cancel()
+    },
+  }
+
+  const view = (
     <>
-      <button
-        type="button"
-        className="voice-hold-bar"
-        data-active={Boolean(hold)}
-        onPointerDown={(event) => {
-          if (event.button > 0 || hold || locked || finishing) return
-          event.preventDefault()
-          event.currentTarget.setPointerCapture?.(event.pointerId)
-          press(event.pointerId)
-        }}
-        onPointerMove={(event) => {
-          if (event.pointerId === hold?.pointerId)
-            move(event.clientX, event.clientY)
-        }}
-        onPointerUp={(event) => {
-          if (event.pointerId === hold?.pointerId) letGo()
-        }}
-        // The system took the pointer (the mic permission dialog, a call
-        // taking the screen, a system gesture): no real release happened.
-        // Before there is speech worth keeping, drop the dictation; after,
-        // keep it, as Android may cancel the finger before the page hides.
-        onPointerCancel={(event) => {
-          if (event.pointerId !== hold?.pointerId) return
-          if (
-            state.phase === 'recording' &&
-            Date.now() - hold.pressedAt >= MIN_HOLD_MS
-          )
-            return stopSafely('interrupted')
-          dismiss()
-          cancel()
-        }}
-        onContextMenu={(event) => event.preventDefault()}
-      >
-        {t('speech.hold.bar')}
-      </button>
       {zone && layout ? (
         <HoldOverlay
           layout={layout}
@@ -497,4 +610,24 @@ export function HoldToTalk({
       ) : null}
     </>
   )
+
+  return {
+    holding: Boolean(hold),
+    busy,
+    begin: (pointerId) => {
+      if (!busy) press(pointerId)
+    },
+    follow,
+    barProps: {
+      ...follow,
+      onPointerDown(event) {
+        if (event.button > 0 || busy) return
+        event.preventDefault()
+        event.currentTarget.setPointerCapture?.(event.pointerId)
+        press(event.pointerId)
+      },
+      onContextMenu: (event) => event.preventDefault(),
+    },
+    view,
+  }
 }

@@ -89,7 +89,9 @@ function Composer(props: Omit<VoiceInputOptions, 'textareaRef'>) {
       {voice?.toggle}
       {voice?.bar}
       <textarea
+        {...voice?.textHold}
         aria-label="Message"
+        placeholder="Message"
         ref={textareaRef}
         hidden={Boolean(voice?.bar)}
       />
@@ -529,6 +531,151 @@ describe('hold to talk errors and fallback', () => {
     ).toBeTruthy()
     expect(overlay()).toBeNull()
     expect(fake.speech.checkMicPermission).not.toHaveBeenCalled()
+  })
+})
+
+const message = () => screen.getByLabelText('Message') as HTMLTextAreaElement
+const BOX = { x: LAYOUT.width / 2, y: LAYOUT.height - 30 }
+
+/** Puts a finger on the text box without lifting it. */
+function touchBox(at = BOX) {
+  return fireEvent.pointerDown(message(), {
+    button: 0,
+    pointerId: 1,
+    isPrimary: true,
+    clientX: at.x,
+    clientY: at.y,
+  })
+}
+
+/** Waits past the long-press delay with the finger still down. */
+const waitPastLongPress = () =>
+  act(() => new Promise((resolve) => setTimeout(resolve, 500)))
+
+const started = () =>
+  fake.speech.startStream.mock.calls.length +
+  fake.speech.startRecording.mock.calls.length
+
+describe('long press on the text box', () => {
+  it('holds to talk from an empty, unfocused box and sends on release', async () => {
+    const { onSend } = renderComposer()
+    touchBox()
+    await waitPastLongPress()
+    await waitFor(() => expect(overlay()).not.toBeNull())
+    await waitFor(() => expect(started()).toBeGreaterThan(0))
+    expect(status()).toBe('Release to send')
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+    heldFor += MIN_HOLD_MS
+    fireEvent.pointerUp(message(), { button: 0, pointerId: 1 })
+    await finishWith('spoken from the box')
+    await waitFor(() =>
+      expect(onSend).toHaveBeenCalledWith('spoken from the box'),
+    )
+    expect(overlay()).toBeNull()
+  })
+
+  it('follows the same slides: release on cancel drops it', async () => {
+    const { onSend, onInsert } = renderComposer()
+    touchBox()
+    await waitPastLongPress()
+    await waitFor(() => expect(started()).toBeGreaterThan(0))
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
+    fireEvent.pointerMove(message(), {
+      pointerId: 1,
+      clientX: LAYOUT.cancel.cx,
+      clientY: LAYOUT.cancel.cy,
+    })
+    heldFor += MIN_HOLD_MS
+    fireEvent.pointerUp(message(), { button: 0, pointerId: 1 })
+    await waitFor(() => expect(overlay()).toBeNull())
+    expect(fake.speech.cancelStream).toHaveBeenCalled()
+    expect(onSend).not.toHaveBeenCalled()
+    expect(onInsert).not.toHaveBeenCalled()
+  })
+
+  it('locks from the box like from the bar', async () => {
+    renderComposer()
+    touchBox()
+    await waitPastLongPress()
+    await waitFor(() => expect(started()).toBeGreaterThan(0))
+    fireEvent.pointerMove(message(), {
+      pointerId: 1,
+      clientX: LAYOUT.width / 2,
+      clientY: LAYOUT.lockLine - 40,
+    })
+    heldFor += 200
+    fireEvent.pointerUp(message(), { button: 0, pointerId: 1 })
+    expect(await screen.findByRole('timer')).toBeTruthy()
+  })
+
+  it('leaves a tap to the keyboard', async () => {
+    renderComposer()
+    touchBox()
+    fireEvent.pointerUp(message(), { button: 0, pointerId: 1 })
+    await waitPastLongPress()
+    expect(overlay()).toBeNull()
+    expect(started()).toBe(0)
+  })
+
+  it('leaves a press that moves (a scroll) alone', async () => {
+    renderComposer()
+    touchBox()
+    fireEvent.pointerMove(message(), {
+      pointerId: 1,
+      clientX: BOX.x,
+      clientY: BOX.y - 20,
+    })
+    await waitPastLongPress()
+    expect(overlay()).toBeNull()
+    expect(started()).toBe(0)
+  })
+
+  it('leaves select and paste to the system once there is text', async () => {
+    renderComposer()
+    fireEvent.change(message(), { target: { value: 'typed' } })
+    touchBox()
+    await waitPastLongPress()
+    expect(overlay()).toBeNull()
+    expect(started()).toBe(0)
+    expect(fireEvent.contextMenu(message())).toBe(true)
+  })
+
+  it('leaves paste to the system while the keyboard is up', async () => {
+    renderComposer()
+    message().focus()
+    touchBox()
+    await waitPastLongPress()
+    expect(overlay()).toBeNull()
+    expect(started()).toBe(0)
+    expect(fireEvent.contextMenu(message())).toBe(true)
+  })
+
+  it('keeps the system menu off the box it takes the long press of', () => {
+    renderComposer()
+    expect(fireEvent.contextMenu(message())).toBe(false)
+  })
+
+  it('asks for setup instead of recording when no engine can run', async () => {
+    onlyEngine('custom')
+    renderComposer()
+    touchBox()
+    await waitPastLongPress()
+    expect(
+      await screen.findByText(
+        'The custom endpoint needs a base URL and a model. Set them in voice settings.',
+      ),
+    ).toBeTruthy()
+    expect(overlay()).toBeNull()
+    expect(fake.speech.checkMicPermission).not.toHaveBeenCalled()
+  })
+
+  it('offers no long press without the native recorder', async () => {
+    fake.available.value = false
+    renderComposer()
+    expect(message().hasAttribute('data-hold-to-talk')).toBe(false)
+    touchBox()
+    await waitPastLongPress()
+    expect(started()).toBe(0)
   })
 })
 

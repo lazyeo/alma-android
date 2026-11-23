@@ -12,6 +12,7 @@ import {
 } from '../screens/modelOptions'
 import { BottomSheet } from './BottomSheet'
 import { useT } from '../i18n'
+import type { VoiceInput } from '../speech/VoiceInput'
 
 const ICON = { size: 16, strokeWidth: 2 } as const
 
@@ -45,10 +46,11 @@ type ComposerProps = {
   inputBackdrop?: ReactNode
   trailing?: ReactNode
   /**
-   * Voice mode: a switch left of the input and, in voice mode, the
-   * hold-to-talk bar shown in place of the text box.
+   * Voice input: a switch left of the input, in voice mode the hold-to-talk
+   * bar shown in place of the text box, and the text box's own long press.
    */
-  voice?: { toggle: ReactNode; bar: ReactNode | null }
+  voice?: Pick<VoiceInput, 'toggle' | 'bar'> &
+    Partial<Pick<VoiceInput, 'textHold'>>
   textareaRef?: React.RefObject<HTMLTextAreaElement>
   onTextareaKeyDown?(event: KeyboardEvent<HTMLTextAreaElement>): boolean | void
   textareaProps?: React.TextareaHTMLAttributes<HTMLTextAreaElement>
@@ -97,6 +99,8 @@ export function Composer({
       {inputBackdrop}
       <textarea
         {...textareaProps}
+        // The full-screen editor is for typing: no long press to talk there.
+        {...(expanded ? undefined : voice?.textHold)}
         ref={textareaRef}
         rows={1}
         value={value}
