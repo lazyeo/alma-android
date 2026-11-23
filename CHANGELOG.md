@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Nothing yet.
+- Long-press the empty input box to talk: press and hold starts the same hold-to-talk as the voice bar (slide to cancel, edit or lock; release to send or fill in, per Settings → Voice input). A tap still opens the keyboard, and once the box has text or the keyboard is up, a long press selects and pastes as before. The switch next to the box, now a mic, still opens the full-width hold bar (2026-11-24).
 
 ## [0.1.10] - 2026-11-18
 
