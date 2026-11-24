@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createLoadCounter,
   createLoadGate,
+  loadAtTurnEnd,
   type LoadTicket,
 } from './threadLoadGate'
 
@@ -86,6 +87,28 @@ describe('createLoadGate', () => {
     await calls[0].respond()
     await flush()
     expect(calls).toHaveLength(1)
+  })
+})
+
+describe('loadAtTurnEnd', () => {
+  it('loads at turn end and once more after the DB write throttle', () => {
+    vi.useFakeTimers()
+    const load = vi.fn()
+    loadAtTurnEnd(load)
+    expect(load.mock.calls).toEqual([['turn-end']])
+    vi.advanceTimersByTime(1_499)
+    expect(load).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(1)
+    expect(load.mock.calls).toEqual([['turn-end'], ['turn-end-settle']])
+  })
+
+  it('skips the follow-up load once cancelled', () => {
+    vi.useFakeTimers()
+    const load = vi.fn()
+    const cancel = loadAtTurnEnd(load)
+    cancel()
+    vi.advanceTimersByTime(5_000)
+    expect(load).toHaveBeenCalledTimes(1)
   })
 })
 

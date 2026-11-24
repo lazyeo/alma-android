@@ -17,7 +17,6 @@ export type ThreadLoadReason =
   | 'options-failed'
   | 'compacted'
   | 'version-switched'
-  | 'user'
 
 export interface LoadTicket {
   readonly seq: number
@@ -104,6 +103,20 @@ export function createLoadGate<R>({
       trailingReason = undefined
     },
   }
+}
+
+// Desktop writes streamed rows to its DB on a ~1s throttle, so the snapshot
+// read right at turn end can miss the reply's tail; read once more after it.
+export const TURN_END_SETTLE_MS = 1500
+
+/** Loads now and once more after the DB throttle; returns a cancel. */
+export function loadAtTurnEnd(
+  load: (reason: ThreadLoadReason) => void,
+  settleMs = TURN_END_SETTLE_MS,
+) {
+  load('turn-end')
+  const timer = setTimeout(() => load('turn-end-settle'), settleMs)
+  return () => clearTimeout(timer)
 }
 
 export const LOAD_STORM_PER_MINUTE = 30
