@@ -8,7 +8,7 @@ interface FakeSocket extends ThreadsResyncSocket {
   close: ReturnType<typeof vi.fn>
 }
 
-function setup() {
+function setup(silence?: Parameters<typeof createThreadsResync>[0]['silence']) {
   vi.useFakeTimers()
   const sockets: Array<{
     socket: FakeSocket
@@ -46,6 +46,7 @@ function setup() {
     onEvent,
     onOpened,
     onLost,
+    silence,
   })
   resync.start()
   return { open, onEvent, onOpened, onLost, resync, sockets }
@@ -184,5 +185,47 @@ describe('createThreadsResync', () => {
     expect(onOpened).not.toHaveBeenCalled()
     expect(onEvent).not.toHaveBeenCalled()
     expect(onLost).toHaveBeenCalledTimes(1)
+  })
+
+  it('reopens a socket that goes silent during a turn and asks to catch up', async () => {
+    let generating = true
+    const onSilent = vi.fn()
+    const { open, onLost, onOpened, sockets } = setup({
+      ms: 20_000,
+      watching: () => generating,
+      onSilent,
+    })
+    sockets[0].open()
+    await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(15_000)
+    // A frame restarts the silence window.
+    sockets[0].message(snapshot)
+    await vi.advanceTimersByTimeAsync(19_999)
+    expect(onSilent).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(onSilent).toHaveBeenCalledTimes(1)
+    expect(onLost).toHaveBeenCalledWith(sockets[0].socket)
+    expect(sockets[0].socket.close).toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(open).toHaveBeenCalledTimes(2)
+    sockets[1].open()
+    await Promise.resolve()
+    expect(onOpened).toHaveBeenLastCalledWith(sockets[1].socket, true)
+
+    // An idle thread's quiet socket is left alone.
+    generating = false
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect(open).toHaveBeenCalledTimes(2)
+    expect(onSilent).toHaveBeenCalledTimes(1)
+  })
+
+  it('has no silence watchdog unless asked for one', async () => {
+    const { open, sockets } = setup()
+    sockets[0].open()
+    await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(300_000)
+    expect(open).toHaveBeenCalledTimes(1)
   })
 })

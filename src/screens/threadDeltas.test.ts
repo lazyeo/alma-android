@@ -305,6 +305,24 @@ describe('DeltaAccumulator', () => {
     ])
   })
 
+  it('keeps rows added after the snapshot request left on a full replace', () => {
+    const acc = new DeltaAccumulator()
+    const old = assistantRow([{ type: 'text', text: 'Hi' }])
+    const removed = { ...assistantRow([]), id: 'thread-1--msg-0' }
+    const knownAtRequest = new Set([old.id, removed.id])
+    // `message_added` landed while GET /api/threads/:id was in flight.
+    const added = { ...assistantRow([]), id: 'thread-1--msg-2' }
+    const merged = acc.sync([removed, old, added], [old], true, knownAtRequest)
+    expect(merged.map((row) => row.id)).toEqual([old.id, added.id])
+    // Deltas for the kept row still apply after the replace.
+    const streamed = acc.apply(merged, {
+      messageId: added.id,
+      deltas: [{ seq: 1, type: 'part_add', part: { type: 'text', text: 'x' } }],
+    })
+    expect(streamed.needsResync).toBe(false)
+    expect(streamed.rows[1].message.parts).toHaveLength(1)
+  })
+
   it('caps streamed tool output to the desktop tail size', () => {
     const acc = new DeltaAccumulator()
     const rows = [assistantRow([{ type: 'tool-Bash', toolCallId: 'c' }])]

@@ -21,21 +21,35 @@ interface ThreadsResyncOptions<S extends ThreadsResyncSocket> {
    */
   onOpened?(socket: S, reconnected: boolean): void
   onLost?(socket: S): void
+  /**
+   * Opt-in silence watchdog: while `watching()` is true (a turn is running),
+   * a socket that delivers no frame for `silenceMs` is treated as dead and
+   * reopened; `onSilent` lets the caller catch up over HTTP right away.
+   */
+  silence?: {
+    ms: number
+    watching(): boolean
+    onSilent?(): void
+  }
 }
 
 export const THREADS_RETRY_DELAYS_MS = [1_000, 2_000, 5_000, 15_000]
 
+export const THREADS_SILENCE_MS = 20_000
+
 /**
  * Keeps exactly one live `/ws/threads` socket and reopens it with capped
- * backoff after close/error. Unlike Herdr's chat resync there is no silence
- * watchdog: desktop 0.4.423 sends no application keepalive on `/ws/threads`
- * (only a `generating_snapshot` on open), so a quiet socket is not a stale one.
+ * backoff after close/error. Desktop 0.4.423 sends no application keepalive
+ * on `/ws/threads` (only a `generating_snapshot` on open), so an idle quiet
+ * socket is not a stale one; but during a turn the desktop streams deltas,
+ * so silence then means a half-open socket. `silence` opts into that check.
  */
 export function createThreadsResync<S extends ThreadsResyncSocket>({
   open,
   onEvent,
   onOpened,
   onLost,
+  silence,
 }: ThreadsResyncOptions<S>): ThreadsResync {
   let active = false
   let socket: S | undefined
@@ -44,9 +58,32 @@ export function createThreadsResync<S extends ThreadsResyncSocket>({
   let opensSinceStart = 0
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined
 
+  let silenceTimer: ReturnType<typeof setTimeout> | undefined
+
   const clearReconnect = () => {
     if (reconnectTimer !== undefined) clearTimeout(reconnectTimer)
     reconnectTimer = undefined
+  }
+
+  const clearSilence = () => {
+    if (silenceTimer !== undefined) clearTimeout(silenceTimer)
+    silenceTimer = undefined
+  }
+
+  // Re-armed on every frame; an idle thread just re-arms when it fires.
+  const armSilence = (socketGeneration: number) => {
+    if (!silence) return
+    clearSilence()
+    silenceTimer = setTimeout(() => {
+      silenceTimer = undefined
+      if (!active || socketGeneration !== generation || !socket) return
+      if (!silence.watching()) {
+        armSilence(socketGeneration)
+        return
+      }
+      handleFailure(socketGeneration)
+      silence.onSilent?.()
+    }, silence.ms)
   }
 
   const openSocket = () => {
@@ -63,6 +100,7 @@ export function createThreadsResync<S extends ThreadsResyncSocket>({
         // actually delivers resets the backoff, so accept-then-close loops
         // still back off.
         retryAttempt = 0
+        armSilence(currentGeneration)
         onEvent(event)
       },
       () => handleFailure(currentGeneration),
@@ -70,7 +108,9 @@ export function createThreadsResync<S extends ThreadsResyncSocket>({
     socket = next
     next.opened.then(
       () => {
-        if (isCurrent()) onOpened?.(next, reconnected)
+        if (!isCurrent()) return
+        armSilence(currentGeneration)
+        onOpened?.(next, reconnected)
       },
       () => handleFailure(currentGeneration),
     )
@@ -93,6 +133,7 @@ export function createThreadsResync<S extends ThreadsResyncSocket>({
   function handleFailure(failedGeneration: number) {
     if (!active || failedGeneration !== generation || !socket) return
     const lost = socket
+    clearSilence()
     generation += 1
     socket = undefined
     lost.close()
@@ -111,6 +152,7 @@ export function createThreadsResync<S extends ThreadsResyncSocket>({
     stop() {
       active = false
       clearReconnect()
+      clearSilence()
       generation += 1
       const previous = socket
       socket = undefined

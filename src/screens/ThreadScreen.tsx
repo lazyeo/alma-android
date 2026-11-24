@@ -148,7 +148,14 @@ import type {
   ThreadsSocket,
   Workspace,
 } from '../relay'
-import { createThreadsResync } from '../relay/threadsResync'
+import { createThreadsResync, THREADS_SILENCE_MS } from '../relay/threadsResync'
+import {
+  createLoadCounter,
+  createLoadGate,
+  loadAtTurnEnd,
+  type LoadTicket,
+  type ThreadLoadReason,
+} from './threadLoadGate'
 import { threadCache, type CachedThread } from '../relay/threadCache'
 import { DeltaAccumulator } from './threadDeltas'
 import {
@@ -753,6 +760,8 @@ function ThreadView({
       draft.update(composerReferences.content(), attachments)
   }, [draft, text, references, attachments, editingMessageId])
   const [generating, setGenerating] = useState(false)
+  const generatingRef = useRef(false)
+  generatingRef.current = generating
   // The desktop binds a thread's browser by workspace; a thread outside any
   // project has none to show.
   const browserKey = iabWorkspaceKey({ ...threadArtifacts, workspaceId })
@@ -896,83 +905,112 @@ function ThreadView({
       },
     )
 
-  const load = useCallback(async () => {
-    // An idle reading only holds for turns sent before the request left; a
-    // send while it was in flight must keep its Thinking placeholder.
-    const requestedAt = Date.now()
-    try {
-      // GET /api/threads/:id already embeds the full message rows, so one
-      // round trip through the relay is enough for large threads.
-      const thread = await api.getThread(threadId)
-      const rows = Array.isArray(thread.messages)
-        ? thread.messages
-        : await api.getMessages(threadId)
-      const nextMeta: CachedThread = {
-        rows: [],
-        title: thread.title || t('thread.untitled'),
-        workspaceId: thread.workspaceId || '',
-        model: thread.model || '',
-        reasoningEffort: thread.reasoningEffort || 'medium',
-        fastMode: thread.fastMode ?? null,
-        isGeneratingTitle: Boolean(thread.isGeneratingTitle),
-      }
-      threadMetaRef.current = nextMeta
-      setTitle(nextMeta.title)
-      setIsGeneratingTitle(nextMeta.isGeneratingTitle)
-      setWorkspaceId(nextMeta.workspaceId)
-      setThreadArtifacts({
-        enableArtifacts: thread.enableArtifacts,
-        artifactWorkspaceId: thread.artifactWorkspaceId,
-      })
-      setModel(nextMeta.model)
-      setReasoningEffort(nextMeta.reasoningEffort)
-      setFastMode(nextMeta.fastMode)
-      const fetchedRows = accumulatorRef.current.sync(rowsRef.current, rows)
-      const fetched = optimisticThreadReducer(
-        { rows: rowsRef.current, pending: pendingAssistantRef.current },
-        { type: 'sync_rows', rows: fetchedRows },
-      )
-      const synced = thread.isGenerating
-        ? fetched
-        : optimisticThreadReducer(fetched, {
-            type: 'desktop_idle',
-            now: requestedAt,
-          })
-      pendingAssistantRef.current = synced.pending
-      commitRows(synced.rows)
-      setPendingAssistant(synced.pending)
-      setTodos(todosFromRows(synced.rows))
-      setGenerating(Boolean(thread.isGenerating))
-      if (!thread.isGenerating) setIdleConfirmed(true)
-      if (thread.isGenerating) {
-        const next = optimisticThreadReducer(synced, {
-          type: 'generating_open',
-          threadId,
-          startedAt: generationStartedAt(synced.rows, Date.now()),
+  const runLoad = useCallback(
+    async (ticket: LoadTicket) => {
+      // An idle reading only holds for turns sent before the request left; a
+      // send while it was in flight must keep its Thinking placeholder.
+      const requestedAt = Date.now()
+      const knownAtRequest = new Set(rowsRef.current.map((row) => row.id))
+      try {
+        // GET /api/threads/:id already embeds the full message rows, so one
+        // round trip through the relay is enough for large threads.
+        const thread = await api.getThread(threadId)
+        const rows = Array.isArray(thread.messages)
+          ? thread.messages
+          : await api.getMessages(threadId)
+        // A newer snapshot already landed (or the thread changed): this one
+        // is older state and must not overwrite it.
+        if (!ticket.commit()) return
+        const nextMeta: CachedThread = {
+          rows: [],
+          title: thread.title || t('thread.untitled'),
+          workspaceId: thread.workspaceId || '',
+          model: thread.model || '',
+          reasoningEffort: thread.reasoningEffort || 'medium',
+          fastMode: thread.fastMode ?? null,
+          isGeneratingTitle: Boolean(thread.isGeneratingTitle),
+        }
+        threadMetaRef.current = nextMeta
+        setTitle(nextMeta.title)
+        setIsGeneratingTitle(nextMeta.isGeneratingTitle)
+        setWorkspaceId(nextMeta.workspaceId)
+        setThreadArtifacts({
+          enableArtifacts: thread.enableArtifacts,
+          artifactWorkspaceId: thread.artifactWorkspaceId,
         })
-        pendingAssistantRef.current = next.pending
-        setPendingAssistant(next.pending)
-      }
-      setError('')
-      foregroundedAt.current = undefined
-      foregroundReloadPending.current = false
-      window.clearTimeout(foregroundRetryTimer.current)
-    } catch (loadError) {
-      const presented = mapRelayError(loadError, 'thread')
-      if (presented.kind === 'thread-missing') {
-        threadCache.evictThread(pairing.id, threadId)
-        setMissingThread(presented)
+        setModel(nextMeta.model)
+        setReasoningEffort(nextMeta.reasoningEffort)
+        setFastMode(nextMeta.fastMode)
+        const fetchedRows = accumulatorRef.current.sync(
+          rowsRef.current,
+          rows,
+          true,
+          knownAtRequest,
+        )
+        const fetched = optimisticThreadReducer(
+          { rows: rowsRef.current, pending: pendingAssistantRef.current },
+          { type: 'sync_rows', rows: fetchedRows },
+        )
+        const synced = thread.isGenerating
+          ? fetched
+          : optimisticThreadReducer(fetched, {
+              type: 'desktop_idle',
+              now: requestedAt,
+            })
+        pendingAssistantRef.current = synced.pending
+        commitRows(synced.rows)
+        setPendingAssistant(synced.pending)
+        setTodos(todosFromRows(synced.rows))
+        setGenerating(Boolean(thread.isGenerating))
+        if (!thread.isGenerating) setIdleConfirmed(true)
+        if (thread.isGenerating) {
+          const next = optimisticThreadReducer(synced, {
+            type: 'generating_open',
+            threadId,
+            startedAt: generationStartedAt(synced.rows, Date.now()),
+          })
+          pendingAssistantRef.current = next.pending
+          setPendingAssistant(next.pending)
+        }
         setError('')
-      } else if (
-        foregroundLoadOutcome(
-          presented.kind,
-          Date.now(),
-          foregroundedAt.current,
-        ) === 'show'
-      )
-        setError(presented.title)
-    }
-  }, [api, pairing.id, threadId, commitRows])
+        foregroundedAt.current = undefined
+        foregroundReloadPending.current = false
+        window.clearTimeout(foregroundRetryTimer.current)
+      } catch (loadError) {
+        if (!ticket.isCurrent()) return
+        const presented = mapRelayError(loadError, 'thread')
+        if (presented.kind === 'thread-missing') {
+          threadCache.evictThread(pairing.id, threadId)
+          setMissingThread(presented)
+          setError('')
+        } else if (
+          foregroundLoadOutcome(
+            presented.kind,
+            Date.now(),
+            foregroundedAt.current,
+          ) === 'show'
+        )
+          setError(presented.title)
+      }
+    },
+    [api, pairing.id, threadId, commitRows],
+  )
+  const runLoadRef = useRef(runLoad)
+  runLoadRef.current = runLoad
+  const loadCounterRef =
+    useRef<ReturnType<typeof createLoadCounter<ThreadLoadReason>>>()
+  // One snapshot request at a time: bursts of triggers (deltas, socket
+  // reopen, foreground, turn end) collapse into one trailing reload.
+  const [loadGate] = useState(() =>
+    createLoadGate<ThreadLoadReason>({
+      run: (ticket) => runLoadRef.current(ticket),
+      onRequest: (reason) => loadCounterRef.current?.count(reason),
+    }),
+  )
+  const load = useCallback(
+    (reason: ThreadLoadReason) => loadGate.request(reason),
+    [loadGate],
+  )
 
   const loadOpenRecipe = useCallback(async () => {
     const turn = recipeTurn.current
@@ -1019,7 +1057,7 @@ function ThreadView({
     resyncTimer.current = setTimeout(() => {
       resyncTimer.current = undefined
       lastResyncAt.current = Date.now()
-      void load()
+      void load('delta-resync')
     }, wait)
   }, [load])
 
@@ -1101,12 +1139,21 @@ function ThreadView({
     recipeTurn.current = 0
     setRecipeState(initialRecipeSuggestionState)
     setExtractedRecipeCount(0)
-    void load()
+    // Responses still in flight for the previous thread are dropped.
+    loadGate.invalidate()
+    const loadCounter = createLoadCounter<ThreadLoadReason>({
+      label: threadId,
+    })
+    loadCounterRef.current = loadCounter
+    void load('open')
     void loadLiveSubagents()
     void loadCrew()
     void loadDiffStats()
     void loadOpenRecipe()
     return () => {
+      loadCounter.stop()
+      if (loadCounterRef.current === loadCounter)
+        loadCounterRef.current = undefined
       if (frameRef.current !== undefined) {
         cancelAnimationFrame(frameRef.current)
         frameRef.current = undefined
@@ -1120,6 +1167,7 @@ function ThreadView({
     pairing.id,
     threadId,
     load,
+    loadGate,
     loadLiveSubagents,
     loadCrew,
     loadDiffStats,
@@ -1128,9 +1176,10 @@ function ThreadView({
 
   useEffect(() => {
     if (!link.online) return
+    let cancelSettleLoad: (() => void) | undefined
     // Deltas were missed while the tunnel was down; resync once on return.
     if (link.epoch > 1) {
-      void load()
+      void load('link-restored')
       void loadLiveSubagents()
       void loadContextUsageRef.current()
     }
@@ -1164,7 +1213,7 @@ function ThreadView({
         }
       }
       if (shouldReloadThread(threadId, event)) {
-        void load()
+        void load('thread-updated')
         return
       }
       if (subagentEventContext(threadId, event)) {
@@ -1241,7 +1290,8 @@ function ThreadView({
         } else {
           applyOptimistic({ type: 'generation_finished' })
         }
-        void load()
+        cancelSettleLoad?.()
+        cancelSettleLoad = loadAtTurnEnd((reason) => void load(reason))
         void loadContextUsageRef.current()
         void loadCrew()
       }
@@ -1294,11 +1344,19 @@ function ThreadView({
         if (!reconnected) return
         // `/ws/threads` does not replay missed events. A pending foreground
         // reload runs from the socketIsReady flip, so don't load twice.
-        if (!foregroundReloadPending.current) void load()
+        if (!foregroundReloadPending.current) void load('socket-reopened')
         void loadLiveSubagents()
         void loadContextUsageRef.current()
       },
       onLost: release,
+      // A half-open socket mid-turn would leave the reply frozen until the
+      // user re-enters; reopen it and read the thread over HTTP meanwhile.
+      silence: {
+        ms: THREADS_SILENCE_MS,
+        watching: () =>
+          generatingRef.current || Boolean(pendingAssistantRef.current),
+        onSilent: () => void load('socket-silent'),
+      },
     })
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') resync.visible()
@@ -1309,6 +1367,7 @@ function ThreadView({
       document.removeEventListener('visibilitychange', onVisibilityChange)
       clearTimeout(resyncTimer.current)
       resyncTimer.current = undefined
+      cancelSettleLoad?.()
       resync.stop()
       for (const socket of [...owned]) release(socket)
     }
@@ -1568,14 +1627,14 @@ function ThreadView({
         shouldReloadAfterForeground(linkOnlineRef.current, socketReady.current)
       ) {
         foregroundReloadPending.current = false
-        void load()
+        void load('foreground')
         return
       }
       foregroundReloadPending.current = true
       foregroundRetryTimer.current = window.setTimeout(() => {
         if (!foregroundReloadPending.current) return
         foregroundReloadPending.current = false
-        void load()
+        void load('foreground-retry')
       }, FOREGROUND_RECONNECT_GRACE_MS)
     }
     document.addEventListener('visibilitychange', observeForeground)
@@ -1595,7 +1654,7 @@ function ThreadView({
       return
     foregroundReloadPending.current = false
     window.clearTimeout(foregroundRetryTimer.current)
-    void load()
+    void load('foreground-ready')
   }, [link.online, socketIsReady, load])
 
   useEffect(() => {
@@ -1637,7 +1696,7 @@ function ThreadView({
           ? optionsError.message
           : t('thread.errors.saveModel'),
       )
-      void load()
+      void load('options-failed')
     }
   }
 
@@ -1652,7 +1711,7 @@ function ThreadView({
           ? optionsError.message
           : t('thread.errors.saveEffort'),
       )
-      void load()
+      void load('options-failed')
     }
   }
 
@@ -1667,7 +1726,7 @@ function ThreadView({
           ? optionsError.message
           : t('thread.errors.saveFastMode'),
       )
-      void load()
+      void load('options-failed')
     }
   }
 
@@ -1961,7 +2020,7 @@ function ThreadView({
   async function compact() {
     const result = await api.compactThread(threadId, contextModel)
     void loadContextUsage()
-    if (result.success) void load()
+    if (result.success) void load('compacted')
     return result
   }
 
@@ -2436,7 +2495,7 @@ function ThreadView({
     async (row: MessageRow, direction: 'prev' | 'next') => {
       try {
         await api.switchMessageVersion(row.id, direction)
-        await load()
+        await load('version-switched')
       } catch (switchError) {
         setError(
           switchError instanceof Error
