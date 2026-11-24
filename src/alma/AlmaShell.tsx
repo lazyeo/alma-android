@@ -3,9 +3,11 @@ import { Fragment, useMemo, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLayoutMode } from '../layout/useLayoutMode'
 import { useT } from '../i18n'
+import { EndResourceCards } from '../messages/EndResourceCards'
 import { speechAvailable } from '../speech/nativeSpeech'
 import { rootRows, type MessageRow } from '../relay'
 import { threadCache } from '../relay/threadCache'
+import { deriveEndResources, type EndResource } from '../screens/endResources'
 import { AlmaFace } from './AlmaFace'
 import { AlmaHeader } from './AlmaHeader'
 import { presenceFace, useAlmaPresence } from './AlmaPresence'
@@ -36,6 +38,12 @@ export interface ShellRow {
   side: PersonaSide
   first: boolean
   blocks: ShellBlock[]
+  /**
+   * Her delivered-file cards, drawn like the thread's so the list keeps its
+   * height at the hand-off. Without a workspace path, so a relative
+   * Write/Edit path (rare) only gets its card once the thread is in.
+   */
+  resources?: EndResource[]
   /** Entrance order: the newest message rises first. */
   stagger: number
 }
@@ -162,12 +170,21 @@ export function shellRows(rows: readonly MessageRow[], limit = SHELL_ROWS) {
       .join('\n\n')
       .slice(0, chars)
       .trim()
-    if (!text) continue
+    const side = layout[index].side
+    const resources =
+      side === 'alma'
+        ? deriveEndResources({
+            parts: row.message.parts,
+            metadata: row.metadata,
+          })
+        : []
+    if (!text && !resources.length) continue
     result.push({
       id: row.id,
-      side: layout[index].side,
+      side,
       first: layout[index].first,
-      blocks: shellBlocks(text),
+      blocks: text ? shellBlocks(text) : [],
+      ...(resources.length ? { resources } : {}),
       stagger: 0,
     })
   }
@@ -176,6 +193,11 @@ export function shellRows(rows: readonly MessageRow[], limit = SHELL_ROWS) {
     row.stagger = Math.min(last - index, SHELL_STAGGER_MAX)
   return result
 }
+
+// The shell is inert (AlmaScreen); these only make it draw the same header
+// menu and cards as the thread.
+const inertOpen = () => {}
+const inertFiles = { count: 0, onOpen: inertOpen }
 
 /**
  * What /alma renders under the expand: Alma's real header, her latest
@@ -217,11 +239,12 @@ export function AlmaShell({
       <AlmaHeader
         generating={false}
         onBack={layoutMode === 'single' ? () => navigate(backPath) : undefined}
+        files={threadId ? inertFiles : undefined}
       />
       <div className="message-area">
         <div className="message-scroll alma-shell-scroll">
           {notice}
-          {rows.map((row) => (
+          {rows.map((row, index) => (
             <article
               key={row.id}
               className={`persona-message ${row.side}${row.first ? ' first' : ''}`}
@@ -233,13 +256,24 @@ export function AlmaShell({
                 </span>
               ) : null}
               <div className="persona-stack">
-                <div className="persona-bubble">
-                  <div className="markdown-content">
-                    {row.blocks.map((block, index) => (
-                      <ShellBlockView key={index} block={block} />
-                    ))}
+                {row.blocks.length ? (
+                  <div className="persona-bubble">
+                    <div className="markdown-content">
+                      {row.blocks.map((block, index) => (
+                        <ShellBlockView key={index} block={block} />
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : null}
+                {/* The thread holds a reply's cards until it finishes. */}
+                {row.resources &&
+                !(presence?.generating && index === rows.length - 1) ? (
+                  <EndResourceCards
+                    resources={row.resources}
+                    onOpenFile={inertOpen}
+                    onOpenWebsite={inertOpen}
+                  />
+                ) : null}
               </div>
             </article>
           ))}
