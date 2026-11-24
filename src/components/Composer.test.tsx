@@ -75,6 +75,43 @@ describe('the collapsible composer', () => {
     expect(capsule.contains(send())).toBe(false)
   })
 
+  it('points its arrow the way the row opens: down, then up to close', () => {
+    renderComposer()
+    // One down chevron; CSS turns it up while [aria-expanded='true'].
+    expect(more().querySelector('.lucide-chevron-down')).not.toBeNull()
+    expect(more().querySelector('.lucide-chevron-up')).toBeNull()
+    fireEvent.click(more())
+    const less = screen.getByRole('button', { name: 'Fewer options' })
+    expect(less.getAttribute('aria-expanded')).toBe('true')
+    expect(less.querySelector('.lucide-chevron-down')).not.toBeNull()
+  })
+
+  it('grows the composer itself below the text, never over the messages', () => {
+    renderComposer()
+    const composer = document.querySelector('.composer')!
+    const fold = document.querySelector('.composer-fold')!
+    // In the composer's own flow, after the capsule: the composer grows.
+    expect(fold.parentElement).toBe(composer)
+    expect(
+      document.querySelector('.composer-entry')!.compareDocumentPosition(fold) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(fold.getAttribute('data-open')).toBe('false')
+    expect(fold.getAttribute('aria-hidden')).toBe('true')
+    expect(fold.hasAttribute('inert')).toBe(true)
+    fireEvent.click(more())
+    expect(fold.getAttribute('data-open')).toBe('true')
+    expect(fold.hasAttribute('aria-hidden')).toBe(false)
+    expect(fold.hasAttribute('inert')).toBe(false)
+  })
+
+  it('keeps the folded row mounted, so the attachment control keeps state', () => {
+    renderComposer()
+    const row = document.querySelector('.composer-controls')
+    fireEvent.click(more())
+    expect(document.querySelector('.composer-controls')).toBe(row)
+  })
+
   it('opens by itself once the box is focused for typing', () => {
     renderComposer()
     fireEvent.focus(box())

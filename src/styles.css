@@ -11432,9 +11432,37 @@ html[data-alma-motion] .alma-shell .persona-message {
 .composer[data-open='false'] {
   padding: 0;
 }
-/* Folded: the row's own display would otherwise beat [hidden]. */
-.composer-controls[hidden] {
-  display: none;
+/* The thread composer's options open below the text by growing in height,
+   so the composer rises as one block and the list above gives way; nothing
+   is laid over the messages. Closed, the fold also takes back the gap above
+   it. Visibility (discrete) stays visible until a close ends. */
+.composer[data-open] {
+  transition: padding var(--dur-panel) var(--ease-out);
+}
+.composer-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: calc(-1 * var(--composer-toolbar-gap));
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--dur-panel) var(--ease-out),
+    margin-top var(--dur-panel) var(--ease-out),
+    visibility var(--dur-panel) var(--ease-out);
+}
+.composer-fold[data-open='true'] {
+  grid-template-rows: 1fr;
+  margin-top: 0;
+  visibility: visible;
+}
+.composer-fold > .composer-controls {
+  min-height: 0;
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer[data-open],
+  .composer-fold {
+    transition-duration: var(--dur-reduced);
+  }
 }
 .composer[data-open='false'] > .composer-entry {
   align-items: center;

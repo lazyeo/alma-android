@@ -1,12 +1,4 @@
-import {
-  ArrowUp,
-  Brain,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  ListPlus,
-  Zap,
-} from 'lucide-react'
+import { ArrowUp, Brain, Check, ChevronDown, ListPlus, Zap } from 'lucide-react'
 import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { AlmaModel, ReasoningEffort, Workspace } from '../relay'
 import { haptic } from '../haptics'
@@ -107,7 +99,6 @@ export function Composer({
   // typing starts, giving back the usual layout.
   const [open, setOpen] = useState(false)
   const folds = collapsible && !expanded
-  const showOptions = !folds || open
   // Folded, Send rides in the capsule; open, it is back at the row's end.
   const sendInCapsule = folds && !open
   const send = () => {
@@ -127,9 +118,8 @@ export function Composer({
       </span>
     </button>
   )
-  const options = (
-    // Hidden, not unmounted, so the attachment control keeps its state.
-    <div className="composer-controls" hidden={!showOptions}>
+  const controls = (
+    <div className="composer-controls">
       {attachmentControl}
       <div className="composer-options">
         {onProjectChange ? (
@@ -186,6 +176,23 @@ export function Composer({
       )}
     </div>
   )
+  // Folding, the row opens and closes in height below the text, so the
+  // whole composer grows and the message list above gives way (it keeps
+  // the latest message in view; see useLatestInView). Closed it is inert
+  // and hidden from assistive tech, but mounted, so the attachment control
+  // keeps its state.
+  const options = folds ? (
+    <div
+      className="composer-fold"
+      data-open={open}
+      aria-hidden={open ? undefined : true}
+      {...(open ? {} : ({ inert: '' } as Record<string, string>))}
+    >
+      {controls}
+    </div>
+  ) : (
+    controls
+  )
   return (
     <>
       <div
@@ -213,7 +220,8 @@ export function Composer({
                 setOpen(!open)
               }}
             >
-              <ChevronUp {...ICON} />
+              {/* Points the way the row opens: down, then up to close. */}
+              <ChevronDown {...ICON} />
             </button>
           ) : null}
           <div className="composer-input">
