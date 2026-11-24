@@ -121,6 +121,16 @@ function titlesFromThreads(threads: Thread[]) {
   )
 }
 
+type TitleLookup =
+  { title: string } | { title: null; failures: number; retryAt: number }
+
+export const TITLE_RETRY_BASE_MS = 30_000
+export const TITLE_RETRY_MAX_MS = 10 * 60_000
+
+/** A failed title lookup waits 30s, 60s, 120s… (capped) before retrying. */
+export const titleRetryDelay = (failures: number) =>
+  Math.min(TITLE_RETRY_BASE_MS * 2 ** (failures - 1), TITLE_RETRY_MAX_MS)
+
 const errorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback
 
@@ -153,6 +163,9 @@ function DesktopHandoffSource({
   const initialized = useRef(false)
   const knownRequestIds = useRef(new Set<string>())
   const titles = useRef<Record<string, string>>({})
+  // Titles looked up one by one for threads the list lacks (sub-agent or
+  // archived threads). Without this every 5s poll refetched each full thread.
+  const titleLookups = useRef(new Map<string, TitleLookup>())
   const desktopName = useRef(desktop.name)
   desktopName.current = desktop.name
   const supported = useRef({ approvals: true, questions: true })
@@ -206,21 +219,42 @@ function DesktopHandoffSource({
       threadResult.status === 'fulfilled'
         ? titlesFromThreads(threadResult.value)
         : { ...titles.current }
-    const missingIds = [
-      ...new Set(
-        [...nextApprovals, ...nextQuestions]
-          .map((request) => request.threadId)
-          .filter(
-            (threadId): threadId is string =>
-              Boolean(threadId) && !nextTitles[threadId!],
-          ),
-      ),
-    ]
+    const requestedIds = new Set(
+      [...nextApprovals, ...nextQuestions]
+        .map((request) => request.threadId)
+        .filter((threadId): threadId is string => Boolean(threadId)),
+    )
+    const lookups = titleLookups.current
+    // Forget threads no request points at, so a later request looks again.
+    for (const id of lookups.keys())
+      if (!requestedIds.has(id)) lookups.delete(id)
+    const now = Date.now()
+    const missingIds = [...requestedIds].filter((id) => {
+      if (nextTitles[id]) return false
+      const lookup = lookups.get(id)
+      return !lookup || (lookup.title === null && now >= lookup.retryAt)
+    })
     const missing = await Promise.all(
       missingIds.map((id) => api.getThread(id).catch(() => null)),
     )
-    for (const thread of missing) {
-      if (thread) nextTitles[thread.id] = thread.title || t('handoff.untitled')
+    missingIds.forEach((id, index) => {
+      const thread = missing[index]
+      if (thread) {
+        lookups.set(id, { title: thread.title || t('handoff.untitled') })
+        return
+      }
+      const previous = lookups.get(id)
+      const failures =
+        (previous && previous.title === null ? previous.failures : 0) + 1
+      lookups.set(id, {
+        title: null,
+        failures,
+        retryAt: now + titleRetryDelay(failures),
+      })
+    })
+    for (const id of requestedIds) {
+      const title = lookups.get(id)?.title
+      if (title && !nextTitles[id]) nextTitles[id] = title
     }
     titles.current = nextTitles
 
