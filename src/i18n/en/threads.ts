@@ -85,6 +85,13 @@ export const threads = {
     goToMessage: 'Go to message',
     markDone: 'Mark done',
   },
+  hidden: {
+    filter: 'Thread filters',
+    show: 'Show hidden threads',
+    run: 'Work thread',
+    cron: 'Scheduled',
+    external: 'External chat',
+  },
   delete: {
     title: 'Delete thread?',
     confirm: 'Delete thread',

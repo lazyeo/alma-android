@@ -32,6 +32,7 @@ import type {
 } from '../relay'
 import { MarkdownContent } from './MarkdownContent'
 import { CompactProjectThread } from './ThreadListRow'
+import type { HiddenThreadKind } from '../alma/personalThread'
 import { selectProjectRecentThreads } from './projectRecent'
 import {
   RefCardSheet,
@@ -59,6 +60,8 @@ interface ProjectCardSectionProps {
   onNavigate(path: string): void
   /** This project's threads, already on the client from the thread list. */
   threads?: readonly Thread[]
+  /** Tags a row the list only shows while "Show hidden threads" is on. */
+  hiddenKindOf?(thread: Thread): HiddenThreadKind | undefined
   selectedThreadId?: string
   threadNeedsResponse?(thread: Thread): boolean
   onOpenThread?(thread: Thread): void
@@ -123,6 +126,7 @@ export function ProjectCardSection({
   onNewThread = () => undefined,
   onNavigate,
   threads = [],
+  hiddenKindOf,
   selectedThreadId,
   threadNeedsResponse,
   onOpenThread,
@@ -507,6 +511,7 @@ export function ProjectCardSection({
                     thread={thread}
                     selected={thread.id === selectedThreadId}
                     needsResponse={threadNeedsResponse?.(thread) ?? false}
+                    hiddenKind={hiddenKindOf?.(thread)}
                     onOpen={() => {
                       setCardOpen(false)
                       onOpenThread(thread)

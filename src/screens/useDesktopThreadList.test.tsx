@@ -6,6 +6,7 @@ import { AlmaPresenceContext, type AlmaPresence } from '../alma/AlmaPresence'
 import { personalThreadKey } from '../alma/personalSetup'
 import { threadCache, type AlmaSettings, type Thread } from '../relay'
 import type { PersonalAgentState } from './personalAgent'
+import { SHOW_HIDDEN_THREADS_KEY } from './showHiddenThreads'
 import { useDesktopThreadList } from './useDesktopThreadList'
 
 const rows = [
@@ -22,7 +23,9 @@ const runThread = (id: string) =>
     },
   }) as Thread
 const api = {
-  listThreads: vi.fn(async (): Promise<Thread[]> => rows),
+  listThreads: vi.fn(
+    async (_options?: { showExternal?: boolean }): Promise<Thread[]> => rows,
+  ),
   listWorkspaces: vi.fn(async () => []),
   getSettings: vi.fn(async () => ({})),
 }
@@ -231,5 +234,79 @@ describe('useDesktopThreadList and slow list fetches', () => {
     )
     await act(async () => slow.resolve(rows))
     expect(listedIds(result.current.threads)).toEqual(['alma'])
+  })
+})
+
+describe('useDesktopThreadList with "Show hidden threads"', () => {
+  const telegram = {
+    id: 'tg1',
+    title: 'Telegram · Sam',
+    updatedAt: '2026-11-07T00:00:00Z',
+  } as Thread
+  // The desktop leaves channel chats out unless asked with showExternal.
+  const desktop = (options?: { showExternal?: boolean }) =>
+    Promise.resolve(
+      options?.showExternal
+        ? [telegram, runThread('run1'), ...rows]
+        : [runThread('run1'), ...rows],
+    )
+
+  it('lists her run threads and external chats, each tagged', async () => {
+    localStorage.setItem(SHOW_HIDDEN_THREADS_KEY, '1')
+    api.listThreads.mockImplementation(desktop)
+    const { result } = listWith(ready('alma'))
+    await waitFor(() =>
+      expect(listedIds(result.current.threads)).toEqual(['tg1', 'run1', 't1']),
+    )
+    expect(api.listThreads).toHaveBeenCalledWith({ showExternal: true })
+    const kinds = result.current.threads.map(result.current.hiddenKindOf)
+    expect(kinds).toEqual(['external', 'run', undefined])
+  })
+
+  it('keeps external chats out of the cache a cold start paints from', async () => {
+    localStorage.setItem(SHOW_HIDDEN_THREADS_KEY, '1')
+    api.listThreads.mockImplementation(desktop)
+    const { result } = listWith(ready('alma'))
+    await waitFor(() =>
+      expect(listedIds(result.current.threads)).toContain('tg1'),
+    )
+    expect(listedIds(threadCache.getThreadList('d1')!.threads)).not.toContain(
+      'tg1',
+    )
+  })
+
+  it('turns on in place: fetches the external chats', async () => {
+    api.listThreads.mockClear()
+    api.listThreads.mockImplementation(desktop)
+    const { result } = listWith(ready('alma'))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(listedIds(result.current.threads)).toEqual(['t1'])
+    expect(api.listThreads).not.toHaveBeenCalledWith({ showExternal: true })
+    act(() => result.current.setShowHidden(true))
+    await waitFor(() =>
+      expect(listedIds(result.current.threads)).toEqual(['tg1', 'run1', 't1']),
+    )
+    expect(localStorage.getItem(SHOW_HIDDEN_THREADS_KEY)).toBe('1')
+  })
+
+  it('turns off without painting a hidden row again', async () => {
+    localStorage.setItem(SHOW_HIDDEN_THREADS_KEY, '1')
+    api.listThreads.mockImplementation(desktop)
+    const renders: string[][] = []
+    const { result } = listWith(ready('alma'), renders)
+    await waitFor(() =>
+      expect(listedIds(result.current.threads)).toContain('tg1'),
+    )
+    renders.length = 0
+    act(() => result.current.setShowHidden(false))
+    await waitFor(() =>
+      expect(listedIds(result.current.searchableThreads)).toEqual([
+        'run1',
+        't1',
+      ]),
+    )
+    expect(renders.flat()).not.toContain('tg1')
+    expect(renders.flat()).not.toContain('run1')
+    expect(result.current.hiddenKindOf(telegram)).toBeUndefined()
   })
 })

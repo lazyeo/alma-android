@@ -6,6 +6,7 @@ import { selectProjectRecentThreads } from '../screens/projectRecent'
 import { filterProjects, filterThreadList } from '../screens/threadListModel'
 import type { SearchHit } from '../screens/threadSearch'
 import {
+  backgroundThreadKind,
   excludePersonalRunThreads,
   excludePersonalThread,
   isCronThread,
@@ -159,6 +160,19 @@ describe('excludePersonalRunThreads', () => {
 
   it('returns the same list when there are none', () => {
     expect(excludePersonalRunThreads(threads)).toBe(threads)
+  })
+})
+
+describe('backgroundThreadKind', () => {
+  it('names the kind each hidden row is tagged with', () => {
+    expect(
+      backgroundThreadKind({
+        metadata: { personalRun: { runId: 'r', kind: 'inbound' } },
+      }),
+    ).toBe('run')
+    expect(backgroundThreadKind({ metadata: { isCron: true } })).toBe('cron')
+    expect(backgroundThreadKind({ title: '⏰ Cron: digest' })).toBe('cron')
+    expect(backgroundThreadKind(threads[1])).toBeUndefined()
   })
 })
 

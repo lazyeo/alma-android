@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Gem,
   Library,
+  ListFilter,
   ListTodo,
   LoaderCircle,
   Pencil,
@@ -53,6 +54,7 @@ import { presenceClass, usePresence } from '../components/usePresence'
 import { autoTodo, findAutoTodoMessage, isTodoThread } from './threadGtd'
 import {
   CompactProjectThread,
+  HiddenThreadTag,
   ThreadRow,
   ThreadRowContent,
   relative,
@@ -94,6 +96,9 @@ export function ThreadsScreen({
   const {
     threads,
     searchableThreads,
+    showHidden,
+    setShowHidden,
+    hiddenKindOf,
     setThreads,
     workspaces,
     settings,
@@ -105,7 +110,8 @@ export function ThreadsScreen({
   const [query, setQuery] = useState(''),
     [searchOpen, setSearchOpen] = useState(false),
     [createOpen, setCreateOpen] = useState(false),
-    [libraryOpen, setLibraryOpen] = useState(false)
+    [libraryOpen, setLibraryOpen] = useState(false),
+    [filterOpen, setFilterOpen] = useState(false)
   const errorPresence = usePresence(Boolean(error))
   const listRef = useRef<HTMLDivElement>(null)
   useListFlip(listRef)
@@ -455,6 +461,31 @@ export function ThreadsScreen({
         selected={tab}
         onSelect={setTab}
         label={t('threads.views')}
+        trailing={
+          // Beside the tabs, not in the header: Library is hidden in the
+          // split layout, and this has to work in both.
+          <AnchoredMenu
+            open={filterOpen}
+            onOpenChange={setFilterOpen}
+            label={t('threads.hidden.filter')}
+            trigger={
+              <button
+                className={`hidden-threads-entry${showHidden ? ' active' : ''}`}
+                aria-label={t('threads.hidden.filter')}
+              >
+                <ListFilter size={16} />
+              </button>
+            }
+            items={[
+              {
+                key: 'show-hidden',
+                label: t('threads.hidden.show'),
+                checked: showHidden,
+                onSelect: () => setShowHidden(!showHidden),
+              },
+            ]}
+          />
+        }
       />
       <div className="page-body threads-page-body" ref={listBodyRef}>
         {pull.distance || pull.refreshing ? (
@@ -540,6 +571,7 @@ export function ThreadsScreen({
                             onNewThread={() => void create(project.id)}
                             onNavigate={(path) => navigate(path)}
                             threads={projectThreads}
+                            hiddenKindOf={hiddenKindOf}
                             selectedThreadId={selectedThreadId}
                             threadNeedsResponse={threadNeedsResponse}
                             onOpenThread={openThread}
@@ -565,6 +597,7 @@ export function ThreadsScreen({
                             thread={thread}
                             selected={thread.id === selectedThreadId}
                             needsResponse={threadNeedsResponse(thread)}
+                            hiddenKind={hiddenKindOf(thread)}
                             onOpen={() => openThread(thread)}
                             onActions={({ x, y }) =>
                               setActionMenu({ thread, x, y })
@@ -683,6 +716,7 @@ export function ThreadsScreen({
           ) : visible.length ? (
             visible.map((thread) => {
               const selected = thread.id === selectedThreadId
+              const hiddenKind = hiddenKindOf(thread)
               return (
                 <ThreadRow
                   className={`thread-row${selected ? ' selected' : ''}`}
@@ -703,6 +737,9 @@ export function ThreadsScreen({
                       thread,
                       organize.pendingDoneIds.has(thread.id),
                     )}
+                    badges={
+                      hiddenKind ? <HiddenThreadTag kind={hiddenKind} /> : null
+                    }
                   />
                 </ThreadRow>
               )

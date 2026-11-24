@@ -88,6 +88,13 @@ export const threads: CatalogShape<typeof source> = {
     goToMessage: '跳转到该消息',
     markDone: '标记完成',
   },
+  hidden: {
+    filter: '对话筛选',
+    show: '显示隐藏线程',
+    run: '工作线程',
+    cron: '定时任务',
+    external: '外部对话',
+  },
   delete: {
     title: '删除对话？',
     confirm: '删除对话',

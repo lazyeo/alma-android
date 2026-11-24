@@ -726,8 +726,14 @@ export class AlmaApi {
       `/api/workspaces/${encodeURIComponent(workspaceId)}/preview/html-files`,
     )
   }
-  listThreads() {
-    return this.request<Thread[]>('/api/threads')
+  /**
+   * `showExternal` also returns channel threads (Telegram, Discord, …),
+   * which the desktop leaves out of the list by default.
+   */
+  listThreads(options: { showExternal?: boolean } = {}) {
+    return this.request<Thread[]>(
+      options.showExternal ? '/api/threads?showExternal=true' : '/api/threads',
+    )
   }
   getThread(id: string) {
     return this.request<Thread>(`/api/threads/${encodeURIComponent(id)}`)

@@ -31,6 +31,7 @@ import { workspaceName } from './workspaceOptions'
 import { currentLocale } from '../i18n/runtime'
 import { haptic } from '../haptics'
 import { useLanguage, useT } from '../i18n'
+import type { HiddenThreadKind } from '../alma/personalThread'
 
 export const relative = (value: unknown) => {
   const time = typeof value === 'number' ? value : Date.parse(String(value))
@@ -212,6 +213,14 @@ export function useThreadRowIndicators(desktopId: string) {
   return { generating, pendingThreadIds, indicatorsFor }
 }
 
+/** Marks a row the lists only show while "Show hidden threads" is on. */
+export function HiddenThreadTag({ kind }: { kind: HiddenThreadKind }) {
+  const t = useT()
+  return (
+    <span className="thread-hidden-tag">{t(`threads.hidden.${kind}`)}</span>
+  )
+}
+
 /** Two-line row body: title with one status slot, then project and badges. */
 export function ThreadRowContent({
   thread,
@@ -355,12 +364,14 @@ export function CompactProjectThread({
   thread,
   selected,
   needsResponse,
+  hiddenKind,
   onOpen,
   onActions,
 }: {
   thread: Thread
   selected: boolean
   needsResponse: boolean
+  hiddenKind?: HiddenThreadKind
   onOpen(): void
   /** Row actions (long press, context menu, ContextMenu / Shift+F10). */
   onActions?(point: { x: number; y: number }): void
@@ -392,6 +403,7 @@ export function CompactProjectThread({
     >
       <span>{thread.title || t('common.untitledThread')}</span>
       <span className="project-thread-meta">
+        {hiddenKind ? <HiddenThreadTag kind={hiddenKind} /> : null}
         <time>{relative(thread.updatedAt ?? thread.createdAt)}</time>
         {needsResponse ? (
           <span

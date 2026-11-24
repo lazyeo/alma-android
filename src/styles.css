@@ -6895,6 +6895,28 @@ button:focus-visible,
   justify-content: flex-end;
   gap: 7px;
 }
+/* Rows the lists show only while "Show hidden threads" is on. */
+.thread-hidden-tag {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-family: var(--ui-font);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-normal);
+  white-space: nowrap;
+}
+.thread-tabs .hidden-threads-entry {
+  margin-left: auto;
+  color: var(--muted-foreground);
+}
+.thread-tabs .hidden-threads-entry.active {
+  color: var(--foreground);
+}
 .project-thread-row time {
   color: var(--muted-foreground);
   font-size: var(--text-xs);

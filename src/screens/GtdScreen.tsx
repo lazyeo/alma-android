@@ -44,6 +44,7 @@ import {
 } from './gtdSwipe'
 import { autoTodo, type ThreadGtdStatus } from './threadGtd'
 import {
+  HiddenThreadTag,
   ThreadRow,
   ThreadRowContent,
   useThreadRowIndicators,
@@ -74,8 +75,15 @@ export function GtdScreen({
   const { api, pairing } = useConnection()
   const navigate = useNavigate()
   const location = useLocation()
-  const { threads, setThreads, workspaces, loading, error, setError } =
-    useDesktopThreadList()
+  const {
+    threads,
+    setThreads,
+    hiddenKindOf,
+    workspaces,
+    loading,
+    error,
+    setError,
+  } = useDesktopThreadList()
   const errorPresence = usePresence(Boolean(error))
   const listRef = useRef<HTMLDivElement>(null)
   useListFlip(listRef)
@@ -112,6 +120,7 @@ export function GtdScreen({
   }
   const row = (thread: Thread, swipeable: boolean) => {
     const selected = thread.id === selectedThreadId
+    const hiddenKind = hiddenKindOf(thread)
     const content = (style?: CSSProperties) => (
       <ThreadRow
         className={`thread-row${selected ? ' selected' : ''}`}
@@ -129,6 +138,7 @@ export function GtdScreen({
             organize.pendingDoneIds.has(thread.id),
           )}
           detail={autoTodo(thread)?.what}
+          badges={hiddenKind ? <HiddenThreadTag kind={hiddenKind} /> : null}
         />
       </ThreadRow>
     )

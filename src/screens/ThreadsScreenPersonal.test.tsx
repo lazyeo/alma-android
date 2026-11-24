@@ -6,7 +6,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Thread, Workspace } from '../relay'
@@ -88,18 +88,30 @@ vi.mock('../desktops/DesktopContext', () => ({
 // The hook's own filtering is covered in useDesktopThreadList.test.tsx; this
 // mirrors its split so the screen renders the same lists it would get.
 vi.mock('./useDesktopThreadList', async () => {
-  const { excludePersonalRunThreads, excludePersonalThread } =
-    await vi.importActual<typeof import('../alma/personalThread')>(
-      '../alma/personalThread',
-    )
+  const {
+    backgroundThreadKind,
+    excludePersonalRunThreads,
+    excludePersonalThread,
+  } = await vi.importActual<typeof import('../alma/personalThread')>(
+    '../alma/personalThread',
+  )
+  const { useShowHiddenThreads } = await vi.importActual<
+    typeof import('./showHiddenThreads')
+  >('./showHiddenThreads')
   return {
     useDesktopThreadList: () => {
       const [rows, setThreads] = useState(initialThreads)
       const searchableThreads = excludePersonalThread(rows, 'alma')
       const [error, setError] = useState<string>()
+      const [showHidden, setShowHidden] = useShowHiddenThreads()
       return {
-        threads: excludePersonalRunThreads(searchableThreads),
+        threads: showHidden
+          ? searchableThreads
+          : excludePersonalRunThreads(searchableThreads),
         searchableThreads,
+        showHidden,
+        setShowHidden,
+        hiddenKindOf: backgroundThreadKind,
         setThreads,
         workspaces,
         settings: {},
@@ -135,19 +147,39 @@ vi.mock('../components/TabBar', () => ({
   TabBar: ({
     items,
     onSelect,
+    trailing,
   }: {
     items: { value: string; label: string }[]
     onSelect(value: string): void
-  }) =>
-    items.map((item) => (
-      <button role="tab" key={item.value} onClick={() => onSelect(item.value)}>
-        {item.label}
-      </button>
-    )),
+    trailing?: ReactNode
+  }) => (
+    <>
+      {items.map((item) => (
+        <button
+          role="tab"
+          key={item.value}
+          onClick={() => onSelect(item.value)}
+        >
+          {item.label}
+        </button>
+      ))}
+      {trailing}
+    </>
+  ),
 }))
 vi.mock('../haptics', () => ({ haptic: () => Promise.resolve() }))
 
 beforeEach(() => {
+  const values = new Map<string, string>()
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+      clear: () => values.clear(),
+    },
+  })
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -243,5 +275,69 @@ describe('ThreadsScreen and her background run threads', () => {
       expect.stringContaining('/threads/run1'),
       expect.anything(),
     )
+  })
+})
+
+describe('ThreadsScreen with "Show hidden threads"', () => {
+  const renderThreads = () =>
+    render(
+      <MemoryRouter initialEntries={['/d/d1/threads']}>
+        <ThreadsScreen />
+      </MemoryRouter>,
+    )
+  const showHidden = async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Thread filters' }))
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: 'Show hidden threads' }),
+    )
+  }
+
+  it('is off by default and offers the switch unchecked', async () => {
+    renderThreads()
+    expect(document.body.textContent).not.toContain('herdr · cairn')
+    fireEvent.click(screen.getByRole('button', { name: 'Thread filters' }))
+    const item = await screen.findByRole('menuitem', {
+      name: 'Show hidden threads',
+    })
+    expect(item.querySelector('.anchored-menu-check')).toBeNull()
+  })
+
+  it('brings her run thread back into the list with a work thread tag', async () => {
+    renderThreads()
+    await showHidden()
+    const run = Array.from(
+      document.querySelectorAll<HTMLElement>('.thread-row'),
+    ).find((row) => row.textContent?.includes('herdr · cairn'))
+    expect(run?.querySelector('.thread-hidden-tag')?.textContent).toBe(
+      'Work thread',
+    )
+    // Her main conversation stays behind the Alma tab either way.
+    expect(document.querySelectorAll('.thread-row')).toHaveLength(3)
+    expect(document.querySelectorAll('.thread-hidden-tag')).toHaveLength(1)
+  })
+
+  it('counts and tags it in its project group too', async () => {
+    renderThreads()
+    await showHidden()
+    fireEvent.click(screen.getByRole('tab', { name: 'Projects' }))
+    expect(screen.getByText('3 threads')).toBeTruthy()
+    const run = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '.project-threads-inner > .project-thread-row',
+      ),
+    ).find((row) => row.textContent?.includes('herdr · cairn'))
+    expect(run?.querySelector('.thread-hidden-tag')?.textContent).toBe(
+      'Work thread',
+    )
+  })
+
+  it('remembers the choice for the next visit, and turns back off', async () => {
+    const first = renderThreads()
+    await showHidden()
+    first.unmount()
+    renderThreads()
+    expect(document.body.textContent).toContain('herdr · cairn')
+    await showHidden()
+    expect(document.body.textContent).not.toContain('herdr · cairn')
   })
 })
