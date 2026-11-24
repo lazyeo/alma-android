@@ -268,6 +268,7 @@ import { shouldFinishOverlayClose } from '../overlayClosing'
 import { closeEditorAfterAcceptedSend } from './composerEditorSend'
 import { openExternalUrl } from '../nativeBridge'
 import { useT } from '../i18n'
+import { loadComposerOptions } from './composerOptions'
 
 // One malformed or unexpected message must not unmount the whole app: an
 // uncaught render error blanks the screen and drops the back-button listener.
@@ -1102,25 +1103,30 @@ function ThreadView({
     )
   }, [generating])
 
-  useEffect(() => {
-    void Promise.all([
-      api.listModels(),
-      api.getSettings(),
-      api.listWorkspaces(),
-    ])
-      .then(([availableModels, currentSettings, availableWorkspaces]) => {
-        setModels(availableModels)
-        setSettings(currentSettings)
-        setWorkspaces(availableWorkspaces)
-      })
-      .catch((optionsError) => {
-        setError(
-          optionsError instanceof Error
-            ? optionsError.message
-            : t('thread.errors.composerOptions'),
-        )
-      })
+  // The composer's models, settings and projects, each kept on its own.
+  // Read again whenever /ws/threads (re)opens while the models are still
+  // missing: a long-lived thread (Alma's) mounted while the relay was still
+  // connecting would otherwise keep an empty model list for good.
+  const modelsLoaded = useRef(false)
+  const loadOptions = useCallback(async () => {
+    const options = await loadComposerOptions(api)
+    if (options.models) {
+      modelsLoaded.current = true
+      setModels(options.models)
+    }
+    if (options.settings) setSettings(options.settings)
+    if (options.workspaces) setWorkspaces(options.workspaces)
+    if (options.errors.length)
+      setError(options.errors[0].message || t('thread.errors.composerOptions'))
+    // t is stable for a render's language; the api decides what is read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api])
+  const loadOptionsRef = useRef(loadOptions)
+  loadOptionsRef.current = loadOptions
+  useEffect(() => {
+    modelsLoaded.current = false
+    void loadOptions()
+  }, [loadOptions])
 
   useEffect(() => {
     const cached = threadCache.getThread(pairing.id, threadId)
@@ -1350,6 +1356,9 @@ function ThreadView({
       onOpened: (_socket, reconnected) => {
         socketReady.current = true
         setSocketIsReady(true)
+        // The relay is up now: fetch the composer's options again if the
+        // first read came back without models.
+        if (!modelsLoaded.current) void loadOptionsRef.current()
         if (!reconnected) return
         // `/ws/threads` does not replay missed events. A pending foreground
         // reload runs from the socketIsReady flip, so don't load twice.

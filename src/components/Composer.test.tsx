@@ -153,4 +153,44 @@ describe('the collapsible composer', () => {
       document.querySelector('textarea')?.getAttribute('placeholder'),
     ).toBe('Hold to talk, tap to type')
   })
+
+  // The opened row is the composer's one options row: the thread's models
+  // and effort, with the same sheets and callbacks.
+  it('opens onto the real model list and a working effort switch', () => {
+    const models = [
+      {
+        id: 'p1:claude-opus',
+        modelId: 'claude-opus',
+        name: 'Claude Opus',
+        provider: 'Anthropic',
+        providerId: 'p1',
+        capabilities: { reasoning: true, reasoningLevels: ['low', 'high'] },
+      },
+      {
+        id: 'p1:claude-haiku',
+        modelId: 'claude-haiku',
+        name: 'Claude Haiku',
+        provider: 'Anthropic',
+        providerId: 'p1',
+        capabilities: {},
+      },
+    ] as unknown as Props['models']
+    const onEffortChange = vi.fn()
+    const onModelChange = vi.fn()
+    renderComposer({
+      models,
+      model: 'p1:claude-opus',
+      effort: 'low',
+      onEffortChange,
+      onModelChange,
+    })
+    fireEvent.click(more())
+    fireEvent.click(screen.getByRole('button', { name: /Claude Opus/ }))
+    expect(screen.getByText('Claude Haiku')).toBeTruthy()
+    fireEvent.click(screen.getByText('Claude Haiku'))
+    expect(onModelChange).toHaveBeenCalledWith('p1:claude-haiku')
+    fireEvent.click(screen.getByRole('button', { name: /Reasoning effort/i }))
+    fireEvent.click(screen.getByRole('button', { name: /High/ }))
+    expect(onEffortChange).toHaveBeenCalledWith('high')
+  })
 })

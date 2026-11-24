@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A thread's model and reasoning effort could go missing from the composer (an empty Model button, no effort) when the computer's project list or settings failed to load, as in Alma's conversation opened while the connection was still starting; the models now load on their own and are fetched again once the connection is up (2026-11-25).
 - Files Alma sends in her conversation (`alma send file`, end-of-turn results, files she writes) now show as cards you can open or download, as in other threads, and her header has the same menu with the conversation's Files (2026-11-25).
 
 ## [0.1.10] - 2026-11-18
