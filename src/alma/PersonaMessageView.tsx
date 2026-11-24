@@ -3,11 +3,15 @@ import { memo, useMemo, useState } from 'react'
 import { previewTailAttributes } from '../components/longPressPreview'
 import { useLongPress } from '../components/useLongPress'
 import { useT } from '../i18n'
+import { EndResourceCards } from '../messages/EndResourceCards'
 import { PartView, type PartViewCapabilities } from '../messages/PartView'
 import { ReactionChips } from '../messages/ReactionChips'
 import { MessageVoice } from '../messages/VoiceCapsule'
 import { parseVoiceNote } from '../messages/voiceNote'
+import { openExternalUrl } from '../nativeBridge'
 import type { MessageRow } from '../relay'
+import { deriveEndResources } from '../screens/endResources'
+import { useFileLinks } from '../screens/FileLinkSheet'
 import { LoadingOrb } from '../screens/LoadingOrbCanvas'
 import { parseReactions } from '../screens/messageReactions'
 import { AlmaFace } from './AlmaFace'
@@ -18,6 +22,8 @@ export interface PersonaMessageViewProps {
   row: MessageRow
   layout: PersonaRowLayout
   generating?: boolean
+  /** Resolves relative Write/Edit paths for the delivered-file cards. */
+  workspacePath?: string
   mood: FaceMood
   capabilities: PartViewCapabilities
   onActions?: (row: MessageRow) => void
@@ -29,11 +35,15 @@ export interface PersonaMessageViewProps {
  * One message in Alma's messenger view: her words in a left bubble (with
  * her face on the first of a run), the user's on the right, tool work hidden
  * (the header status shows what she is doing live), reasoning on request.
+ * Files she delivers (`alma send file`, end-of-turn resources, Write/Edit)
+ * show as the same cards a normal thread draws under a reply, even though
+ * the tool parts that produced them stay hidden.
  */
 export const PersonaMessageView = memo(function PersonaMessageView({
   row,
   layout,
   generating = false,
+  workspacePath,
   mood,
   capabilities,
   onActions,
@@ -41,6 +51,7 @@ export const PersonaMessageView = memo(function PersonaMessageView({
   onToggleReaction,
 }: PersonaMessageViewProps) {
   const t = useT()
+  const { openFile } = useFileLinks()
   const press = useLongPress(() => onActions?.(row), { preview: true })
   const [thinkingOpen, setThinkingOpen] = useState(false)
   const parts = useMemo(
@@ -48,6 +59,19 @@ export const PersonaMessageView = memo(function PersonaMessageView({
     [row.message.parts],
   )
   const alma = layout.side === 'alma'
+  // Read from the raw parts: personaParts drops the tool parts that carry
+  // Write/Edit paths. `alma send file` outside a turn adds a row with no
+  // parts and only metadata.endResources, which must still draw a card.
+  const resources = useMemo(
+    () =>
+      alma && !generating
+        ? deriveEndResources(
+            { parts: row.message.parts, metadata: row.metadata },
+            workspacePath,
+          )
+        : [],
+    [alma, generating, row.message.parts, row.metadata, workspacePath],
+  )
   // The long-press preview card shows a reply's final summary.
   const previewTail = useMemo(
     () => (alma ? previewTailAttributes(row.message.parts) : undefined),
@@ -138,6 +162,12 @@ export const PersonaMessageView = memo(function PersonaMessageView({
             <LoadingOrb size={14} />
           </div>
         ) : null}
+        <EndResourceCards
+          resources={resources}
+          workspacePath={workspacePath}
+          onOpenFile={openFile}
+          onOpenWebsite={(target) => void openExternalUrl(target)}
+        />
         <ReactionChips
           reactions={reactions}
           onToggle={

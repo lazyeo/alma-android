@@ -11335,6 +11335,9 @@ html[data-alma-motion] .alma-shell .persona-message {
 .alma-header .alma-status.approvals {
   color: var(--amber-11);
 }
+.alma-header > .detail-actions {
+  margin-left: auto;
+}
 .persona-message {
   display: flex;
   align-items: flex-end;
@@ -11378,6 +11381,15 @@ html[data-alma-motion] .alma-shell .persona-message {
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+}
+/* Delivered-file cards take the stack's full width, not the shrink-to-fit
+   width of a short reply above them. */
+.persona-stack:has(> .end-resource-grid) {
+  width: 100%;
+}
+.persona-stack > .end-resource-grid {
+  width: 100%;
+  margin-top: 0;
 }
 .persona-message.user .persona-stack {
   max-width: 86%;
