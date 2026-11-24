@@ -9,13 +9,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - The thread composer is one capsule, and holding it talks: there is no voice/keyboard switch any more. The empty box reads "Hold to talk, tap to type". A tap opens the keyboard; press and hold and the capsule fills with colour, then hold-to-talk opens (slide to cancel, edit or lock; release to send or fill in, per Settings → Voice input). Once the box has text, a long press selects and pastes as before. The arrow on the left points down and opens the usual row of attachments, model, reasoning effort and Send below the text (so does starting to type); the composer grows smoothly as one block and the messages above move up, the latest still in view, also when the keyboard opens. Folded, Send shows in the capsule once there is something to send (2026-11-24).
+- Show hidden threads: a filter button beside the Threads and Projects tabs brings back the threads the lists leave out (Alma's work threads, scheduled-task runs and external chats such as Telegram or Discord) in Threads, projects, the project card and GTD, each with a small tag. Off by default; the choice is kept on this device. Search finds them either way (2026-11-25).
 
 ### Changed
 
 - Hold to talk: the capsule beside Cancel always offers the other way out from a plain release. Where releasing sends, it reads "Slide here to edit" and puts the text in the input box; where releasing fills in (Herdr's default, or when set in Settings → Voice input), it reads "Slide here to send" and sends. The two exits are never the same any more (2026-11-25).
-
-### Changed
-
 - In Alma's conversation, "Show thinking" sits beside her face instead of on a line of its own, with an arrow that turns when opened; opened reasoning hangs off it on a thin rail in smaller, muted type. While she is still thinking the entry reads "Thinking" (2026-11-24).
 
 ## [0.1.10] - 2026-11-18
