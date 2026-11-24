@@ -79,7 +79,7 @@ export interface VoiceInput {
   /** The hold-to-talk bar replacing the text box, or null on the keyboard. */
   bar: ReactNode | null
   /**
-   * Spread on the text box: a long press on it, while empty and unfocused,
+   * Spread on the text box: while it is empty, a tap types and a long press
    * starts the same hold as the bar (see canLongPressToTalk).
    */
   textHold: HoldPointerProps & { 'data-hold-to-talk': true }
@@ -87,7 +87,7 @@ export interface VoiceInput {
 
 /**
  * A composer's voice input. The text box is the entry: a tap types, a long
- * press on an empty, unfocused box holds to talk. The switch keeps the
+ * press on an empty box holds to talk. The switch keeps the
  * full-width hold-to-talk bar for those who prefer it. Undefined in the
  * web build, which has no native recorder.
  */
@@ -189,9 +189,13 @@ export function useVoiceInput(
 }
 
 /**
- * The text box's long press. Below the hold delay a press is the system's
- * (a tap focuses and raises the keyboard); past it, the hold takes the
- * pointer and everything after (slides, release) is the bar's gesture.
+ * The text box's press while it is empty. Android's WebView would run its
+ * own long press on an editable box (callout, insertion handle) and cancel
+ * the pointer for it, killing the hold a moment after it started, so the
+ * touch is cancelled and the whole press is ours: let go before the hold
+ * delay and the box takes focus (the keyboard); hold past it and the hold
+ * takes the pointer, with slides and release following the bar's gesture.
+ * With text in the box, the press is the system's, as usual.
  */
 function useTextHold(
   talk: HoldToTalk,
@@ -216,16 +220,25 @@ function useTextHold(
     [],
   )
   useEffect(() => press.cancel, [press])
+  const eligible = () => canLongPressToTalk(latest.current.area())
+  // React listens to touchstart passively, so cancelling it needs a native
+  // listener. On the document, so it holds however late the box mounts.
+  useEffect(() => {
+    const claim = (event: TouchEvent) => {
+      const box = latest.current.area()
+      if (box && event.target === box && canLongPressToTalk(box))
+        event.preventDefault()
+    }
+    document.addEventListener('touchstart', claim, {
+      capture: true,
+      passive: false,
+    })
+    return () =>
+      document.removeEventListener('touchstart', claim, { capture: true })
+  }, [])
   const drop = () => {
     press.cancel()
     pending.current = undefined
-  }
-  const eligible = () => {
-    const box = latest.current.area()
-    return canLongPressToTalk(
-      box,
-      Boolean(box) && document.activeElement === box,
-    )
   }
   return {
     'data-hold-to-talk': true,
@@ -244,7 +257,11 @@ function useTextHold(
       talk.follow.onPointerMove(event)
     },
     onPointerUp(event) {
+      // Released before the hold: a tap, which the cancelled touch no
+      // longer turns into focus by itself.
+      const tapped = event.pointerId === pending.current?.pointerId
       drop()
+      if (tapped) latest.current.area()?.focus()
       talk.follow.onPointerUp(event)
     },
     onPointerCancel(event) {

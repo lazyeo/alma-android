@@ -12,22 +12,18 @@ const box = (
 })
 
 describe('canLongPressToTalk', () => {
-  it('talks from an empty, unfocused text box', () => {
-    expect(canLongPressToTalk(box(''), false)).toBe(true)
+  it('talks from an empty text box', () => {
+    expect(canLongPressToTalk(box(''))).toBe(true)
   })
 
   it('leaves select and paste to the system once there is text', () => {
-    expect(canLongPressToTalk(box('draft'), false)).toBe(false)
-    expect(canLongPressToTalk(box('  '), false)).toBe(false)
-  })
-
-  it('leaves paste to the system while the keyboard is up', () => {
-    expect(canLongPressToTalk(box(''), true)).toBe(false)
+    expect(canLongPressToTalk(box('draft'))).toBe(false)
+    expect(canLongPressToTalk(box('  '))).toBe(false)
   })
 
   it('never talks from a missing, disabled or read-only box', () => {
-    expect(canLongPressToTalk(null, false)).toBe(false)
-    expect(canLongPressToTalk(box('', { disabled: true }), false)).toBe(false)
-    expect(canLongPressToTalk(box('', { readOnly: true }), false)).toBe(false)
+    expect(canLongPressToTalk(null)).toBe(false)
+    expect(canLongPressToTalk(box('', { disabled: true }))).toBe(false)
+    expect(canLongPressToTalk(box('', { readOnly: true }))).toBe(false)
   })
 })

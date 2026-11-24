@@ -11457,11 +11457,10 @@ html[data-alma-motion] .alma-shell .persona-message {
   -webkit-touch-callout: none;
   transition: background-color var(--dur-press) var(--ease-out);
 }
-/* An empty, unfocused text box is also a hold-to-talk entry (see
-   canLongPressToTalk): its long press and slides are the hold's, not a pan,
-   a selection or the callout. With text, or once focused, the system's
-   select and paste come back. */
-textarea[data-hold-to-talk]:placeholder-shown:not(:focus) {
+/* An empty text box is also a hold-to-talk entry (see canLongPressToTalk):
+   its long press and slides are the hold's, not a pan, a selection or the
+   callout. With text, the system's select and paste come back. */
+textarea[data-hold-to-talk]:placeholder-shown {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;

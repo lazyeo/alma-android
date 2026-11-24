@@ -557,7 +557,7 @@ const started = () =>
   fake.speech.startRecording.mock.calls.length
 
 describe('long press on the text box', () => {
-  it('holds to talk from an empty, unfocused box and sends on release', async () => {
+  it('holds to talk from an empty box and sends on release', async () => {
     const { onSend } = renderComposer()
     touchBox()
     await waitPastLongPress()
@@ -608,13 +608,28 @@ describe('long press on the text box', () => {
     expect(await screen.findByRole('timer')).toBeTruthy()
   })
 
-  it('leaves a tap to the keyboard', async () => {
+  it('turns a tap into typing: the box takes focus for the keyboard', async () => {
     renderComposer()
     touchBox()
     fireEvent.pointerUp(message(), { button: 0, pointerId: 1 })
+    expect(document.activeElement).toBe(message())
     await waitPastLongPress()
     expect(overlay()).toBeNull()
     expect(started()).toBe(0)
+  })
+
+  // Android's WebView runs its own long press on an editable box (callout,
+  // insertion handle) and cancels the pointer for it, which killed the hold
+  // a moment after it started. Cancelling the touch keeps the press ours.
+  it('keeps the WebView from taking the touch on an empty box', () => {
+    renderComposer()
+    expect(fireEvent.touchStart(message())).toBe(false)
+  })
+
+  it('leaves the touch to the WebView once there is text', () => {
+    renderComposer()
+    fireEvent.change(message(), { target: { value: 'typed' } })
+    expect(fireEvent.touchStart(message())).toBe(true)
   })
 
   it('leaves a press that moves (a scroll) alone', async () => {
@@ -640,14 +655,14 @@ describe('long press on the text box', () => {
     expect(fireEvent.contextMenu(message())).toBe(true)
   })
 
-  it('leaves paste to the system while the keyboard is up', async () => {
+  it('talks from an empty box while the keyboard is up, putting it away', async () => {
     renderComposer()
     message().focus()
     touchBox()
     await waitPastLongPress()
-    expect(overlay()).toBeNull()
-    expect(started()).toBe(0)
-    expect(fireEvent.contextMenu(message())).toBe(true)
+    await waitFor(() => expect(started()).toBeGreaterThan(0))
+    expect(overlay()).not.toBeNull()
+    expect(document.activeElement).not.toBe(message())
   })
 
   it('keeps the system menu off the box it takes the long press of', () => {

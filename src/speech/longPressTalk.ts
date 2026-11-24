@@ -10,14 +10,13 @@ export interface TalkTarget {
 }
 
 /**
- * Only an empty text box the keyboard is not on: with text in it, a long
- * press selects; once focused, it pastes. Whitespace counts as text, so the
- * rule never takes a box away from someone mid-edit.
+ * Only an empty text box, focused or not: with text in it, a long press
+ * selects and pastes as usual. Whitespace counts as text, so the rule never
+ * takes a box away from someone mid-edit.
  */
 export function canLongPressToTalk(
   area: TalkTarget | null | undefined,
-  focused: boolean,
 ): boolean {
-  if (!area || focused || area.disabled || area.readOnly) return false
+  if (!area || area.disabled || area.readOnly) return false
   return area.value === ''
 }
