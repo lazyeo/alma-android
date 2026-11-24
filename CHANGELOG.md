@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Nothing yet.
 
+### Changed
+
+- In Alma's conversation, "Show thinking" sits beside her face instead of on a line of its own, with an arrow that turns when opened; opened reasoning hangs off it on a thin rail in smaller, muted type. While she is still thinking the entry reads "Thinking" (2026-11-24).
+
 ## [0.1.10] - 2026-11-18
 
 ### Added
