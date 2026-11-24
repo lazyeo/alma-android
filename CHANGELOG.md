@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- The thread composer is one capsule, and holding it talks: there is no voice/keyboard switch any more. The empty box reads "Hold to talk, tap to type". A tap opens the keyboard; press and hold and the capsule fills with colour, then hold-to-talk opens (slide to cancel, edit or lock; release to send or fill in, per Settings → Voice input). Once the box has text, a long press selects and pastes as before. The arrow on the left (or starting to type) opens the usual row of attachments, model, reasoning effort and Send below the text; folded, Send shows in the capsule once there is something to send (2026-11-24).
+- The thread composer is one capsule, and holding it talks: there is no voice/keyboard switch any more. The empty box reads "Hold to talk, tap to type". A tap opens the keyboard; press and hold and the capsule fills with colour, then hold-to-talk opens (slide to cancel, edit or lock; release to send or fill in, per Settings → Voice input). Once the box has text, a long press selects and pastes as before. The arrow on the left points down and opens the usual row of attachments, model, reasoning effort and Send below the text (so does starting to type); the composer grows smoothly as one block and the messages above move up, the latest still in view, also when the keyboard opens. Folded, Send shows in the capsule once there is something to send (2026-11-24).
 
 ## [0.1.10] - 2026-11-18
 
