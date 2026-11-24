@@ -413,7 +413,8 @@ function conversation(threadId: string, turns: number, startMinutes: number) {
 
 // Alma's main thread for `?fixture=alma`: plain chat with the Markdown
 // her replies usually carry (lists, emphasis, inline and fenced code).
-const almaTurns: Array<[string, string]> = [
+// The last two replies carry reasoning, for the "Show thinking" entry.
+const almaTurns: Array<[string, string, string?]> = [
   [
     'Morning. What is on today?',
     'Morning! Three things are waiting:\n\n- the **release notes** draft for 0.2\n- a review on the queue panel\n- your dentist reminder at 15:00',
@@ -429,15 +430,23 @@ const almaTurns: Array<[string, string]> = [
   [
     'Thanks. Anything else from yesterday?',
     'Only one loose end: the relay smoke test timed out once at 02:10 and passed on retry. I will keep an eye on it tonight and tell you if it happens again.',
+    'Check yesterday’s logs for anything unfinished. The relay smoke test failed once and then passed, which looks like a flaky timeout rather than a real break.',
   ],
-  ['Sounds good.', 'Great. I will ping you before the dentist.'],
+  [
+    'Sounds good.',
+    'Great. I will ping you before the dentist.',
+    'The dentist reminder is at 15:00, so a nudge around 14:30 leaves time to get there.',
+  ],
 ]
 const almaRows: MessageRow[] = almaTurns.flatMap(
-  ([question, answer], index) => {
+  ([question, answer, thought], index) => {
     const at = NOW - (almaTurns.length - index) * 600_000
+    const reply: MessagePart[] = thought
+      ? [{ type: 'reasoning', text: thought, state: 'done' }, text(answer)]
+      : [text(answer)]
     return [
       row('t-alma', index * 2, 'user', [text(question)], at),
-      row('t-alma', index * 2 + 1, 'assistant', [text(answer)], at + 20_000),
+      row('t-alma', index * 2 + 1, 'assistant', reply, at + 20_000),
     ]
   },
 )
