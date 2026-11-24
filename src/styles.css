@@ -6911,6 +6911,8 @@ button:focus-visible,
   white-space: nowrap;
 }
 .thread-tabs .hidden-threads-entry {
+  justify-content: center;
+  min-width: 40px;
   margin-left: auto;
   color: var(--muted-foreground);
 }

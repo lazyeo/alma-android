@@ -63,6 +63,7 @@ const initialThreads = (): Thread[] =>
     { id: 'alma', title: 'Alma notes', updatedAt: '2026-11-04T00:00:00Z' },
     { id: 't1', title: 'Alpha', updatedAt: '2026-11-03T00:00:00Z' },
     { id: 't2', title: 'Beta', updatedAt: '2026-11-02T00:00:00Z' },
+    { id: 'tg1', title: 'Telegram · Sam', updatedAt: '2026-11-01T00:00:00Z' },
     {
       id: 'run1',
       title: 'herdr · cairn',
@@ -104,14 +105,19 @@ vi.mock('./useDesktopThreadList', async () => {
       const searchableThreads = excludePersonalThread(rows, 'alma')
       const [error, setError] = useState<string>()
       const [showHidden, setShowHidden] = useShowHiddenThreads()
+      const withExternal = showHidden
+        ? searchableThreads
+        : searchableThreads.filter((thread) => thread.id !== 'tg1')
       return {
         threads: showHidden
-          ? searchableThreads
-          : excludePersonalRunThreads(searchableThreads),
+          ? withExternal
+          : excludePersonalRunThreads(withExternal),
         searchableThreads,
         showHidden,
         setShowHidden,
-        hiddenKindOf: backgroundThreadKind,
+        // tg1 stands in for a desktop channel chat (see the hook tests).
+        hiddenKindOf: (thread: Thread) =>
+          thread.id === 'tg1' ? 'external' : backgroundThreadKind(thread),
         setThreads,
         workspaces,
         settings: {},
@@ -286,7 +292,7 @@ describe('ThreadsScreen with "Show hidden threads"', () => {
       </MemoryRouter>,
     )
   const showHidden = async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Thread filters' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Thread filters/ }))
     fireEvent.click(
       await screen.findByRole('menuitem', { name: 'Show hidden threads' }),
     )
@@ -312,15 +318,54 @@ describe('ThreadsScreen with "Show hidden threads"', () => {
       'Work thread',
     )
     // Her main conversation stays behind the Alma tab either way.
-    expect(document.querySelectorAll('.thread-row')).toHaveLength(3)
-    expect(document.querySelectorAll('.thread-hidden-tag')).toHaveLength(1)
+    expect(document.querySelectorAll('.thread-row')).toHaveLength(4)
+    expect(document.querySelectorAll('.thread-hidden-tag')).toHaveLength(2)
+  })
+
+  it('brings external chats back tagged, and says the filter is on', async () => {
+    renderThreads()
+    expect(document.body.textContent).not.toContain('Telegram · Sam')
+    await showHidden()
+    const chat = Array.from(
+      document.querySelectorAll<HTMLElement>('.thread-row'),
+    ).find((row) => row.textContent?.includes('Telegram · Sam'))
+    expect(chat?.querySelector('.thread-hidden-tag')?.textContent).toBe(
+      'External chat',
+    )
+    expect(
+      screen.getByRole('button', {
+        name: 'Thread filters, hidden threads shown',
+      }),
+    ).toBeTruthy()
+  })
+
+  it('tags it in the project card Recent list', async () => {
+    renderThreads()
+    await showHidden()
+    fireEvent.click(screen.getByRole('tab', { name: 'Projects' }))
+    await waitFor(() => expect(api.getProjectCard).toHaveBeenCalled())
+    fireEvent.click(
+      document.querySelector<HTMLElement>('.project-card-summary-row')!,
+    )
+    const recent = await waitFor(() => {
+      const row = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          '.project-card-recent .project-thread-row',
+        ),
+      ).find((node) => node.textContent?.includes('herdr · cairn'))
+      expect(row).toBeTruthy()
+      return row!
+    })
+    expect(recent.querySelector('.thread-hidden-tag')?.textContent).toBe(
+      'Work thread',
+    )
   })
 
   it('counts and tags it in its project group too', async () => {
     renderThreads()
     await showHidden()
     fireEvent.click(screen.getByRole('tab', { name: 'Projects' }))
-    expect(screen.getByText('3 threads')).toBeTruthy()
+    expect(screen.getByText('4 threads')).toBeTruthy()
     const run = Array.from(
       document.querySelectorAll<HTMLElement>(
         '.project-threads-inner > .project-thread-row',

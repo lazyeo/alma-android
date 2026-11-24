@@ -35,11 +35,34 @@ import {
   usePersonalThreadIds,
   type HiddenThreadKind,
 } from '../alma/personalThread'
-import { useShowHiddenThreads } from './showHiddenThreads'
+import {
+  loadShowHiddenThreads,
+  useShowHiddenThreads,
+} from './showHiddenThreads'
 
 const NO_IDS: ReadonlySet<string> = new Set()
 const withoutIds = (threads: Thread[], ids: ReadonlySet<string>) =>
   ids.size ? threads.filter((thread) => !ids.has(thread.id)) : threads
+
+// Each desktop's external chats from this session's last `showExternal`
+// load, so a list remounted with the toggle on (back from a thread, GTD
+// opening beside Threads) paints the rows it left. Memory only: the stored
+// cache and share shortcuts keep the desktop's default list.
+const externalMemory = new Map<string, Thread[]>()
+function withRememberedExternal(
+  desktopId: string,
+  threads: Thread[],
+  show: boolean,
+): { threads: Thread[]; externalIds: ReadonlySet<string> } {
+  const remembered = show ? externalMemory.get(desktopId) : undefined
+  if (!remembered?.length) return { threads, externalIds: NO_IDS }
+  const known = new Set(threads.map((thread) => thread.id))
+  const extra = remembered.filter((thread) => !known.has(thread.id))
+  return {
+    threads: extra.length ? [...extra, ...threads] : threads,
+    externalIds: new Set(extra.map((thread) => thread.id)),
+  }
+}
 
 /**
  * The active desktop's thread list: cached first paint, a fresh load, a
@@ -55,10 +78,17 @@ export function useDesktopThreadList() {
   const pairedIds = visiblePairings(store.pairings).map((item) => item.id)
   const link = useRealtimeLink(api, status)
   const { seed } = useUnreadActivity()
-  const initial = useMemo(
-    () => initialThreadListState(pairing.id, window.localStorage),
-    [pairing.id],
-  )
+  const initial = useMemo(() => {
+    const cached = initialThreadListState(pairing.id, window.localStorage)
+    return {
+      ...cached,
+      ...withRememberedExternal(
+        pairing.id,
+        cached.threads,
+        loadShowHiddenThreads(),
+      ),
+    }
+  }, [pairing.id])
   const [threads, setRows] = useState<Thread[]>(initial.threads),
     [workspaces, setWorkspaces] = useState<Workspace[]>(initial.workspaces),
     [settings, setSettings] = useState<AlmaSettings>(initial.settings),
@@ -69,7 +99,7 @@ export function useDesktopThreadList() {
   const showHiddenRef = useRef(showHidden)
   showHiddenRef.current = showHidden
   // Threads only the `showExternal` answer had: the desktop's channel chats.
-  const [externalIds, setExternalIds] = useState(NO_IDS)
+  const [externalIds, setExternalIds] = useState(initial.externalIds)
   const externalIdsRef = useRef(externalIds)
   externalIdsRef.current = externalIds
   // Rows as last set, so a load merges into them synchronously.
@@ -107,7 +137,15 @@ export function useDesktopThreadList() {
         await Promise.all([
           api.listThreads(),
           // Only the difference marks a thread external: no row field does.
-          withExternal ? api.listThreads({ showExternal: true }) : undefined,
+          // Doubling the list fetch is the cost of the toggle being on. If
+          // only this answer fails, the default list still loads; the
+          // external chats come back with the next load that succeeds.
+          withExternal
+            ? api.listThreads({ showExternal: true }).catch((cause) => {
+                console.warn('[threads] showExternal list failed', cause)
+                return undefined
+              })
+            : undefined,
           api.listWorkspaces(),
           api.getSettings(),
         ])
@@ -143,9 +181,16 @@ export function useDesktopThreadList() {
           )
         : NO_IDS
       replaceRows(nextThreads)
+      externalIdsRef.current = nextExternal
       setExternalIds((ids) =>
         ids.size || nextExternal.size ? nextExternal : ids,
       )
+      if (nextExternal.size)
+        externalMemory.set(
+          requestedFor,
+          nextThreads.filter((thread) => nextExternal.has(thread.id)),
+        )
+      else externalMemory.delete(requestedFor)
       // Shares and caches keep the desktop's default list, so a cold start
       // with the toggle off never paints an external chat first.
       const defaultThreads = withoutIds(nextThreads, nextExternal)
@@ -181,9 +226,15 @@ export function useDesktopThreadList() {
   }
   useEffect(() => {
     const cached = initialThreadListState(pairing.id, window.localStorage)
+    const seeded = withRememberedExternal(
+      pairing.id,
+      cached.threads,
+      showHiddenRef.current,
+    )
     touchedAt.current.clear()
-    replaceRows(cached.threads)
-    setExternalIds(NO_IDS)
+    replaceRows(seeded.threads)
+    externalIdsRef.current = seeded.externalIds
+    setExternalIds(seeded.externalIds)
     setWorkspaces(cached.workspaces)
     setSettings(cached.settings)
     setLoading(cached.loading)

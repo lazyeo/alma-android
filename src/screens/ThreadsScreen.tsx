@@ -471,7 +471,11 @@ export function ThreadsScreen({
             trigger={
               <button
                 className={`hidden-threads-entry${showHidden ? ' active' : ''}`}
-                aria-label={t('threads.hidden.filter')}
+                aria-label={
+                  showHidden
+                    ? t('threads.hidden.filterOn')
+                    : t('threads.hidden.filter')
+                }
               >
                 <ListFilter size={16} />
               </button>

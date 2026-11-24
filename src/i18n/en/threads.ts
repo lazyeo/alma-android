@@ -87,6 +87,7 @@ export const threads = {
   },
   hidden: {
     filter: 'Thread filters',
+    filterOn: 'Thread filters, hidden threads shown',
     show: 'Show hidden threads',
     run: 'Work thread',
     cron: 'Scheduled',

@@ -90,6 +90,7 @@ export const threads: CatalogShape<typeof source> = {
   },
   hidden: {
     filter: '对话筛选',
+    filterOn: '对话筛选，已显示隐藏线程',
     show: '显示隐藏线程',
     run: '工作线程',
     cron: '定时任务',

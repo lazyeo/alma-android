@@ -34,6 +34,7 @@ const stable = vi.hoisted(() => ({
   unread: { seed: () => undefined },
   link: { online: true, epoch: 1 },
   onEvent: undefined as undefined | ((event: { type: string }) => void),
+  shareShortcuts: vi.fn((..._args: unknown[]) => []),
 }))
 
 vi.mock('../desktops/DesktopContext', () => ({
@@ -49,7 +50,7 @@ vi.mock('../desktops/useRealtimeLink', () => ({
   useRealtimeLink: () => stable.link,
 }))
 vi.mock('../share/shareShortcuts', () => ({
-  desktopShareShortcuts: () => [],
+  desktopShareShortcuts: stable.shareShortcuts,
   publishShareShortcuts: () => undefined,
 }))
 
@@ -308,5 +309,83 @@ describe('useDesktopThreadList with "Show hidden threads"', () => {
     expect(renders.flat()).not.toContain('tg1')
     expect(renders.flat()).not.toContain('run1')
     expect(result.current.hiddenKindOf(telegram)).toBeUndefined()
+  })
+
+  it('stores and shares only the default list', async () => {
+    localStorage.setItem(SHOW_HIDDEN_THREADS_KEY, '1')
+    api.listThreads.mockImplementation(desktop)
+    stable.shareShortcuts.mockClear()
+    const first = listWith(ready('alma'))
+    await waitFor(() =>
+      expect(listedIds(first.result.current.threads)).toContain('tg1'),
+    )
+    const shared = stable.shareShortcuts.mock.calls.at(-1)![2] as Thread[]
+    expect(listedIds(shared)).not.toContain('tg1')
+    first.unmount()
+    // A cold start with the toggle off paints from what was stored.
+    threadCache.clearDesktop('d1')
+    localStorage.setItem(SHOW_HIDDEN_THREADS_KEY, '0')
+    const renders: string[][] = []
+    const second = listWith(ready('alma'), renders)
+    expect(renders[0]).toContain('t1')
+    expect(renders.flat()).not.toContain('tg1')
+    await waitFor(() => expect(second.result.current.loading).toBe(false))
+  })
+
+  it('still loads the default list when only the showExternal answer fails', async () => {
+    localStorage.setItem(SHOW_HIDDEN_THREADS_KEY, '1')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    api.listThreads.mockImplementation(async (options) => {
+      if (options?.showExternal) throw new Error('timeout')
+      return [{ id: 't3', title: 'New' } as Thread, ...rows]
+    })
+    const { result } = listWith(ready('alma'))
+    await waitFor(() =>
+      expect(listedIds(result.current.threads)).toEqual(['t3', 't1']),
+    )
+    expect(result.current.error).toBe('')
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
+  it('paints the external chats it left when remounted with the toggle on', async () => {
+    localStorage.setItem(SHOW_HIDDEN_THREADS_KEY, '1')
+    api.listThreads.mockImplementation(desktop)
+    const first = listWith(ready('alma'))
+    await waitFor(() =>
+      expect(listedIds(first.result.current.threads)).toContain('tg1'),
+    )
+    first.unmount()
+    const renders: string[][] = []
+    const second = listWith(ready('alma'), renders)
+    expect(renders[0]).toContain('tg1')
+    expect(second.result.current.hiddenKindOf(telegram)).toBe('external')
+    await waitFor(() => expect(second.result.current.loading).toBe(false))
+  })
+
+  it('drops an external chat an event touched while turning off', async () => {
+    localStorage.setItem(SHOW_HIDDEN_THREADS_KEY, '1')
+    api.listThreads.mockImplementation(desktop)
+    const { result } = listWith(ready('alma'))
+    await waitFor(() =>
+      expect(listedIds(result.current.threads)).toContain('tg1'),
+    )
+    let answer!: (rows: Thread[]) => void
+    api.listThreads.mockImplementationOnce(
+      () => new Promise<Thread[]>((done) => (answer = done)),
+    )
+    act(() => result.current.setShowHidden(false))
+    act(() =>
+      stable.onEvent?.({
+        type: 'thread_generating',
+        data: { id: 'tg1', isGenerating: true },
+      } as { type: string }),
+    )
+    await act(async () => answer([runThread('run1'), ...rows]))
+    expect(listedIds(result.current.searchableThreads)).toEqual(['run1', 't1'])
+    act(() => result.current.setShowHidden(true))
+    await waitFor(() =>
+      expect(listedIds(result.current.threads)).toContain('tg1'),
+    )
   })
 })
