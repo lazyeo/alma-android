@@ -16,6 +16,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Hold to talk: the capsule beside Cancel always offers the other way out from a plain release. Where releasing sends, it reads "Slide here to edit" and puts the text in the input box; where releasing fills in (Herdr's default, or when set in Settings → Voice input), it reads "Slide here to send" and sends. The two exits are never the same any more (2026-11-25).
 - In Alma's conversation, "Show thinking" sits beside her face instead of on a line of its own, with an arrow that turns when opened; opened reasoning hangs off it on a thin rail in smaller, muted type. While she is still thinking the entry reads "Thinking" (2026-11-24).
 
+### Fixed
+
+- Files Alma sends in her conversation (`alma send file`, end-of-turn results, files she writes) now show as cards you can open or download, as in other threads, and her header has the same menu with the conversation's Files (2026-11-25).
+
 ## [0.1.10] - 2026-11-18
 
 ### Added
