@@ -255,19 +255,30 @@ export class DeltaAccumulator {
    * Reconciles a snapshot (full thread load or `message_updated`) with the
    * streamed state. `incoming` replaces the active row set when `replaceAll`
    * is true; otherwise rows are upserted.
+   *
+   * `knownAtRequest` holds the row ids present when the snapshot request
+   * left. A row added locally after that (`message_added`, a send) cannot be
+   * in the snapshot yet, so a full replace keeps it instead of deleting it.
    */
   sync(
     current: MessageRow[],
     incoming: MessageRow[],
     replaceAll = true,
+    knownAtRequest?: ReadonlySet<string>,
   ): MessageRow[] {
     const byId = new Map(current.map((row) => [row.id, row]))
     const merged = incoming.map((row) => this.mergeRow(byId.get(row.id), row))
     if (replaceAll) {
-      const active = new Set(merged.map((row) => row.id))
+      const snapshotIds = new Set(merged.map((row) => row.id))
+      const newer = knownAtRequest
+        ? current.filter(
+            (row) => !snapshotIds.has(row.id) && !knownAtRequest.has(row.id),
+          )
+        : []
+      const active = new Set([...snapshotIds, ...newer.map((row) => row.id)])
       for (const id of this.states.keys())
         if (!active.has(id)) this.states.delete(id)
-      return merged
+      return newer.length ? [...merged, ...newer] : merged
     }
     const mergedById = new Map(merged.map((row) => [row.id, row]))
     const result = current.map((row) => mergedById.get(row.id) ?? row)
