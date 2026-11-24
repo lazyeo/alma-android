@@ -103,10 +103,13 @@ export function Composer({
   const groups = useMemo(() => groupModelsByProvider(models), [models])
   const project = projects.find((candidate) => candidate.id === projectId)
   // A collapsible composer rests as one capsule; its options row (attach,
-  // model, effort) opens from the arrow, or by itself when typing starts.
+  // model, effort, Send) opens below it from the arrow, or by itself when
+  // typing starts, giving back the usual layout.
   const [open, setOpen] = useState(false)
   const folds = collapsible && !expanded
   const showOptions = !folds || open
+  // Folded, Send rides in the capsule; open, it is back at the row's end.
+  const sendInCapsule = folds && !open
   const send = () => {
     if (folds) setOpen(false)
     onSend()
@@ -175,7 +178,7 @@ export function Composer({
           </button>
         ) : null}
       </div>
-      {folds ? null : (
+      {sendInCapsule ? null : (
         <>
           <span className="composer-spacer" />
           {sendButton}
@@ -191,7 +194,6 @@ export function Composer({
       >
         {leading}
         {attachmentTray}
-        {folds ? options : null}
         {/* The capsule: what a long press turns into the hold. */}
         <div
           className="composer-entry"
@@ -250,10 +252,10 @@ export function Composer({
               }}
             />
           </div>
-          {folds && (!disabled || sending) ? sendButton : null}
+          {sendInCapsule && (!disabled || sending) ? sendButton : null}
         </div>
         {trailing}
-        {folds ? null : options}
+        {options}
         {voice?.view}
       </div>
       {sheet === 'project' ? (

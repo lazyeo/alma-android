@@ -114,9 +114,7 @@ function renderComposer(props: Partial<VoiceInputOptions> = {}) {
   return handlers
 }
 
-/** The hold on screen, not one fading out after it ended. */
-const overlay = () =>
-  document.querySelector('.voice-hold:not([data-phase="exiting"])')
+const overlay = () => document.querySelector('.voice-hold')
 const status = () => document.querySelector('.voice-hold-status p')?.textContent
 const activeCapsule = () =>
   document.querySelector('.voice-hold-capsule[data-active="true"]')?.textContent
@@ -534,34 +532,17 @@ describe('long press on the text box', () => {
     expect(capsule()).toBeNull()
   })
 
-  it('morphs the capsule into the touch area and back as the finger lifts', async () => {
+  // No morph: the charged box hands straight over to the overlay, and a
+  // cancel takes the overlay away at once.
+  it('opens the hold overlay directly and closes it directly', async () => {
     renderComposer()
     touchBox()
     await waitPastLongPress()
     await waitFor(() => expect(started()).toBeGreaterThan(0))
-    // Starts on the capsule, then opens out into the arc under the finger.
-    await waitFor(() => expect(arc()?.getAttribute('data-morph')).toBe('open'))
-    expect(document.querySelector('.voice-hold-origin')).not.toBeNull()
-    // No second waveform: the bubble's is the one.
+    expect(overlay()).not.toBeNull()
+    expect(document.querySelector('.voice-hold-origin')).toBeNull()
+    expect(arc()?.hasAttribute('data-morph')).toBe(false)
     expect(document.querySelectorAll('.voice-hold-wave').length).toBe(1)
-    fireEvent.pointerMove(message(), {
-      pointerId: 1,
-      clientX: LAYOUT.width / 2,
-      clientY: LAYOUT.lockLine - 40,
-    })
-    heldFor += 200
-    fireEvent.pointerUp(message(), { button: 0, pointerId: 1 })
-    await waitFor(() =>
-      expect(arc()?.getAttribute('data-morph')).toBe('capsule'),
-    )
-  })
-
-  it('settles back into the capsule before it goes, on a cancel too', async () => {
-    renderComposer()
-    touchBox()
-    await waitPastLongPress()
-    await waitFor(() => expect(started()).toBeGreaterThan(0))
-    await waitFor(() => expect(arc()?.getAttribute('data-morph')).toBe('open'))
     fireEvent.pointerMove(message(), {
       pointerId: 1,
       clientX: LAYOUT.cancel.cx,
@@ -569,12 +550,7 @@ describe('long press on the text box', () => {
     })
     heldFor += MIN_HOLD_MS
     fireEvent.pointerUp(message(), { button: 0, pointerId: 1 })
-    const leaving = document.querySelector('.voice-hold[data-phase="exiting"]')
-    expect(leaving).not.toBeNull()
-    expect(arc()?.getAttribute('data-morph')).toBe('capsule')
-    await waitFor(() =>
-      expect(document.querySelector('.voice-hold')).toBeNull(),
-    )
+    expect(overlay()).toBeNull()
   })
 
   it('holds to talk from an empty box and sends on release', async () => {

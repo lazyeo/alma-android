@@ -63,6 +63,18 @@ describe('the collapsible composer', () => {
     expect(attach()).toBeNull()
   })
 
+  it('opens downward into the usual layout: text first, options and Send below', () => {
+    renderComposer({ value: 'hi', disabled: false })
+    fireEvent.click(more())
+    const capsule = document.querySelector('.composer-entry')!
+    const row = document.querySelector('.composer-controls')!
+    expect(
+      capsule.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(row.contains(send())).toBe(true)
+    expect(capsule.contains(send())).toBe(false)
+  })
+
   it('opens by itself once the box is focused for typing', () => {
     renderComposer()
     fireEvent.focus(box())

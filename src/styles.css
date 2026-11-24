@@ -11422,7 +11422,8 @@ html[data-alma-motion] .alma-shell .persona-message {
 }
 /* A thread's composer at rest: one capsule (the shell, when the composer is
    all it holds), the options arrow on its left, Send on its right once
-   there is something to send. The options row opens above it. */
+   there is something to send. Open, the options row (with Send) sits below
+   the text, the composer's usual layout. */
 .composer-shell:has(> .composer[data-open='false']):not(
     :has(> :not(.composer))
   ) {
@@ -11435,15 +11436,10 @@ html[data-alma-motion] .alma-shell .persona-message {
 .composer-controls[hidden] {
   display: none;
 }
-.composer[data-open] > .composer-entry {
+.composer[data-open='false'] > .composer-entry {
   align-items: center;
   padding: 6px;
-}
-.composer[data-open='false'] > .composer-entry {
   border-radius: var(--radius-full);
-}
-.composer[data-open='true'] > .composer-controls {
-  padding: 0 4px;
 }
 .composer-more {
   flex: 0 0 auto;
@@ -11509,24 +11505,6 @@ textarea[data-hold-to-talk]:placeholder-shown {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-}
-.voice-hold[data-phase='exiting'] {
-  pointer-events: none;
-}
-/* Going: everything fades but the touch area, which first settles back
-   into the capsule it grew out of, then fades with it. */
-.voice-hold[data-phase='exiting']
-  > :not(.voice-hold-arc):not(.voice-hold-origin) {
-  opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease-out);
-}
-.voice-hold[data-phase='exiting'] > .voice-hold-arc,
-.voice-hold[data-phase='exiting'] > .voice-hold-origin {
-  opacity: 0;
-  transition:
-    transform var(--dur-fast) var(--ease-out),
-    background-color var(--dur-fast) var(--ease-out),
-    opacity var(--dur-fast) var(--ease-out) var(--dur-press);
 }
 .voice-hold-scrim {
   position: absolute;
@@ -11656,28 +11634,10 @@ textarea[data-hold-to-talk]:placeholder-shown {
   position: absolute;
   border-radius: 50%;
   background: var(--voice-surface);
-  transition:
-    background-color var(--dur-fast) var(--ease-out),
-    transform var(--dur-fast) var(--ease-out);
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
 .voice-hold-arc[data-active='true'] {
   background: var(--voice-arc-active);
-}
-/* The shared-element morph: the touch area starts as the charged capsule
-   (laid over it by a transform, with this copy of the capsule under it
-   for the true shape) and opens out of it; it settles back the same way. */
-.voice-hold-arc[data-morph='capsule'] {
-  background: var(--accent-9);
-}
-.voice-hold-origin {
-  position: absolute;
-  background: var(--accent-9);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur-fast) var(--ease-out);
-}
-.voice-hold-origin[data-morph='capsule'] {
-  opacity: 1;
 }
 /* Rides above the bubble, which grows upward with the transcript. It sits
    inside the lock area, which already begins at the bubble's bottom edge

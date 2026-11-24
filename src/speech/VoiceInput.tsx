@@ -9,8 +9,6 @@ import {
 } from 'react'
 import { createLongPress } from '../components/longPress'
 import { focusToType } from './typingFocus'
-import { usePresence } from '../components/usePresence'
-import { ROW_EXIT_MS } from '../motionTokens'
 import { useOverlayRegistration } from '../components/useOverlayRegistration'
 import { haptic } from '../haptics'
 import { useT } from '../i18n'
@@ -27,12 +25,7 @@ import {
   loadSpeechSettings,
   type DictationSurface,
 } from './engineStore'
-import {
-  HoldOverlay,
-  WAVE_BARS,
-  type EntryFrame,
-  type HoldOverlayProps,
-} from './HoldOverlay'
+import { HoldOverlay, WAVE_BARS, type HoldOverlayProps } from './HoldOverlay'
 import {
   holdLayout,
   zoneAt,
@@ -78,8 +71,7 @@ export interface HoldPointerProps {
 export interface VoiceInput {
   /**
    * Spread on the text box: while it is empty, a tap types and a long press
-   * holds to talk (see canLongPressToTalk). The hold starts from the closest
-   * `[data-hold-area]`, the capsule the box sits in.
+   * holds to talk (see canLongPressToTalk).
    */
   textHold: HoldPointerProps & { 'data-hold-to-talk': true }
   /**
@@ -182,11 +174,7 @@ function useTextHold(
         const box = latest.current.area()
         if (box && document.activeElement === box) box.blur()
         held.element.setPointerCapture?.(held.pointerId)
-        // The capsule the box sits in is what turns into the hold.
-        latest.current.talk.begin(
-          held.pointerId,
-          held.element.closest<HTMLElement>('[data-hold-area]') ?? held.element,
-        )
+        latest.current.talk.begin(held.pointerId)
       }),
     [],
   )
@@ -254,18 +242,6 @@ function useTextHold(
   return { props, charging }
 }
 
-/** Where the pressed input area sits on screen, and its corners. */
-function entryFrame(area: HTMLElement): EntryFrame {
-  const box = area.getBoundingClientRect()
-  return {
-    left: box.left,
-    top: box.top,
-    width: box.width,
-    height: box.height,
-    radius: getComputedStyle(area).borderRadius,
-  }
-}
-
 /** The safe-area inset at the bottom, which CSS knows and JS does not. */
 function safeBottom(): number {
   const probe = document.createElement('div')
@@ -298,11 +274,8 @@ type SafeStop = 'limit' | 'background' | 'back' | 'interrupted'
 export interface HoldToTalk {
   /** Holding, locked, or waiting on the transcript: no new hold starts. */
   busy: boolean
-  /**
-   * Starts a hold for this pointer now (setup sheet when none can run).
-   * `area` is the input area pressed, drawn as the hold while it lasts.
-   */
-  begin(pointerId: number, area: HTMLElement): void
+  /** Starts a hold for this pointer now (setup sheet when none can run). */
+  begin(pointerId: number): void
   /** Follows a started hold's pointer: slides, release, system cancel. */
   follow: Pick<
     HoldPointerProps,
@@ -337,10 +310,6 @@ export function useHoldToTalk({
   /** Set from release until the transcript lands, with the release zone. */
   const [finishing, setFinishing] = useState<HoldZone>()
   const [layout, setLayout] = useState<HoldLayout>()
-  // The pressed input area, drawn as the hold. Measured again on resize:
-  // a hold that starts with the keyboard up puts it away, moving the area.
-  const pressedArea = useRef<HTMLElement>()
-  const [entry, setEntry] = useState<EntryFrame>()
   const [release, setRelease] = useState<DictationAction>('send')
   const [setupNeeded, setSetupNeeded] = useState(false)
   const [levels, setLevels] = useState<number[]>([])
@@ -430,7 +399,7 @@ export function useHoldToTalk({
   const latestStopSafely = useRef(stopSafely)
   latestStopSafely.current = stopSafely
 
-  const press = (pointerId: number, area: HTMLElement) => {
+  const press = (pointerId: number) => {
     const settings = loadSpeechSettings()
     if (!engineChain(settings).length) {
       setSetupNeeded(true)
@@ -440,8 +409,6 @@ export function useHoldToTalk({
     setLevels([])
     setRelease(canSend ? settings.release[surface] : 'insert')
     setLayout(holdLayout(window.innerWidth, window.innerHeight, safeBottom()))
-    pressedArea.current = area
-    setEntry(entryFrame(area))
     setHold({ pointerId, pressedAt: Date.now(), zone: 'release' })
     stopWhenRecording.current = false
     pendingAction.current = undefined
@@ -551,21 +518,6 @@ export function useHoldToTalk({
         })
       : undefined
   const zone = hold?.zone ?? (locked ? 'lock' : finishing)
-  const showing = Boolean(zone)
-  useEffect(() => {
-    if (!showing) return
-    const remeasure = () => {
-      const area = pressedArea.current
-      if (area) setEntry(entryFrame(area))
-    }
-    const viewport = window.visualViewport
-    window.addEventListener('resize', remeasure)
-    viewport?.addEventListener('resize', remeasure)
-    return () => {
-      window.removeEventListener('resize', remeasure)
-      viewport?.removeEventListener('resize', remeasure)
-    }
-  }, [showing])
   const busy = Boolean(hold || locked || finishing)
 
   const follow: HoldToTalk['follow'] = {
@@ -601,8 +553,6 @@ export function useHoldToTalk({
           release,
           transcript,
           levels,
-          entry,
-          fingerDown: Boolean(hold),
           engineLabel: label(active),
           fallback,
           onCancel: () => {
@@ -620,21 +570,10 @@ export function useHoldToTalk({
               : undefined,
         }
       : undefined
-  // Mounted through its exit, so the touch area can settle back into the
-  // capsule it grew out of (with the last frame it showed) before it goes.
-  const presence = usePresence(Boolean(overlayProps), {
-    appear: true,
-    exitMs: ROW_EXIT_MS,
-  })
-  const shown = useRef<HoldOverlayProps>()
-  if (overlayProps) shown.current = overlayProps
-  const drawn = overlayProps ?? shown.current
 
   const view = (
     <>
-      {presence.rendered && drawn ? (
-        <HoldOverlay {...drawn} phase={presence.phase} />
-      ) : null}
+      {overlayProps ? <HoldOverlay {...overlayProps} /> : null}
       {setupNeeded || state.phase === 'error' ? (
         <DictationSheet
           state={state}
@@ -656,8 +595,8 @@ export function useHoldToTalk({
 
   return {
     busy,
-    begin: (pointerId, area) => {
-      if (!busy) press(pointerId, area)
+    begin: (pointerId) => {
+      if (!busy) press(pointerId)
     },
     follow,
     view,
