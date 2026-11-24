@@ -26,6 +26,11 @@ android {
         versionCode versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
         versionName appVersion + (findProperty('almaVersionSuffix') ?: '')
         resValue 'string', 'package_name', applicationId
+        // The side-by-side test install (-PalmaApplicationId=club.a_dobe.alma.test)
+        // is told apart from the signed app on the launcher; the release keeps "Alma".
+        def appLabel = applicationId == "club.a_dobe.alma.test" ? "Alma Test" : "Alma"
+        resValue 'string', 'app_name', appLabel
+        resValue 'string', 'title_activity_main', appLabel
         resValue 'string', 'custom_url_scheme', applicationId
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

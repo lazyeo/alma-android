@@ -1,7 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name" translatable="false">Alma</string>
-    <string name="title_activity_main" translatable="false">Alma</string>
+    <!-- app_name and title_activity_main come from resValue in build.gradle. -->
 
     <!-- System chooser titles -->
     <string name="file_chooser_share">Share file</string>
