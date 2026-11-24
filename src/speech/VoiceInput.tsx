@@ -1,4 +1,3 @@
-import { Keyboard, Mic } from 'lucide-react'
 import {
   useEffect,
   useMemo,
@@ -10,6 +9,8 @@ import {
 } from 'react'
 import { createLongPress } from '../components/longPress'
 import { focusToType } from './typingFocus'
+import { usePresence } from '../components/usePresence'
+import { ROW_EXIT_MS } from '../motionTokens'
 import { useOverlayRegistration } from '../components/useOverlayRegistration'
 import { haptic } from '../haptics'
 import { useT } from '../i18n'
@@ -26,17 +27,20 @@ import {
   loadSpeechSettings,
   type DictationSurface,
 } from './engineStore'
-import { HoldOverlay, WAVE_BARS, type EntryFrame } from './HoldOverlay'
+import {
+  HoldOverlay,
+  WAVE_BARS,
+  type EntryFrame,
+  type HoldOverlayProps,
+} from './HoldOverlay'
 import {
   holdLayout,
   zoneAt,
   type HoldLayout,
   type HoldZone,
 } from './holdLayout'
-import { loadInputMode, saveInputMode, type InputMode } from './inputMode'
 import { canLongPressToTalk } from './longPressTalk'
 import { speechAvailable } from './nativeSpeech'
-import { useAfterNextRender } from './useAfterNextRender'
 import { useDictation } from './useDictation'
 
 /** How long a held-back send's explanation stays up. */
@@ -58,7 +62,7 @@ export interface VoiceInputOptions {
   onInsert(text: string, at: 'caret' | 'end'): void
   /** Sends through the composer's own send path; absent → insert only. */
   onSend?(text: string): void
-  /** Focused when the composer switches back to the keyboard. */
+  /** The text box: its long press talks, its tap types. */
   textareaRef?: RefObject<HTMLTextAreaElement>
 }
 
@@ -73,38 +77,33 @@ export interface HoldPointerProps {
 
 export interface VoiceInput {
   /**
-   * The small mic/keyboard switch left of the input. Also carries the hold
-   * overlay and the setup sheet, which both entries share.
-   */
-  toggle: ReactNode
-  /** The hold-to-talk bar replacing the text box, or null on the keyboard. */
-  bar: ReactNode | null
-  /**
    * Spread on the text box: while it is empty, a tap types and a long press
-   * starts the same hold as the bar (see canLongPressToTalk).
+   * holds to talk (see canLongPressToTalk). The hold starts from the closest
+   * `[data-hold-area]`, the capsule the box sits in.
    */
   textHold: HoldPointerProps & { 'data-hold-to-talk': true }
+  /**
+   * A finger rests on the empty box and has not yet held long enough: the
+   * capsule (`[data-hold-area]`) shows it charging (`data-charging`).
+   */
+  charging: boolean
+  /** The notice by the composer, the hold overlay and the setup sheet. */
+  view: ReactNode
   /** The empty text box's placeholder, saying what a tap and a hold do. */
   hint: string
 }
 
 /**
- * A composer's voice input. The text box is the entry: a tap types, a long
- * press on an empty box holds to talk. The switch keeps the
- * full-width hold-to-talk bar for those who prefer it. Undefined in the
- * web build, which has no native recorder.
+ * A composer's voice input. The text box is the one entry: a tap types, a
+ * long press on an empty box holds to talk. Undefined in the web build,
+ * which has no native recorder.
  */
 export function useVoiceInput(
   options: VoiceInputOptions,
 ): VoiceInput | undefined {
   const t = useT()
-  const [mode, setMode] = useState<InputMode>(() =>
-    loadInputMode(options.surface),
-  )
-  // Lives here, not in the bar: an insert switches to the keyboard and
-  // unmounts the bar, and the notice explains that very insert.
+  // Lives here, not in the overlay: the notice outlasts the hold it explains.
   const [notice, setNotice] = useState('')
-  const afterRender = useAfterNextRender()
   const latest = useRef(options)
   latest.current = options
   useEffect(() => {
@@ -123,54 +122,26 @@ export function useVoiceInput(
       window.clearTimeout(timer)
     }
   }, [notice])
-  const changeMode = (next: InputMode) => {
-    setMode(next)
-    saveInputMode(options.surface, next)
-  }
-  // One hold for both entries: switching modes never drops a recording.
   const talk = useHoldToTalk({
     surface: options.surface,
     draft: () => latest.current.draft(),
     canSend: Boolean(options.onSend),
     onNotice: setNotice,
     onSend: (text) => latest.current.onSend?.(text),
-    // Inserted text is there to be edited: show the text box first.
-    onInsert: (text, at) => {
-      changeMode('keyboard')
-      afterRender(() => latest.current.onInsert(text, at))
-    },
+    onInsert: (text, at) => latest.current.onInsert(text, at),
   })
-  const textHold = useTextHold(talk, () => latest.current.textareaRef?.current)
+  const { props: textHold, charging } = useTextHold(
+    talk,
+    () => latest.current.textareaRef?.current,
+  )
   if (!speechAvailable()) return undefined
 
-  const keyboard = () => {
-    changeMode('keyboard')
-    afterRender(() => latest.current.textareaRef?.current?.focus())
-  }
-  const voice = mode === 'voice'
   return {
     textHold,
+    charging,
     hint: t('speech.hold.boxHint'),
-    toggle: (
+    view: (
       <>
-        <button
-          type="button"
-          className="quiet-icon-button voice-mode-toggle"
-          aria-label={
-            voice ? t('speech.toggle.keyboard') : t('speech.toggle.voice')
-          }
-          onClick={() => {
-            void haptic('selection')
-            if (voice) keyboard()
-            else changeMode('voice')
-          }}
-        >
-          {voice ? (
-            <Keyboard size={18} strokeWidth={2} />
-          ) : (
-            <Mic size={18} strokeWidth={2} />
-          )}
-        </button>
         {notice ? (
           <p className="dictation-notice" role="status">
             {notice}
@@ -179,16 +150,6 @@ export function useVoiceInput(
         {talk.view}
       </>
     ),
-    bar: voice ? (
-      <button
-        type="button"
-        className="voice-hold-bar"
-        data-active={talk.holding}
-        {...talk.barProps}
-      >
-        {t('speech.hold.bar')}
-      </button>
-    ) : null,
   }
 }
 
@@ -204,25 +165,27 @@ export function useVoiceInput(
 function useTextHold(
   talk: HoldToTalk,
   area: () => HTMLTextAreaElement | null | undefined,
-): VoiceInput['textHold'] {
+): { props: VoiceInput['textHold']; charging: boolean } {
   const latest = useRef({ talk, area })
   latest.current = { talk, area }
   const pending = useRef<{ pointerId: number; element: HTMLElement }>()
+  const [charging, setCharging] = useState(false)
   const press = useMemo(
     () =>
       createLongPress(() => {
         const held = pending.current
         pending.current = undefined
+        setCharging(false)
         if (!held || latest.current.talk.busy) return
         // Should the system have focused the box on the way down, put the
         // keyboard away: the overlay is taking the screen.
         const box = latest.current.area()
         if (box && document.activeElement === box) box.blur()
         held.element.setPointerCapture?.(held.pointerId)
-        // The whole input area takes on the hold's look, not just the box.
+        // The capsule the box sits in is what turns into the hold.
         latest.current.talk.begin(
           held.pointerId,
-          held.element.closest<HTMLElement>('.composer-input') ?? held.element,
+          held.element.closest<HTMLElement>('[data-hold-area]') ?? held.element,
         )
       }),
     [],
@@ -247,8 +210,9 @@ function useTextHold(
   const drop = () => {
     press.cancel()
     pending.current = undefined
+    setCharging(false)
   }
-  return {
+  const props: VoiceInput['textHold'] = {
     'data-hold-to-talk': true,
     onPointerDown(event) {
       if (event.button > 0 || !event.isPrimary || talk.busy || !eligible())
@@ -257,11 +221,16 @@ function useTextHold(
         pointerId: event.pointerId,
         element: event.currentTarget,
       }
+      // Feedback from the first touch: the capsule charges over the delay.
+      setCharging(true)
       press.start(event.clientX, event.clientY)
     },
     onPointerMove(event) {
-      if (event.pointerId === pending.current?.pointerId)
+      if (event.pointerId === pending.current?.pointerId) {
         press.move(event.clientX, event.clientY)
+        // Moved too far: no hold is coming, so the charge drains.
+        if (!press.pending()) drop()
+      }
       talk.follow.onPointerMove(event)
     },
     onPointerUp(event) {
@@ -282,6 +251,7 @@ function useTextHold(
       if (pending.current || talk.busy || eligible()) event.preventDefault()
     },
   }
+  return { props, charging }
 }
 
 /** Where the pressed input area sits on screen, and its corners. */
@@ -324,10 +294,8 @@ interface Locked {
  */
 type SafeStop = 'limit' | 'background' | 'back' | 'interrupted'
 
-/** A hold to talk, startable from the bar or from the text box. */
+/** A hold to talk, started by a long press on the composer's text box. */
 export interface HoldToTalk {
-  /** A finger is down on a hold (not locked, not finishing). */
-  holding: boolean
   /** Holding, locked, or waiting on the transcript: no new hold starts. */
   busy: boolean
   /**
@@ -340,9 +308,7 @@ export interface HoldToTalk {
     HoldPointerProps,
     'onPointerMove' | 'onPointerUp' | 'onPointerCancel'
   >
-  /** The bar: a hold starts on press. */
-  barProps: HoldPointerProps
-  /** The overlay and setup sheet, rendered once for both entries. */
+  /** The overlay and setup sheet. */
   view: ReactNode
 }
 
@@ -626,24 +592,24 @@ export function useHoldToTalk({
     },
   }
 
-  const view = (
-    <>
-      {zone && layout ? (
-        <HoldOverlay
-          layout={layout}
-          zone={zone}
-          finishing={Boolean(finishing)}
-          release={release}
-          transcript={transcript}
-          levels={levels}
-          entry={entry}
-          engineLabel={label(active)}
-          fallback={fallback}
-          onCancel={() => {
+  const overlayProps: HoldOverlayProps | undefined =
+    zone && layout
+      ? {
+          layout,
+          zone,
+          finishing: Boolean(finishing),
+          release,
+          transcript,
+          levels,
+          entry,
+          fingerDown: Boolean(hold),
+          engineLabel: label(active),
+          fallback,
+          onCancel: () => {
             dismiss()
             cancel()
-          }}
-          locked={
+          },
+          locked:
             locked && !finishing
               ? {
                   elapsedMs,
@@ -651,9 +617,23 @@ export function useHoldToTalk({
                   onSend: () => conclude('release', locked.pressedAt, 'send'),
                   onEdit: () => conclude('edit', locked.pressedAt, release),
                 }
-              : undefined
-          }
-        />
+              : undefined,
+        }
+      : undefined
+  // Mounted through its exit, so the touch area can settle back into the
+  // capsule it grew out of (with the last frame it showed) before it goes.
+  const presence = usePresence(Boolean(overlayProps), {
+    appear: true,
+    exitMs: ROW_EXIT_MS,
+  })
+  const shown = useRef<HoldOverlayProps>()
+  if (overlayProps) shown.current = overlayProps
+  const drawn = overlayProps ?? shown.current
+
+  const view = (
+    <>
+      {presence.rendered && drawn ? (
+        <HoldOverlay {...drawn} phase={presence.phase} />
       ) : null}
       {setupNeeded || state.phase === 'error' ? (
         <DictationSheet
@@ -675,22 +655,11 @@ export function useHoldToTalk({
   )
 
   return {
-    holding: Boolean(hold),
     busy,
     begin: (pointerId, area) => {
       if (!busy) press(pointerId, area)
     },
     follow,
-    barProps: {
-      ...follow,
-      onPointerDown(event) {
-        if (event.button > 0 || busy) return
-        event.preventDefault()
-        event.currentTarget.setPointerCapture?.(event.pointerId)
-        press(event.pointerId, event.currentTarget)
-      },
-      onContextMenu: (event) => event.preventDefault(),
-    },
     view,
   }
 }

@@ -23,6 +23,10 @@ export const composer = {
   fast: 'Fast',
   send: 'Send message',
   queueFollowUp: 'Queue follow-up',
+  options: {
+    show: 'More options',
+    hide: 'Fewer options',
+  },
   uploading: 'Uploading…',
   attachments: {
     add: 'Add attachment',

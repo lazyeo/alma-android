@@ -18,9 +18,7 @@ import {
   saveSpeechSettings,
   setEngineEnabled,
 } from './engineStore'
-import { WAVE_BARS } from './HoldOverlay'
 import { holdLayout } from './holdLayout'
-import { inputModeKey } from './inputMode'
 import {
   LIMIT_GRACE_MS,
   NOTICE_MS,
@@ -86,16 +84,14 @@ function Composer(props: Omit<VoiceInputOptions, 'textareaRef'>) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const voice = useVoiceInput({ ...props, textareaRef })
   return (
-    <div>
-      {voice?.toggle}
-      {voice?.bar}
+    <div data-hold-area data-charging={voice?.charging || undefined}>
       <textarea
         {...voice?.textHold}
         aria-label="Message"
         placeholder={voice?.hint ?? 'Message'}
         ref={textareaRef}
-        hidden={Boolean(voice?.bar)}
       />
+      {voice?.view}
     </div>
   )
 }
@@ -118,8 +114,9 @@ function renderComposer(props: Partial<VoiceInputOptions> = {}) {
   return handlers
 }
 
-const bar = () => screen.getByRole('button', { name: 'Hold to talk' })
-const overlay = () => document.querySelector('.voice-hold')
+/** The hold on screen, not one fading out after it ended. */
+const overlay = () =>
+  document.querySelector('.voice-hold:not([data-phase="exiting"])')
 const status = () => document.querySelector('.voice-hold-status p')?.textContent
 const activeCapsule = () =>
   document.querySelector('.voice-hold-capsule[data-active="true"]')?.textContent
@@ -127,23 +124,21 @@ const activeCapsule = () =>
 /** Real time, plus however long the test pretends the finger was held. */
 let heldFor = 0
 
-function useVoiceMode(surface: 'alma' | 'herdr' = 'alma') {
-  localStorage.setItem(inputModeKey(surface), 'voice')
-}
-
 const tokens = (
   list: { text: string; is_final: boolean }[],
   finished = false,
 ) => JSON.stringify({ tokens: list, finished })
 
-/** Presses the bar and waits until the dictation is recording. */
+/** Long-presses the empty box and waits until the dictation is recording. */
 async function press(at = { x: LAYOUT.width / 2, y: LAYOUT.height - 30 }) {
-  fireEvent.pointerDown(bar(), {
+  fireEvent.pointerDown(message(), {
     button: 0,
     pointerId: 1,
+    isPrimary: true,
     clientX: at.x,
     clientY: at.y,
   })
+  await waitPastLongPress()
   await waitFor(() => expect(overlay()).not.toBeNull())
   await waitFor(() =>
     expect(
@@ -156,12 +151,12 @@ async function press(at = { x: LAYOUT.width / 2, y: LAYOUT.height - 30 }) {
 }
 
 function slide(x: number, y: number) {
-  fireEvent.pointerMove(bar(), { pointerId: 1, clientX: x, clientY: y })
+  fireEvent.pointerMove(message(), { pointerId: 1, clientX: x, clientY: y })
 }
 
 function letGo(held = MIN_HOLD_MS) {
   heldFor += held
-  fireEvent.pointerUp(bar(), { button: 0, pointerId: 1 })
+  fireEvent.pointerUp(message(), { button: 0, pointerId: 1 })
 }
 
 /** Ends the stream with this final text once Stop has been sent. */
@@ -218,49 +213,20 @@ describe('voice mode', () => {
   it('offers nothing without the native recorder', () => {
     fake.available.value = false
     renderComposer()
-    expect(screen.queryByRole('button', { name: /voice|keyboard/i })).toBeNull()
+    expect(message().hasAttribute('data-hold-to-talk')).toBe(false)
   })
 
-  it('swaps the text box for the hold bar and back, focusing the text', async () => {
+  // The box is the one entry: no switch, no separate hold bar.
+  it('offers no switch between voice and the keyboard', () => {
     renderComposer()
-    const message = screen.getByLabelText('Message')
-    expect(message.hidden).toBe(false)
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Switch to voice input' }),
-    )
-    expect(bar()).toBeTruthy()
-    expect(message.hidden).toBe(true)
-    fireEvent.click(screen.getByRole('button', { name: 'Switch to keyboard' }))
+    expect(screen.queryByRole('button', { name: /voice|keyboard/i })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Hold to talk' })).toBeNull()
-    await waitFor(() => expect(document.activeElement).toBe(message))
-  })
-
-  it('remembers the mode for each composer separately', () => {
-    renderComposer({ surface: 'herdr' })
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Switch to voice input' }),
-    )
-    expect(localStorage.getItem(inputModeKey('herdr'))).toBe('voice')
-    expect(localStorage.getItem(inputModeKey('alma'))).toBeNull()
-    cleanup()
-    renderComposer({ surface: 'herdr' })
-    expect(bar()).toBeTruthy()
-    cleanup()
-    renderComposer({ surface: 'alma' })
-    expect(screen.queryByRole('button', { name: 'Hold to talk' })).toBeNull()
+    expect(message().hidden).toBe(false)
   })
 })
 
 describe('hold to talk', () => {
-  it('fills the bar it was pressed on like the text box', async () => {
-    useVoiceMode()
-    renderComposer()
-    await press()
-    expect(document.querySelector('.voice-hold-entry')).not.toBeNull()
-  })
-
   it('sends on release in place, through the composer', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     expect(status()).toBe('Release to send')
@@ -275,7 +241,6 @@ describe('hold to talk', () => {
   })
 
   it('shows the live transcript and the input level in the bubble', async () => {
-    useVoiceMode()
     renderComposer()
     await press()
     act(() =>
@@ -297,7 +262,6 @@ describe('hold to talk', () => {
   })
 
   it('lights the capsule under the finger with one haptic per change', async () => {
-    useVoiceMode()
     renderComposer()
     await press()
     haptics.haptic.mockClear()
@@ -321,7 +285,6 @@ describe('hold to talk', () => {
   })
 
   it('cancels when released on the cancel capsule', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     slide(LAYOUT.cancel.cx, LAYOUT.cancel.cy)
@@ -334,7 +297,6 @@ describe('hold to talk', () => {
   })
 
   it('puts the text in the composer to edit when released on edit', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     slide(LAYOUT.edit.cx, LAYOUT.edit.cy)
@@ -344,13 +306,9 @@ describe('hold to talk', () => {
       expect(onInsert).toHaveBeenCalledWith('ls -la', 'caret'),
     )
     expect(onSend).not.toHaveBeenCalled()
-    // Back on the keyboard, with the text there to edit.
-    expect(screen.getByLabelText('Message').hidden).toBe(false)
-    expect(localStorage.getItem(inputModeKey('alma'))).toBe('keyboard')
   })
 
   it('drops a hold too short to be speech and says so', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     letGo(MIN_HOLD_MS - 200)
@@ -364,17 +322,15 @@ describe('hold to talk', () => {
   })
 
   it('drops the dictation when the system takes the pointer', async () => {
-    useVoiceMode()
     const { onSend } = renderComposer()
     await press()
-    fireEvent.pointerCancel(bar(), { pointerId: 1 })
+    fireEvent.pointerCancel(message(), { pointerId: 1 })
     await waitFor(() => expect(overlay()).toBeNull())
     expect(fake.speech.cancelStream).toHaveBeenCalled()
     expect(onSend).not.toHaveBeenCalled()
   })
 
   it('follows the Herdr default and fills the composer on release', async () => {
-    useVoiceMode('herdr')
     const { onSend, onInsert } = renderComposer({ surface: 'herdr' })
     await press()
     expect(status()).toBe('Release to fill in')
@@ -387,7 +343,6 @@ describe('hold to talk', () => {
   })
 
   it('holds back a too-short result and says why', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     letGo()
@@ -400,7 +355,6 @@ describe('hold to talk', () => {
   })
 
   it('appends to typed text instead of sending it', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer({ draft: () => '已经写了一半' })
     await press()
     letGo()
@@ -413,7 +367,6 @@ describe('hold to talk', () => {
   })
 
   it('puts a recording that hits the length cap into the composer', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     act(() => fake.fire('recordingStopped', { reason: 'limit' }))
@@ -426,12 +379,9 @@ describe('hold to talk', () => {
     expect(screen.getByRole('status').textContent).toBe(
       'Recording stopped at the 5-minute limit. What you said is in the input box.',
     )
-    // Back on the keyboard: the bar the finger was on is gone.
-    expect(screen.getByLabelText('Message').hidden).toBe(false)
   })
 
   it('shows Transcribing with a way out while a batch engine works', async () => {
-    useVoiceMode()
     onlyEngine('openai')
     let answer: (value: { status: number; body: string }) => void = () => {}
     fake.speech.transcribe.mockImplementation(
@@ -455,7 +405,6 @@ describe('hold to talk', () => {
 
 describe('hold to talk errors and fallback', () => {
   it('names the fallback engine and why it took over', async () => {
-    useVoiceMode()
     renderComposer()
     await press()
     act(() =>
@@ -469,7 +418,6 @@ describe('hold to talk errors and fallback', () => {
   })
 
   it('says when the first engine was skipped for want of a key', async () => {
-    useVoiceMode()
     fake.speech.keyStatus.mockImplementation(async (options?: object) => ({
       set: (options as { engineId: string }).engineId !== 'soniox',
     }))
@@ -484,10 +432,10 @@ describe('hold to talk errors and fallback', () => {
   })
 
   it('without a key explains it and offers voice settings', async () => {
-    useVoiceMode()
     fake.speech.keyStatus.mockImplementation(async () => ({ set: false }))
     const { onSend, onInsert } = renderComposer()
-    fireEvent.pointerDown(bar(), { button: 0, pointerId: 1 })
+    touchBox()
+    await waitPastLongPress()
     expect(
       await screen.findByText(
         'Voice input needs an API key for Soniox. Add one in voice settings.',
@@ -503,7 +451,6 @@ describe('hold to talk errors and fallback', () => {
   })
 
   it('offers what was heard when the only engine fails', async () => {
-    useVoiceMode()
     onlyEngine('soniox-rt')
     const { onInsert } = renderComposer()
     await press()
@@ -528,10 +475,10 @@ describe('hold to talk errors and fallback', () => {
   })
 
   it('asks for setup when no enabled engine can run', async () => {
-    useVoiceMode()
     onlyEngine('custom')
     renderComposer()
-    fireEvent.pointerDown(bar(), { button: 0, pointerId: 1 })
+    touchBox()
+    await waitPastLongPress()
     expect(
       await screen.findByText(
         'The custom endpoint needs a base URL and a model. Set them in voice settings.',
@@ -544,7 +491,7 @@ describe('hold to talk errors and fallback', () => {
 
 const message = () => screen.getByLabelText('Message') as HTMLTextAreaElement
 const BOX = { x: LAYOUT.width / 2, y: LAYOUT.height - 30 }
-const entry = () => document.querySelector('.voice-hold-entry')
+const arc = () => document.querySelector('.voice-hold-arc')
 
 /** Puts a finger on the text box without lifting it. */
 function touchBox(at = BOX) {
@@ -573,21 +520,61 @@ describe('long press on the text box', () => {
     )
   })
 
-  it('turns the input area into the hold: accent fill and the live waveform', async () => {
+  it('charges the capsule from the touch until the hold takes over', async () => {
+    renderComposer()
+    const capsule = () =>
+      document.querySelector('[data-hold-area]')?.getAttribute('data-charging')
+    touchBox()
+    expect(capsule()).toBe('true')
+    fireEvent.pointerUp(message(), { button: 0, pointerId: 1 })
+    expect(capsule()).toBeNull()
+    touchBox()
+    await waitPastLongPress()
+    await waitFor(() => expect(overlay()).not.toBeNull())
+    expect(capsule()).toBeNull()
+  })
+
+  it('morphs the capsule into the touch area and back as the finger lifts', async () => {
     renderComposer()
     touchBox()
     await waitPastLongPress()
-    await waitFor(() => expect(entry()).not.toBeNull())
-    expect(entry()?.getAttribute('data-zone')).toBe('release')
-    expect(entry()?.querySelectorAll('.voice-hold-wave > span').length).toBe(
-      WAVE_BARS,
+    await waitFor(() => expect(started()).toBeGreaterThan(0))
+    // Starts on the capsule, then opens out into the arc under the finger.
+    await waitFor(() => expect(arc()?.getAttribute('data-morph')).toBe('open'))
+    expect(document.querySelector('.voice-hold-origin')).not.toBeNull()
+    // No second waveform: the bubble's is the one.
+    expect(document.querySelectorAll('.voice-hold-wave').length).toBe(1)
+    fireEvent.pointerMove(message(), {
+      pointerId: 1,
+      clientX: LAYOUT.width / 2,
+      clientY: LAYOUT.lockLine - 40,
+    })
+    heldFor += 200
+    fireEvent.pointerUp(message(), { button: 0, pointerId: 1 })
+    await waitFor(() =>
+      expect(arc()?.getAttribute('data-morph')).toBe('capsule'),
     )
+  })
+
+  it('settles back into the capsule before it goes, on a cancel too', async () => {
+    renderComposer()
+    touchBox()
+    await waitPastLongPress()
+    await waitFor(() => expect(started()).toBeGreaterThan(0))
+    await waitFor(() => expect(arc()?.getAttribute('data-morph')).toBe('open'))
     fireEvent.pointerMove(message(), {
       pointerId: 1,
       clientX: LAYOUT.cancel.cx,
       clientY: LAYOUT.cancel.cy,
     })
-    expect(entry()?.getAttribute('data-zone')).toBe('cancel')
+    heldFor += MIN_HOLD_MS
+    fireEvent.pointerUp(message(), { button: 0, pointerId: 1 })
+    const leaving = document.querySelector('.voice-hold[data-phase="exiting"]')
+    expect(leaving).not.toBeNull()
+    expect(arc()?.getAttribute('data-morph')).toBe('capsule')
+    await waitFor(() =>
+      expect(document.querySelector('.voice-hold')).toBeNull(),
+    )
   })
 
   it('holds to talk from an empty box and sends on release', async () => {
@@ -750,7 +737,6 @@ const INTERRUPTED =
 
 describe('locked recording', () => {
   it('lights the lock hint when the finger slides up, with one haptic', async () => {
-    useVoiceMode()
     renderComposer()
     await press()
     const hint = () => document.querySelector('.voice-hold-lock')
@@ -770,7 +756,6 @@ describe('locked recording', () => {
   })
 
   it('keeps recording after release in the lock area and shows the time', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     lockUp()
@@ -788,15 +773,19 @@ describe('locked recording', () => {
       expect(screen.getByRole('button', { name })).toBeTruthy()
     heldFor += 65_000
     await waitFor(() => expect(timer()).toBe('01:05'))
-    // The bar beneath takes no new press while locked.
-    fireEvent.pointerDown(bar(), { button: 0, pointerId: 2 })
+    // The box beneath takes no new press while locked.
+    fireEvent.pointerDown(message(), {
+      button: 0,
+      pointerId: 2,
+      isPrimary: true,
+    })
+    await waitPastLongPress()
     expect(fake.speech.startStream).toHaveBeenCalledTimes(1)
     expect(onSend).not.toHaveBeenCalled()
     expect(onInsert).not.toHaveBeenCalled()
   })
 
   it('sends from the lock with Send', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     lockUp()
@@ -809,7 +798,6 @@ describe('locked recording', () => {
   })
 
   it('sends with Send even where release fills in (Herdr)', async () => {
-    useVoiceMode('herdr')
     const { onSend } = renderComposer({ surface: 'herdr' })
     await press()
     lockUp()
@@ -820,7 +808,6 @@ describe('locked recording', () => {
   })
 
   it('offers no Send where the composer cannot send', async () => {
-    useVoiceMode()
     renderComposer({ onSend: undefined })
     await press()
     lockUp()
@@ -829,7 +816,6 @@ describe('locked recording', () => {
   })
 
   it('puts the text in the composer with To text', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     lockUp()
@@ -843,7 +829,6 @@ describe('locked recording', () => {
   })
 
   it('discards the recording with Cancel', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     lockUp()
@@ -857,7 +842,6 @@ describe('locked recording', () => {
   })
 
   it('drops a lock ended before it was long enough to be speech', async () => {
-    useVoiceMode()
     const { onSend } = renderComposer()
     await press()
     lockUp(100)
@@ -870,7 +854,6 @@ describe('locked recording', () => {
   })
 
   it('stops into the composer when the app leaves the screen, never sending', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     lockUp()
@@ -888,12 +871,11 @@ describe('locked recording', () => {
   })
 
   it('stops into the composer when the app leaves the screen mid-hold', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     act(() => hideApp())
     // The system taking the finger afterwards drops nothing.
-    fireEvent.pointerCancel(bar(), { pointerId: 1 })
+    fireEvent.pointerCancel(message(), { pointerId: 1 })
     letGo()
     await finishWith('a call came in')
     await waitFor(() =>
@@ -903,12 +885,11 @@ describe('locked recording', () => {
   })
 
   it('keeps a hold the system cancels before the page hides', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     heldFor += MIN_HOLD_MS
     // A call's screen takes the finger first; the page hides afterwards.
-    fireEvent.pointerCancel(bar(), { pointerId: 1 })
+    fireEvent.pointerCancel(message(), { pointerId: 1 })
     act(() => hideApp())
     await finishWith('the call took the finger')
     await waitFor(() =>
@@ -925,7 +906,6 @@ describe('locked recording', () => {
   })
 
   it('keeps the background notice until the user is back to read it', async () => {
-    useVoiceMode()
     const { onInsert } = renderComposer()
     await press()
     lockUp()
@@ -952,7 +932,6 @@ describe('locked recording', () => {
   })
 
   it('swallows Back while the transcript is on its way', async () => {
-    useVoiceMode()
     onlyEngine('openai')
     let answer: (value: { status: number; body: string }) => void = () => {}
     fake.speech.transcribe.mockImplementation(
@@ -979,7 +958,6 @@ describe('locked recording', () => {
   })
 
   it('keeps a locked batch recording whose mic fails', async () => {
-    useVoiceMode()
     onlyEngine('openai')
     const { onSend, onInsert } = renderComposer()
     await press()
@@ -995,7 +973,6 @@ describe('locked recording', () => {
   })
 
   it('stops into the composer on Back instead of leaving', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     lockUp()
@@ -1013,7 +990,6 @@ describe('locked recording', () => {
   })
 
   it('says why when native stops a locked recording at the cap', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     lockUp()
@@ -1032,7 +1008,6 @@ describe('locked recording', () => {
   })
 
   it('warns before the cap and stops itself if native never does', async () => {
-    useVoiceMode()
     const { onSend, onInsert } = renderComposer()
     await press()
     lockUp()
@@ -1054,7 +1029,6 @@ describe('locked recording', () => {
   })
 
   it('sends a locked recording through an OpenAI-compatible upload', async () => {
-    useVoiceMode()
     onlyEngine('openai')
     const { onSend } = renderComposer()
     await press()
@@ -1068,7 +1042,6 @@ describe('locked recording', () => {
   })
 
   it('keeps a backgrounded locked recording through the Soniox async job', async () => {
-    useVoiceMode()
     onlyEngine('soniox-async')
     fake.speech.transcribe.mockImplementation(async () => ({
       status: 201,
@@ -1098,7 +1071,6 @@ describe('locked recording', () => {
   })
 
   it('releases the mic when the composer goes away while locked', async () => {
-    useVoiceMode()
     renderComposer()
     await press()
     lockUp()

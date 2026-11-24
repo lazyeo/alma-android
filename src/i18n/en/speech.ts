@@ -19,12 +19,7 @@ export const speech = {
       needs_key: '{from} has no key set, now using {to}',
     },
   },
-  toggle: {
-    voice: 'Switch to voice input',
-    keyboard: 'Switch to keyboard',
-  },
   hold: {
-    bar: 'Hold to talk',
     boxHint: 'Hold to talk, tap to type',
     send: 'Release to send',
     insert: 'Release to fill in',

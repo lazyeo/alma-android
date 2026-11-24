@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- Long-press the empty input box to talk: press and hold starts the same hold-to-talk as the voice bar (slide to cancel, edit or lock; release to send or fill in, per Settings → Voice input). A tap still opens the keyboard; this also works with the keyboard already up. Once the box has text, a long press selects and pastes as before. The empty box now reads "Hold to talk, tap to type", and while held the input area itself turns the accent colour with the live waveform (red over Cancel). The switch next to the box, now a mic, still opens the full-width hold bar (2026-11-24).
+- The thread composer is one capsule, and holding it talks: there is no voice/keyboard switch any more. The empty box reads "Hold to talk, tap to type". A tap opens the keyboard; press and hold and the capsule charges up, then turns into the hold-to-talk touch area (slide to cancel, edit or lock; release to send or fill in, per Settings → Voice input) and settles back when you let go. Once the box has text, a long press selects and pastes as before. The arrow on the left (or starting to type) opens attachments, model and reasoning effort; Send shows on the right once there is something to send (2026-11-24).
 
 ## [0.1.10] - 2026-11-18
 

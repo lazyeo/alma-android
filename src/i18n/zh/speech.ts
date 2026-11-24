@@ -21,13 +21,8 @@ export const speech: CatalogShape<typeof source> = {
       needs_key: '{from} 未设置 key，已改用 {to}',
     },
   },
-  toggle: {
-    voice: '切换到语音输入',
-    keyboard: '切换到键盘',
-  },
   hold: {
-    bar: '按住 说话',
-    boxHint: '按住说话，轻点打字',
+    boxHint: '按住说话，点按输入',
     send: '松手 发送',
     insert: '松手 填入',
     cancel: '松手 取消',

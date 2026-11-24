@@ -1,8 +1,9 @@
-import { ArrowUp, Copy } from 'lucide-react'
+import { ChevronUp, Copy } from 'lucide-react'
 import { Fragment, useMemo, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLayoutMode } from '../layout/useLayoutMode'
 import { useT } from '../i18n'
+import { speechAvailable } from '../speech/nativeSpeech'
 import { rootRows, type MessageRow } from '../relay'
 import { threadCache } from '../relay/threadCache'
 import { AlmaFace } from './AlmaFace'
@@ -245,20 +246,24 @@ export function AlmaShell({
         </div>
       </div>
       <footer className="composer-shell" aria-hidden="true">
-        <div className="composer">
-          <div className="composer-input">
-            <textarea
-              rows={1}
-              readOnly
-              tabIndex={-1}
-              placeholder={t('thread.placeholder.message')}
-            />
-          </div>
-          <div className="composer-controls">
-            <span className="composer-spacer" />
-            <button className="send" tabIndex={-1} disabled>
-              <ArrowUp size={16} strokeWidth={2} />
-            </button>
+        {/* The thread's composer at rest: one folded capsule (Composer). */}
+        <div className="composer" data-open="false">
+          <div className="composer-entry">
+            <span className="quiet-icon-button composer-more">
+              <ChevronUp size={16} strokeWidth={2} />
+            </span>
+            <div className="composer-input">
+              <textarea
+                rows={1}
+                readOnly
+                tabIndex={-1}
+                placeholder={
+                  speechAvailable()
+                    ? t('speech.hold.boxHint')
+                    : t('thread.placeholder.message')
+                }
+              />
+            </div>
           </div>
         </div>
       </footer>

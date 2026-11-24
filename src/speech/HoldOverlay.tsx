@@ -1,5 +1,6 @@
 import { Lock } from 'lucide-react'
 import { createPortal } from 'react-dom'
+import type { PresenceState } from '../components/usePresence'
 import { useT } from '../i18n'
 import type { DictationAction } from './delivery'
 import { MAX_RECORDING_MS } from './dictationSession'
@@ -53,11 +54,15 @@ export interface HoldOverlayProps {
   /** Recent input levels, oldest first, 0–1. */
   levels: number[]
   /**
-   * The input area the hold started on, drawn over itself in the accent
-   * with the live waveform, so the press reads as the area turning into
-   * the hold (red while the finger is on Cancel).
+   * The composer capsule the hold grew out of. The touch area (the arc)
+   * starts as the capsule and opens out of it, and settles back into it
+   * once the finger lifts or the overlay goes.
    */
   entry?: EntryFrame
+  /** A finger is on the hold (not locked, not waiting on the transcript). */
+  fingerDown: boolean
+  /** Entering, on screen, or on its way out (see usePresence). */
+  phase?: PresenceState['phase']
   /** The engine at work and, after a switch, why. */
   engineLabel: string
   fallback?: string
@@ -86,6 +91,8 @@ export function HoldOverlayView({
   transcript,
   levels,
   entry,
+  fingerDown,
+  phase = 'entered',
   engineLabel,
   fallback,
   onCancel,
@@ -112,13 +119,20 @@ export function HoldOverlayView({
     !finishing && !locked && (zone === 'release' || zone === 'lock')
   const text =
     zone === 'cancel' ? '' : transcript || (zone === 'edit' ? null : '')
+  // The touch area is the capsule until the overlay is fully in and a
+  // finger is on it: that is the shared-element morph, both ways.
+  const morph =
+    entry && (phase !== 'entered' || !fingerDown) ? 'capsule' : 'open'
+  const exiting = phase === 'exiting'
   return (
     <div
       className="voice-hold"
       data-zone={zone}
       data-finishing={finishing}
+      data-phase={phase}
       role="dialog"
       aria-modal="true"
+      aria-hidden={exiting || undefined}
       aria-label={t('speech.sheet.title')}
     >
       <div className="voice-hold-scrim" />
@@ -209,20 +223,11 @@ export function HoldOverlayView({
           />
         </>
       )}
-      <div
-        className="voice-hold-arc"
-        data-active={!finishing && !locked && zone === 'release'}
-        style={{
-          left: layout.arc.cx - layout.arc.r,
-          top: layout.arc.cy - layout.arc.r,
-          width: layout.arc.r * 2,
-          height: layout.arc.r * 2,
-        }}
-      />
       {entry ? (
         <div
-          className="voice-hold-entry"
-          data-zone={zone}
+          className="voice-hold-origin"
+          data-morph={morph}
+          aria-hidden="true"
           style={{
             left: entry.left,
             top: entry.top,
@@ -230,12 +235,41 @@ export function HoldOverlayView({
             height: entry.height,
             borderRadius: entry.radius,
           }}
-        >
-          <Waveform levels={levels} />
-        </div>
+        />
       ) : null}
+      <div
+        className="voice-hold-arc"
+        data-active={!finishing && !locked && zone === 'release'}
+        data-morph={morph}
+        style={{
+          left: layout.arc.cx - layout.arc.r,
+          top: layout.arc.cy - layout.arc.r,
+          width: layout.arc.r * 2,
+          height: layout.arc.r * 2,
+          transform:
+            morph === 'capsule' && entry
+              ? arcOntoCapsule(layout.arc, entry)
+              : undefined,
+        }}
+      />
     </div>
   )
+}
+
+/**
+ * The transform that lays the arc's circle over the capsule's box. Only a
+ * transform (with a crossfade to the capsule itself), so the morph stays on
+ * the compositor: the shape never animates its size or corners.
+ */
+export function arcOntoCapsule(
+  arc: { cx: number; cy: number; r: number },
+  capsule: EntryFrame,
+): string {
+  const dx = capsule.left + capsule.width / 2 - arc.cx
+  const dy = capsule.top + capsule.height / 2 - arc.cy
+  const sx = capsule.width / (2 * arc.r)
+  const sy = capsule.height / (2 * arc.r)
+  return `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`
 }
 
 function CapsuleShape({

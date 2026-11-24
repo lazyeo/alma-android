@@ -9,6 +9,7 @@ import {
 import {
   DUR_FAST_MS,
   DUR_HANDOFF_MS,
+  DUR_HOLD_MS,
   DUR_PANEL_MS,
   DUR_PRESS_MS,
   EASE_OUT,
@@ -199,6 +200,7 @@ describe('stylesheet token enforcement', () => {
       'dur-fast': `${DUR_FAST_MS}ms`,
       'dur-panel': `${DUR_PANEL_MS}ms`,
       'dur-handoff': `${DUR_HANDOFF_MS}ms`,
+      'dur-hold': `${DUR_HOLD_MS}ms`,
       'ease-out': EASE_OUT,
     }))
       expect(css).toContain(`--${name}: ${value};`)
@@ -496,7 +498,7 @@ describe('stylesheet token enforcement', () => {
       expect(
         declarations('transition', source).filter(
           (value) =>
-            !/var\(--dur-(press|fast|panel|handoff)\)/.test(value) &&
+            !/var\(--dur-(press|fast|panel|handoff|hold)\)/.test(value) &&
             value !== 'none',
         ),
       ).toEqual([])

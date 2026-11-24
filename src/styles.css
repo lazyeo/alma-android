@@ -35,6 +35,8 @@
   --dur-stagger: 40ms;
   /* The shell fading off the real thread it covered (see almaHandoff.ts). */
   --dur-handoff: 120ms;
+  /* A long press's delay; the composer capsule charges over it. */
+  --dur-hold: 450ms;
   --dur-breathe: 2.8s;
   --dur-glance: 2.4s;
   --ease-out: cubic-bezier(0.2, 0.9, 0.3, 1);
@@ -11408,13 +11410,72 @@ html[data-alma-motion] .alma-shell .persona-message {
   line-height: var(--leading-normal);
 }
 
-/* Voice input: the composer's voice mode, the hold overlay, the error
-   sheet and Settings → Voice input. */
+/* Voice input: the composer capsule, the hold overlay, the error sheet and
+   Settings → Voice input. */
 .composer-entry {
+  position: relative;
   display: flex;
   align-items: flex-end;
   gap: 4px;
   min-width: 0;
+  border-radius: var(--radius-inner-composer);
+}
+/* A thread's composer at rest: one capsule (the shell, when the composer is
+   all it holds), the options arrow on its left, Send on its right once
+   there is something to send. The options row opens above it. */
+.composer-shell:has(> .composer[data-open='false']):not(
+    :has(> :not(.composer))
+  ) {
+  border-radius: var(--radius-full);
+}
+.composer[data-open='false'] {
+  padding: 0;
+}
+.composer[data-open] > .composer-entry {
+  align-items: center;
+  padding: 6px;
+}
+.composer[data-open='false'] > .composer-entry {
+  border-radius: var(--radius-full);
+}
+.composer[data-open='true'] > .composer-controls {
+  padding: 0 4px;
+}
+.composer-more {
+  flex: 0 0 auto;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  border-radius: var(--radius-full);
+  color: var(--muted-foreground);
+}
+.composer-more svg {
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.composer-more[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+.composer-entry > .send {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+  border-radius: var(--radius-full);
+}
+/* A finger resting on the empty box charges its capsule up to the hold
+   over the long-press delay; let go early and it drains. */
+[data-hold-area] {
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+[data-hold-area][data-charging='true'] {
+  background-color: var(--accent-9);
+  color: var(--accent-contrast);
+  transition: background-color var(--dur-hold) var(--ease-out);
+}
+[data-hold-area][data-charging='true'] textarea::placeholder,
+textarea[data-hold-area][data-charging='true']::placeholder {
+  color: var(--accent-contrast);
 }
 .composer-entry > .composer-input {
   flex: 1 1 auto;
@@ -11425,38 +11486,6 @@ html[data-alma-motion] .alma-shell .persona-message {
   min-height: 0;
   align-items: stretch;
 }
-/* Same height as the one-line text box it replaces (the textarea's
-   min-height), so switching modes does not resize the composer. */
-.composer-entry > .voice-hold-bar {
-  min-height: 32px;
-}
-.voice-mode-toggle {
-  flex: 0 0 auto;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  min-height: 32px;
-  border-radius: var(--radius-inner-composer);
-  color: var(--foreground);
-}
-/* The whole bar is the press target; the browser must not scroll or
-   select under a held finger. */
-.voice-hold-bar {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 0 12px;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: var(--secondary);
-  color: var(--foreground);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  transition: background-color var(--dur-press) var(--ease-out);
-}
 /* An empty text box is also a hold-to-talk entry (see canLongPressToTalk):
    its long press and slides are the hold's, not a pan, a selection or the
    callout. With text, the system's select and paste come back. */
@@ -11465,12 +11494,6 @@ textarea[data-hold-to-talk]:placeholder-shown {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
-}
-.voice-hold-bar[data-active='true'] {
-  background: var(--gray-6);
-}
-.agent-composer .voice-hold-bar {
-  min-height: 42px;
 }
 /* The hold overlay draws on a fixed dark scrim in every theme, so its
    surfaces use the --voice-* tokens rather than the theme's grays. */
@@ -11482,6 +11505,24 @@ textarea[data-hold-to-talk]:placeholder-shown {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+}
+.voice-hold[data-phase='exiting'] {
+  pointer-events: none;
+}
+/* Going: everything fades but the touch area, which first settles back
+   into the capsule it grew out of, then fades with it. */
+.voice-hold[data-phase='exiting']
+  > :not(.voice-hold-arc):not(.voice-hold-origin) {
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.voice-hold[data-phase='exiting'] > .voice-hold-arc,
+.voice-hold[data-phase='exiting'] > .voice-hold-origin {
+  opacity: 0;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out) var(--dur-press);
 }
 .voice-hold-scrim {
   position: absolute;
@@ -11611,25 +11652,28 @@ textarea[data-hold-to-talk]:placeholder-shown {
   position: absolute;
   border-radius: 50%;
   background: var(--voice-surface);
-  transition: background-color var(--dur-fast) var(--ease-out);
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
 }
 .voice-hold-arc[data-active='true'] {
   background: var(--voice-arc-active);
 }
-/* The pressed input area, turned into the hold: the bubble's accent and
-   waveform, red on Cancel like the bubble. */
-.voice-hold-entry {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
+/* The shared-element morph: the touch area starts as the charged capsule
+   (laid over it by a transform, with this copy of the capsule under it
+   for the true shape) and opens out of it; it settles back the same way. */
+.voice-hold-arc[data-morph='capsule'] {
   background: var(--accent-9);
-  color: var(--accent-contrast);
-  transition: background-color var(--dur-fast) var(--ease-out);
 }
-.voice-hold-entry[data-zone='cancel'] {
-  background: var(--red-9);
-  color: var(--red-contrast);
+.voice-hold-origin {
+  position: absolute;
+  background: var(--accent-9);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.voice-hold-origin[data-morph='capsule'] {
+  opacity: 1;
 }
 /* Rides above the bubble, which grows upward with the transcript. It sits
    inside the lock area, which already begins at the bubble's bottom edge

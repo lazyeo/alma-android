@@ -2579,6 +2579,7 @@ function ThreadView({
         disabled={uploading || (!text.trim() && !attachments.length)}
         generating={generating}
         textareaRef={textareaRef}
+        collapsible
         voice={voice}
         inputBackdrop={
           references.length ? (

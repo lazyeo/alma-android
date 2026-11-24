@@ -14,12 +14,13 @@ const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8')
 describe('shared composer layout', () => {
   it('renders the attachment tray above the textarea and outside the toolbar', () => {
     expect(composerSource).toContain('{attachmentTray}')
-    // The text box (in voice mode, its entry row) renders after the tray.
+    // The capsule (the text box's entry row) and the options row that
+    // opens above it both render after the tray.
     expect(composerSource.indexOf('{attachmentTray}')).toBeLessThan(
-      composerSource.indexOf('<div className="composer-entry">'),
+      composerSource.indexOf('className="composer-entry"'),
     )
     expect(composerSource.indexOf('{attachmentTray}')).toBeLessThan(
-      composerSource.indexOf('input(false)'),
+      composerSource.indexOf('{folds ? options : null}'),
     )
     expect(startSource).toContain('attachmentTray=')
   })
