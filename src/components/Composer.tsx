@@ -50,7 +50,7 @@ type ComposerProps = {
    * bar shown in place of the text box, and the text box's own long press.
    */
   voice?: Pick<VoiceInput, 'toggle' | 'bar'> &
-    Partial<Pick<VoiceInput, 'textHold'>>
+    Partial<Pick<VoiceInput, 'textHold' | 'hint'>>
   textareaRef?: React.RefObject<HTMLTextAreaElement>
   onTextareaKeyDown?(event: KeyboardEvent<HTMLTextAreaElement>): boolean | void
   textareaProps?: React.TextareaHTMLAttributes<HTMLTextAreaElement>
@@ -104,7 +104,9 @@ export function Composer({
         ref={textareaRef}
         rows={1}
         value={value}
-        placeholder={placeholder}
+        // The empty box says what a tap and a hold do; the full-screen
+        // editor is for typing only.
+        placeholder={(!expanded && voice?.hint) || placeholder}
         onChange={(event) =>
           onChange(
             event.target.value,

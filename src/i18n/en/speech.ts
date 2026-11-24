@@ -25,6 +25,7 @@ export const speech = {
   },
   hold: {
     bar: 'Hold to talk',
+    boxHint: 'Hold to talk, tap to type',
     send: 'Release to send',
     insert: 'Release to fill in',
     cancel: 'Release to cancel',

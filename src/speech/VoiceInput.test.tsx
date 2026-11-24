@@ -18,6 +18,7 @@ import {
   saveSpeechSettings,
   setEngineEnabled,
 } from './engineStore'
+import { WAVE_BARS } from './HoldOverlay'
 import { holdLayout } from './holdLayout'
 import { inputModeKey } from './inputMode'
 import {
@@ -91,7 +92,7 @@ function Composer(props: Omit<VoiceInputOptions, 'textareaRef'>) {
       <textarea
         {...voice?.textHold}
         aria-label="Message"
-        placeholder="Message"
+        placeholder={voice?.hint ?? 'Message'}
         ref={textareaRef}
         hidden={Boolean(voice?.bar)}
       />
@@ -251,6 +252,13 @@ describe('voice mode', () => {
 })
 
 describe('hold to talk', () => {
+  it('fills the bar it was pressed on like the text box', async () => {
+    useVoiceMode()
+    renderComposer()
+    await press()
+    expect(document.querySelector('.voice-hold-entry')).not.toBeNull()
+  })
+
   it('sends on release in place, through the composer', async () => {
     useVoiceMode()
     const { onSend, onInsert } = renderComposer()
@@ -536,6 +544,7 @@ describe('hold to talk errors and fallback', () => {
 
 const message = () => screen.getByLabelText('Message') as HTMLTextAreaElement
 const BOX = { x: LAYOUT.width / 2, y: LAYOUT.height - 30 }
+const entry = () => document.querySelector('.voice-hold-entry')
 
 /** Puts a finger on the text box without lifting it. */
 function touchBox(at = BOX) {
@@ -557,6 +566,30 @@ const started = () =>
   fake.speech.startRecording.mock.calls.length
 
 describe('long press on the text box', () => {
+  it('says what the empty box does: hold to talk, tap to type', () => {
+    renderComposer()
+    expect(message().getAttribute('placeholder')).toBe(
+      'Hold to talk, tap to type',
+    )
+  })
+
+  it('turns the input area into the hold: accent fill and the live waveform', async () => {
+    renderComposer()
+    touchBox()
+    await waitPastLongPress()
+    await waitFor(() => expect(entry()).not.toBeNull())
+    expect(entry()?.getAttribute('data-zone')).toBe('release')
+    expect(entry()?.querySelectorAll('.voice-hold-wave > span').length).toBe(
+      WAVE_BARS,
+    )
+    fireEvent.pointerMove(message(), {
+      pointerId: 1,
+      clientX: LAYOUT.cancel.cx,
+      clientY: LAYOUT.cancel.cy,
+    })
+    expect(entry()?.getAttribute('data-zone')).toBe('cancel')
+  })
+
   it('holds to talk from an empty box and sends on release', async () => {
     const { onSend } = renderComposer()
     touchBox()

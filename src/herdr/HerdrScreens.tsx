@@ -1276,7 +1276,7 @@ export function AgentPaneScreen() {
             placeholder={
               view === 'terminal'
                 ? t('agents.terminalTextPlaceholder')
-                : t('agents.messagePlaceholder')
+                : (voice?.hint ?? t('agents.messagePlaceholder'))
             }
             rows={1}
             onChange={(event) => {

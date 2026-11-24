@@ -11616,6 +11616,21 @@ textarea[data-hold-to-talk]:placeholder-shown {
 .voice-hold-arc[data-active='true'] {
   background: var(--voice-arc-active);
 }
+/* The pressed input area, turned into the hold: the bubble's accent and
+   waveform, red on Cancel like the bubble. */
+.voice-hold-entry {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--accent-9);
+  color: var(--accent-contrast);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+.voice-hold-entry[data-zone='cancel'] {
+  background: var(--red-9);
+  color: var(--red-contrast);
+}
 /* Rides above the bubble, which grows upward with the transcript. It sits
    inside the lock area, which already begins at the bubble's bottom edge
    (holdLayout's lockLine): the chip lights up as the finger crosses it. */

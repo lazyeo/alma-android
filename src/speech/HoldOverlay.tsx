@@ -31,6 +31,15 @@ export interface LockedRecording {
   onEdit(): void
 }
 
+/** The pressed input area, in viewport pixels, with its corner radius. */
+export interface EntryFrame {
+  left: number
+  top: number
+  width: number
+  height: number
+  radius: string
+}
+
 export interface HoldOverlayProps {
   layout: HoldLayout
   /** Where the finger is (or was, once released). */
@@ -43,6 +52,12 @@ export interface HoldOverlayProps {
   transcript: string
   /** Recent input levels, oldest first, 0–1. */
   levels: number[]
+  /**
+   * The input area the hold started on, drawn over itself in the accent
+   * with the live waveform, so the press reads as the area turning into
+   * the hold (red while the finger is on Cancel).
+   */
+  entry?: EntryFrame
   /** The engine at work and, after a switch, why. */
   engineLabel: string
   fallback?: string
@@ -70,6 +85,7 @@ export function HoldOverlayView({
   release,
   transcript,
   levels,
+  entry,
   engineLabel,
   fallback,
   onCancel,
@@ -203,6 +219,21 @@ export function HoldOverlayView({
           height: layout.arc.r * 2,
         }}
       />
+      {entry ? (
+        <div
+          className="voice-hold-entry"
+          data-zone={zone}
+          style={{
+            left: entry.left,
+            top: entry.top,
+            width: entry.width,
+            height: entry.height,
+            borderRadius: entry.radius,
+          }}
+        >
+          <Waveform levels={levels} />
+        </div>
+      ) : null}
     </div>
   )
 }

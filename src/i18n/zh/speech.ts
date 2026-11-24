@@ -27,6 +27,7 @@ export const speech: CatalogShape<typeof source> = {
   },
   hold: {
     bar: '按住 说话',
+    boxHint: '按住说话，轻点打字',
     send: '松手 发送',
     insert: '松手 填入',
     cancel: '松手 取消',

@@ -9,6 +9,7 @@ import {
   type RefObject,
 } from 'react'
 import { createLongPress } from '../components/longPress'
+import { focusToType } from './typingFocus'
 import { useOverlayRegistration } from '../components/useOverlayRegistration'
 import { haptic } from '../haptics'
 import { useT } from '../i18n'
@@ -25,7 +26,7 @@ import {
   loadSpeechSettings,
   type DictationSurface,
 } from './engineStore'
-import { HoldOverlay, WAVE_BARS } from './HoldOverlay'
+import { HoldOverlay, WAVE_BARS, type EntryFrame } from './HoldOverlay'
 import {
   holdLayout,
   zoneAt,
@@ -83,6 +84,8 @@ export interface VoiceInput {
    * starts the same hold as the bar (see canLongPressToTalk).
    */
   textHold: HoldPointerProps & { 'data-hold-to-talk': true }
+  /** The empty text box's placeholder, saying what a tap and a hold do. */
+  hint: string
 }
 
 /**
@@ -147,6 +150,7 @@ export function useVoiceInput(
   const voice = mode === 'voice'
   return {
     textHold,
+    hint: t('speech.hold.boxHint'),
     toggle: (
       <>
         <button
@@ -215,7 +219,11 @@ function useTextHold(
         const box = latest.current.area()
         if (box && document.activeElement === box) box.blur()
         held.element.setPointerCapture?.(held.pointerId)
-        latest.current.talk.begin(held.pointerId)
+        // The whole input area takes on the hold's look, not just the box.
+        latest.current.talk.begin(
+          held.pointerId,
+          held.element.closest<HTMLElement>('.composer-input') ?? held.element,
+        )
       }),
     [],
   )
@@ -261,7 +269,8 @@ function useTextHold(
       // longer turns into focus by itself.
       const tapped = event.pointerId === pending.current?.pointerId
       drop()
-      if (tapped) latest.current.area()?.focus()
+      const box = latest.current.area()
+      if (tapped && box) focusToType(box)
       talk.follow.onPointerUp(event)
     },
     onPointerCancel(event) {
@@ -272,6 +281,18 @@ function useTextHold(
     onContextMenu(event) {
       if (pending.current || talk.busy || eligible()) event.preventDefault()
     },
+  }
+}
+
+/** Where the pressed input area sits on screen, and its corners. */
+function entryFrame(area: HTMLElement): EntryFrame {
+  const box = area.getBoundingClientRect()
+  return {
+    left: box.left,
+    top: box.top,
+    width: box.width,
+    height: box.height,
+    radius: getComputedStyle(area).borderRadius,
   }
 }
 
@@ -309,8 +330,11 @@ export interface HoldToTalk {
   holding: boolean
   /** Holding, locked, or waiting on the transcript: no new hold starts. */
   busy: boolean
-  /** Starts a hold for this pointer now (setup sheet when none can run). */
-  begin(pointerId: number): void
+  /**
+   * Starts a hold for this pointer now (setup sheet when none can run).
+   * `area` is the input area pressed, drawn as the hold while it lasts.
+   */
+  begin(pointerId: number, area: HTMLElement): void
   /** Follows a started hold's pointer: slides, release, system cancel. */
   follow: Pick<
     HoldPointerProps,
@@ -347,6 +371,10 @@ export function useHoldToTalk({
   /** Set from release until the transcript lands, with the release zone. */
   const [finishing, setFinishing] = useState<HoldZone>()
   const [layout, setLayout] = useState<HoldLayout>()
+  // The pressed input area, drawn as the hold. Measured again on resize:
+  // a hold that starts with the keyboard up puts it away, moving the area.
+  const pressedArea = useRef<HTMLElement>()
+  const [entry, setEntry] = useState<EntryFrame>()
   const [release, setRelease] = useState<DictationAction>('send')
   const [setupNeeded, setSetupNeeded] = useState(false)
   const [levels, setLevels] = useState<number[]>([])
@@ -436,7 +464,7 @@ export function useHoldToTalk({
   const latestStopSafely = useRef(stopSafely)
   latestStopSafely.current = stopSafely
 
-  const press = (pointerId: number) => {
+  const press = (pointerId: number, area: HTMLElement) => {
     const settings = loadSpeechSettings()
     if (!engineChain(settings).length) {
       setSetupNeeded(true)
@@ -446,6 +474,8 @@ export function useHoldToTalk({
     setLevels([])
     setRelease(canSend ? settings.release[surface] : 'insert')
     setLayout(holdLayout(window.innerWidth, window.innerHeight, safeBottom()))
+    pressedArea.current = area
+    setEntry(entryFrame(area))
     setHold({ pointerId, pressedAt: Date.now(), zone: 'release' })
     stopWhenRecording.current = false
     pendingAction.current = undefined
@@ -555,6 +585,21 @@ export function useHoldToTalk({
         })
       : undefined
   const zone = hold?.zone ?? (locked ? 'lock' : finishing)
+  const showing = Boolean(zone)
+  useEffect(() => {
+    if (!showing) return
+    const remeasure = () => {
+      const area = pressedArea.current
+      if (area) setEntry(entryFrame(area))
+    }
+    const viewport = window.visualViewport
+    window.addEventListener('resize', remeasure)
+    viewport?.addEventListener('resize', remeasure)
+    return () => {
+      window.removeEventListener('resize', remeasure)
+      viewport?.removeEventListener('resize', remeasure)
+    }
+  }, [showing])
   const busy = Boolean(hold || locked || finishing)
 
   const follow: HoldToTalk['follow'] = {
@@ -591,6 +636,7 @@ export function useHoldToTalk({
           release={release}
           transcript={transcript}
           levels={levels}
+          entry={entry}
           engineLabel={label(active)}
           fallback={fallback}
           onCancel={() => {
@@ -631,8 +677,8 @@ export function useHoldToTalk({
   return {
     holding: Boolean(hold),
     busy,
-    begin: (pointerId) => {
-      if (!busy) press(pointerId)
+    begin: (pointerId, area) => {
+      if (!busy) press(pointerId, area)
     },
     follow,
     barProps: {
@@ -641,7 +687,7 @@ export function useHoldToTalk({
         if (event.button > 0 || busy) return
         event.preventDefault()
         event.currentTarget.setPointerCapture?.(event.pointerId)
-        press(event.pointerId)
+        press(event.pointerId, event.currentTarget)
       },
       onContextMenu: (event) => event.preventDefault(),
     },
