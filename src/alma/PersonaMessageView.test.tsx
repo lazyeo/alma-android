@@ -63,7 +63,8 @@ describe('PersonaMessageView', () => {
     expect(articles[0].querySelector('.persona-avatar-slot')).toBeNull()
     expect(articles[1].querySelector('svg.alma-face')).toBeTruthy()
     expect(articles[1].querySelector('svg')?.dataset.animated).toBe('false')
-    expect(articles[2].querySelector('.persona-avatar-slot')).toBeTruthy()
+    // A later bubble in her run with no reasoning gets no head row at all.
+    expect(articles[2].querySelector('.persona-head')).toBeNull()
     expect(articles[2].querySelector('svg.alma-face')).toBeNull()
     expect(
       screen.getByText('Coffee first?').closest('.persona-bubble'),
@@ -98,6 +99,65 @@ describe('PersonaMessageView', () => {
     expect(screen.getByText('They asked for the weather.')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Hide thinking' }))
     expect(screen.queryByText('They asked for the weather.')).toBeNull()
+  })
+
+  it('puts the thinking entry beside her face, with the reasoning on a rail', () => {
+    const { container } = renderRows([
+      message('a1', 'assistant', [
+        { type: 'reasoning', text: 'They asked for the weather.' },
+        { type: 'text', text: 'Sunny.' },
+      ]),
+    ])
+    const head = container.querySelector('.persona-head')
+    const toggle = screen.getByRole('button', { name: 'Show thinking' })
+    expect(head?.querySelector('svg.alma-face')).toBeTruthy()
+    expect(toggle.parentElement).toBe(head)
+    fireEvent.click(toggle)
+    const thinking = container.querySelector('.persona-thinking')
+    expect(thinking?.id).toBe(toggle.getAttribute('aria-controls'))
+    expect(thinking?.textContent).toBe('They asked for the weather.')
+    // The rail sits above the bubble, inside the same stack.
+    expect(thinking?.nextElementSibling?.className).toBe('persona-bubble')
+  })
+
+  it('gives a later reply in her run a head row only when it has reasoning', () => {
+    const { container } = renderRows([
+      message('a1', 'assistant', [{ type: 'text', text: 'One.' }]),
+      message('a2', 'assistant', [
+        { type: 'reasoning', text: 'And another.' },
+        { type: 'text', text: 'Two.' },
+      ]),
+    ])
+    const articles = [...container.querySelectorAll('article')]
+    expect(articles[0].querySelector('.persona-thinking-toggle')).toBeNull()
+    const head = articles[1].querySelector('.persona-head')
+    expect(head?.querySelector('.persona-thinking-toggle')).toBeTruthy()
+    expect(head?.querySelector('svg.alma-face')).toBeNull()
+  })
+
+  it('says she is thinking beside her face until her words arrive', () => {
+    const thinking = message('a1', 'assistant', [
+      { type: 'reasoning', text: 'Weighing it up.' },
+    ])
+    const view = renderRows([thinking], true)
+    const toggle = screen.getByRole('button', { name: 'Thinking' })
+    expect(toggle.classList.contains('live')).toBe(true)
+    expect(toggle.closest('.persona-head')).toBeTruthy()
+    // No typing bubble under the live entry: the entry already says it.
+    expect(view.container.querySelector('.persona-bubble')).toBeNull()
+    fireEvent.click(toggle)
+    expect(screen.getByText('Weighing it up.')).toBeTruthy()
+    view.unmount()
+    renderRows(
+      [
+        message('a1', 'assistant', [
+          { type: 'reasoning', text: 'Weighing it up.' },
+          { type: 'text', text: 'Here goes.' },
+        ]),
+      ],
+      true,
+    )
+    expect(screen.getByRole('button', { name: 'Show thinking' })).toBeTruthy()
   })
 
   it('shows a typing bubble while an empty reply streams or tools run', () => {

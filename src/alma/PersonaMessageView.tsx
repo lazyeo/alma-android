@@ -1,4 +1,4 @@
-import { RefreshCw } from 'lucide-react'
+import { ChevronRight, RefreshCw } from 'lucide-react'
 import { memo, useMemo, useState } from 'react'
 import { previewTailAttributes } from '../components/longPressPreview'
 import { useLongPress } from '../components/useLongPress'
@@ -57,34 +57,52 @@ export const PersonaMessageView = memo(function PersonaMessageView({
   const reactions = useMemo(() => parseReactions(row.metadata), [row.metadata])
   // A voice reply may have no text parts at all; it still needs a bubble.
   const hasVoice = parseVoiceNote(row.metadata).kind !== 'none'
-  const empty = !parts.body.length && !parts.reasoning.length && !hasVoice
+  const hasReasoning = alma && parts.reasoning.length > 0
+  const empty = !parts.body.length && !hasReasoning && !hasVoice
+  // While she is still thinking (no words yet) the entry says so.
+  const thinkingLive =
+    hasReasoning && generating && !parts.body.length && !hasVoice
+  // Her face and the thinking entry share one row; a later bubble in her
+  // run without reasoning gets no row at all, so no blank line.
+  const showHead = alma && (layout.first || hasReasoning)
+  const thinkingId = `persona-thinking-${row.id}`
   return (
     <article
       {...press}
       {...previewTail}
       className={`persona-message ${layout.side}${layout.first ? ' first' : ''}${layout.last ? ' last' : ''}`}
     >
-      {alma ? (
-        <span className="persona-avatar-slot">
-          {layout.first ? <AlmaFace size={28} mood={mood} still /> : null}
-        </span>
+      {showHead ? (
+        <div className="persona-head">
+          <span className="persona-avatar-slot">
+            {layout.first ? <AlmaFace size={28} mood={mood} still /> : null}
+          </span>
+          {hasReasoning ? (
+            <button
+              type="button"
+              className={`quiet-text-button persona-thinking-toggle${thinkingLive ? ' live' : ''}`}
+              data-preview-omit=""
+              aria-expanded={thinkingOpen}
+              aria-controls={thinkingId}
+              onClick={() => setThinkingOpen((open) => !open)}
+            >
+              <ChevronRight size={14} aria-hidden />
+              {thinkingLive
+                ? t('message.reasoning.thinking')
+                : thinkingOpen
+                  ? t('threads.personal.hideThinking')
+                  : t('threads.personal.showThinking')}
+            </button>
+          ) : null}
+        </div>
       ) : null}
       <div className="persona-stack">
-        {parts.reasoning.length ? (
-          <button
-            type="button"
-            className="quiet-text-button persona-thinking-toggle"
-            data-preview-omit=""
-            aria-expanded={thinkingOpen}
-            onClick={() => setThinkingOpen((open) => !open)}
-          >
-            {thinkingOpen
-              ? t('threads.personal.hideThinking')
-              : t('threads.personal.showThinking')}
-          </button>
-        ) : null}
         {thinkingOpen ? (
-          <div className="persona-thinking" data-preview-omit="">
+          <div
+            id={thinkingId}
+            className="persona-thinking"
+            data-preview-omit=""
+          >
             {parts.reasoning.map((part, index) => (
               <div key={index}>
                 {capabilities.renderMarkdown(String(part.text ?? ''), {

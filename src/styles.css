@@ -11335,7 +11335,8 @@ html[data-alma-motion] .alma-shell .persona-message {
 .alma-shell-scroll {
   padding-inline: 10px;
 }
-/* Her face opens a run on its own line, so her bubbles use the full width. */
+/* Her face opens a run on its own row (with the thinking entry beside it),
+   so her bubbles use the full width. */
 .persona-message.alma {
   flex-direction: column;
   align-items: flex-start;
@@ -11394,18 +11395,63 @@ html[data-alma-motion] .alma-shell .persona-message {
   place-items: center;
   min-width: 44px;
 }
+.persona-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 92%;
+}
+/* The chevron leads, so a run's later rows (no face) line the rail up
+   under it the same way the first row lines it up under her face. */
 .persona-thinking-toggle {
   min-height: 28px;
-  padding: 0 4px;
+  gap: 4px;
+  padding: 0 8px 0 4px;
 }
 .persona-thinking-toggle:active {
   background: var(--gray-3);
 }
+.persona-thinking-toggle svg {
+  flex: none;
+  transition: rotate var(--dur-fast) var(--ease-out);
+}
+.persona-thinking-toggle[aria-expanded='true'] svg {
+  rotate: 90deg;
+}
+.persona-thinking-toggle.live {
+  animation: thinking var(--dur-thinking) var(--ease-loop-wave) infinite;
+}
+/* Opened reasoning hangs off the entry on a thin rail, smaller and muted,
+   so it reads as part of the entry and not as another bubble. */
 .persona-thinking {
-  padding: 0 4px;
+  --persona-rail-x: 13px;
+  margin-left: var(--persona-rail-x);
+  padding: 2px 4px 2px 14px;
+  border-left: var(--border-hairline) solid var(--gray-7);
   color: var(--muted-foreground);
   font-size: var(--text-xs);
   line-height: var(--leading-normal);
+  overflow-wrap: anywhere;
+  animation: siblingCrossfade var(--dur-fast) var(--ease-out);
+}
+.persona-message.alma:not(.first) .persona-thinking {
+  --persona-rail-x: 10px;
+}
+.persona-thinking > :first-child > :first-child {
+  margin-top: 0;
+}
+.persona-thinking > :last-child > :last-child {
+  margin-bottom: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .persona-thinking-toggle.live,
+  .persona-thinking {
+    animation: none;
+  }
+  .persona-thinking-toggle svg {
+    transition: none;
+  }
 }
 
 /* Voice input: the composer's voice mode, the hold overlay, the error
