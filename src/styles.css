@@ -11431,6 +11431,10 @@ html[data-alma-motion] .alma-shell .persona-message {
 .composer[data-open='false'] {
   padding: 0;
 }
+/* Folded: the row's own display would otherwise beat [hidden]. */
+.composer-controls[hidden] {
+  display: none;
+}
 .composer[data-open] > .composer-entry {
   align-items: center;
   padding: 6px;

@@ -25,6 +25,15 @@ describe('shared composer layout', () => {
     expect(startSource).toContain('attachmentTray=')
   })
 
+  // The options row is display:flex, which beats the [hidden] the folded
+  // composer sets on it unless hidden is styled again.
+  it('really hides the folded options row', () => {
+    expect(composerSource).toContain('hidden={!showOptions}')
+    expect(styles).toMatch(
+      /\.composer-controls\[hidden\] \{[^}]*display: none;/s,
+    )
+  })
+
   it('fits composer options without horizontal scrolling', () => {
     expect(composerSource).toContain('className="composer-options"')
     expect(styles).toMatch(/\.composer-options \{[^}]*overflow-x: visible;/s)
