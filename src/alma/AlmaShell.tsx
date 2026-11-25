@@ -1,4 +1,4 @@
-import { ChevronUp, Copy } from 'lucide-react'
+import { ChevronDown, Copy } from 'lucide-react'
 import { Fragment, useMemo, type CSSProperties, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLayoutMode } from '../layout/useLayoutMode'
@@ -284,7 +284,7 @@ export function AlmaShell({
         <div className="composer" data-open="false">
           <div className="composer-entry">
             <span className="quiet-icon-button composer-more">
-              <ChevronUp size={16} strokeWidth={2} />
+              <ChevronDown size={16} strokeWidth={2} />
             </span>
             <div className="composer-input">
               <textarea
