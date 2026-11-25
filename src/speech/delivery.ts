@@ -48,20 +48,33 @@ export const MIN_HOLD_MS = 1000
 export type ReleaseOutcome = DictationAction | 'cancel' | 'too_short' | 'lock'
 
 /**
+ * What the capsule beside Cancel offers: the other way out, so it never
+ * repeats what letting go anywhere else does. Release sends, it fills the
+ * text in to edit; release fills in, it sends. A composer that cannot send
+ * only ever fills in.
+ */
+export function capsuleAction(
+  release: DictationAction,
+  canSend: boolean,
+): DictationAction {
+  return canSend && release === 'insert' ? 'send' : 'insert'
+}
+
+/**
  * What letting go of a hold does: the cancel capsule abandons it, the lock
  * area keeps recording hands-free, a hold too short to be speech is
- * dropped, the edit capsule always inserts, and anywhere else follows the
- * composer's "after release" setting.
+ * dropped, and otherwise it does `action`, what the zone it ends in offers
+ * (the other capsule's action, or the composer's "after release" setting).
  */
 export function releaseOutcome(
   zone: HoldZone,
   heldMs: number,
-  release: DictationAction,
+  action: DictationAction,
 ): ReleaseOutcome {
   if (zone === 'cancel') return 'cancel'
   // A slide all the way up is deliberate, however quick: the recording
   // has only begun and goes on.
   if (zone === 'lock') return 'lock'
   if (heldMs < MIN_HOLD_MS) return 'too_short'
-  return zone === 'edit' ? 'insert' : release
+  return action
 }

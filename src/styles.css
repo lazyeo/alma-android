@@ -35,6 +35,8 @@
   --dur-stagger: 40ms;
   /* The shell fading off the real thread it covered (see almaHandoff.ts). */
   --dur-handoff: 120ms;
+  /* A long press's delay; the composer capsule charges over it. */
+  --dur-hold: 450ms;
   --dur-breathe: 2.8s;
   --dur-glance: 2.4s;
   --ease-out: cubic-bezier(0.2, 0.9, 0.3, 1);
@@ -11454,13 +11456,100 @@ html[data-alma-motion] .alma-shell .persona-message {
   }
 }
 
-/* Voice input: the composer's voice mode, the hold overlay, the error
-   sheet and Settings → Voice input. */
+/* Voice input: the composer capsule, the hold overlay, the error sheet and
+   Settings → Voice input. */
 .composer-entry {
+  position: relative;
   display: flex;
   align-items: flex-end;
   gap: 4px;
   min-width: 0;
+  border-radius: var(--radius-inner-composer);
+}
+/* A thread's composer at rest: one capsule (the shell, when the composer is
+   all it holds), the options arrow on its left, Send on its right once
+   there is something to send. Open, the options row (with Send) sits below
+   the text, the composer's usual layout. */
+.composer-shell:has(> .composer[data-open='false']):not(
+    :has(> :not(.composer))
+  ) {
+  border-radius: var(--radius-full);
+}
+.composer[data-open='false'] {
+  padding: 0;
+}
+/* The thread composer's options open below the text by growing in height,
+   so the composer rises as one block and the list above gives way; nothing
+   is laid over the messages. Closed, the fold also takes back the gap above
+   it. Visibility (discrete) stays visible until a close ends. */
+.composer[data-open] {
+  transition: padding var(--dur-panel) var(--ease-out);
+}
+.composer-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: calc(-1 * var(--composer-toolbar-gap));
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--dur-panel) var(--ease-out),
+    margin-top var(--dur-panel) var(--ease-out),
+    visibility var(--dur-panel) var(--ease-out);
+}
+.composer-fold[data-open='true'] {
+  grid-template-rows: 1fr;
+  margin-top: 0;
+  visibility: visible;
+}
+.composer-fold > .composer-controls {
+  min-height: 0;
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer[data-open],
+  .composer-fold {
+    transition-duration: var(--dur-reduced);
+  }
+}
+.composer[data-open='false'] > .composer-entry {
+  align-items: center;
+  padding: 6px;
+  border-radius: var(--radius-full);
+}
+.composer-more {
+  flex: 0 0 auto;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  border-radius: var(--radius-full);
+  color: var(--muted-foreground);
+}
+.composer-more svg {
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+.composer-more[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+.composer-entry > .send {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+  border-radius: var(--radius-full);
+}
+/* A finger resting on the empty box charges its capsule up to the hold
+   over the long-press delay; let go early and it drains. */
+[data-hold-area] {
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+[data-hold-area][data-charging='true'] {
+  background-color: var(--accent-9);
+  color: var(--accent-contrast);
+  transition: background-color var(--dur-hold) var(--ease-out);
+}
+[data-hold-area][data-charging='true'] textarea::placeholder,
+textarea[data-hold-area][data-charging='true']::placeholder {
+  color: var(--accent-contrast);
 }
 .composer-entry > .composer-input {
   flex: 1 1 auto;
@@ -11471,43 +11560,14 @@ html[data-alma-motion] .alma-shell .persona-message {
   min-height: 0;
   align-items: stretch;
 }
-/* Same height as the one-line text box it replaces (the textarea's
-   min-height), so switching modes does not resize the composer. */
-.composer-entry > .voice-hold-bar {
-  min-height: 32px;
-}
-.voice-mode-toggle {
-  flex: 0 0 auto;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  min-height: 32px;
-  border-radius: var(--radius-inner-composer);
-  color: var(--foreground);
-}
-/* The whole bar is the press target; the browser must not scroll or
-   select under a held finger. */
-.voice-hold-bar {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 0 12px;
-  border: 0;
-  border-radius: var(--radius-md);
-  background: var(--secondary);
-  color: var(--foreground);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
+/* An empty text box is also a hold-to-talk entry (see canLongPressToTalk):
+   its long press and slides are the hold's, not a pan, a selection or the
+   callout. With text, the system's select and paste come back. */
+textarea[data-hold-to-talk]:placeholder-shown {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
-  transition: background-color var(--dur-press) var(--ease-out);
-}
-.voice-hold-bar[data-active='true'] {
-  background: var(--gray-6);
-}
-.agent-composer .voice-hold-bar {
-  min-height: 42px;
 }
 /* The hold overlay draws on a fixed dark scrim in every theme, so its
    surfaces use the --voice-* tokens rather than the theme's grays. */

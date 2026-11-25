@@ -254,6 +254,7 @@ import {
   type TodoItem,
 } from './threadTodos'
 import { isScrolledAwayFromLatest } from './generationActivity'
+import { useLatestInView } from './useLatestInView'
 import {
   activeCrewRunCount,
   crewHeaderCounts,
@@ -793,6 +794,9 @@ function ThreadView({
   const foregroundRetryTimer = useRef<number>()
   const [missingThread, setMissingThread] = useState<RelayErrorPresentation>()
   const parentRef = useRef<HTMLDivElement>(null)
+  // The composer grows as a block (options, keyboard): the list gives way
+  // and keeps the latest message in view instead of sliding under it.
+  useLatestInView(parentRef, !missingThread)
   const socketRef = useRef<ThreadsSocket>()
   const resyncTimer = useRef<ReturnType<typeof setTimeout>>()
   const lastResyncAt = useRef(0)
@@ -2638,6 +2642,7 @@ function ThreadView({
         disabled={uploading || (!text.trim() && !attachments.length)}
         generating={generating}
         textareaRef={textareaRef}
+        collapsible
         voice={voice}
         inputBackdrop={
           references.length ? (

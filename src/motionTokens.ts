@@ -7,6 +7,11 @@ export const DUR_FAST_MS = 160
 export const DUR_PANEL_MS = 250
 /** The /alma shell fading off the real thread it covered. */
 export const DUR_HANDOFF_MS = 120
+/**
+ * A long press: how long a finger rests before it counts, and how long the
+ * composer capsule takes to charge up to a hold to talk.
+ */
+export const DUR_HOLD_MS = 450
 export const EASE_OUT = 'cubic-bezier(0.2, 0.9, 0.3, 1)'
 
 /** Slack after a CSS exit before its element is unmounted. */

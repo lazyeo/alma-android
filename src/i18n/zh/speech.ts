@@ -21,12 +21,8 @@ export const speech: CatalogShape<typeof source> = {
       needs_key: '{from} 未设置 key，已改用 {to}',
     },
   },
-  toggle: {
-    voice: '切换到语音输入',
-    keyboard: '切换到键盘',
-  },
   hold: {
-    bar: '按住 说话',
+    boxHint: '按住说话，点按输入',
     send: '松手 发送',
     insert: '松手 填入',
     cancel: '松手 取消',
@@ -34,6 +30,8 @@ export const speech: CatalogShape<typeof source> = {
     cancelZone: '取消',
     editZone: '滑到这里 转文字',
     editHint: '松手后转成文字，放进输入框',
+    sendZone: '滑到这里 发送',
+    sendHint: '松手后直接发送',
     lock: '松手 继续录音',
     lockHint: '上滑锁定',
   },
@@ -151,7 +149,7 @@ export const speech: CatalogShape<typeof source> = {
     },
     release: {
       title: '松手后',
-      hint: '按住说话、松手后的动作。滑到“取消”松手取消，滑到“转文字”松手先编辑。',
+      hint: '按住说话、松手后的动作。滑到“取消”松手取消；滑到另一侧则相反：这里选发送，那里转文字先编辑；选填入，那里直接发送。',
       alma: 'Alma 对话',
       herdr: 'Herdr',
       send: '发送',

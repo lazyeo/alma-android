@@ -39,6 +39,8 @@ export interface HoldOverlayProps {
   finishing: boolean
   /** What letting go in the release zone does for this composer. */
   release: DictationAction
+  /** What the capsule beside Cancel does: always the other action. */
+  capsule: DictationAction
   /** The live transcript, when the engine streams one. */
   transcript: string
   /** Recent input levels, oldest first, 0–1. */
@@ -68,6 +70,7 @@ export function HoldOverlayView({
   zone,
   finishing,
   release,
+  capsule,
   transcript,
   levels,
   engineLabel,
@@ -76,6 +79,7 @@ export function HoldOverlayView({
   locked,
 }: HoldOverlayProps) {
   const t = useT()
+  const sends = capsule === 'send'
   const frame = bubbleFrame(layout, zone)
   const remainingMs = locked ? MAX_RECORDING_MS - locked.elapsedMs : Infinity
   const status = finishing
@@ -89,7 +93,9 @@ export function HoldOverlayView({
         : t('speech.locked.status')
       : zone === 'release'
         ? t(`speech.hold.${release}`)
-        : t(`speech.hold.${zone}`)
+        : zone === 'edit' && sends
+          ? t('speech.hold.send')
+          : t(`speech.hold.${zone}`)
   const elapsed = locked ? formatElapsed(locked.elapsedMs) : ''
   // Offered while the finger can still slide up to it.
   const lockHint =
@@ -117,7 +123,7 @@ export function HoldOverlayView({
       >
         {text === null ? (
           <p className="voice-hold-text voice-hold-hint">
-            {t('speech.hold.editHint')}
+            {t(sends ? 'speech.hold.sendHint' : 'speech.hold.editHint')}
           </p>
         ) : text ? (
           <p className="voice-hold-text" data-full={zone === 'edit'}>
@@ -189,7 +195,7 @@ export function HoldOverlayView({
           <CapsuleShape
             capsule={layout.edit}
             active={zone === 'edit'}
-            label={t('speech.hold.editZone')}
+            label={t(sends ? 'speech.hold.sendZone' : 'speech.hold.editZone')}
           />
         </>
       )}

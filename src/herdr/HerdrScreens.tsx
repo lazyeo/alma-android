@@ -1260,12 +1260,13 @@ export function AgentPaneScreen() {
               {keysHidden ? <Keyboard size={17} /> : <KeyboardOff size={17} />}
             </button>
           ) : null}
-          {voice?.toggle}
-          {voice?.bar}
+          {voice?.view}
           <textarea
+            {...voice?.textHold}
+            // No capsule around this box: the box itself turns into the hold.
+            data-hold-area
+            data-charging={voice?.charging || undefined}
             ref={composerRef}
-            // Hidden, not unmounted, so the draft and caret survive voice mode.
-            hidden={Boolean(voice?.bar)}
             value={draft}
             aria-label={
               view === 'terminal'
@@ -1275,7 +1276,7 @@ export function AgentPaneScreen() {
             placeholder={
               view === 'terminal'
                 ? t('agents.terminalTextPlaceholder')
-                : t('agents.messagePlaceholder')
+                : (voice?.hint ?? t('agents.messagePlaceholder'))
             }
             rows={1}
             onChange={(event) => {

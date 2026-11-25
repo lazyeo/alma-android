@@ -19,12 +19,8 @@ export const speech = {
       needs_key: '{from} has no key set, now using {to}',
     },
   },
-  toggle: {
-    voice: 'Switch to voice input',
-    keyboard: 'Switch to keyboard',
-  },
   hold: {
-    bar: 'Hold to talk',
+    boxHint: 'Hold to talk, tap to type',
     send: 'Release to send',
     insert: 'Release to fill in',
     cancel: 'Release to cancel',
@@ -32,6 +28,8 @@ export const speech = {
     cancelZone: 'Cancel',
     editZone: 'Slide here to edit',
     editHint: 'Release and the text goes into the input box',
+    sendZone: 'Slide here to send',
+    sendHint: 'Release and it is sent right away',
     lock: 'Release to keep recording',
     lockHint: 'Slide up to lock',
   },
@@ -159,7 +157,7 @@ export const speech = {
     },
     release: {
       title: 'After release',
-      hint: 'What letting go of “Hold to talk” does. Slide onto “Cancel” to drop it, or onto the other capsule to edit the text first.',
+      hint: 'What letting go of “Hold to talk” does. Slide onto “Cancel” to drop it; the other capsule does the opposite: it edits the text first when this is Send, and sends when this is Insert.',
       alma: 'Alma chat',
       herdr: 'Herdr agents',
       send: 'Send',

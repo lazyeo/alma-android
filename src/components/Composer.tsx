@@ -12,6 +12,7 @@ import {
 } from '../screens/modelOptions'
 import { BottomSheet } from './BottomSheet'
 import { useT } from '../i18n'
+import type { VoiceInput } from '../speech/VoiceInput'
 
 const ICON = { size: 16, strokeWidth: 2 } as const
 
@@ -45,10 +46,12 @@ type ComposerProps = {
   inputBackdrop?: ReactNode
   trailing?: ReactNode
   /**
-   * Voice mode: a switch left of the input and, in voice mode, the
-   * hold-to-talk bar shown in place of the text box.
+   * Folds into a one-line capsule, its options row opening from an arrow
+   * (a thread's composer). Off, the options always show (a new thread).
    */
-  voice?: { toggle: ReactNode; bar: ReactNode | null }
+  collapsible?: boolean
+  /** Voice input: the text box's long press, its hint and the hold view. */
+  voice?: Pick<VoiceInput, 'textHold' | 'hint' | 'view' | 'charging'>
   textareaRef?: React.RefObject<HTMLTextAreaElement>
   onTextareaKeyDown?(event: KeyboardEvent<HTMLTextAreaElement>): boolean | void
   textareaProps?: React.TextareaHTMLAttributes<HTMLTextAreaElement>
@@ -80,6 +83,7 @@ export function Composer({
   expanded = false,
   inputBackdrop,
   trailing,
+  collapsible = false,
   voice,
   textareaRef,
   onTextareaKeyDown,
@@ -90,118 +94,177 @@ export function Composer({
   const selected = models.find((candidate) => candidate.id === model)
   const groups = useMemo(() => groupModelsByProvider(models), [models])
   const project = projects.find((candidate) => candidate.id === projectId)
-  // Hidden rather than unmounted in voice mode, so its ref, caret and
-  // draft survive the switch.
-  const input = (hidden: boolean) => (
-    <div className="composer-input" hidden={hidden}>
-      {inputBackdrop}
-      <textarea
-        {...textareaProps}
-        ref={textareaRef}
-        rows={1}
-        value={value}
-        placeholder={placeholder}
-        onChange={(event) =>
-          onChange(
-            event.target.value,
-            event.target,
-            (event.nativeEvent as InputEvent).isComposing,
-          )
-        }
-        onKeyDown={(event) => {
-          if (onTextareaKeyDown?.(event) === true) return
-          if (
-            event.key === 'Enter' &&
-            !event.nativeEvent.isComposing &&
-            (event.metaKey || event.ctrlKey)
-          ) {
-            event.preventDefault()
-            onSend()
-          }
-        }}
-      />
+  // A collapsible composer rests as one capsule; its options row (attach,
+  // model, effort, Send) opens below it from the arrow, or by itself when
+  // typing starts, giving back the usual layout.
+  const [open, setOpen] = useState(false)
+  const folds = collapsible && !expanded
+  // Folded, Send rides in the capsule; open, it is back at the row's end.
+  const sendInCapsule = folds && !open
+  const send = () => {
+    if (folds) setOpen(false)
+    onSend()
+  }
+  const sendButton = (
+    <button
+      className={`send${generating ? ' queue-send' : ''}`}
+      aria-label={generating ? t('composer.queueFollowUp') : t('composer.send')}
+      disabled={disabled || sending}
+      onClick={send}
+    >
+      <span className="send-icons" aria-hidden="true">
+        <ArrowUp {...ICON} className="send-icon-send" />
+        <ListPlus {...ICON} className="send-icon-queue" />
+      </span>
+    </button>
+  )
+  const controls = (
+    <div className="composer-controls">
+      {attachmentControl}
+      <div className="composer-options">
+        {onProjectChange ? (
+          <button
+            className="composer-chip"
+            aria-haspopup="dialog"
+            onClick={() => setSheet('project')}
+          >
+            <span>{project?.name || t('composer.noProject')}</span>
+            <ChevronDown size={14} strokeWidth={2} />
+          </button>
+        ) : null}
+        <button
+          className="composer-chip"
+          aria-haspopup="dialog"
+          onClick={() => {
+            void haptic('selection')
+            setSheet('model')
+          }}
+        >
+          <span>{shortModelName(selected)}</span>
+          <ChevronDown size={14} strokeWidth={2} />
+        </button>
+        {supportsReasoningEffort(selected) ? (
+          <button
+            className="composer-chip"
+            aria-haspopup="dialog"
+            aria-label={t('composer.effort.current', {
+              effort: effortLabel(effort),
+            })}
+            onClick={() => setSheet('effort')}
+          >
+            <Brain {...ICON} />
+            <span>{effortLabel(effort)}</span>
+          </button>
+        ) : null}
+        {supportsFastMode(selected) && onFastModeChange ? (
+          <button
+            className="composer-chip fast-chip"
+            aria-pressed={fastMode}
+            aria-label={t('composer.fastMode')}
+            onClick={onFastModeChange}
+          >
+            <Zap {...ICON} />
+            <span>{t('composer.fast')}</span>
+          </button>
+        ) : null}
+      </div>
+      {sendInCapsule ? null : (
+        <>
+          <span className="composer-spacer" />
+          {sendButton}
+        </>
+      )}
     </div>
+  )
+  // Folding, the row opens and closes in height below the text, so the
+  // whole composer grows and the message list above gives way (it keeps
+  // the latest message in view; see useLatestInView). Closed it is inert
+  // and hidden from assistive tech, but mounted, so the attachment control
+  // keeps its state.
+  const options = folds ? (
+    <div
+      className="composer-fold"
+      data-open={open}
+      aria-hidden={open ? undefined : true}
+      {...(open ? {} : ({ inert: '' } as Record<string, string>))}
+    >
+      {controls}
+    </div>
+  ) : (
+    controls
   )
   return (
     <>
-      <div className={`composer${expanded ? ' expanded' : ''}`}>
+      <div
+        className={`composer${expanded ? ' expanded' : ''}`}
+        data-open={folds ? open : undefined}
+      >
         {leading}
         {attachmentTray}
-        {voice ? (
-          // One wrapper in every mode, so the textarea is never remounted.
-          <div className="composer-entry">
-            {expanded ? null : voice.toggle}
-            {expanded ? null : voice.bar}
-            {input(!expanded && Boolean(voice.bar))}
-          </div>
-        ) : (
-          input(false)
-        )}
-        {trailing}
-        <div className="composer-controls">
-          {attachmentControl}
-          <div className="composer-options">
-            {onProjectChange ? (
-              <button
-                className="composer-chip"
-                aria-haspopup="dialog"
-                onClick={() => setSheet('project')}
-              >
-                <span>{project?.name || t('composer.noProject')}</span>
-                <ChevronDown size={14} strokeWidth={2} />
-              </button>
-            ) : null}
+        {/* The capsule: what a long press turns into the hold. */}
+        <div
+          className="composer-entry"
+          data-hold-area
+          data-charging={voice?.charging || undefined}
+        >
+          {folds ? (
             <button
-              className="composer-chip"
-              aria-haspopup="dialog"
+              type="button"
+              className="quiet-icon-button composer-more"
+              aria-expanded={open}
+              aria-label={
+                open ? t('composer.options.hide') : t('composer.options.show')
+              }
               onClick={() => {
                 void haptic('selection')
-                setSheet('model')
+                setOpen(!open)
               }}
             >
-              <span>{shortModelName(selected)}</span>
-              <ChevronDown size={14} strokeWidth={2} />
+              {/* Points the way the row opens: down, then up to close. */}
+              <ChevronDown {...ICON} />
             </button>
-            {supportsReasoningEffort(selected) ? (
-              <button
-                className="composer-chip"
-                aria-haspopup="dialog"
-                aria-label={t('composer.effort.current', {
-                  effort: effortLabel(effort),
-                })}
-                onClick={() => setSheet('effort')}
-              >
-                <Brain {...ICON} />
-                <span>{effortLabel(effort)}</span>
-              </button>
-            ) : null}
-            {supportsFastMode(selected) && onFastModeChange ? (
-              <button
-                className="composer-chip fast-chip"
-                aria-pressed={fastMode}
-                aria-label={t('composer.fastMode')}
-                onClick={onFastModeChange}
-              >
-                <Zap {...ICON} />
-                <span>{t('composer.fast')}</span>
-              </button>
-            ) : null}
+          ) : null}
+          <div className="composer-input">
+            {inputBackdrop}
+            <textarea
+              {...textareaProps}
+              // The full-screen editor is for typing: no long press there.
+              {...(expanded ? undefined : voice?.textHold)}
+              ref={textareaRef}
+              rows={1}
+              value={value}
+              // The empty box says what a tap and a hold do; the full-screen
+              // editor is for typing only.
+              placeholder={(!expanded && voice?.hint) || placeholder}
+              onFocus={(event) => {
+                textareaProps?.onFocus?.(event)
+                if (folds) setOpen(true)
+              }}
+              onChange={(event) =>
+                onChange(
+                  event.target.value,
+                  event.target,
+                  (event.nativeEvent as InputEvent).isComposing,
+                )
+              }
+              onKeyDown={(event) => {
+                if (onTextareaKeyDown?.(event) === true) return
+                if (
+                  event.key === 'Enter' &&
+                  !event.nativeEvent.isComposing &&
+                  (event.metaKey || event.ctrlKey)
+                ) {
+                  event.preventDefault()
+                  send()
+                }
+              }}
+            />
           </div>
-          <span className="composer-spacer" />
-          <button
-            className={`send${generating ? ' queue-send' : ''}`}
-            aria-label={
-              generating ? t('composer.queueFollowUp') : t('composer.send')
-            }
-            disabled={disabled || sending}
-            onClick={onSend}
-          >
-            <span className="send-icons" aria-hidden="true">
-              <ArrowUp {...ICON} className="send-icon-send" />
-              <ListPlus {...ICON} className="send-icon-queue" />
-            </span>
-          </button>
+          {sendInCapsule && (!disabled || sending) ? sendButton : null}
         </div>
+        {trailing}
+        {options}
+        {voice?.view}
       </div>
       {sheet === 'project' ? (
         <BottomSheet

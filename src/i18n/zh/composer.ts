@@ -26,6 +26,10 @@ export const composer: CatalogShape<typeof source> = {
   fast: 'Fast',
   send: '发送消息',
   queueFollowUp: '加入排队',
+  options: {
+    show: '更多选项',
+    hide: '收起选项',
+  },
   uploading: '正在上传…',
   attachments: {
     add: '添加附件',
