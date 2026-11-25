@@ -15,6 +15,7 @@ import { MIN_HOLD_MS } from './delivery'
 import { MAX_RECORDING_MS } from './dictationSession'
 import {
   defaultSpeechSettings,
+  loadSpeechSettings,
   saveSpeechSettings,
   setEngineEnabled,
 } from './engineStore'
@@ -338,6 +339,65 @@ describe('hold to talk', () => {
       expect(onInsert).toHaveBeenCalledWith('git status', 'caret'),
     )
     expect(onSend).not.toHaveBeenCalled()
+  })
+
+  it('offers Send in the other capsule where release fills in (Herdr)', async () => {
+    const { onSend, onInsert } = renderComposer({ surface: 'herdr' })
+    await press()
+    const capsules = [...document.querySelectorAll('.voice-hold-capsule')]
+    expect(capsules.map((capsule) => capsule.textContent)).toEqual([
+      'Cancel',
+      'Slide here to send',
+    ])
+    slide(LAYOUT.edit.cx, LAYOUT.edit.cy)
+    expect(activeCapsule()).toBe('Slide here to send')
+    expect(status()).toBe('Release to send')
+    expect(document.querySelector('.voice-hold-hint')?.textContent).toBe(
+      'Release and it is sent right away',
+    )
+    letGo()
+    await finishWith('git status')
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith('git status'))
+    expect(onInsert).not.toHaveBeenCalled()
+  })
+
+  it('offers To text in the other capsule where release sends', async () => {
+    renderComposer()
+    await press()
+    expect(status()).toBe('Release to send')
+    slide(LAYOUT.edit.cx, LAYOUT.edit.cy)
+    expect(activeCapsule()).toBe('Slide here to edit')
+    expect(status()).toBe('Release to edit')
+    expect(document.querySelector('.voice-hold-hint')?.textContent).toBe(
+      'Release and the text goes into the input box',
+    )
+  })
+
+  it('follows the saved setting: release fills in, the capsule sends', async () => {
+    saveSpeechSettings({
+      ...loadSpeechSettings(),
+      release: { alma: 'insert', herdr: 'insert' },
+    })
+    const { onSend } = renderComposer()
+    await press()
+    expect(status()).toBe('Release to fill in')
+    slide(LAYOUT.edit.cx, LAYOUT.edit.cy)
+    expect(activeCapsule()).toBe('Slide here to send')
+    letGo()
+    await finishWith('hello there')
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith('hello there'))
+  })
+
+  it('only fills in from the capsule where the composer cannot send', async () => {
+    const { onInsert } = renderComposer({ surface: 'herdr', onSend: undefined })
+    await press()
+    slide(LAYOUT.edit.cx, LAYOUT.edit.cy)
+    expect(activeCapsule()).toBe('Slide here to edit')
+    letGo()
+    await finishWith('git log')
+    await waitFor(() =>
+      expect(onInsert).toHaveBeenCalledWith('git log', 'caret'),
+    )
   })
 
   it('holds back a too-short result and says why', async () => {
@@ -800,6 +860,19 @@ describe('locked recording', () => {
     await finishWith('edit me')
     await waitFor(() =>
       expect(onInsert).toHaveBeenCalledWith('edit me', 'caret'),
+    )
+    expect(onSend).not.toHaveBeenCalled()
+  })
+
+  it('puts the text in the composer with To text where release fills in', async () => {
+    const { onSend, onInsert } = renderComposer({ surface: 'herdr' })
+    await press()
+    lockUp()
+    heldFor += 5000
+    fireEvent.click(await screen.findByRole('button', { name: 'To text' }))
+    await finishWith('git diff')
+    await waitFor(() =>
+      expect(onInsert).toHaveBeenCalledWith('git diff', 'caret'),
     )
     expect(onSend).not.toHaveBeenCalled()
   })

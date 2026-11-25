@@ -15,6 +15,7 @@ import { useT } from '../i18n'
 import {
   decideDelivery,
   MIN_HOLD_MS,
+  capsuleAction,
   releaseOutcome,
   type DictationAction,
 } from './delivery'
@@ -354,8 +355,8 @@ export function useHoldToTalk({
   }
 
   /**
-   * What letting go in `zone` does, from the finger or from a locked
-   * recording's buttons (which name the zone their action matches).
+   * Letting go in `zone`, which offers `action`: from the finger, or from a
+   * locked recording's buttons (which name the zone their action matches).
    */
   const conclude = (
     zone: HoldZone,
@@ -424,8 +425,15 @@ export function useHoldToTalk({
     void haptic('selection')
   }
 
+  // The other capsule never repeats the release: see capsuleAction.
+  const capsule = capsuleAction(release, canSend)
   const letGo = () => {
-    if (hold) conclude(hold.zone, hold.pressedAt, release)
+    if (hold)
+      conclude(
+        hold.zone,
+        hold.pressedAt,
+        hold.zone === 'edit' ? capsule : release,
+      )
   }
 
   const recording = Boolean(hold || locked)
@@ -551,6 +559,7 @@ export function useHoldToTalk({
           zone,
           finishing: Boolean(finishing),
           release,
+          capsule,
           transcript,
           levels,
           engineLabel: label(active),
@@ -565,7 +574,7 @@ export function useHoldToTalk({
                   elapsedMs,
                   canSend,
                   onSend: () => conclude('release', locked.pressedAt, 'send'),
-                  onEdit: () => conclude('edit', locked.pressedAt, release),
+                  onEdit: () => conclude('edit', locked.pressedAt, 'insert'),
                 }
               : undefined,
         }

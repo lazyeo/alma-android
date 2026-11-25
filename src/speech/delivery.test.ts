@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { decideDelivery, MIN_HOLD_MS, releaseOutcome } from './delivery'
+import {
+  capsuleAction,
+  decideDelivery,
+  MIN_HOLD_MS,
+  releaseOutcome,
+} from './delivery'
 
 describe('decideDelivery', () => {
   it('sends a real result into an empty composer', () => {
@@ -56,9 +61,22 @@ describe('releaseOutcome', () => {
     expect(releaseOutcome('lock', 60_000, 'insert')).toBe('lock')
   })
 
-  it('inserts from the edit capsule and follows the setting elsewhere', () => {
-    expect(releaseOutcome('edit', MIN_HOLD_MS, 'send')).toBe('insert')
+  it('does what the zone it ends in offers', () => {
+    expect(releaseOutcome('edit', MIN_HOLD_MS, 'insert')).toBe('insert')
+    expect(releaseOutcome('edit', MIN_HOLD_MS, 'send')).toBe('send')
     expect(releaseOutcome('release', MIN_HOLD_MS, 'send')).toBe('send')
     expect(releaseOutcome('release', MIN_HOLD_MS, 'insert')).toBe('insert')
+  })
+})
+
+describe('capsuleAction', () => {
+  it('offers the other way out than the release, never the same', () => {
+    expect(capsuleAction('send', true)).toBe('insert')
+    expect(capsuleAction('insert', true)).toBe('send')
+  })
+
+  it('only fills in where the composer cannot send', () => {
+    expect(capsuleAction('insert', false)).toBe('insert')
+    expect(capsuleAction('send', false)).toBe('insert')
   })
 })
