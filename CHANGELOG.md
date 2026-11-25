@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- Nothing yet.
+
+## [0.1.11] - 2026-11-26
+
+### Added
+
 - The thread composer is one capsule, and holding it talks: there is no voice/keyboard switch any more. The empty box reads "Hold to talk, tap to type". A tap opens the keyboard; press and hold and the capsule fills with colour, then hold-to-talk opens (slide to cancel, edit or lock; release to send or fill in, per Settings → Voice input). Once the box has text, a long press selects and pastes as before. The arrow on the left points down and opens the usual row of attachments, model, reasoning effort and Send below the text (so does starting to type); the composer grows smoothly as one block and the messages above move up, the latest still in view, also when the keyboard opens. Folded, Send shows in the capsule once there is something to send (2026-11-24).
 - Show hidden threads: a filter button beside the Threads and Projects tabs brings back the threads the lists leave out (Alma's work threads, scheduled-task runs and external chats such as Telegram or Discord) in Threads, projects, the project card and GTD, each with a small tag. Off by default; the choice is kept on this device. Search finds them either way (2026-11-25).
 
@@ -20,7 +26,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - A thread's model and reasoning effort could go missing from the composer (an empty Model button, no effort) when the computer's project list or settings failed to load, as in Alma's conversation opened while the connection was still starting; the models now load on their own and are fetched again once the connection is up (2026-11-25).
 - Files Alma sends in her conversation (`alma send file`, end-of-turn results, files she writes) now show as cards you can open or download, as in other threads, and her header has the same menu with the conversation's Files (2026-11-25).
-
 ## [0.1.10] - 2026-11-18
 
 ### Added
@@ -270,7 +275,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Foldable layouts, a frosted screen transition, optional Shizuku live hinge-angle input, and an estimated fallback.
 - Foreground-lifetime local notifications for completed replies and pending approvals; no push service is used.
 
-[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.10...HEAD
+[Unreleased]: https://github.com/lazyeo/alma-android/compare/v0.1.11...HEAD
 [0.1.0]: https://github.com/lazyeo/alma-android/releases/tag/v0.1.0
 [0.1.1]: https://github.com/lazyeo/alma-android/compare/v0.1.0...v0.1.1
 [0.1.2]: https://github.com/lazyeo/alma-android/compare/v0.1.1...v0.1.2
@@ -282,3 +287,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [0.1.8]: https://github.com/lazyeo/alma-android/compare/v0.1.7...v0.1.8
 [0.1.9]: https://github.com/lazyeo/alma-android/compare/v0.1.8...v0.1.9
 [0.1.10]: https://github.com/lazyeo/alma-android/compare/v0.1.9...v0.1.10
+[0.1.11]: https://github.com/lazyeo/alma-android/compare/v0.1.10...v0.1.11
