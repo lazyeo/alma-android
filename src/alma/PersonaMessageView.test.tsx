@@ -11,7 +11,15 @@ vi.mock('../screens/LoadingOrbCanvas', () => ({
   LoadingOrb: () => <i data-testid="orb" />,
 }))
 
-afterEach(cleanup)
+const { openFile } = vi.hoisted(() => ({ openFile: vi.fn() }))
+vi.mock('../screens/FileLinkSheet', () => ({
+  useFileLinks: () => ({ openFile }),
+}))
+
+afterEach(() => {
+  cleanup()
+  openFile.mockReset()
+})
 
 const capabilities = {
   renderMarkdown: (text: string) => <p>{text}</p>,
@@ -270,5 +278,126 @@ describe('PersonaMessageView', () => {
       'alma $$x$$',
       expect.objectContaining({ math: true }),
     )
+  })
+
+  describe('delivered files', () => {
+    const cards = (container: HTMLElement) =>
+      [...container.querySelectorAll('.end-resource-card')].map(
+        (card) => card.querySelector('strong')?.textContent,
+      )
+
+    it('draws a card for a file sent during her reply and opens it on tap', () => {
+      // Real shape: `alma send file` inside a turn merges into the reply's
+      // metadata.endResources; the Bash part that sent it stays hidden.
+      const { container } = renderRows([
+        message(
+          'a1',
+          'assistant',
+          [
+            {
+              type: 'tool-Bash',
+              state: 'output-available',
+              input: { command: 'alma send file "$F" "debug build"' },
+            },
+            { type: 'text', text: 'APK sent, tap the card.' },
+          ],
+          {
+            endResources: [
+              {
+                type: 'file',
+                path: '/Users/me/build/app-debug.apk',
+                title: 'app-debug.apk',
+                description: 'debug build',
+              },
+            ],
+          },
+        ),
+      ])
+      expect(cards(container)).toEqual(['app-debug.apk'])
+      expect(screen.getByText('debug build')).toBeTruthy()
+      expect(screen.queryByText(/alma send file/)).toBeNull()
+      fireEvent.click(container.querySelector('.end-resource-card')!)
+      expect(openFile).toHaveBeenCalledWith('/Users/me/build/app-debug.apk')
+    })
+
+    it('draws a card for a delivery row that has no parts at all', () => {
+      // `alma send file` outside a turn adds an assistant row with parts: []
+      // and only metadata.endResources.
+      const { container } = renderRows([
+        message('a1', 'assistant', [], {
+          endResources: [
+            { type: 'file', path: '/Users/me/report.pdf', title: 'report.pdf' },
+          ],
+        }),
+      ])
+      expect(cards(container)).toEqual(['report.pdf'])
+      expect(screen.queryByTestId('orb')).toBeNull()
+    })
+
+    it('draws cards for files she wrote, resolving relative paths', () => {
+      const rows = [
+        message('a1', 'assistant', [
+          {
+            type: 'tool-Write',
+            state: 'output-available',
+            input: { file_path: 'notes/plan.md' },
+          },
+          {
+            type: 'tool-Edit',
+            state: 'output-available',
+            output: { file_path: '/Users/me/MEMORY.md' },
+          },
+          { type: 'text', text: 'Saved.' },
+        ]),
+      ]
+      const { container } = render(
+        <LanguageProvider>
+          <PersonaMessageView
+            row={rows[0]}
+            layout={personaLayout(rows)[0]}
+            workspacePath="/Users/me/project"
+            mood="happy"
+            capabilities={capabilities}
+          />
+        </LanguageProvider>,
+      )
+      expect(cards(container)).toEqual(['plan.md', 'MEMORY.md'])
+      fireEvent.click(container.querySelectorAll('.end-resource-card')[0])
+      expect(openFile).toHaveBeenCalledWith('/Users/me/project/notes/plan.md')
+    })
+
+    it('lists a file once when metadata and a Write name the same path', () => {
+      const { container } = renderRows([
+        message(
+          'a1',
+          'assistant',
+          [
+            {
+              type: 'tool-Write',
+              state: 'output-available',
+              input: { file_path: '/Users/me/a.md' },
+            },
+          ],
+          { endResources: [{ type: 'file', path: '/Users/me/a.md' }] },
+        ),
+      ])
+      expect(cards(container)).toEqual(['a.md'])
+    })
+
+    it('waits for the reply to finish, and never decorates the user side', () => {
+      const endResources = [{ type: 'file', path: '/Users/me/a.md' }]
+      const { container } = renderRows(
+        [
+          message('u1', 'user', [{ type: 'text', text: 'Send it' }], {
+            endResources,
+          }),
+          message('a1', 'assistant', [{ type: 'text', text: 'Working' }], {
+            endResources,
+          }),
+        ],
+        true,
+      )
+      expect(cards(container)).toEqual([])
+    })
   })
 })

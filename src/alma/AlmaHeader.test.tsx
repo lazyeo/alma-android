@@ -36,7 +36,11 @@ const ready = (
 
 function renderHeader(
   state: PersonalAgentState,
-  props: { generating?: boolean; onBack?: () => void } = {},
+  props: {
+    generating?: boolean
+    onBack?: () => void
+    files?: { count: number; onOpen: () => void }
+  } = {},
 ) {
   return render(
     <LanguageProvider>
@@ -52,6 +56,7 @@ function renderHeader(
         <AlmaHeader
           generating={props.generating ?? false}
           onBack={props.onBack}
+          files={props.files}
         />
       </AlmaPresenceContext.Provider>
     </LanguageProvider>,
@@ -115,5 +120,30 @@ describe('AlmaHeader', () => {
       container.querySelector('header')!.classList.contains('docked'),
     ).toBe(false)
     expect(container.querySelectorAll('.alma-avatar')).toHaveLength(1)
+  })
+
+  it('has no menu while there is no thread to list files for', () => {
+    renderHeader(ready())
+    expect(screen.queryByRole('button', { name: 'Thread menu' })).toBeNull()
+  })
+
+  it('opens the thread files from the trailing menu, like a normal thread', () => {
+    const onOpen = vi.fn()
+    const { container } = renderHeader(ready(), {
+      files: { count: 2, onOpen },
+    })
+    const trigger = screen.getByRole('button', { name: 'Thread menu' })
+    expect(trigger.closest('.detail-actions')?.parentElement).toBe(
+      container.querySelector('header'),
+    )
+    fireEvent.click(trigger)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Files (2)' }))
+    expect(onOpen).toHaveBeenCalledTimes(1)
+  })
+
+  it('still offers Files before any file is known', () => {
+    renderHeader(ready(), { files: { count: 0, onOpen: vi.fn() } })
+    fireEvent.click(screen.getByRole('button', { name: 'Thread menu' }))
+    expect(screen.getByRole('menuitem', { name: 'Files' })).toBeTruthy()
   })
 })

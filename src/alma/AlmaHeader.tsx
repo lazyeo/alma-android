@@ -1,5 +1,6 @@
-import { ArrowLeft } from 'lucide-react'
-import { useRef } from 'react'
+import { ArrowLeft, Folder, MoreVertical } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { AnchoredMenu } from '../components/AnchoredMenu'
 import { useT } from '../i18n'
 import { useLayoutMode } from '../layout/useLayoutMode'
 import { AlmaFace } from './AlmaFace'
@@ -14,16 +15,21 @@ import { useMeasuredBox } from './measuredBox'
  * `generating` comes from the open thread, which knows a reply started
  * before the shared activity feed does. On split layouts her face is the
  * split shell's dock across the rail edge instead (`AlmaDock`), so the
- * header leaves room for it and draws none of its own.
+ * header leaves room for it and draws none of its own. The trailing menu
+ * carries the thread's files entry, as a normal thread's header menu does.
  */
 export function AlmaHeader({
   generating,
   onBack,
+  files,
 }: {
   generating: boolean
   onBack?: () => void
+  /** Omitted by the stand-in shell, which has no thread to list yet. */
+  files?: { count: number; onOpen: () => void }
 }) {
   const t = useT()
+  const [menuOpen, setMenuOpen] = useState(false)
   const presence = useAlmaPresence()
   const docked = useLayoutMode() === 'split'
   const avatarRef = useRef<HTMLSpanElement>(null)
@@ -65,6 +71,33 @@ export function AlmaHeader({
           </p>
         ) : null}
       </div>
+      {files ? (
+        <div className="detail-actions">
+          <AnchoredMenu
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
+            label={t('thread.menu.label')}
+            trigger={
+              <button
+                className="header-action-button"
+                aria-label={t('thread.menu.label')}
+              >
+                <MoreVertical size={18} strokeWidth={2} />
+              </button>
+            }
+            items={[
+              {
+                key: 'files',
+                label: files.count
+                  ? t('thread.menu.filesCount', { count: files.count })
+                  : t('thread.menu.files'),
+                icon: <Folder size={16} />,
+                onSelect: files.onOpen,
+              },
+            ]}
+          />
+        </div>
+      ) : null}
     </header>
   )
 }

@@ -81,6 +81,35 @@ describe('shellRows', () => {
 })
 
 describe('shellBlocks', () => {
+  it('keeps her delivered files so the list matches the thread', () => {
+    const file = { type: 'file', path: '/Users/me/report.pdf' }
+    const rows = [
+      row('u', 'user', [text('Send it')], {
+        metadata: { endResources: [file] },
+      }),
+      row('a', 'assistant', [text('Here.')], {
+        metadata: { endResources: [file] },
+      }),
+      // `alma send file` outside a turn: no parts, only the resource.
+      row('d', 'assistant', [], { metadata: { endResources: [file] } }),
+      row('w', 'assistant', [
+        {
+          type: 'tool-Write',
+          state: 'output-available',
+          input: { file_path: '/Users/me/notes.md' },
+        },
+      ]),
+    ]
+    const result = shellRows(rows)
+    expect(result.map((item) => [item.id, item.resources])).toEqual([
+      ['u', undefined],
+      ['a', [file]],
+      ['d', [file]],
+      ['w', [{ type: 'file', path: '/Users/me/notes.md' }]],
+    ])
+    expect(result.find((item) => item.id === 'd')!.blocks).toEqual([])
+  })
+
   it('joins soft line breaks into one paragraph like Markdown does', () => {
     expect(shellBlocks('one\ntwo\n\n## Three')).toEqual([
       { kind: 'p', text: 'one two' },

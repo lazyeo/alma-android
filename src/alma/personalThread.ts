@@ -46,11 +46,29 @@ export function isCronThread(thread: {
   )
 }
 
+/**
+ * Why a thread stays out of the browsing lists until "Show hidden threads"
+ * is on: her run threads and cron runs are dropped here, while external
+ * chats (Telegram, Discord and other channels) never reach the phone
+ * unless the list is fetched with `showExternal`.
+ */
+export type HiddenThreadKind = 'run' | 'cron' | 'external'
+
+/** Which of her background kinds a thread is, judged from the row alone. */
+export function backgroundThreadKind(thread: {
+  title?: string
+  metadata?: Record<string, unknown>
+}): 'run' | 'cron' | undefined {
+  if (isPersonalRunThread(thread)) return 'run'
+  if (isCronThread(thread)) return 'cron'
+  return undefined
+}
+
 // Desktop's own "background thread" test is exactly these two.
 const isBackgroundRunThread = (thread: {
   title?: string
   metadata?: Record<string, unknown>
-}) => isPersonalRunThread(thread) || isCronThread(thread)
+}) => backgroundThreadKind(thread) !== undefined
 
 /**
  * Her run threads and cron runs would bury the conversations you started,

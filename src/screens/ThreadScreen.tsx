@@ -534,7 +534,12 @@ export function ThreadScreen() {
 export interface PersonaChrome {
   /** Where header and hardware Back return to. */
   backPath: string
-  renderHeader(props: { generating: boolean; onBack?: () => void }): ReactNode
+  renderHeader(props: {
+    generating: boolean
+    onBack?: () => void
+    /** The thread's files entry, the same sheet a normal thread's menu opens. */
+    files: { count: number; onOpen: () => void }
+  }): ReactNode
 }
 
 export function PersonaThreadScreen({
@@ -2738,6 +2743,7 @@ function ThreadView({
         {persona ? persona.renderHeader({
           generating,
           onBack: layoutMode === 'single' ? () => navigate(listPath) : undefined,
+          files: { count: knownFileCount, onOpen: openThreadFiles },
         }) : (
         <header className="detail-header">
           {layoutMode === 'single' ? (
@@ -2967,6 +2973,7 @@ function ThreadView({
                             row={row}
                             layout={personaRows[item.index]}
                             generating={generating && row === roots.at(-1)}
+                            workspacePath={workspacePath}
                             mood={almaFace.mood}
                             capabilities={threadPartCapabilities}
                             onActions={setActionRow}

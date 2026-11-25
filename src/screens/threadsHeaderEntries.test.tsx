@@ -27,6 +27,9 @@ vi.mock('./useDesktopThreadList', () => ({
   useDesktopThreadList: () => ({
     threads: [],
     searchableThreads: [],
+    showHidden: false,
+    setShowHidden: vi.fn(),
+    hiddenKindOf: () => undefined,
     setThreads: vi.fn(),
     workspaces: [],
     settings: {},
